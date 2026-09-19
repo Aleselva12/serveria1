@@ -16,3 +16,4 @@ langchain-groq
 
 langchain-ollama
 streamlit
+psutil
