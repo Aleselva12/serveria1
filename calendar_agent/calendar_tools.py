@@ -2,17 +2,17 @@ from langchain.tools import tool
 from calendar_agent.calendar_utilities import ListGoogleCalendarEvents, CreateGoogleCalendarEvent, DeleteGoogleCalendarEvent, PostponeGoogleCalendarEvent
 from calendar_agent.calendar_utilities import api_resource
 from typing import TypedDict, cast
-from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from dotenv import load_dotenv
 import os
 
 load_dotenv()  # this will load variables from .env into environment
 
-GROQ_API_KEY2 = os.getenv("GROQ_API_KEY2")
 
-llm = ChatGroq(
-    model="llama-3.1-8b-instant",
-    api_key=GROQ_API_KEY2
+llm = ChatOllama(
+    model=os.getenv("OLLAMA_MODEL", "gpt-oss:20b"),
+    base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11435"),
+    temperature=0.0
 )
 
 @tool
