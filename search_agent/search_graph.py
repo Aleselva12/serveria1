@@ -4,12 +4,12 @@ from typing import Annotated, Sequence, TypedDict
 
 from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_ollama import ChatOllama
-from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, StateGraph
+from langgraph.prebuilt import ToolNode
 
-from search_agent.search_tools import tavily_search
 from search_agent.search_prompt import SEARCH_AGENT_PROMPT
+from search_agent.search_tools import LOCAL_RESEARCH_TOOLS
 
 
 class AgentState(TypedDict):
@@ -27,14 +27,15 @@ def call_llm(state: AgentState):
         base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11435"),
         temperature=0,
     )
-    llm_with_tools = llm.bind_tools([tavily_search])
+
+    llm_with_tools = llm.bind_tools(LOCAL_RESEARCH_TOOLS)
     response = llm_with_tools.invoke(messages)
     return {"messages": [response]}
 
 
 def should_continue(state: AgentState):
     last_message = state["messages"][-1]
-    if last_message.tool_calls:
+    if getattr(last_message, "tool_calls", None):
         return "tools"
     return END
 
@@ -42,7 +43,7 @@ def should_continue(state: AgentState):
 def create_search_graph():
     workflow = StateGraph(AgentState)
     workflow.add_node("call_llm", call_llm)
-    workflow.add_node("tools", ToolNode([tavily_search]))
+    workflow.add_node("tools", ToolNode(LOCAL_RESEARCH_TOOLS))
     workflow.set_entry_point("call_llm")
     workflow.add_conditional_edges(
         "call_llm",
@@ -55,4 +56,4 @@ def create_search_graph():
 
 if __name__ == "__main__":
     app = create_search_graph()
-    print("Successfully built the search agent graph with local Ollama.")
+    print("Local Research Agent graph ready.")
