@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from langchain_core.tools import tool, InjectedToolCallId
 from langchain_core.messages import ToolMessage
 from langgraph.types import Command
@@ -15,7 +15,6 @@ class EmailDraft(BaseModel):
     body: str = Field(description="The main content of the email")
 
 load_dotenv()
-GROQ_API_KEY3 = os.getenv("GROQ_API_KEY3")
 
 CREATE_EMAIL_PROMPT = """<>
 You are an expert email copywriter. Given the brief provided below, generate a professional, clear, and engaging email.
@@ -45,9 +44,9 @@ def create_email(brief: str, tool_call_id: Annotated[str, InjectedToolCallId]) -
     
     formatted_prompt = prompt_template.format(brief=brief)
     
-    llm = ChatGroq(
-        model="llama-3.3-70b-versatile",
-        api_key=GROQ_API_KEY3,
+    llm = ChatOllama(
+        model=os.getenv("OLLAMA_MODEL", "gpt-oss:20b"),
+        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11435"),
         temperature=0.7
     )
     
