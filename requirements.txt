@@ -12,8 +12,6 @@ google-auth-httplib2
 google-api-python-client
 python-dateutil
 pytz
-langchain-groq
-
 langchain-ollama
 streamlit
 psutil
