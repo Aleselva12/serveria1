@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
-from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 from langgraph.checkpoint.memory import MemorySaver
 import json
@@ -26,17 +26,16 @@ from email_agent.tools.reply import reply_email
 from email_agent.email_connector import save_as_draft, get_gmail_service
 
 load_dotenv()
-GROQ_API_KEY3 = os.getenv("GROQ_API_KEY3")
 
 # Gather tools
 tools = [summarize_email, filter_email, create_email, list_emails, reply_email]
 
 # Initialize model
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    api_key=GROQ_API_KEY3,
-    temperature=0.0
-)
+llm = ChatOllama(
+        model=os.getenv("OLLAMA_MODEL", "gpt-oss:20b"),
+        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11435"),
+        temperature=0.0
+    )
 
 # Bind tools to the model
 model = llm.bind_tools(tools)
