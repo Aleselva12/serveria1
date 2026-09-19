@@ -4,10 +4,9 @@ import sys
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from langchain_core.prompts import PromptTemplate
-from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 
 load_dotenv()
-GROQ_API_KEY2 = os.getenv("GROQ_API_KEY2")
 
 class EmailClassification(BaseModel):
     category: str = Field(
@@ -57,9 +56,9 @@ def filter_email(email_id: str, state: Annotated[dict, InjectedState]) -> str:
         content=email.get("body", "")
     )
     
-    llm = ChatGroq(
-        model="llama-3.1-8b-instant",
-        api_key=GROQ_API_KEY2,
+    llm = ChatOllama(
+        model=os.getenv("OLLAMA_MODEL", "gpt-oss:20b"),
+        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11435"),
         temperature=0.0
     )
     
