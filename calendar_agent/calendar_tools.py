@@ -30,7 +30,7 @@ def create_event_tool(start_datetime: str, end_datetime: str, summary: str, loca
     Returns:
         str: Confirmation message with event link.
     """
-    timezone="Asia/Kolkata"
+    timezone="Europe/Rome"
     try:
         tool = CreateGoogleCalendarEvent(api_resource)
         result = tool._run(
@@ -59,7 +59,7 @@ def list_events_tool(start_datetime: str, end_datetime: str, max_results: int = 
     Returns:
         list: List of event dicts (each includes event ID, summary, times, etc.).
     """
-    timezone="Asia/Kolkata"
+    timezone="Europe/Rome"
     try:
         tool = ListGoogleCalendarEvents(api_resource)
         events = tool._run(
@@ -94,7 +94,7 @@ def postpone_event_tool(
     Returns:
         str: Confirmation message(s) or clarification prompt.
     """
-    timezone = "Asia/Kolkata"
+    timezone = "Europe/Rome"
     args = {
         "start_datetime": start_datetime,
         "end_datetime": end_datetime
