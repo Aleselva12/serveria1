@@ -7,7 +7,7 @@ from langchain_core.tools import tool
 from core.logging import tail_events
 from core.memory import memory_stats
 from core.orchestration import resolve_plan_owner
-from core.permissions import permission_manifest
+from core.permissions import check_permission, permission_manifest
 from core.plans import (
     create_evaluation_record,
     create_management_record,
@@ -22,12 +22,19 @@ from core.registry import get_registry
 from local_tools import list_project_files, read_project_file, system_status_tool
 
 
+def _require_permission(action: str) -> None:
+    decision = check_permission("structure_agent", action)
+    if not decision.allowed:
+        raise PermissionError(decision.reason)
+
+
 @tool
 def structure_components(kind: str = "") -> str:
     """
     Restituisce il registro centrale dei componenti di Cora.
     kind può essere core, agent, tool, interface oppure vuoto.
     """
+    _require_permission("inspect_structure")
     normalized = kind.strip().lower() or None
     allowed = {None, "core", "agent", "tool", "interface"}
     if normalized not in allowed:
@@ -38,6 +45,7 @@ def structure_components(kind: str = "") -> str:
 @tool
 def structure_memory_status() -> str:
     """Restituisce solo statistiche tecniche della memoria persistente."""
+    _require_permission("inspect_memory_status")
     return json.dumps(memory_stats(), ensure_ascii=False, indent=2)
 
 
@@ -48,6 +56,7 @@ def structure_recent_events(
     component: str = "",
 ) -> str:
     """Legge eventi recenti del log strutturato per diagnosi."""
+    _require_permission("inspect_events")
     events = tail_events(
         limit=max(1, min(limit, 100)),
         event_type=event_type.strip(),
@@ -63,6 +72,10 @@ def structure_control_snapshot(event_limit: int = 20) -> str:
     componenti dichiarati, stato sistema, memoria e ultimi eventi strutturati.
     Non modifica nulla.
     """
+    _require_permission("inspect_runtime")
+    _require_permission("inspect_structure")
+    _require_permission("inspect_memory_status")
+    _require_permission("inspect_events")
     snapshot = {
         "registry": get_registry(),
         "system_status": json.loads(system_status_tool.invoke({})),
@@ -70,6 +83,37 @@ def structure_control_snapshot(event_limit: int = 20) -> str:
         "recent_events": tail_events(limit=max(1, min(event_limit, 50))),
     }
     return json.dumps(snapshot, ensure_ascii=False, indent=2)
+
+
+@tool
+def structure_system_status() -> str:
+    """Legge CPU, RAM e disco passando dal permission engine."""
+    _require_permission("inspect_runtime")
+    return system_status_tool.invoke({})
+
+
+@tool
+def structure_list_project_files(
+    directory: str = ".",
+    extension: str = "",
+    recursive: bool = True,
+) -> str:
+    """Elenca file autorizzati del progetto passando dal permission engine."""
+    _require_permission("list_project_files")
+    return list_project_files.invoke(
+        {
+            "directory": directory,
+            "extension": extension,
+            "recursive": recursive,
+        }
+    )
+
+
+@tool
+def structure_read_project_file(relative_path: str) -> str:
+    """Legge un file autorizzato del progetto passando dal permission engine."""
+    _require_permission("read_project_file")
+    return read_project_file.invoke({"relative_path": relative_path})
 
 
 @tool
@@ -187,7 +231,7 @@ def structure_read_artifact(relative_path: str) -> str:
 
 STRUCTURE_TOOLS = [
     structure_components,
-    system_status_tool,
+    structure_system_status,
     structure_memory_status,
     structure_recent_events,
     structure_control_snapshot,
@@ -198,6 +242,6 @@ STRUCTURE_TOOLS = [
     structure_save_management,
     structure_list_artifacts,
     structure_read_artifact,
-    list_project_files,
-    read_project_file,
+    structure_list_project_files,
+    structure_read_project_file,
 ]
