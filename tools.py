@@ -1,3 +1,5 @@
+import uuid
+
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 
@@ -10,7 +12,7 @@ from local_tools import (
 
 
 @tool
-def search_agent_tool(query: str, thread_id: str = "search_thread") -> str:
+def search_agent_tool(query: str, thread_id: str = "") -> str:
     """
     Usa il Local Research Agent per trovare, leggere, confrontare e analizzare
     informazioni contenute nei documenti locali autorizzati. Non usa Internet.
@@ -18,35 +20,38 @@ def search_agent_tool(query: str, thread_id: str = "search_thread") -> str:
     from search_agent.search_graph import create_search_graph
 
     search_app = create_search_graph()
-    config = {"configurable": {"thread_id": thread_id}}
+    effective_thread_id = thread_id or f"search_{uuid.uuid4()}"
+    config = {"configurable": {"thread_id": effective_thread_id}}
     state = {"messages": [HumanMessage(content=query)]}
     result = search_app.invoke(state, config=config)
     return result["messages"][-1].content
 
 
 @tool
-def audio_agent_tool(query: str, thread_id: str = "audio_thread") -> str:
+def audio_agent_tool(query: str, thread_id: str = "") -> str:
     """
     Usa l'Audio Agent per trovare e trascrivere file audio locali e,
     quando richiesto, riassumere o analizzare la trascrizione.
     """
     from audio_agent.audio_graph import graph as audio_app
 
-    config = {"configurable": {"thread_id": thread_id}}
+    effective_thread_id = thread_id or f"audio_{uuid.uuid4()}"
+    config = {"configurable": {"thread_id": effective_thread_id}}
     state = {"messages": [HumanMessage(content=query)]}
     result = audio_app.invoke(state, config=config)
     return result["messages"][-1].content
 
 
 @tool
-def email_agent_tool(query: str, thread_id: str = "email_thread") -> str:
+def email_agent_tool(query: str, thread_id: str = "") -> str:
     """
     Usa l'Email & Quotes Agent per cercare nell'archivio mail, riassumere
     la posta di una giornata, preparare bozze e generare preventivi PDF.
     """
     from email_agent.email_graph import graph as email_app
 
-    config = {"configurable": {"thread_id": thread_id}}
+    effective_thread_id = thread_id or f"email_{uuid.uuid4()}"
+    config = {"configurable": {"thread_id": effective_thread_id}}
     state = {"messages": [HumanMessage(content=query)]}
     result = email_app.invoke(state, config=config)
     return result["messages"][-1].content
