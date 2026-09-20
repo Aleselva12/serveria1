@@ -20,6 +20,9 @@ MODULES = [
     "core.registry",
     "core.logging",
     "core.memory",
+    "core.permissions",
+    "core.orchestration",
+    "core.plans",
     "local_tools",
     "search_agent.search_tools",
     "search_agent.search_graph",
@@ -76,6 +79,7 @@ def check_configuration() -> None:
         "CORA_QUOTE_ROOT": "preventivi PDF",
         "CORA_LOG_ROOT": "logging strutturato",
         "CORA_MEMORY_DB": "memoria persistente",
+        "CORA_STRUCTURE_WORKSPACE": "workspace Structure Agent",
     }
 
     for name, purpose in optional.items():
