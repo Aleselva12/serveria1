@@ -40,17 +40,14 @@ def audio_agent_tool(query: str, thread_id: str = "audio_thread") -> str:
 
 @tool
 def email_agent_tool(query: str, thread_id: str = "email_thread") -> str:
-    """Consulta e prepara email quando Gmail è configurato."""
-    from email_agent.email_connector import fetch_emails
-    from email_agent.agent.email_graph import graph as email_app
+    """
+    Usa l'Email & Quotes Agent per cercare nell'archivio mail, riassumere
+    la posta di una giornata, preparare bozze e generare preventivi PDF.
+    """
+    from email_agent.email_graph import graph as email_app
 
-    recent_emails = fetch_emails()
     config = {"configurable": {"thread_id": thread_id}}
-    state = {
-        "emails": recent_emails,
-        "messages": [HumanMessage(content=query)],
-        "revision_count": 0,
-    }
+    state = {"messages": [HumanMessage(content=query)]}
     result = email_app.invoke(state, config=config)
     return result["messages"][-1].content
 
