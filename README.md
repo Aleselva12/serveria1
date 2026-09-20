@@ -17,8 +17,11 @@ Cora / Supervisor
 │   ├── note vocali / riflessioni
 │   ├── conversazioni a due interlocutori
 │   └── riassunto e analisi su richiesta
-└── Email Agent
-    └── agente originale ancora da rivedere
+└── Email & Quotes Agent
+    ├── ricerca archivio mail
+    ├── digest giornaliero
+    ├── bozze email
+    └── preventivi PDF
 ```
 
 Non è presente un agente di ricerca web. Il Local Research Agent lavora soltanto sui documenti autorizzati.
@@ -96,13 +99,23 @@ La trascrizione usa `faster-whisper`. La separazione degli speaker usa opzionalm
 
 Vedi `audio_agent/README.md` per la configurazione completa.
 
+## Email & Quotes Agent
+
+Gestisce ricerca nell'archivio mail, digest giornalieri, bozze email e generazione di preventivi PDF locali.
+
+La generazione PDF attuale è una base funzionale. In una fase successiva i preventivi saranno automatizzati collegando l'agente a cataloghi, listini, dati cliente, varianti, condizioni commerciali e altre fonti strutturate autorizzate.
+
+Vedi `email_agent/README.md` per i dettagli.
+
 ## Sicurezza del proof of concept
 
 - accesso a file limitato alle directory autorizzate;
 - credenziali escluse dalla lettura locale e da Git;
 - modelli e audio locali esclusi dal repository;
 - nessuna ricerca web nel Local Research Agent;
-- nessun upload audio richiesto dall'Audio Agent.
+- nessun upload audio richiesto dall'Audio Agent;
+- nessun invio automatico di email;
+- i preventivi non possono inventare dati commerciali mancanti.
 
 ## Roadmap
 
