@@ -1,27 +1,17 @@
-import os
 from dotenv import load_dotenv
 
-from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, AIMessage
 from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.memory import MemorySaver
 
+from core.models import get_chat_model
 from tools import supervisor_tools
 from prompt import SUPERVISOR_PROMPT
 
 load_dotenv()
 
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gpt-oss:20b")
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11435")
-
-# The supervisor uses Ollama explicitly.
-llm = ChatOllama(
-    model=OLLAMA_MODEL,
-    base_url=OLLAMA_BASE_URL,
-    temperature=0.0,
-)
-
+llm = get_chat_model("supervisor", temperature=0.0)
 model_with_tools = llm.bind_tools(supervisor_tools)
 
 
