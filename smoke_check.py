@@ -72,6 +72,8 @@ def check_configuration() -> None:
         "CORA_DIARIZATION_MODEL": "diarizzazione audio",
         "CORA_GMAIL_CREDENTIALS_PATH": "Gmail",
         "CORA_QUOTE_ROOT": "preventivi PDF",
+        "CORA_LOG_ROOT": "logging strutturato",
+        "CORA_MEMORY_DB": "memoria persistente",
     }
 
     for name, purpose in optional.items():
