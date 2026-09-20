@@ -10,6 +10,8 @@ google-auth-httplib2
 google-api-python-client
 langchain-ollama
 streamlit
+fastapi
+uvicorn
 psutil
 python-docx
 faster-whisper
