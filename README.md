@@ -13,6 +13,7 @@ FastAPI
       ↓
 Cora / Supervisor LangGraph
 ├── strumenti locali
+├── Structure Agent
 ├── Local Research Agent
 ├── Audio Agent
 └── Email & Quotes Agent
@@ -20,7 +21,7 @@ Cora / Supervisor LangGraph
 Ollama locale
 ```
 
-Il Supervisor è il punto centrale di ingresso. Riceve la richiesta dell'utente, può rispondere direttamente oppure delegare a uno strumento locale o a uno dei tre agenti specializzati.
+Il Supervisor è il punto centrale di ingresso. Riceve la richiesta dell'utente, può rispondere direttamente oppure delegare a uno strumento locale o a uno dei quattro agenti specializzati.
 
 Tutti gli agenti LLM usano la configurazione Ollama definita nelle variabili d'ambiente. La configurazione predefinita è:
 
@@ -76,6 +77,88 @@ structure_registry_tool
 ```
 
 Il registro non implementa ancora permessi avanzati. Logging e memoria persistente sono ora componenti core separati e registrati.
+
+## Ownership, piani e permessi
+
+Il progetto contiene ora tre moduli core aggiuntivi:
+
+```text
+core/
+├── orchestration.py
+├── permissions.py
+└── plans.py
+```
+
+### Ownership provvisoria
+
+I piani e i task usano sempre:
+
+```text
+owner = orchestrator
+```
+
+L'orchestratore leggero ispirato a reti biologiche non è ancora implementato. `core/orchestration.py` mantiene quindi questa ownership attraverso un resolver deterministico di fallback.
+
+Il fallback non esegue e non instrada autonomamente i task. Serve soltanto a mantenere stabile il contratto dei piani finché verrà collegato l'orchestratore reale.
+
+Ogni task separa l'owner dal componente che dovrebbe eseguire materialmente il lavoro:
+
+```text
+owner: orchestrator
+target_component: email_quotes_agent
+```
+
+### Artefatti strutturati
+
+`core/plans.py` definisce e salva tre tipi di artefatti runtime:
+
+```text
+structure_workspace/
+├── plans/
+├── evaluations/
+└── management/
+```
+
+I piani contengono obiettivo, owner, priorità, stato, task, dipendenze, azioni richieste, target component, output attesi, criteri di valutazione, rischi, blocker, checkpoint e criteri di completamento.
+
+Le evaluation distinguono criteri, evidenze, elementi passed, failed e unknown, rischi, correzioni richieste e raccomandazione.
+
+Gli artefatti management conservano priorità, dipendenze, handoff e prossimi passi.
+
+Il workspace è escluso da Git ed è configurabile con:
+
+```env
+CORA_STRUCTURE_WORKSPACE=./structure_workspace
+```
+
+### Permission Engine
+
+`core/permissions.py` implementa un controllo deterministico dei permessi per singola azione.
+
+Livelli attualmente definiti:
+
+```text
+OBSERVE
+READ
+DRAFT
+WRITE
+EXECUTE
+ADMIN
+```
+
+Ogni azione ha inoltre una policy:
+
+```text
+AUTO
+CONFIRM
+BLOCKED
+```
+
+`CONFIRM` può essere sbloccata da un'approvazione esplicita dell'utente. `BLOCKED` rimane vietata finché la configurazione della policy non viene modificata deliberatamente; un agente non può auto-elevarsi.
+
+Per ora sono configurate regole solo per lo Structure Agent. Può leggere e osservare il sistema, creare piani/evaluation e scrivere esclusivamente nel proprio workspace. Non può modificare codice sorgente, configurazione core, memoria persistente o eseguire azioni esterne.
+
+Questa configurazione è volutamente semplice e sarà estesa o modificata quando entreranno agenti più grandi e con maggiori responsabilità operative.
 
 ## Logging e memoria persistente
 
@@ -174,9 +257,11 @@ Per svolgere questi compiti può:
 - analizzare gli eventi recenti del log strutturato;
 - ottenere uno snapshot combinato di controllo del sistema;
 - elencare e leggere i file testuali autorizzati del progetto;
-- produrre piani, checklist, valutazioni, decisioni e istruzioni di handoff nella propria risposta.
+- produrre piani, checklist, valutazioni, decisioni e istruzioni di handoff;
+- salvare plan, evaluation e management artifact strutturati nel proprio workspace;
+- consultare il manifest dei permessi e lo stato del resolver dell'owner.
 
-La sua autorità di esecuzione è per ora volutamente limitata: non modifica file, configurazione o memoria e non esegue azioni esterne. La possibilità di scrivere piani o artefatti di gestione su file potrà essere aggiunta successivamente tramite tool controllati.
+La sua autorità di esecuzione è per ora volutamente limitata: può scrivere soltanto piani, evaluation e artefatti di management nel workspace dedicato. Non può modificare codice, configurazione core o memoria persistente e non esegue azioni esterne.
 
 Il modello può essere configurato separatamente:
 
@@ -484,7 +569,10 @@ serveria1/
 ├── .env.example
 ├── core/
 │   ├── logging.py
-│   └── memory.py
+│   ├── memory.py
+│   ├── orchestration.py
+│   ├── permissions.py
+│   └── plans.py
 ├── frontend/
 ├── structure_agent/
 ├── search_agent/
