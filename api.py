@@ -8,6 +8,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from core.logging import logged_operation
+from core.memory import memory_stats
 from core.registry import get_agents, get_registry
 from graph import graph
 
@@ -59,6 +61,7 @@ def health():
         "ollama_online": _ollama_online(),
         "model": OLLAMA_MODEL,
         "agents": [agent["name"] for agent in get_agents()],
+        "memory": memory_stats(),
     }
 
 
@@ -79,19 +82,26 @@ def chat(request: ChatRequest):
     thread_id = request.thread_id or str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
 
-    result = graph.invoke(
-        {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": message,
-                }
-            ]
-        },
-        config=config,
-    )
+    with logged_operation(
+        "chat_request",
+        component="supervisor",
+        thread_id=thread_id,
+        data={"message_chars": len(message)},
+    ) as operation:
+        result = graph.invoke(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": message,
+                    }
+                ]
+            },
+            config=config,
+        )
+        response = result["messages"][-1].content
+        operation["result"] = {"response_chars": len(response)}
 
-    response = result["messages"][-1].content
     return ChatResponse(
         response=response,
         thread_id=thread_id,
