@@ -15,3 +15,5 @@ langchain-ollama
 streamlit
 psutil
 python-docx
+faster-whisper
+pyannote.audio
