@@ -1,8 +1,11 @@
+import json
 import uuid
 
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 
+from core.logging import logged_operation, tail_events
+from core.memory import delete_memory, save_memory, search_memories
 from core.registry import registry_json
 from local_tools import (
     calculator_tool,
@@ -27,6 +30,79 @@ def structure_registry_tool(kind: str = "") -> str:
 
 
 @tool
+def recent_system_events_tool(
+    limit: int = 20,
+    event_type: str = "",
+    component: str = "",
+) -> str:
+    """
+    Legge gli eventi strutturati più recenti del sistema Cora.
+    È uno strumento di osservazione: non modifica log o memoria.
+    """
+    events = tail_events(
+        limit=max(1, min(limit, 100)),
+        event_type=event_type.strip(),
+        component=component.strip(),
+    )
+    return json.dumps(events, ensure_ascii=False, indent=2)
+
+
+@tool
+def remember_tool(
+    memory_type: str,
+    key: str,
+    content: str,
+    importance: int = 3,
+    expires_at: str = "",
+) -> str:
+    """
+    Salva o aggiorna una memoria persistente locale.
+    Usare solo quando l'utente chiede esplicitamente di ricordare/conservare
+    un'informazione o quando il flusso applicativo lo autorizza esplicitamente.
+    """
+    result = save_memory(
+        memory_type=memory_type,
+        key=key,
+        content=content,
+        importance=importance,
+        expires_at=expires_at.strip() or None,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+@tool
+def recall_memory_tool(
+    query: str = "",
+    memory_type: str = "",
+    limit: int = 10,
+) -> str:
+    """
+    Cerca nella memoria persistente locale di Cora.
+    Usa una ricerca lessicale semplice su chiave e contenuto.
+    """
+    results = search_memories(
+        query=query,
+        memory_type=memory_type,
+        limit=max(1, min(limit, 50)),
+    )
+    return json.dumps(results, ensure_ascii=False, indent=2)
+
+
+@tool
+def forget_memory_tool(memory_id: str) -> str:
+    """
+    Elimina una singola memoria persistente per ID.
+    Usare solo quando l'utente chiede esplicitamente di cancellarla.
+    """
+    deleted = delete_memory(memory_id)
+    return json.dumps(
+        {"memory_id": memory_id, "deleted": deleted},
+        ensure_ascii=False,
+        indent=2,
+    )
+
+
+@tool
 def search_agent_tool(query: str, thread_id: str = "") -> str:
     """
     Usa il Local Research Agent per trovare, leggere, confrontare e analizzare
@@ -38,7 +114,15 @@ def search_agent_tool(query: str, thread_id: str = "") -> str:
     effective_thread_id = thread_id or f"search_{uuid.uuid4()}"
     config = {"configurable": {"thread_id": effective_thread_id}}
     state = {"messages": [HumanMessage(content=query)]}
-    result = search_app.invoke(state, config=config)
+
+    with logged_operation(
+        "agent_delegation",
+        component="local_research_agent",
+        thread_id=effective_thread_id,
+        data={"query_chars": len(query)},
+    ):
+        result = search_app.invoke(state, config=config)
+
     return result["messages"][-1].content
 
 
@@ -53,7 +137,15 @@ def audio_agent_tool(query: str, thread_id: str = "") -> str:
     effective_thread_id = thread_id or f"audio_{uuid.uuid4()}"
     config = {"configurable": {"thread_id": effective_thread_id}}
     state = {"messages": [HumanMessage(content=query)]}
-    result = audio_app.invoke(state, config=config)
+
+    with logged_operation(
+        "agent_delegation",
+        component="audio_agent",
+        thread_id=effective_thread_id,
+        data={"query_chars": len(query)},
+    ):
+        result = audio_app.invoke(state, config=config)
+
     return result["messages"][-1].content
 
 
@@ -68,7 +160,15 @@ def email_agent_tool(query: str, thread_id: str = "") -> str:
     effective_thread_id = thread_id or f"email_{uuid.uuid4()}"
     config = {"configurable": {"thread_id": effective_thread_id}}
     state = {"messages": [HumanMessage(content=query)]}
-    result = email_app.invoke(state, config=config)
+
+    with logged_operation(
+        "agent_delegation",
+        component="email_quotes_agent",
+        thread_id=effective_thread_id,
+        data={"query_chars": len(query)},
+    ):
+        result = email_app.invoke(state, config=config)
+
     return result["messages"][-1].content
 
 
@@ -78,6 +178,10 @@ supervisor_tools = [
     list_project_files,
     read_project_file,
     structure_registry_tool,
+    recent_system_events_tool,
+    recall_memory_tool,
+    remember_tool,
+    forget_memory_tool,
     search_agent_tool,
     audio_agent_tool,
     email_agent_tool,
