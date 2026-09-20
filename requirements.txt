@@ -1,6 +1,5 @@
 langchain
 langchain-core
-langchain-google-genai
 langgraph
 python-dotenv
 rich
@@ -9,8 +8,6 @@ google-auth
 google-auth-oauthlib
 google-auth-httplib2
 google-api-python-client
-python-dateutil
-pytz
 langchain-ollama
 streamlit
 psutil
