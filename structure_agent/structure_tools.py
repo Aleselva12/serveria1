@@ -65,7 +65,7 @@ def structure_control_snapshot(event_limit: int = 20) -> str:
     """
     snapshot = {
         "registry": get_registry(),
-        "system_status": system_status_tool.invoke({}),
+        "system_status": json.loads(system_status_tool.invoke({})),
         "memory": memory_stats(),
         "recent_events": tail_events(limit=max(1, min(event_limit, 50))),
     }
@@ -109,7 +109,7 @@ def structure_save_plan(
     )
     path = save_plan_record(record)
     return json.dumps(
-        {"saved": True, "relative_path": str(path.relative_to(path.parents[1])), "plan": record},
+        {"saved": True, "relative_path": f"plans/{path.name}", "plan": record},
         ensure_ascii=False,
         indent=2,
     )
@@ -141,7 +141,7 @@ def structure_save_evaluation(
     )
     path = save_evaluation_record(record)
     return json.dumps(
-        {"saved": True, "file": path.name, "evaluation": record},
+        {"saved": True, "relative_path": f"evaluations/{path.name}", "evaluation": record},
         ensure_ascii=False,
         indent=2,
     )
@@ -167,7 +167,7 @@ def structure_save_management(
     )
     path = save_management_record(record)
     return json.dumps(
-        {"saved": True, "file": path.name, "management": record},
+        {"saved": True, "relative_path": f"management/{path.name}", "management": record},
         ensure_ascii=False,
         indent=2,
     )
