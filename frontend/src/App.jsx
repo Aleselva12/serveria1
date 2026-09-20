@@ -42,6 +42,7 @@ function App() {
       { icon: FileSearch, name: "Documenti", detail: "Ricerca e analisi locale" },
       { icon: Mic2, name: "Audio", detail: "Trascrizioni e conversazioni" },
       { icon: Mail, name: "Mail", detail: "Archivio, digest e preventivi" },
+      { icon: Server, name: "Struttura", detail: "Architettura, stato e diagnosi" },
     ],
     []
   );
