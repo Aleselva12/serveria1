@@ -126,6 +126,20 @@ def normalize_message(full_msg: dict) -> dict:
     }
 
 
+def get_message(message_id: str) -> dict:
+    """Fetch one Gmail message by its exact message ID."""
+    if not message_id or not message_id.strip():
+        raise ValueError("message_id mancante.")
+
+    service = get_gmail_service()
+    full_msg = service.users().messages().get(
+        userId="me",
+        id=message_id.strip(),
+        format="full",
+    ).execute()
+    return normalize_message(full_msg)
+
+
 def search_messages(query: str = "", max_results: int = 50) -> list[dict]:
     service = get_gmail_service()
     request = service.users().messages().list(
@@ -137,12 +151,7 @@ def search_messages(query: str = "", max_results: int = 50) -> list[dict]:
 
     emails = []
     for message in results.get("messages", []):
-        full_msg = service.users().messages().get(
-            userId="me",
-            id=message["id"],
-            format="full",
-        ).execute()
-        emails.append(normalize_message(full_msg))
+        emails.append(get_message(message["id"]))
 
     return emails
 
