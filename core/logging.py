@@ -5,6 +5,7 @@ import os
 import threading
 import time
 import uuid
+from collections import deque
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -97,7 +98,7 @@ def tail_events(limit: int = 50, event_type: str = "", component: str = "") -> l
     selected: list[dict[str, Any]] = []
 
     with LOG_FILE.open("r", encoding="utf-8") as handle:
-        lines = handle.readlines()[-2000:]
+        lines = deque(handle, maxlen=2000)
 
     for line in reversed(lines):
         try:
