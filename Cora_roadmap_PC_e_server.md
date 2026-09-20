@@ -1,61 +1,98 @@
 # Cora — roadmap prova PC e installazione finale server
 
-Aggiornata il 15 settembre 2026.
+Aggiornata il 20 settembre 2026.
 
 ## Decisione di progetto
 
-Il lavoro attuale sul PC Windows è un **proof of concept temporaneo**. Serve per capire il repository JARVIS, verificare LangGraph, provare `gpt-oss:20b`, sperimentare gli agenti e raccogliere idee. Non deve diventare una configurazione di produzione.
+Il lavoro attuale sul PC Windows è un **proof of concept temporaneo**. Serve a verificare LangGraph, Ollama locale, routing multi-agente, strumenti locali ed esperienza utente prima della futura installazione sul server Debian.
 
-La configurazione definitiva verrà progettata e installata successivamente sul server Debian. Durante la prova sul PC annoteremo decisioni, problemi, misure e idee utili alla versione finale.
+La configurazione definitiva verrà progettata e installata successivamente sul server. Durante la prova sul PC annotiamo decisioni, problemi, misure e idee utili alla versione finale.
 
-## Essenziale adesso — prova sul PC
+## Stato attuale del proof of concept
 
-1. Conservare il container `ia-ollama` con Ollama 0.34.1 e `gpt-oss:20b`.
-2. Mantenere il collegamento JARVIS/LangGraph → Ollama locale.
-3. Usare l'interfaccia Streamlit per prove manuali.
-4. Rendere chiara l'identità di Cora e impedire che dichiari falsamente di essere GPT-4.
-5. Provare il routing supervisore → agenti e almeno uno strumento completamente locale.
-6. Sostituire o disabilitare Tavily/Groq/Gemini e ogni funzione che richieda token LLM cloud.
-7. Lasciare Gmail e Calendar opzionali: la loro assenza non deve bloccare l'avvio.
-8. Misurare tempi di risposta, RAM, CPU e stabilità. Stato rilevato: `gpt-oss:20b` usa circa 13,3 GB ed è eseguito al 100% su CPU nel container Windows.
-9. Annotare problemi, modifiche al repository e idee emerse durante le prove.
+Cora usa:
 
-Non è essenziale ora: memoria definitiva, sicurezza di produzione, accesso remoto, avvio permanente, database definitivo, GPU perfettamente configurata o containerizzazione completa dell'interfaccia.
+- Supervisor LangGraph;
+- Ollama locale tramite `gpt-oss:20b` configurabile;
+- Local Research Agent per documenti locali e Word;
+- Audio Agent per trascrizione, diarizzazione opzionale e analisi audio;
+- Email & Quotes Agent per archivio Gmail, digest giornaliero, bozze e preventivi PDF;
+- strumenti locali per calcolo, file di progetto e stato del sistema;
+- Streamlit come interfaccia temporanea.
 
-## Da progettare nella versione finale sul server
+Non sono presenti Tavily, Groq, Gemini o altri LLM cloud nel percorso principale.
 
-1. Architettura Docker Compose riproducibile e versionata.
+## Priorità immediata — prova sul PC
+
+1. Verificare stabilità del Supervisor e routing verso i tre agenti.
+2. Eseguire smoke test e test manuali con casi reali.
+3. Misurare latenza, CPU, RAM e comportamento di `gpt-oss:20b`.
+4. Testare Local Research Agent su documenti reali.
+5. Testare Audio Agent su riflessione personale e telefonata reale.
+6. Testare Email Agent su archivio Gmail reale e digest giornaliero.
+7. Verificare generazione PDF dei preventivi.
+8. Costruire una nuova esperienza utente più modulare della UI Streamlit attuale.
+9. Documentare errori, modifiche e limiti emersi.
+
+## Esperienza utente — prossimo blocco
+
+La UI definitiva del proof of concept dovrebbe separare frontend e backend.
+
+Direzione prevista:
+
+```text
+Frontend modificabile
+        ↓
+FastAPI
+        ↓
+Cora / LangGraph
+        ↓
+Agenti e strumenti
+```
+
+L'obiettivo è arrivare anche a un avvio semplice da desktop, senza legare l'architettura futura a Streamlit.
+
+## Da progettare successivamente
+
+- Agente Struttura per conoscere topologia, capacità, permessi e stato dei componenti.
+- Agente Programmatore con accessi controllati a codice, test e modifiche.
+- Automazione dei preventivi tramite cataloghi, listini, varianti e dati cliente strutturati.
+
+## Versione finale sul server
+
+1. Docker Compose riproducibile e versionato.
 2. FastAPI come API centrale e LangGraph come orchestratore.
-3. PostgreSQL + pgvector come memoria persistente; Redis per code, stato e timeout.
-4. Langfuse per tracce, latenza, errori, costi computazionali e valutazione degli agenti.
-5. n8n come strato di automazione, senza trasformarlo nel cervello del sistema.
-6. Modelli locali selezionati in base ai compiti e alle risorse del server.
-7. PC principale come worker opzionale: il server può chiedergli aiuto per compiti pesanti quando è online.
-8. Heartbeat, registro delle capacità, timeout, fallback e coda dei lavori per il worker remoto.
-9. Tailscale o rete privata; autenticazione e autorizzazioni per ogni azione sensibile.
-10. Memoria strutturata con provenienza, importanza, scadenza e separazione tra fatti, ipotesi e preferenze.
-11. Strumenti locali o senza token per ricerca, file, calendario, email e automazioni; conferma umana per azioni irreversibili.
-12. Interfaccia web/telefono, notifiche e successivamente voce con Whisper e Piper.
-13. Backup, ripristino, aggiornamenti controllati, healthcheck e avvio automatico.
-14. Benchmark degli agenti e politica di allocazione dinamica delle risorse (“pulsazione” tra pochi e molti agenti).
-15. Integrazione con i servizi già presenti sul server senza compromettere Immich, Nextcloud, Samba e gli altri dati personali.
+3. PostgreSQL + pgvector per memoria persistente.
+4. Redis per code, stato e timeout.
+5. Langfuse per tracce, latenza, errori e valutazione.
+6. n8n come strato di automazione, non come cervello del sistema.
+7. Modelli locali selezionati in base ai compiti e alle risorse.
+8. PC principale come worker opzionale per attività pesanti.
+9. Heartbeat, registro capacità, timeout, fallback e code di lavoro.
+10. Tailscale o rete privata e autorizzazioni per azioni sensibili.
+11. Memoria strutturata con provenienza, importanza, scadenza e distinzione tra fatti e ipotesi.
+12. Interfaccia web/telefono e successiva integrazione voce.
+13. Backup, ripristino, healthcheck e avvio automatico.
+14. Benchmark agenti e allocazione dinamica delle risorse.
+15. Integrazione senza compromettere Immich, Nextcloud, Samba e gli altri servizi del server.
 
-## Regola durante il proof of concept
+## Regola del proof of concept
 
-Ogni nuova idea va classificata in una delle tre categorie:
+Ogni nuova idea va classificata come:
 
-* **Provare ora:** serve a verificare un principio fondamentale.
-* **Annotare per il server:** utile, ma richiede architettura stabile o sicurezza.
-* **Scartare:** duplica funzioni, aggiunge complessità senza valore o richiede cloud a pagamento.
+- **Provare ora**: verifica un principio fondamentale.
+- **Annotare per il server**: utile ma richiede architettura più stabile.
+- **Scartare**: aggiunge complessità senza valore sufficiente.
 
 ## Criterio di chiusura della prova PC
 
 La prova può considerarsi riuscita quando:
 
-* Cora risponde stabilmente dall'interfaccia grafica;
-* usa il modello locale corretto;
-* il supervisore riesce a chiamare almeno un agente o strumento locale;
-* l'assenza di credenziali cloud non provoca errori all'avvio;
-* abbiamo misure indicative di velocità e consumo;
-* le modifiche utili e i limiti osservati sono documentati per l'installazione sul server.
-
+- Cora risponde stabilmente dalla UI;
+- usa il modello locale configurato;
+- il Supervisor instrada correttamente i compiti;
+- i tre agenti principali superano test reali;
+- l'assenza di credenziali opzionali non blocca l'avvio generale;
+- abbiamo misure indicative di latenza e consumo;
+- esiste una UI modulare sufficiente per l'uso quotidiano;
+- modifiche e limiti sono documentati per il passaggio al server.
