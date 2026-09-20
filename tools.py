@@ -25,13 +25,16 @@ def search_agent_tool(query: str, thread_id: str = "search_thread") -> str:
 
 
 @tool
-def calendar_agent_tool(query: str, thread_id: str = "calendar_thread") -> str:
-    """Consulta e gestisce Google Calendar quando è configurato."""
-    from calendar_agent.calendar_graph import graph as calendar_app
+def audio_agent_tool(query: str, thread_id: str = "audio_thread") -> str:
+    """
+    Usa l'Audio Agent per trovare e trascrivere file audio locali e,
+    quando richiesto, riassumere o analizzare la trascrizione.
+    """
+    from audio_agent.audio_graph import graph as audio_app
 
     config = {"configurable": {"thread_id": thread_id}}
     state = {"messages": [HumanMessage(content=query)]}
-    result = calendar_app.invoke(state, config=config)
+    result = audio_app.invoke(state, config=config)
     return result["messages"][-1].content
 
 
@@ -58,6 +61,6 @@ supervisor_tools = [
     list_project_files,
     read_project_file,
     search_agent_tool,
-    calendar_agent_tool,
+    audio_agent_tool,
     email_agent_tool,
 ]
