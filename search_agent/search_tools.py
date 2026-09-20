@@ -210,8 +210,49 @@ def search_local_documents(
         return f"Errore durante la ricerca locale: {error}"
 
 
+@tool
+def create_word_document(
+    title: str,
+    content: str,
+    filename: str = "nota.docx",
+) -> str:
+    """
+    Crea un documento Word .docx dentro la cartella documenti autorizzata.
+    Usare solo quando l'utente chiede esplicitamente di creare o salvare un Word.
+    """
+    try:
+        clean_name = filename.strip() or "nota.docx"
+        if not clean_name.lower().endswith(".docx"):
+            clean_name += ".docx"
+
+        output_path = _safe_path(clean_name)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        document = Document()
+        if title.strip():
+            document.add_heading(title.strip(), level=1)
+
+        paragraphs = content.splitlines() or [content]
+        for paragraph in paragraphs:
+            text = paragraph.strip()
+            if text:
+                document.add_paragraph(text)
+
+        document.save(str(output_path))
+        return json.dumps({
+            "status": "ok",
+            "path": str(output_path.relative_to(KNOWLEDGE_ROOT)),
+        }, ensure_ascii=False)
+    except Exception as error:
+        return json.dumps({
+            "status": "error",
+            "error": str(error),
+        }, ensure_ascii=False)
+
+
 LOCAL_RESEARCH_TOOLS = [
     list_local_documents,
     search_local_documents,
     read_local_document,
+    create_word_document,
 ]
