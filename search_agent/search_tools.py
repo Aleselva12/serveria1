@@ -215,6 +215,7 @@ def create_word_document(
     title: str,
     content: str,
     filename: str = "nota.docx",
+    overwrite: bool = False,
 ) -> str:
     """
     Crea un documento Word .docx dentro la cartella documenti autorizzata.
@@ -226,6 +227,12 @@ def create_word_document(
             clean_name += ".docx"
 
         output_path = _safe_path(clean_name)
+        if output_path.exists() and not overwrite:
+            return json.dumps({
+                "status": "error",
+                "error": "Il file esiste già. Imposta overwrite=true solo se l'utente ha chiesto esplicitamente di sovrascriverlo.",
+            }, ensure_ascii=False)
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         document = Document()
