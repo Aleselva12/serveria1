@@ -38,7 +38,13 @@ def _utc_now() -> str:
 
 def _safe_slug(value: str, fallback: str) -> str:
     normalized = re.sub(r"[^a-zA-Z0-9_-]+", "-", value.strip()).strip("-").lower()
-    return (normalized[:80] or fallback)
+    return normalized[:80] or fallback
+
+
+def _require_permission(action: str) -> None:
+    decision = check_permission("structure_agent", action)
+    if not decision.allowed:
+        raise PermissionError(decision.reason)
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -52,9 +58,13 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 def _normalize_task(task: dict[str, Any], index: int) -> dict[str, Any]:
+    description = str(task.get("description") or "").strip()
+    if not description:
+        raise ValueError(f"Il task {index} deve avere una descrizione.")
+
     return {
         "id": str(task.get("id") or f"task_{index:02d}"),
-        "description": str(task.get("description") or "").strip(),
+        "description": description,
         "owner": DEFAULT_PLAN_OWNER,
         "target_component": str(task.get("target_component") or "unassigned").strip(),
         "dependencies": list(task.get("dependencies") or []),
@@ -75,6 +85,14 @@ def create_plan_record(
     checkpoints: list[str] | None = None,
     completion_criteria: list[str] | None = None,
 ) -> dict[str, Any]:
+    _require_permission("create_plan")
+
+    normalized_objective = objective.strip()
+    if not normalized_objective:
+        raise ValueError("L'obiettivo del piano non può essere vuoto.")
+    if not tasks:
+        raise ValueError("Un piano deve contenere almeno un task.")
+
     now = _utc_now()
     plan_id = str(uuid.uuid4())
     owner_resolution = resolve_plan_owner(DEFAULT_PLAN_OWNER)
@@ -82,7 +100,7 @@ def create_plan_record(
     return {
         "schema": "cora.plan.v1",
         "plan_id": plan_id,
-        "objective": objective.strip(),
+        "objective": normalized_objective,
         "owner": DEFAULT_PLAN_OWNER,
         "owner_resolution": owner_resolution.to_dict(),
         "priority": priority.strip().lower() or "normal",
@@ -98,9 +116,7 @@ def create_plan_record(
 
 
 def save_plan_record(plan: dict[str, Any]) -> Path:
-    decision = check_permission("structure_agent", "save_plan")
-    if not decision.allowed:
-        raise PermissionError(decision.reason)
+    _require_permission("save_plan")
 
     plan_id = str(plan["plan_id"])
     slug = _safe_slug(str(plan.get("objective", "")), "plan")
@@ -121,11 +137,19 @@ def create_evaluation_record(
     required_fixes: list[str] | None = None,
     recommendation: str = "",
 ) -> dict[str, Any]:
+    _require_permission("create_evaluation")
+
+    normalized_target = target.strip()
+    if not normalized_target:
+        raise ValueError("Il target della evaluation non può essere vuoto.")
+    if not criteria:
+        raise ValueError("Una evaluation deve contenere almeno un criterio.")
+
     now = _utc_now()
     return {
         "schema": "cora.evaluation.v1",
         "evaluation_id": str(uuid.uuid4()),
-        "target": target.strip(),
+        "target": normalized_target,
         "owner": DEFAULT_PLAN_OWNER,
         "criteria": list(criteria),
         "evidence": list(evidence or []),
@@ -140,9 +164,7 @@ def create_evaluation_record(
 
 
 def save_evaluation_record(evaluation: dict[str, Any]) -> Path:
-    decision = check_permission("structure_agent", "save_evaluation")
-    if not decision.allowed:
-        raise PermissionError(decision.reason)
+    _require_permission("save_evaluation")
 
     evaluation_id = str(evaluation["evaluation_id"])
     slug = _safe_slug(str(evaluation.get("target", "")), "evaluation")
@@ -160,10 +182,16 @@ def create_management_record(
     handoffs: list[dict[str, Any]] | None = None,
     next_steps: list[str] | None = None,
 ) -> dict[str, Any]:
+    _require_permission("create_management")
+
+    normalized_title = title.strip()
+    if not normalized_title:
+        raise ValueError("Il titolo del management artifact non può essere vuoto.")
+
     return {
         "schema": "cora.management.v1",
         "management_id": str(uuid.uuid4()),
-        "title": title.strip(),
+        "title": normalized_title,
         "owner": DEFAULT_PLAN_OWNER,
         "summary": summary.strip(),
         "priorities": list(priorities or []),
@@ -175,9 +203,7 @@ def create_management_record(
 
 
 def save_management_record(record: dict[str, Any]) -> Path:
-    decision = check_permission("structure_agent", "save_management")
-    if not decision.allowed:
-        raise PermissionError(decision.reason)
+    _require_permission("save_management")
 
     record_id = str(record["management_id"])
     slug = _safe_slug(str(record.get("title", "")), "management")
@@ -187,6 +213,8 @@ def save_management_record(record: dict[str, Any]) -> Path:
 
 
 def list_artifacts(artifact_type: str = "") -> list[dict[str, Any]]:
+    _require_permission("read_structure_workspace")
+
     selected_types = (
         [artifact_type.strip().lower()]
         if artifact_type.strip()
@@ -198,21 +226,27 @@ def list_artifacts(artifact_type: str = "") -> list[dict[str, Any]]:
         root = ALLOWED_ARTIFACT_TYPES.get(selected)
         if root is None or not root.exists():
             continue
-        for path in sorted(root.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True):
-            results.append({
-                "type": selected,
-                "name": path.name,
-                "relative_path": str(path.relative_to(WORKSPACE_ROOT)),
-            })
+
+        for path in sorted(
+            root.glob("*.json"),
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        ):
+            results.append(
+                {
+                    "type": selected,
+                    "name": path.name,
+                    "relative_path": str(path.relative_to(WORKSPACE_ROOT)),
+                }
+            )
             if len(results) >= 100:
                 return results
+
     return results
 
 
 def read_artifact(relative_path: str) -> dict[str, Any]:
-    decision = check_permission("structure_agent", "read_structure_workspace")
-    if not decision.allowed:
-        raise PermissionError(decision.reason)
+    _require_permission("read_structure_workspace")
 
     candidate = (WORKSPACE_ROOT / relative_path).resolve()
     if candidate != WORKSPACE_ROOT and WORKSPACE_ROOT not in candidate.parents:
