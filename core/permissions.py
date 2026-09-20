@@ -57,6 +57,7 @@ STRUCTURE_AGENT_RULES: tuple[ActionPermission, ...] = (
     ActionPermission("structure_agent", "inspect_events", PermissionLevel.OBSERVE, ApprovalPolicy.AUTO),
     ActionPermission("structure_agent", "inspect_memory_status", PermissionLevel.OBSERVE, ApprovalPolicy.AUTO),
     ActionPermission("structure_agent", "read_project_file", PermissionLevel.READ, ApprovalPolicy.AUTO),
+    ActionPermission("structure_agent", "read_structure_workspace", PermissionLevel.READ, ApprovalPolicy.AUTO, "structure_workspace"),
     ActionPermission("structure_agent", "create_plan", PermissionLevel.DRAFT, ApprovalPolicy.AUTO),
     ActionPermission("structure_agent", "create_evaluation", PermissionLevel.DRAFT, ApprovalPolicy.AUTO),
     ActionPermission("structure_agent", "save_plan", PermissionLevel.WRITE, ApprovalPolicy.AUTO, "structure_workspace/plans"),
