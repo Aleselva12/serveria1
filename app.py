@@ -1,6 +1,10 @@
-﻿import uuid
+import os
+import uuid
+
 import streamlit as st
+
 from graph import graph
+
 
 st.set_page_config(
     page_title="Cora",
@@ -8,8 +12,10 @@ st.set_page_config(
     layout="centered",
 )
 
+active_model = os.getenv("OLLAMA_MODEL", "gpt-oss:20b")
+
 st.title("Cora")
-st.caption("Assistente multi-agente locale — gpt-oss:20b")
+st.caption(f"Assistente multi-agente locale — {active_model}")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
