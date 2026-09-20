@@ -1,10 +1,14 @@
 import json
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from dotenv import load_dotenv
 from langchain_core.tools import tool
 
+
+load_dotenv()
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 AUDIO_ROOT = Path(
@@ -55,6 +59,7 @@ def _format_timestamp(seconds: float) -> str:
     return f"{minutes:02d}:{secs:02d}"
 
 
+@lru_cache(maxsize=1)
 def _load_whisper_model():
     try:
         from faster_whisper import WhisperModel
