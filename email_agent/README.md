@@ -40,6 +40,24 @@ CORA_QUOTE_ROOT=./quotes
 
 I prezzi o le condizioni mancanti non devono essere inventati dall'agente.
 
+### Evoluzione prevista: preventivi automatizzati
+
+La generazione PDF attuale è il livello base del sistema.
+
+La fase successiva dovrà automatizzare progressivamente la costruzione del preventivo a partire da fonti strutturate e aziendali, ad esempio:
+
+- catalogo prodotti;
+- listini e prezzi;
+- varianti e configurazioni;
+- dati cliente;
+- condizioni commerciali;
+- testi preimpostati;
+- eventuali informazioni recuperate da email o altri archivi autorizzati.
+
+L'obiettivo è arrivare a un flusso in cui l'agente raccoglie i dati necessari, costruisce il preventivo in modo strutturato, verifica i campi essenziali e genera il PDF finale con intervento umano solo dove necessario.
+
+Questa automazione non deve introdurre prezzi, sconti, condizioni o dati commerciali non presenti nelle fonti autorizzate.
+
 ## Gmail OAuth
 
 Percorsi configurabili:
