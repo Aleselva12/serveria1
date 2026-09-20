@@ -1,14 +1,22 @@
 $ErrorActionPreference = "Stop"
 
+trap {
+    Write-Host ""
+    Write-Host "ERRORE: $_" -ForegroundColor Red
+    Write-Host $_.ScriptStackTrace -ForegroundColor DarkRed
+    Read-Host "Premi INVIO per chiudere questa finestra"
+    exit 1
+}
+
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Frontend = Join-Path $Root "frontend"
 $UiUrl = "http://127.0.0.1:5173"
 $ApiHealthUrl = "http://127.0.0.1:8000/health"
 $OllamaUrl = "http://127.0.0.1:11435"
 
-function Test-Url($Url) {
+function Test-Url($Url, $TimeoutSec = 2) {
     try {
-        Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 1 | Out-Null
+        Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec $TimeoutSec | Out-Null
         return $true
     } catch {
         return $false
@@ -32,6 +40,52 @@ function Get-HashText($Path) {
     return (Get-FileHash -Path $Path -Algorithm SHA256).Hash
 }
 
+function Fail($Message) {
+    Write-Host $Message -ForegroundColor Red
+    Read-Host "Premi INVIO per chiudere questa finestra"
+    exit 1
+}
+
+function Clear-StalePort($Port) {
+    $Deadline = (Get-Date).AddSeconds(10)
+    while ((Get-Date) -lt $Deadline) {
+        $Connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+        if (-not $Connections) {
+            return
+        }
+        foreach ($Connection in $Connections) {
+            Write-Host "Trovato un processo sulla porta $Port (PID $($Connection.OwningProcess)), lo chiudo..." -ForegroundColor Yellow
+            Stop-Process -Id $Connection.OwningProcess -Force -ErrorAction SilentlyContinue
+        }
+        Start-Sleep -Milliseconds 500
+    }
+}
+
+function Stop-KnownProcess($PidFile) {
+    if (Test-Path $PidFile) {
+        $SavedPid = (Get-Content $PidFile -Raw).Trim()
+        if ($SavedPid) {
+            Stop-Process -Id $SavedPid -Force -ErrorAction SilentlyContinue
+        }
+        Remove-Item -Path $PidFile -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Stop-TaggedWindows($Title) {
+    Get-Process powershell -ErrorAction SilentlyContinue |
+        Where-Object { $_.MainWindowTitle -eq $Title } |
+        ForEach-Object {
+            Write-Host "Chiudo una vecchia finestra rimasta aperta ($Title)..." -ForegroundColor Yellow
+            Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+        }
+}
+
+$BackendWindowTitle = "CORA_BACKEND"
+$FrontendWindowTitle = "CORA_FRONTEND"
+$BackendPidFile = Join-Path $Root ".cora_backend.pid"
+$FrontendPidFile = Join-Path $Root ".cora_frontend.pid"
+$LockFile = Join-Path $Root ".avvio.lock"
+
 Write-Host ""
 Write-Host "=== AVVIO CORA ===" -ForegroundColor Cyan
 
@@ -40,6 +94,16 @@ if ((Test-Url $UiUrl) -and (Test-Url $ApiHealthUrl)) {
     Start-Process $UiUrl
     exit 0
 }
+
+if (Test-Path $LockFile) {
+    $LockPid = (Get-Content $LockFile -Raw).Trim()
+    if ($LockPid -and (Get-Process -Id $LockPid -ErrorAction SilentlyContinue)) {
+        Fail "AVVIO e' gia in corso in un'altra finestra. Aspetta che finisca prima di premere di nuovo il pulsante."
+    }
+}
+Set-Content -Path $LockFile -Value $PID
+
+try {
 
 Set-Location $Root
 
@@ -115,8 +179,7 @@ $RequirementsStamp = Join-Path $Root ".cora_requirements.sha256"
 
 if (-not (Test-Path $VenvPython)) {
     if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
-        Write-Host "Python non risulta installato o non e' nel PATH." -ForegroundColor Red
-        exit 1
+        Fail "Python non risulta installato o non e' nel PATH."
     }
 
     Write-Host "Creo l'ambiente Python .venv..."
@@ -134,29 +197,30 @@ if ($CurrentRequirementsHash -ne $SavedRequirementsHash) {
     Write-Host "Installo/aggiorno le dipendenze Python..."
     & $VenvPython -m pip install -r $Requirements --disable-pip-version-check
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "Installazione dipendenze Python fallita." -ForegroundColor Red
-        exit 1
+        Fail "Installazione dipendenze Python fallita."
     }
     Set-Content -Path $RequirementsStamp -Value $CurrentRequirementsHash
 }
 
-if (-not (Test-Url $ApiHealthUrl)) {
+function Start-Backend {
+    Stop-KnownProcess $BackendPidFile
+    Stop-TaggedWindows $BackendWindowTitle
+    Clear-StalePort 8000
     Write-Host "Avvio backend FastAPI..."
-    Start-Process powershell -ArgumentList @(
+    $Process = Start-Process powershell -ArgumentList @(
         "-NoExit",
         "-Command",
-        "Set-Location '$Root'; & '$VenvPython' -m uvicorn api:app --host 127.0.0.1 --port 8000"
-    ) -WindowStyle Minimized
+        "`$host.UI.RawUI.WindowTitle = '$BackendWindowTitle'; Set-Location '$Root'; & '$VenvPython' -m uvicorn api:app --host 127.0.0.1 --port 8000"
+    ) -WindowStyle Minimized -PassThru
+    Set-Content -Path $BackendPidFile -Value $Process.Id
 }
 
-if (-not (Wait-Url $ApiHealthUrl 30)) {
-    Write-Host "Il backend non si e' avviato correttamente." -ForegroundColor Red
-    exit 1
+if (-not (Test-Url $ApiHealthUrl)) {
+    Start-Backend
 }
 
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-    Write-Host "Node.js/npm non risulta installato. Serve per l'interfaccia React." -ForegroundColor Red
-    exit 1
+    Fail "Node.js/npm non risulta installato. Serve per l'interfaccia React."
 }
 
 $PackageJson = Join-Path $Frontend "package.json"
@@ -179,27 +243,42 @@ if (
     Pop-Location
 
     if ($NpmExitCode -ne 0) {
-        Write-Host "Installazione frontend fallita." -ForegroundColor Red
-        exit 1
+        Fail "Installazione frontend fallita."
     }
 
     Set-Content -Path $FrontendStamp -Value $CurrentFrontendHash
 }
 
 if (-not (Test-Url $UiUrl)) {
+    Stop-KnownProcess $FrontendPidFile
+    Stop-TaggedWindows $FrontendWindowTitle
+    Clear-StalePort 5173
     Write-Host "Avvio interfaccia React..."
-    Start-Process powershell -ArgumentList @(
+    $FrontendProcess = Start-Process powershell -ArgumentList @(
         "-NoExit",
         "-Command",
-        "Set-Location '$Frontend'; npm run dev"
-    ) -WindowStyle Minimized
+        "`$host.UI.RawUI.WindowTitle = '$FrontendWindowTitle'; Set-Location '$Frontend'; npm run dev"
+    ) -WindowStyle Minimized -PassThru
+    Set-Content -Path $FrontendPidFile -Value $FrontendProcess.Id
 }
 
-if (Wait-Url $UiUrl 30) {
+if (-not (Wait-Url $UiUrl 40)) {
+    Fail "L'interfaccia non ha risposto entro il tempo previsto. Apri la finestra minimizzata $FrontendWindowTitle per vedere l'errore."
+}
+
+Write-Host "Interfaccia pronta, la apro. Il backend potrebbe metterci ancora qualche istante al primo avvio..." -ForegroundColor Green
+Start-Process $UiUrl
+
+Write-Host "Attendo che il backend FastAPI sia pronto (puo' volerci fino a 2 minuti al primo avvio a freddo)..."
+if (Wait-Url $ApiHealthUrl 120) {
     Write-Host "Cora e' pronta." -ForegroundColor Green
-    Start-Process $UiUrl
-    exit 0
+} else {
+    Write-Host "Il backend non risponde ancora. Apri la finestra minimizzata $BackendWindowTitle per vedere lo stato." -ForegroundColor Yellow
 }
 
-Write-Host "L'interfaccia non ha risposto entro il tempo previsto." -ForegroundColor Red
-exit 1
+exit 0
+
+
+} finally {
+    Remove-Item -Path $LockFile -Force -ErrorAction SilentlyContinue
+}
