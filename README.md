@@ -108,7 +108,7 @@ Gli eventi includono identificativo, timestamp UTC, tipo evento, componente, sta
 Sono già registrati almeno:
 
 - richieste chat al Supervisor;
-- deleghe ai tre agenti;
+- deleghe agli agenti specializzati;
 - letture della memoria;
 - scritture della memoria;
 - cancellazioni dalla memoria;
@@ -159,19 +159,24 @@ Cartella:
 structure_agent/
 ```
 
-Lo Structure Agent è un agente specializzato di sola lettura dedicato alla comprensione tecnica del sistema Cora.
+Lo Structure Agent è l'agente di livello sistema dedicato a quattro responsabilità principali:
 
-Capacità implementate:
+- **Planner**: trasforma obiettivi in passi ordinati, dipendenze, checkpoint e assegnazioni ai componenti adatti;
+- **Evaluation**: valuta piani, output e implementazioni rispetto a obiettivi, criteri e vincoli espliciti;
+- **Control**: controlla struttura dichiarata, stato runtime, memoria e log per individuare anomalie, mismatch e dipendenze mancanti;
+- **Management**: mantiene una vista di priorità, avanzamento, handoff e prossimi passi tra componenti e agenti.
 
-- interrogazione del registro centrale di componenti e capacità;
-- lettura dello stato reale di CPU, RAM e disco;
-- lettura delle statistiche tecniche della memoria persistente;
-- analisi degli eventi recenti del log strutturato;
-- elenco e lettura dei file testuali autorizzati del progetto;
-- diagnosi di relazioni tra componenti, dipendenze, disponibilità e possibili problemi strutturali;
-- distinzione tra struttura dichiarata, osservazioni runtime e inferenze.
+Per svolgere questi compiti può:
 
-Non può modificare file, configurazione o memoria e non dispone di strumenti di scrittura.
+- interrogare il registro centrale di componenti e capacità;
+- leggere lo stato reale di CPU, RAM e disco;
+- leggere le statistiche tecniche della memoria persistente;
+- analizzare gli eventi recenti del log strutturato;
+- ottenere uno snapshot combinato di controllo del sistema;
+- elencare e leggere i file testuali autorizzati del progetto;
+- produrre piani, checklist, valutazioni, decisioni e istruzioni di handoff nella propria risposta.
+
+La sua autorità di esecuzione è per ora volutamente limitata: non modifica file, configurazione o memoria e non esegue azioni esterne. La possibilità di scrivere piani o artefatti di gestione su file potrà essere aggiunta successivamente tramite tool controllati.
 
 Il modello può essere configurato separatamente:
 
