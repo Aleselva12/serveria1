@@ -16,6 +16,8 @@ ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
 
 MODULES = [
+    "core.capabilities",
+    "core.registry",
     "local_tools",
     "search_agent.search_tools",
     "search_agent.search_graph",
