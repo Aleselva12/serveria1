@@ -13,6 +13,7 @@ ROLE_MODEL_ENV = {
     "research": "CORA_MODEL_RESEARCH",
     "audio": "CORA_MODEL_AUDIO",
     "email": "CORA_MODEL_EMAIL",
+    "structure": "CORA_MODEL_STRUCTURE",
 }
 
 
