@@ -28,6 +28,8 @@ MODULES = [
     "email_agent.email_connector",
     "email_agent.email_tools",
     "email_agent.email_graph",
+    "structure_agent.structure_tools",
+    "structure_agent.structure_graph",
     "tools",
     "prompt",
     "graph",
