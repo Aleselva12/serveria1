@@ -103,6 +103,30 @@ def forget_memory_tool(memory_id: str) -> str:
 
 
 @tool
+def structure_agent_tool(query: str, thread_id: str = "") -> str:
+    """
+    Usa lo Structure Agent per analizzare architettura, componenti, dipendenze,
+    stato runtime, log recenti e possibili problemi strutturali di Cora.
+    È read-only e non modifica file, configurazione o memoria.
+    """
+    from structure_agent.structure_graph import graph as structure_app
+
+    effective_thread_id = thread_id or f"structure_{uuid.uuid4()}"
+    config = {"configurable": {"thread_id": effective_thread_id}}
+    state = {"messages": [HumanMessage(content=query)]}
+
+    with logged_operation(
+        "agent_delegation",
+        component="structure_agent",
+        thread_id=effective_thread_id,
+        data={"query_chars": len(query)},
+    ):
+        result = structure_app.invoke(state, config=config)
+
+    return result["messages"][-1].content
+
+
+@tool
 def search_agent_tool(query: str, thread_id: str = "") -> str:
     """
     Usa il Local Research Agent per trovare, leggere, confrontare e analizzare
@@ -182,6 +206,7 @@ supervisor_tools = [
     recall_memory_tool,
     remember_tool,
     forget_memory_tool,
+    structure_agent_tool,
     search_agent_tool,
     audio_agent_tool,
     email_agent_tool,
