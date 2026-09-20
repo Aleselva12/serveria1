@@ -49,7 +49,7 @@ Il Supervisor può usare direttamente questi strumenti locali:
 - lettura dei file testuali autorizzati della repository;
 - lettura del registro centrale di struttura e capacità.
 
-Può inoltre delegare ai tre agenti specializzati.
+Può inoltre delegare ai quattro agenti specializzati.
 
 ## Registro centrale di struttura e capacità
 
@@ -63,7 +63,7 @@ core/
 
 `capabilities.py` definisce lo schema comune usato per descrivere componenti e capacità.
 
-`registry.py` è la fonte centrale per sapere quali componenti sono definiti nel sistema. Registra attualmente il Supervisor, i tre agenti specializzati, i tool locali principali, il backend FastAPI e l'interfaccia React.
+`registry.py` è la fonte centrale per sapere quali componenti sono definiti nel sistema. Registra attualmente il Supervisor, i quattro agenti specializzati, i tool locali principali, il backend FastAPI e l'interfaccia React.
 
 Per ogni componente sono descritti identificativo, nome, tipo, descrizione, capacità dichiarate, modulo associato e dipendenze strutturali.
 
@@ -150,6 +150,36 @@ Sono disponibili tre operazioni al Supervisor:
 La regola attuale è conservativa: Cora non salva automaticamente tutte le conversazioni e non trasforma automaticamente il log in memoria. Le scritture persistenti avvengono solo su richiesta esplicita o in un workflow esplicitamente autorizzato.
 
 Ogni operazione sulla memoria genera a sua volta un evento nel log, creando il collegamento tra memoria e osservabilità senza confondere i due livelli.
+
+## Structure Agent
+
+Cartella:
+
+```text
+structure_agent/
+```
+
+Lo Structure Agent è un agente specializzato di sola lettura dedicato alla comprensione tecnica del sistema Cora.
+
+Capacità implementate:
+
+- interrogazione del registro centrale di componenti e capacità;
+- lettura dello stato reale di CPU, RAM e disco;
+- lettura delle statistiche tecniche della memoria persistente;
+- analisi degli eventi recenti del log strutturato;
+- elenco e lettura dei file testuali autorizzati del progetto;
+- diagnosi di relazioni tra componenti, dipendenze, disponibilità e possibili problemi strutturali;
+- distinzione tra struttura dichiarata, osservazioni runtime e inferenze.
+
+Non può modificare file, configurazione o memoria e non dispone di strumenti di scrittura.
+
+Il modello può essere configurato separatamente:
+
+```env
+CORA_MODEL_STRUCTURE=
+```
+
+Se la variabile è vuota, eredita `OLLAMA_MODEL`.
 
 ## Local Research Agent
 
@@ -286,7 +316,7 @@ L'interfaccia attuale comprende:
 
 - chat con Cora;
 - creazione di una nuova conversazione;
-- visualizzazione dei tre agenti disponibili;
+- visualizzazione dei quattro agenti disponibili;
 - controllo periodico dello stato del backend;
 - indicazione dello stato di Ollama;
 - visualizzazione del modello locale configurato.
@@ -451,6 +481,7 @@ serveria1/
 │   ├── logging.py
 │   └── memory.py
 ├── frontend/
+├── structure_agent/
 ├── search_agent/
 ├── audio_agent/
 └── email_agent/
