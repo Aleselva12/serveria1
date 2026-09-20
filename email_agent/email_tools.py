@@ -19,6 +19,7 @@ from reportlab.platypus import (
 )
 
 from email_agent.email_connector import (
+    get_message,
     messages_for_day,
     save_as_draft,
     search_messages,
@@ -50,6 +51,22 @@ def search_email_archive(query: str, max_results: int = 30) -> str:
             "query": query,
             "count": len(emails),
             "emails": emails,
+        })
+    except Exception as error:
+        return _json({"status": "error", "error": str(error)})
+
+
+@tool
+def get_email_by_id(message_id: str) -> str:
+    """
+    Recupera una singola email usando il suo message ID Gmail esatto.
+    Utile prima di riassumere o classificare un messaggio specifico.
+    """
+    try:
+        email = get_message(message_id)
+        return _json({
+            "status": "ok",
+            "email": email,
         })
     except Exception as error:
         return _json({"status": "error", "error": str(error)})
@@ -264,6 +281,7 @@ def generate_quote_pdf(
 
 EMAIL_TOOLS = [
     search_email_archive,
+    get_email_by_id,
     get_daily_emails,
     save_email_draft,
     generate_quote_pdf,
