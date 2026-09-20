@@ -17,3 +17,4 @@ psutil
 python-docx
 faster-whisper
 pyannote.audio
+reportlab
