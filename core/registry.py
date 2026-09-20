@@ -26,6 +26,30 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         dependencies=("ollama",),
     ),
     ComponentDefinition(
+        id="event_logging",
+        name="Event Logging",
+        kind="core",
+        description="Registro append-only locale degli eventi strutturati di Cora.",
+        module="core.logging",
+        capabilities=(
+            Capability("log_events", "Registra eventi con timestamp, componente, stato e durata."),
+            Capability("read_recent_events", "Permette di leggere gli eventi recenti per diagnosi."),
+        ),
+    ),
+    ComponentDefinition(
+        id="persistent_memory",
+        name="Persistent Memory",
+        kind="core",
+        description="Memoria locale persistente SQLite separata dallo storico eventi.",
+        module="core.memory",
+        capabilities=(
+            Capability("save_memory", "Crea o aggiorna memorie strutturate autorizzate."),
+            Capability("search_memory", "Cerca memorie persistenti per tipo, chiave e contenuto."),
+            Capability("delete_memory", "Elimina una memoria per ID su richiesta esplicita."),
+            Capability("memory_stats", "Espone statistiche sintetiche della memoria."),
+        ),
+    ),
+    ComponentDefinition(
         id="local_research_agent",
         name="Local Research Agent",
         kind="agent",
