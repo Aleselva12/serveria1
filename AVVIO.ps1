@@ -35,7 +35,7 @@ function Get-HashText($Path) {
 Write-Host ""
 Write-Host "=== AVVIO CORA ===" -ForegroundColor Cyan
 
-if (Test-Url $UiUrl) {
+if ((Test-Url $UiUrl) -and (Test-Url $ApiHealthUrl)) {
     Write-Host "Cora e' gia attiva. Apro l'interfaccia..." -ForegroundColor Green
     Start-Process $UiUrl
     exit 0
@@ -49,14 +49,62 @@ if (-not (Test-Path (Join-Path $Root ".env")) -and (Test-Path (Join-Path $Root "
 }
 
 if (-not (Test-Url $OllamaUrl)) {
-    Write-Host "Ollama non risponde. Provo ad avviare il container ia-ollama..."
-    try {
-        docker start ia-ollama | Out-Null
-    } catch {
-        Write-Host "Non riesco ad avviare ia-ollama automaticamente." -ForegroundColor Yellow
+    Write-Host "Ollama non risponde. Controllo Docker..."
+
+    $DockerReady = $false
+
+    if (Get-Command docker -ErrorAction SilentlyContinue) {
+        try {
+            docker info *> $null
+            if ($LASTEXITCODE -eq 0) {
+                $DockerReady = $true
+            }
+        } catch {
+            $DockerReady = $false
+        }
     }
 
-    if (-not (Wait-Url $OllamaUrl 20)) {
+    if (-not $DockerReady) {
+        $DockerCandidates = @(
+            (Join-Path $Env:ProgramFiles "Docker\Docker\Docker Desktop.exe"),
+            (Join-Path $Env:LOCALAPPDATA "Docker\Docker Desktop.exe")
+        )
+
+        $DockerDesktop = $DockerCandidates |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+
+        if ($DockerDesktop) {
+            Write-Host "Avvio Docker Desktop..."
+            Start-Process $DockerDesktop
+
+            for ($i = 0; $i -lt 45; $i++) {
+                Start-Sleep -Seconds 1
+                try {
+                    docker info *> $null
+                    if ($LASTEXITCODE -eq 0) {
+                        $DockerReady = $true
+                        break
+                    }
+                } catch {
+                    $DockerReady = $false
+                }
+            }
+        }
+    }
+
+    if ($DockerReady) {
+        Write-Host "Avvio il container ia-ollama..."
+        try {
+            docker start ia-ollama | Out-Null
+        } catch {
+            Write-Host "Non riesco ad avviare ia-ollama automaticamente." -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "Docker non e' disponibile. Cora puo' aprirsi, ma il modello locale potrebbe restare offline." -ForegroundColor Yellow
+    }
+
+    if (-not (Wait-Url $OllamaUrl 25)) {
         Write-Host "Attenzione: Ollama non e' ancora raggiungibile su $OllamaUrl" -ForegroundColor Yellow
     }
 }
@@ -138,12 +186,14 @@ if (
     Set-Content -Path $FrontendStamp -Value $CurrentFrontendHash
 }
 
-Write-Host "Avvio interfaccia React..."
-Start-Process powershell -ArgumentList @(
-    "-NoExit",
-    "-Command",
-    "Set-Location '$Frontend'; npm run dev"
-) -WindowStyle Minimized
+if (-not (Test-Url $UiUrl)) {
+    Write-Host "Avvio interfaccia React..."
+    Start-Process powershell -ArgumentList @(
+        "-NoExit",
+        "-Command",
+        "Set-Location '$Frontend'; npm run dev"
+    ) -WindowStyle Minimized
+}
 
 if (Wait-Url $UiUrl 30) {
     Write-Host "Cora e' pronta." -ForegroundColor Green
