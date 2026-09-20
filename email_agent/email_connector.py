@@ -5,11 +5,14 @@ from datetime import date, datetime, timedelta
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime
 
+from dotenv import load_dotenv
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+
+load_dotenv()
 
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,6 +21,7 @@ CREDENTIALS_PATH = os.getenv(
     "CORA_GMAIL_CREDENTIALS_PATH",
     os.path.join(BASE_DIR, "credentials.json"),
 )
+MAX_EMAIL_BODY_CHARS = int(os.getenv("CORA_EMAIL_MAX_BODY_CHARS", "6000"))
 
 
 def get_gmail_service():
@@ -117,7 +121,7 @@ def normalize_message(full_msg: dict) -> dict:
         "subject": _header(headers, "Subject", "No Subject"),
         "date": iso_date,
         "snippet": full_msg.get("snippet", ""),
-        "body": clean_email_body(extract_body(payload)),
+        "body": clean_email_body(extract_body(payload))[:MAX_EMAIL_BODY_CHARS],
         "label_ids": full_msg.get("labelIds", []),
     }
 
