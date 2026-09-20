@@ -45,6 +45,7 @@ quotes/
 # Cora runtime state
 logs/
 data/
+structure_workspace/
 
 # Frontend local build/dependencies
 frontend/node_modules/
