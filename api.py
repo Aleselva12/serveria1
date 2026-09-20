@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from core.registry import get_agents, get_registry
 from graph import graph
 
 
@@ -57,12 +58,13 @@ def health():
         "status": "ok",
         "ollama_online": _ollama_online(),
         "model": OLLAMA_MODEL,
-        "agents": [
-            "Local Research Agent",
-            "Audio Agent",
-            "Email & Quotes Agent",
-        ],
+        "agents": [agent["name"] for agent in get_agents()],
     }
+
+
+@app.get("/capabilities")
+def capabilities():
+    return get_registry()
 
 
 @app.post("/chat", response_model=ChatResponse)
