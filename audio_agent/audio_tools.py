@@ -10,6 +10,9 @@ DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 AUDIO_ROOT = Path(
     os.getenv("CORA_AUDIO_ROOT", str(DEFAULT_ROOT))
 ).expanduser().resolve()
+TRANSCRIPT_ROOT = Path(
+    os.getenv("CORA_TRANSCRIPT_ROOT", str(AUDIO_ROOT / "_transcripts"))
+).expanduser().resolve()
 
 SUPPORTED_AUDIO_EXTENSIONS = {
     ".wav", ".mp3", ".m4a", ".mp4", ".aac",
@@ -28,6 +31,16 @@ def _safe_path(relative_path: str) -> Path:
     relative = candidate.relative_to(AUDIO_ROOT)
     if any(part in BLOCKED_PARTS for part in relative.parts):
         raise ValueError("Cartella protetta.")
+
+    return candidate
+
+
+def _safe_transcript_path(filename: str) -> Path:
+    TRANSCRIPT_ROOT.mkdir(parents=True, exist_ok=True)
+    candidate = (TRANSCRIPT_ROOT / filename).resolve()
+
+    if candidate != TRANSCRIPT_ROOT and TRANSCRIPT_ROOT not in candidate.parents:
+        raise ValueError("Percorso di salvataggio trascrizione non consentito.")
 
     return candidate
 
@@ -176,12 +189,16 @@ def list_audio_files(
                 break
 
         return json.dumps({
+            "status": "ok",
             "audio_root": str(AUDIO_ROOT),
             "count": len(results),
             "files": results,
         }, ensure_ascii=False, indent=2)
     except Exception as error:
-        return f"Errore durante l'elenco audio: {error}"
+        return json.dumps({
+            "status": "error",
+            "error": str(error),
+        }, ensure_ascii=False)
 
 
 @tool
@@ -200,10 +217,16 @@ def transcribe_audio_file(
         path = _safe_path(relative_path)
 
         if not path.exists() or not path.is_file():
-            return "Il file audio richiesto non esiste."
+            return json.dumps({
+                "status": "error",
+                "error": "Il file audio richiesto non esiste.",
+            }, ensure_ascii=False)
 
         if path.suffix.lower() not in SUPPORTED_AUDIO_EXTENSIONS:
-            return "Formato audio non supportato."
+            return json.dumps({
+                "status": "error",
+                "error": "Formato audio non supportato.",
+            }, ensure_ascii=False)
 
         model = _load_whisper_model()
         segments_iter, info = model.transcribe(
@@ -237,7 +260,6 @@ def transcribe_audio_file(
         speaker_map = {}
         next_speaker_number = 1
         transcript_lines = []
-        structured_segments = []
 
         for segment in segments:
             speaker_label = None
@@ -265,35 +287,79 @@ def transcribe_audio_file(
             )
             transcript_lines.append(prefix + segment["text"])
 
-            structured_segments.append({
-                "start": segment["start"],
-                "end": segment["end"],
-                "speaker": speaker_label,
-                "text": segment["text"],
-            })
+        transcript = "\n".join(transcript_lines)
+        duration_seconds = (
+            round(max((segment["end"] for segment in segments), default=0.0), 2)
+        )
+
+        diarization_status = "not_requested"
+        if diarize and diarization_tracks:
+            diarization_status = "applied"
+        elif diarize:
+            diarization_status = "unavailable"
 
         response = {
+            "status": "ok",
             "source_path": str(path.relative_to(AUDIO_ROOT)),
             "detected_language": getattr(info, "language", None),
-            "language_probability": getattr(
-                info,
-                "language_probability",
-                None,
-            ),
-            "diarization_requested": diarize,
-            "diarization_applied": bool(diarization_tracks),
+            "language_probability": getattr(info, "language_probability", None),
+            "duration_seconds": duration_seconds,
+            "segment_count": len(segments),
+            "diarization_status": diarization_status,
             "diarization_warning": diarization_warning,
-            "transcript": "\n".join(transcript_lines),
-            "segments": structured_segments,
+            "speaker_count_detected": len(speaker_map) if diarization_tracks else None,
+            "transcript": transcript,
         }
 
         return json.dumps(response, ensure_ascii=False, indent=2)
 
     except Exception as error:
-        return f"Errore durante la trascrizione audio: {error}"
+        return json.dumps({
+            "status": "error",
+            "error": str(error),
+        }, ensure_ascii=False)
+
+
+@tool
+def save_transcript(
+    source_audio_path: str,
+    transcript: str,
+    filename: str = "",
+) -> str:
+    """
+    Salva una trascrizione già prodotta in un file .txt locale.
+    Usare solo quando l'utente chiede di salvare o esportare la trascrizione.
+    """
+    try:
+        source = _safe_path(source_audio_path)
+        if not source.exists() or not source.is_file():
+            return json.dumps({
+                "status": "error",
+                "error": "Il file audio sorgente non esiste.",
+            }, ensure_ascii=False)
+
+        output_name = filename.strip()
+        if not output_name:
+            output_name = f"{source.stem}.txt"
+        if not output_name.lower().endswith(".txt"):
+            output_name += ".txt"
+
+        output_path = _safe_transcript_path(output_name)
+        output_path.write_text(transcript, encoding="utf-8")
+
+        return json.dumps({
+            "status": "ok",
+            "saved_path": str(output_path),
+        }, ensure_ascii=False, indent=2)
+    except Exception as error:
+        return json.dumps({
+            "status": "error",
+            "error": str(error),
+        }, ensure_ascii=False)
 
 
 AUDIO_TOOLS = [
     list_audio_files,
     transcribe_audio_file,
+    save_transcript,
 ]
