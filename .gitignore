@@ -41,3 +41,11 @@ models/
 *.bin
 *.safetensors
 quotes/
+
+# Frontend local build/dependencies
+frontend/node_modules/
+frontend/dist/
+
+# AVVIO local state
+.cora_requirements.sha256
+.cora_frontend.sha256
