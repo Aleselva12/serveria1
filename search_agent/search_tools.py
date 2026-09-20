@@ -3,9 +3,12 @@ import os
 from pathlib import Path
 from typing import Iterable
 
+from dotenv import load_dotenv
 from docx import Document
 from langchain_core.tools import tool
 
+
+load_dotenv()
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 KNOWLEDGE_ROOT = Path(
