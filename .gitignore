@@ -32,3 +32,11 @@ __pycache__/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Cora local data / models
+audio/
+knowledge/
+models/
+*.gguf
+*.bin
+*.safetensors
