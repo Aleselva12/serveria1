@@ -182,7 +182,6 @@ def save_memory(
         data={
             "memory_id": memory_id,
             "memory_type": normalized_type,
-            "key": normalized_key,
             "action": action,
         },
     )
@@ -236,7 +235,7 @@ def search_memories(
         component="memory_store",
         thread_id=thread_id,
         data={
-            "query": normalized_query,
+            "query_chars": len(normalized_query),
             "memory_type": normalized_type or None,
             "result_count": len(results),
         },
