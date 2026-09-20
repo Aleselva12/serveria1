@@ -39,7 +39,7 @@ prompt.py
 tools.py
 ```
 
-Usa LangGraph e `MemorySaver` per mantenere lo stato della conversazione durante l'esecuzione. Non è presente una memoria persistente su database.
+Usa LangGraph e `MemorySaver` per mantenere lo stato della conversazione durante l'esecuzione. È inoltre presente una memoria persistente locale separata, basata su SQLite.
 
 Il Supervisor può usare direttamente questi strumenti locali:
 
@@ -75,7 +75,81 @@ Il Supervisor accede al registro tramite:
 structure_registry_tool
 ```
 
-Il registro non implementa permessi, memoria persistente o logging avanzato.
+Il registro non implementa ancora permessi avanzati. Logging e memoria persistente sono ora componenti core separati e registrati.
+
+## Logging e memoria persistente
+
+Il core contiene ora due componenti distinti ma collegati:
+
+```text
+core/
+├── logging.py
+└── memory.py
+```
+
+### Logging
+
+`core/logging.py` scrive eventi strutturati append-only in formato JSONL.
+
+Percorso predefinito:
+
+```env
+CORA_LOG_ROOT=./logs
+```
+
+File runtime:
+
+```text
+logs/cora.jsonl
+```
+
+Gli eventi includono identificativo, timestamp UTC, tipo evento, componente, stato, thread, durata e metadati tecnici. Il logging evita di salvare automaticamente il contenuto completo dei messaggi utente.
+
+Sono già registrati almeno:
+
+- richieste chat al Supervisor;
+- deleghe ai tre agenti;
+- letture della memoria;
+- scritture della memoria;
+- cancellazioni dalla memoria;
+- errori nelle operazioni osservate.
+
+Il Supervisor può leggere gli eventi recenti tramite `recent_system_events_tool`.
+
+### Memoria persistente
+
+`core/memory.py` usa SQLite locale e non richiede una nuova dipendenza Python esterna.
+
+Percorso predefinito:
+
+```env
+CORA_MEMORY_ROOT=./data
+CORA_MEMORY_DB=./data/cora_memory.sqlite3
+```
+
+La memoria è strutturata e supporta attualmente questi tipi:
+
+```text
+fact
+preference
+person
+project
+decision
+note
+task_context
+```
+
+Ogni memoria contiene almeno ID, tipo, chiave, contenuto, fonte, importanza, data di creazione, data di aggiornamento, eventuale scadenza e metadati.
+
+Sono disponibili tre operazioni al Supervisor:
+
+- `remember_tool`: crea o aggiorna una memoria;
+- `recall_memory_tool`: ricerca nella memoria persistente;
+- `forget_memory_tool`: elimina una memoria per ID.
+
+La regola attuale è conservativa: Cora non salva automaticamente tutte le conversazioni e non trasforma automaticamente il log in memoria. Le scritture persistenti avvengono solo su richiesta esplicita o in un workflow esplicitamente autorizzato.
+
+Ogni operazione sulla memoria genera a sua volta un evento nel log, creando il collegamento tra memoria e osservabilità senza confondere i due livelli.
 
 ## Local Research Agent
 
@@ -354,7 +428,8 @@ Nel codice attuale:
 - l'Email Agent non invia automaticamente email;
 - il salvataggio di una bozza Gmail richiede una richiesta esplicita;
 - il sistema non deve inventare risultati di tool o dati commerciali mancanti;
-- la memoria LangGraph presente è volatile e non costituisce una memoria persistente del sistema.
+- il log runtime e il database della memoria sono esclusi da Git;
+- la memoria volatile LangGraph e la memoria persistente SQLite sono due livelli distinti.
 
 ## Struttura essenziale
 
@@ -373,6 +448,8 @@ serveria1/
 ├── requirements.txt
 ├── .env.example
 ├── core/
+│   ├── logging.py
+│   └── memory.py
 ├── frontend/
 ├── search_agent/
 ├── audio_agent/
