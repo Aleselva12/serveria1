@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Frontend = Join-Path $Root "frontend"
 $UiUrl = "http://127.0.0.1:5173"
-$ApiUrl = "http://127.0.0.1:8000"
+$ApiHealthUrl = "http://127.0.0.1:8000/health"
 $OllamaUrl = "http://127.0.0.1:11435"
 
 function Test-Url($Url) {
@@ -23,6 +23,13 @@ function Wait-Url($Url, $Seconds) {
         Start-Sleep -Seconds 1
     }
     return $false
+}
+
+function Get-HashText($Path) {
+    if (-not (Test-Path $Path)) {
+        return ""
+    }
+    return (Get-FileHash -Path $Path -Algorithm SHA256).Hash
 }
 
 Write-Host ""
@@ -55,15 +62,37 @@ if (-not (Test-Url $OllamaUrl)) {
 }
 
 $VenvPython = Join-Path $Root ".venv\Scripts\python.exe"
+$Requirements = Join-Path $Root "requirements.txt"
+$RequirementsStamp = Join-Path $Root ".cora_requirements.sha256"
+
 if (-not (Test-Path $VenvPython)) {
+    if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+        Write-Host "Python non risulta installato o non e' nel PATH." -ForegroundColor Red
+        exit 1
+    }
+
     Write-Host "Creo l'ambiente Python .venv..."
     python -m venv .venv
 }
 
-Write-Host "Aggiorno/verifico le dipendenze Python..."
-& $VenvPython -m pip install -r (Join-Path $Root "requirements.txt") --disable-pip-version-check | Out-Host
+$CurrentRequirementsHash = Get-HashText $Requirements
+$SavedRequirementsHash = if (Test-Path $RequirementsStamp) {
+    (Get-Content $RequirementsStamp -Raw).Trim()
+} else {
+    ""
+}
 
-if (-not (Test-Url $ApiUrl)) {
+if ($CurrentRequirementsHash -ne $SavedRequirementsHash) {
+    Write-Host "Installo/aggiorno le dipendenze Python..."
+    & $VenvPython -m pip install -r $Requirements --disable-pip-version-check
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Installazione dipendenze Python fallita." -ForegroundColor Red
+        exit 1
+    }
+    Set-Content -Path $RequirementsStamp -Value $CurrentRequirementsHash
+}
+
+if (-not (Test-Url $ApiHealthUrl)) {
     Write-Host "Avvio backend FastAPI..."
     Start-Process powershell -ArgumentList @(
         "-NoExit",
@@ -72,7 +101,7 @@ if (-not (Test-Url $ApiUrl)) {
     ) -WindowStyle Minimized
 }
 
-if (-not (Wait-Url "$ApiUrl/health" 30)) {
+if (-not (Wait-Url $ApiHealthUrl 30)) {
     Write-Host "Il backend non si e' avviato correttamente." -ForegroundColor Red
     exit 1
 }
@@ -82,11 +111,31 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-if (-not (Test-Path (Join-Path $Frontend "node_modules"))) {
-    Write-Host "Prima installazione interfaccia: npm install..."
+$PackageJson = Join-Path $Frontend "package.json"
+$FrontendStamp = Join-Path $Root ".cora_frontend.sha256"
+$CurrentFrontendHash = Get-HashText $PackageJson
+$SavedFrontendHash = if (Test-Path $FrontendStamp) {
+    (Get-Content $FrontendStamp -Raw).Trim()
+} else {
+    ""
+}
+
+if (
+    -not (Test-Path (Join-Path $Frontend "node_modules")) -or
+    $CurrentFrontendHash -ne $SavedFrontendHash
+) {
+    Write-Host "Installo/aggiorno l'interfaccia React..."
     Push-Location $Frontend
     npm install
+    $NpmExitCode = $LASTEXITCODE
     Pop-Location
+
+    if ($NpmExitCode -ne 0) {
+        Write-Host "Installazione frontend fallita." -ForegroundColor Red
+        exit 1
+    }
+
+    Set-Content -Path $FrontendStamp -Value $CurrentFrontendHash
 }
 
 Write-Host "Avvio interfaccia React..."
