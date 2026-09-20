@@ -50,6 +50,22 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         ),
     ),
     ComponentDefinition(
+        id="structure_agent",
+        name="Structure Agent",
+        kind="agent",
+        description="Analizza in sola lettura architettura, stato, dipendenze e problemi strutturali di Cora.",
+        module="structure_agent.structure_graph",
+        capabilities=(
+            Capability("inspect_structure", "Interroga il registro centrale di componenti e capacità."),
+            Capability("inspect_runtime", "Legge stato CPU, RAM e disco."),
+            Capability("inspect_memory_status", "Legge statistiche tecniche della memoria persistente."),
+            Capability("inspect_events", "Analizza eventi recenti del log strutturato."),
+            Capability("inspect_project_files", "Elenca e legge file testuali autorizzati del progetto."),
+            Capability("diagnose_structure", "Distingue struttura dichiarata, osservazioni runtime e inferenze diagnostiche."),
+        ),
+        dependencies=("ollama",),
+    ),
+    ComponentDefinition(
         id="local_research_agent",
         name="Local Research Agent",
         kind="agent",
