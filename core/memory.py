@@ -8,10 +8,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
 from core.logging import log_event
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(PROJECT_ROOT / ".env")
+
 MEMORY_ROOT = Path(
     os.getenv("CORA_MEMORY_ROOT", str(PROJECT_ROOT / "data"))
 ).expanduser().resolve()
