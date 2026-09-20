@@ -9,9 +9,10 @@ L'Audio Agent lavora esclusivamente su file audio locali autorizzati.
 - supporto per note vocali e riflessioni personali;
 - supporto per telefonate e conversazioni;
 - diarizzazione opzionale con un modello `pyannote` locale;
-- riassunto e analisi solo dopo la trascrizione e solo quando richiesti.
+- riassunto e analisi solo dopo la trascrizione e solo quando richiesti;
+- salvataggio opzionale della trascrizione in `.txt`.
 
-Formati attualmente accettati:
+Formati accettati:
 
 `.wav`, `.mp3`, `.m4a`, `.mp4`, `.aac`, `.flac`, `.ogg`, `.opus`, `.webm`.
 
@@ -31,39 +32,57 @@ CORA_WHISPER_COMPUTE_TYPE=int8
 
 `CORA_WHISPER_MODEL` può anche contenere il percorso di un modello Whisper già scaricato localmente.
 
-Importante: se si usa un semplice nome modello e quel modello non è già nella cache locale, `faster-whisper` può tentare di recuperarlo. Per un'installazione completamente offline, indicare quindi un percorso locale.
+Se si usa un semplice nome modello e quel modello non è già nella cache locale, `faster-whisper` può tentare di recuperarlo. Per un'installazione completamente offline, indicare quindi un percorso locale.
 
 ### Diarizzazione
-
-La separazione degli interlocutori è opzionale.
 
 ```env
 CORA_DIARIZATION_MODEL=/percorso/al/modello/pyannote/locale
 ```
 
-Se il modello non è configurato o la diarizzazione fallisce, Cora deve comunque produrre la trascrizione e dichiarare che non ha potuto separare con affidabilità gli speaker.
+Se il modello non è configurato o la diarizzazione fallisce, Cora produce comunque la trascrizione senza attribuire battute a speaker specifici.
 
-Non vengono assegnate identità reali alle voci automaticamente. Le etichette sono solo `Interlocutore 1`, `Interlocutore 2`, ecc., salvo che l'identità sia fornita esplicitamente dall'utente o da metadati affidabili.
+Le etichette sono solo `Interlocutore 1`, `Interlocutore 2`, ecc. L'identità reale non viene dedotta automaticamente.
 
-## Cartella audio
+### Cartelle
 
-La directory autorizzata è controllata da:
+Audio autorizzati:
 
 ```env
 CORA_AUDIO_ROOT=/srv/cora/audio
 ```
 
-L'Audio Agent non può uscire da questa radice.
+Trascrizioni salvate:
 
-## Dipendenze
-
-```bash
-pip install -r requirements.txt
+```env
+CORA_TRANSCRIPT_ROOT=/srv/cora/audio/_transcripts
 ```
 
-Le dipendenze principali dell'agente sono:
+L'Audio Agent non può uscire dalle directory autorizzate.
 
-- `faster-whisper`
-- `pyannote.audio`
+## Output tecnico
 
-Il modello di diarizzazione non viene salvato nel repository Git.
+`transcribe_audio_file` restituisce uno stato strutturato con:
+
+- `status`;
+- file sorgente;
+- lingua rilevata;
+- durata;
+- numero di segmenti;
+- stato della diarizzazione;
+- numero speaker rilevati, quando disponibile;
+- trascrizione.
+
+La trascrizione non viene duplicata in una seconda struttura segmentata, così le conversazioni lunghe occupano meno contesto.
+
+## Stato dell'agente
+
+Lato codice l'agente è considerato completo per il proof of concept.
+
+Restano da verificare con test reali:
+
+1. qualità della trascrizione su voce singola;
+2. qualità su telefonata registrata;
+3. diarizzazione a due speaker;
+4. prestazioni CPU/RAM e tempo di elaborazione;
+5. scelta finale del modello Whisper e del modello pyannote per il server.
