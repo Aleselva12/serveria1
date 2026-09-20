@@ -1,76 +1,109 @@
-# JARVIS AI Assistant 🤖
+# Cora Lab
 
-JARVIS is an advanced **Multi-Agent AI System** built using [LangGraph](https://python.langchain.com/docs/langgraph) and powered by Google's **Gemini 2.5 Flash** models. 
+Proof of concept locale del sistema multi-agente Cora.
 
-Unlike traditional, monolithic chatbots, JARVIS uses a hierarchical **Supervisor Architecture**. A central "Supervisor" agent interprets your requests, breaks down complex tasks, and delegates work to highly specialized sub-agents. These sub-agents can even be chained together to complete multi-step workflows autonomously!
+Il progetto usa LangGraph come orchestratore e Ollama come runtime LLM locale. Il branch `ChatGPT` contiene il lavoro sperimentale attuale.
 
-## 🏗️ Architecture
+## Architettura attuale
 
-The system operates as a hierarchical graph network:
-- **Supervisor Agent** (`/chat.py` & `/graph.py`): The brain of the operation. It communicates directly with the user, maintains conversation history, and routes specific sub-tasks to specialized agents.
-- **Tools/Delegation** (`/tools.py`): The sub-agents are exposed to the Supervisor as fully self-contained tool nodes.
-
-### 🧩 The Specialized Sub-Agents
-
-1. **Email Agent** (`/email_agent`)
-   - Capable of reading, summarizing, filtering, replying to, and drafting new emails.
-   - Requires your approval before actually sending or saving drafts, implementing a "Human in the Loop" safety check.
-2. **Calendar Agent** (`/calendar_agent`)
-   - Manages your Google Calendar. It can read upcoming events, schedule new meetings, and delete or postpone existing ones.
-3. **Search Agent** (`/search_agent`)
-   - Uses the Tavily API to browse the live internet. If you ask about current events or facts outside the LLM's training data, this agent fetches the answers.
-
-## 🚀 Installation & Setup
-
-### 1. Clone the repository
-```bash
-git clone <your-repo-url>
-cd JARVIS
+```text
+Cora / Supervisor
+├── Local Research Agent
+│   ├── ricerca nei documenti locali
+│   ├── lettura Word .docx e file testuali
+│   └── confronto e valutazione delle informazioni
+├── Audio Agent
+│   ├── trascrizione locale
+│   ├── note vocali / riflessioni
+│   ├── conversazioni a due interlocutori
+│   └── riassunto e analisi su richiesta
+└── Email Agent
+    └── agente originale ancora da rivedere
 ```
 
-### 2. Set up a Python Virtual Environment
-Isolate your dependencies to ensure everything runs smoothly:
+Non è presente un agente di ricerca web. Il Local Research Agent lavora soltanto sui documenti autorizzati.
+
+## Avvio rapido
+
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+python -m venv .venv
 ```
 
-### 3. Install Dependencies
-```bash
+Windows:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
-You must set up your API keys locally.
-1. Create a `.env` file in the root of the `JARVIS` directory.
-2. Add your keys:
-   ```env
-   GEMINI_API_KEY="your-gemini-api-key"
-   TAVILY_API_KEY="your-tavily-api-key"
-   ```
-
-### 5. Setup Google OAuth Credentials
-For the Email and Calendar agents to interface with your actual accounts:
-1. Create a project in the [Google Cloud Console](https://console.cloud.google.com/).
-2. Enable both the **Gmail API** and **Google Calendar API**.
-3. Generate **OAuth 2.0 Client IDs** (Desktop App) and download the resulting `credentials.json` file.
-4. Place `credentials.json` in the root directory. On your first run, a browser window will open asking you to authenticate, and a `token.json` file will be generated automatically.
-
-## 💻 Usage
-
-Start your personal assistant by running the central chat script from the root of the project:
+Linux:
 
 ```bash
-python3 chat.py
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-Try asking complex, multi-step questions like:
-- *"Check my calendar for tomorrow and see if I have time to meet Batman. If so, book a meeting and email him to let him know!"*
-- *"Summarize the latest emails in my inbox, and then search the web for the latest news on OpenAI."*
+Copia poi:
 
-## 🛠️ Code Structure & Imports
+```text
+.env.example -> .env
+```
 
-The codebase uses **Absolute Importing** from the root folder to prevent module name collisions between the different agents. For example, if you are modifying a tool inside the email agent, always import it via:
-`from email_agent.tools.filtering import filter_email`
+e configura almeno Ollama e le directory locali.
 
-This ensures that the multi-agent graph compiles cleanly without namespace overlaps.
+Interfaccia principale:
+
+```bash
+streamlit run app.py
+```
+
+oppure terminale:
+
+```bash
+python chat.py
+```
+
+## Modello locale
+
+Configurazione predefinita del proof of concept:
+
+```env
+OLLAMA_MODEL=gpt-oss:20b
+OLLAMA_BASE_URL=http://localhost:11435
+```
+
+## Local Research Agent
+
+La cartella autorizzata è definita da:
+
+```env
+CORA_KNOWLEDGE_ROOT=./knowledge
+```
+
+Supporta anche file Microsoft Word `.docx`.
+
+L'agente deve distinguere tra rilevanza, importanza, supporto documentale e affidabilità, senza trattare automaticamente come vero tutto ciò che trova in un documento.
+
+## Audio Agent
+
+La cartella autorizzata è definita da:
+
+```env
+CORA_AUDIO_ROOT=./audio
+```
+
+La trascrizione usa `faster-whisper`. La separazione degli speaker usa opzionalmente un modello `pyannote` locale.
+
+Vedi `audio_agent/README.md` per la configurazione completa.
+
+## Sicurezza del proof of concept
+
+- accesso a file limitato alle directory autorizzate;
+- credenziali escluse dalla lettura locale e da Git;
+- modelli e audio locali esclusi dal repository;
+- nessuna ricerca web nel Local Research Agent;
+- nessun upload audio richiesto dall'Audio Agent.
+
+## Roadmap
+
+La roadmap PC/server è documentata in `Cora_roadmap_PC_e_server.md`.
