@@ -44,11 +44,28 @@ def structure_recent_events(
     return json.dumps(events, ensure_ascii=False, indent=2)
 
 
+@tool
+def structure_control_snapshot(event_limit: int = 20) -> str:
+    """
+    Restituisce una fotografia tecnica sintetica utile a control e management:
+    componenti dichiarati, stato sistema, memoria e ultimi eventi strutturati.
+    Non modifica nulla.
+    """
+    snapshot = {
+        "registry": get_registry(),
+        "system_status": system_status_tool.invoke({}),
+        "memory": memory_stats(),
+        "recent_events": tail_events(limit=max(1, min(event_limit, 50))),
+    }
+    return json.dumps(snapshot, ensure_ascii=False, indent=2)
+
+
 STRUCTURE_TOOLS = [
     structure_components,
     system_status_tool,
     structure_memory_status,
     structure_recent_events,
+    structure_control_snapshot,
     list_project_files,
     read_project_file,
 ]
