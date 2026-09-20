@@ -46,9 +46,36 @@ Il Supervisor può usare direttamente questi strumenti locali:
 - calcolatrice per operazioni aritmetiche di base;
 - lettura dello stato reale di CPU, RAM e disco;
 - elenco dei file autorizzati della repository;
-- lettura dei file testuali autorizzati della repository.
+- lettura dei file testuali autorizzati della repository;
+- lettura del registro centrale di struttura e capacità.
 
 Può inoltre delegare ai tre agenti specializzati.
+
+## Registro centrale di struttura e capacità
+
+Il progetto contiene ora un nucleo condiviso:
+
+```text
+core/
+├── capabilities.py
+└── registry.py
+```
+
+`capabilities.py` definisce lo schema comune usato per descrivere componenti e capacità.
+
+`registry.py` è la fonte centrale per sapere quali componenti sono definiti nel sistema. Registra attualmente il Supervisor, i tre agenti specializzati, i tool locali principali, il backend FastAPI e l'interfaccia React.
+
+Per ogni componente sono descritti identificativo, nome, tipo, descrizione, capacità dichiarate, modulo associato e dipendenze strutturali.
+
+Il registro può verificare se il modulo Python associato è disponibile e restituisce uno stato strutturale del componente. Questo controllo non sostituisce gli health check runtime dei servizi esterni.
+
+Il Supervisor accede al registro tramite:
+
+```text
+structure_registry_tool
+```
+
+Il registro non implementa permessi, memoria persistente o logging avanzato.
 
 ## Local Research Agent
 
@@ -155,10 +182,13 @@ Endpoint presenti:
 
 ```text
 GET  /health
+GET  /capabilities
 POST /chat
 ```
 
-`/health` restituisce lo stato del backend, la raggiungibilità di Ollama, il modello configurato e l'elenco dei tre agenti specializzati.
+`/health` restituisce lo stato del backend, la raggiungibilità di Ollama, il modello configurato e l'elenco degli agenti letto dal registro centrale.
+
+`/capabilities` restituisce il registro centrale dei componenti e delle capacità.
 
 `/chat` riceve il messaggio dell'utente e un eventuale `thread_id`, invoca il grafo principale e restituisce la risposta di Cora.
 
@@ -342,6 +372,7 @@ serveria1/
 ├── smoke_check.py
 ├── requirements.txt
 ├── .env.example
+├── core/
 ├── frontend/
 ├── search_agent/
 ├── audio_agent/
