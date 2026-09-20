@@ -9,10 +9,14 @@ from collections import deque
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
+
+from dotenv import load_dotenv, Iterator
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(PROJECT_ROOT / ".env")
+
 LOG_ROOT = Path(os.getenv("CORA_LOG_ROOT", str(PROJECT_ROOT / "logs"))).expanduser().resolve()
 LOG_FILE = LOG_ROOT / "cora.jsonl"
 _LOCK = threading.Lock()
