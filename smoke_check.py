@@ -18,6 +18,8 @@ load_dotenv(ROOT / ".env")
 MODULES = [
     "core.capabilities",
     "core.registry",
+    "core.logging",
+    "core.memory",
     "local_tools",
     "search_agent.search_tools",
     "search_agent.search_graph",
