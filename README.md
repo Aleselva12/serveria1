@@ -7,68 +7,100 @@ Il progetto usa LangGraph come orchestratore e Ollama come runtime LLM locale. I
 ## Architettura attuale
 
 ```text
+React / Vite
+      ↓
+FastAPI
+      ↓
 Cora / Supervisor
 ├── Local Research Agent
-│   ├── ricerca nei documenti locali
-│   ├── lettura Word .docx e file testuali
-│   └── confronto e valutazione delle informazioni
 ├── Audio Agent
-│   ├── trascrizione locale
-│   ├── note vocali / riflessioni
-│   ├── conversazioni a due interlocutori
-│   └── riassunto e analisi su richiesta
 └── Email & Quotes Agent
-    ├── ricerca archivio mail
-    ├── digest giornaliero
-    ├── bozze email
-    └── preventivi PDF
 ```
 
-Non è presente un agente di ricerca web. Il Local Research Agent lavora soltanto sui documenti autorizzati.
+## AVVIO
 
-## Avvio rapido
+Su Windows il punto d'ingresso principale è:
+
+```text
+AVVIO.cmd
+```
+
+Se l'interfaccia è già attiva, AVVIO la apre nel browser.
+
+Se Cora non è attiva, AVVIO prova a:
+
+1. creare `.env` da `.env.example` se manca;
+2. avviare il container Docker `ia-ollama` se Ollama non risponde;
+3. creare la virtualenv Python se manca;
+4. installare/aggiornare le dipendenze solo quando `requirements.txt` cambia;
+5. avviare FastAPI;
+6. installare/aggiornare il frontend solo quando `package.json` cambia;
+7. avviare React/Vite;
+8. aprire automaticamente l'interfaccia.
+
+Per creare un vero collegamento **AVVIO** sul desktop esegui una volta:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\CREA_AVVIO_DESKTOP.ps1
+```
+
+## Interfaccia
+
+La nuova UI usa **React + Vite** ed è separata dal backend. Questo permette di cambiare liberamente grafica e funzioni senza modificare il cuore di Cora.
+
+Frontend:
+
+```text
+frontend/
+```
+
+Backend API:
+
+```text
+api.py
+```
+
+API principali:
+
+```text
+GET  /health
+POST /chat
+```
+
+La vecchia UI Streamlit in `app.py` resta temporaneamente disponibile come fallback durante il proof of concept.
+
+## Installazione manuale
+
+Se non vuoi usare AVVIO:
 
 ```bash
 python -m venv .venv
-```
-
-Windows:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-Linux:
+Poi:
 
 ```bash
-source .venv/bin/activate
-pip install -r requirements.txt
+python -m uvicorn api:app --host 127.0.0.1 --port 8000
 ```
 
-Copia poi:
+e, in un secondo terminale:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Interfaccia:
 
 ```text
-.env.example -> .env
-```
-
-e configura almeno Ollama e le directory locali.
-
-Interfaccia principale:
-
-```bash
-streamlit run app.py
-```
-
-oppure terminale:
-
-```bash
-python chat.py
+http://127.0.0.1:5173
 ```
 
 ## Modello locale
 
-Configurazione predefinita del proof of concept:
+Configurazione predefinita:
 
 ```env
 OLLAMA_MODEL=gpt-oss:20b
@@ -77,46 +109,43 @@ OLLAMA_BASE_URL=http://localhost:11435
 
 ## Local Research Agent
 
-La cartella autorizzata è definita da:
+Ricerca, legge e confronta documenti locali autorizzati, inclusi file Word `.docx`.
 
 ```env
 CORA_KNOWLEDGE_ROOT=./knowledge
 ```
 
-Supporta anche file Microsoft Word `.docx`.
-
-L'agente deve distinguere tra rilevanza, importanza, supporto documentale e affidabilità, senza trattare automaticamente come vero tutto ciò che trova in un documento.
-
 ## Audio Agent
 
-La cartella autorizzata è definita da:
+Trascrive audio locali con `faster-whisper`, con diarizzazione opzionale tramite modello `pyannote` locale.
 
 ```env
 CORA_AUDIO_ROOT=./audio
 ```
 
-La trascrizione usa `faster-whisper`. La separazione degli speaker usa opzionalmente un modello `pyannote` locale.
-
-Vedi `audio_agent/README.md` per la configurazione completa.
-
 ## Email & Quotes Agent
 
-Gestisce ricerca nell'archivio mail, digest giornalieri, bozze email e generazione di preventivi PDF locali.
+Gestisce ricerca nell'archivio Gmail, digest giornalieri, bozze email e preventivi PDF.
 
-La generazione PDF attuale è una base funzionale. In una fase successiva i preventivi saranno automatizzati collegando l'agente a cataloghi, listini, dati cliente, varianti, condizioni commerciali e altre fonti strutturate autorizzate.
+La generazione PDF è una base funzionale; i preventivi saranno automatizzati collegando cataloghi, listini, dati cliente, varianti e condizioni commerciali.
 
-Vedi `email_agent/README.md` per i dettagli.
+## Controllo progetto
+
+Dopo modifiche importanti:
+
+```bash
+python smoke_check.py
+```
 
 ## Sicurezza del proof of concept
 
-- accesso a file limitato alle directory autorizzate;
-- credenziali escluse dalla lettura locale e da Git;
-- modelli e audio locali esclusi dal repository;
+- accesso file limitato alle directory autorizzate;
+- credenziali escluse da Git;
+- modelli, audio, documenti e preventivi esclusi dal repository;
 - nessuna ricerca web nel Local Research Agent;
-- nessun upload audio richiesto dall'Audio Agent;
 - nessun invio automatico di email;
-- i preventivi non possono inventare dati commerciali mancanti.
+- nessun dato commerciale mancante viene inventato.
 
 ## Roadmap
 
-La roadmap PC/server è documentata in `Cora_roadmap_PC_e_server.md`.
+Vedi `Cora_roadmap_PC_e_server.md`.
