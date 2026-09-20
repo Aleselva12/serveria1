@@ -1,13 +1,12 @@
 import operator
-import os
 from typing import Annotated, Sequence, TypedDict
 
 from langchain_core.messages import BaseMessage, SystemMessage
-from langchain_ollama import ChatOllama
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 
+from core.models import get_chat_model
 from email_agent.email_prompt import EMAIL_AGENT_PROMPT
 from email_agent.email_tools import EMAIL_TOOLS
 
@@ -22,12 +21,7 @@ def call_llm(state: AgentState):
     if not messages or not isinstance(messages[0], SystemMessage):
         messages = [SystemMessage(content=EMAIL_AGENT_PROMPT)] + list(messages)
 
-    llm = ChatOllama(
-        model=os.getenv("OLLAMA_MODEL", "gpt-oss:20b"),
-        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11435"),
-        temperature=0.0,
-    )
-
+    llm = get_chat_model("email", temperature=0.0)
     response = llm.bind_tools(EMAIL_TOOLS).invoke(messages)
     return {"messages": [response]}
 
