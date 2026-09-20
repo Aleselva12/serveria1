@@ -2,6 +2,7 @@ import json
 import os
 from datetime import date
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 from langchain_core.tools import tool
 from reportlab.lib import colors
@@ -173,7 +174,7 @@ def generate_quote_pdf(
             Paragraph("PREVENTIVO", styles["Title"]),
             Spacer(1, 5 * mm),
             Paragraph(
-                f"<b>Cliente:</b> {customer_name}",
+                f"<b>Cliente:</b> {escape(customer_name)}",
                 styles["Normal"],
             ),
         ]
@@ -181,14 +182,14 @@ def generate_quote_pdf(
         if customer_address:
             story.append(
                 Paragraph(
-                    f"<b>Indirizzo:</b> {customer_address}",
+                    f"<b>Indirizzo:</b> {escape(customer_address)}",
                     styles["Normal"],
                 )
             )
         if quote_number:
             story.append(
                 Paragraph(
-                    f"<b>Numero:</b> {quote_number}",
+                    f"<b>Numero:</b> {escape(quote_number)}",
                     styles["Normal"],
                 )
             )
@@ -244,7 +245,7 @@ def generate_quote_pdf(
             story.extend([
                 Spacer(1, 7 * mm),
                 Paragraph("<b>Note</b>", styles["Heading3"]),
-                Paragraph(notes.strip(), styles["Normal"]),
+                Paragraph(escape(notes.strip()), styles["Normal"]),
             ])
 
         doc.build(story)
