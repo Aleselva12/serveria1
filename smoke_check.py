@@ -5,11 +5,15 @@ from __future__ import annotations
 import compileall
 import importlib
 import os
+import re
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 
 ROOT = Path(__file__).resolve().parent
+load_dotenv(ROOT / ".env")
 
 MODULES = [
     "local_tools",
@@ -32,7 +36,7 @@ def check_syntax() -> bool:
         str(ROOT),
         quiet=1,
         force=True,
-        rx=r".*[\\/](\.venv|venv|__pycache__|\.git)[\\/].*",
+        rx=re.compile(r".*[\\/](\.venv|venv|__pycache__|\.git)[\\/].*"),
     )
     print("  OK" if ok else "  ERRORE")
     return ok
