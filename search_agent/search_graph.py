@@ -1,13 +1,12 @@
-import os
 import operator
 from typing import Annotated, Sequence, TypedDict
 
 from langchain_core.messages import BaseMessage, SystemMessage
-from langchain_ollama import ChatOllama
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 
+from core.models import get_chat_model
 from search_agent.search_prompt import SEARCH_AGENT_PROMPT
 from search_agent.search_tools import LOCAL_RESEARCH_TOOLS
 
@@ -22,14 +21,8 @@ def call_llm(state: AgentState):
     if not messages or not isinstance(messages[0], SystemMessage):
         messages = [SystemMessage(content=SEARCH_AGENT_PROMPT)] + list(messages)
 
-    llm = ChatOllama(
-        model=os.getenv("OLLAMA_MODEL", "gpt-oss:20b"),
-        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11435"),
-        temperature=0,
-    )
-
-    llm_with_tools = llm.bind_tools(LOCAL_RESEARCH_TOOLS)
-    response = llm_with_tools.invoke(messages)
+    llm = get_chat_model("research", temperature=0.0)
+    response = llm.bind_tools(LOCAL_RESEARCH_TOOLS).invoke(messages)
     return {"messages": [response]}
 
 
