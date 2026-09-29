@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from core.logging import logged_operation
 from core.memory import memory_stats
+from core.models import get_model_name
 from core.registry import get_agents, get_registry
 from graph import graph
 
@@ -26,10 +27,9 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=[origin.strip() for origin in os.getenv(
+        "CORA_UI_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(",") if origin.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,7 +59,7 @@ def health():
     return {
         "status": "ok",
         "ollama_online": _ollama_online(),
-        "model": OLLAMA_MODEL,
+        "model": get_model_name("supervisor"),
         "agents": [agent["name"] for agent in get_agents()],
         "memory": memory_stats(),
     }

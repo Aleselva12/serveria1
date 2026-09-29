@@ -1,3 +1,5 @@
+param([string]$FrontendPath = "")
+
 $ErrorActionPreference = "Stop"
 
 trap {
@@ -9,7 +11,7 @@ trap {
 }
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Frontend = Join-Path $Root "frontend"
+$Frontend = if ($FrontendPath) { (Resolve-Path $FrontendPath).Path } else { Join-Path $Root "frontend" }
 $UiUrl = "http://127.0.0.1:5173"
 $ApiHealthUrl = "http://127.0.0.1:8000/health"
 $OllamaUrl = "http://127.0.0.1:11435"
@@ -18,6 +20,15 @@ function Test-Url($Url, $TimeoutSec = 2) {
     try {
         Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec $TimeoutSec | Out-Null
         return $true
+    } catch {
+        return $false
+    }
+}
+
+function Test-CoraUi {
+    try {
+        $Response = Invoke-WebRequest -Uri $UiUrl -UseBasicParsing -TimeoutSec 2
+        return $Response.Content.Contains('name="cora-ui" content="connected"')
     } catch {
         return $false
     }
@@ -47,17 +58,9 @@ function Fail($Message) {
 }
 
 function Clear-StalePort($Port) {
-    $Deadline = (Get-Date).AddSeconds(10)
-    while ((Get-Date) -lt $Deadline) {
-        $Connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-        if (-not $Connections) {
-            return
-        }
-        foreach ($Connection in $Connections) {
-            Write-Host "Trovato un processo sulla porta $Port (PID $($Connection.OwningProcess)), lo chiudo..." -ForegroundColor Yellow
-            Stop-Process -Id $Connection.OwningProcess -Force -ErrorAction SilentlyContinue
-        }
-        Start-Sleep -Milliseconds 500
+    $Connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if ($Connections) {
+        Fail "La porta $Port e' occupata. Chiudi il precedente servizio Cora, poi riapri AVVIO."
     }
 }
 
@@ -89,10 +92,14 @@ $LockFile = Join-Path $Root ".avvio.lock"
 Write-Host ""
 Write-Host "=== AVVIO CORA ===" -ForegroundColor Cyan
 
-if ((Test-Url $UiUrl) -and (Test-Url $ApiHealthUrl)) {
+if ((Test-CoraUi) -and (Test-Url $ApiHealthUrl)) {
     Write-Host "Cora e' gia attiva. Apro l'interfaccia..." -ForegroundColor Green
     Start-Process $UiUrl
     exit 0
+}
+
+if ((Test-Url $UiUrl) -and -not (Test-CoraUi)) {
+    Fail "Sulla porta 5173 e' attiva un'altra interfaccia (anche la vecchia Cora). Chiudila e riapri AVVIO per caricare il nuovo frontend."
 }
 
 if (Test-Path $LockFile) {
@@ -225,7 +232,7 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
 
 $PackageJson = Join-Path $Frontend "package.json"
 $FrontendStamp = Join-Path $Root ".cora_frontend.sha256"
-$CurrentFrontendHash = Get-HashText $PackageJson
+$CurrentFrontendHash = (Get-HashText $PackageJson) + (Get-HashText (Join-Path $Frontend "package-lock.json"))
 $SavedFrontendHash = if (Test-Path $FrontendStamp) {
     (Get-Content $FrontendStamp -Raw).Trim()
 } else {
@@ -238,7 +245,7 @@ if (
 ) {
     Write-Host "Installo/aggiorno l'interfaccia React..."
     Push-Location $Frontend
-    npm install
+    npm ci --include=dev
     $NpmExitCode = $LASTEXITCODE
     Pop-Location
 
@@ -249,7 +256,7 @@ if (
     Set-Content -Path $FrontendStamp -Value $CurrentFrontendHash
 }
 
-if (-not (Test-Url $UiUrl)) {
+if (-not (Test-CoraUi)) {
     Stop-KnownProcess $FrontendPidFile
     Stop-TaggedWindows $FrontendWindowTitle
     Clear-StalePort 5173
@@ -264,6 +271,10 @@ if (-not (Test-Url $UiUrl)) {
 
 if (-not (Wait-Url $UiUrl 40)) {
     Fail "L'interfaccia non ha risposto entro il tempo previsto. Apri la finestra minimizzata $FrontendWindowTitle per vedere l'errore."
+}
+
+if (-not (Test-CoraUi)) {
+    Fail "La pagina aperta non e' il nuovo frontend Cora. Controlla la cartella frontend e la porta 5173."
 }
 
 Write-Host "Interfaccia pronta, la apro. Il backend potrebbe metterci ancora qualche istante al primo avvio..." -ForegroundColor Green

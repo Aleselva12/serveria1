@@ -380,7 +380,7 @@ GET  /capabilities
 POST /chat
 ```
 
-`/health` restituisce lo stato del backend, la raggiungibilità di Ollama, il modello configurato e l'elenco degli agenti letto dal registro centrale.
+`/health` restituisce lo stato del backend, la raggiungibilità di Ollama, il modello effettivo del supervisore (incluso CORA_MODEL_SUPERVISOR) e l'elenco degli agenti letto dal registro centrale.
 
 `/capabilities` restituisce il registro centrale dei componenti e delle capacità.
 
@@ -402,14 +402,15 @@ Cartella:
 frontend/
 ```
 
-L'interfaccia attuale comprende:
+L’interfaccia ora usa il progetto React + TypeScript di `Aleselva12/frontend`, incluso in questa cartella. Comprende Home, Chat, Architettura, Programma, Calendario, File, Attività e Impostazioni.
 
-- chat con Cora;
-- creazione di una nuova conversazione;
-- visualizzazione dei quattro agenti disponibili;
-- controllo periodico dello stato del backend;
-- indicazione dello stato di Ollama;
-- visualizzazione del modello locale configurato.
+I collegamenti reali sono `/chat`, `/health` e `/capabilities`: risposta di Cora, thread separati, stato del backend/Ollama, modello supervisore, statistiche memoria e registro degli agenti. Le conversazioni della sidebar e gli esiti delle richieste restano nella memoria della pagina, fino al ricaricamento; non sono uno storico persistente del server.
+
+Le funzioni senza endpoint hanno avvisi permanenti “Collegamento da realizzare” e controlli disabilitati: telemetria, file del NAS, allegati, calendario personale, editor, streaming, run, conferme, microfono, permessi e modifica della mappa. Non vengono visualizzati dati fittizi. Nessun agente calendario è stato aggiunto.
+
+La mappa mostra agenti e capacità del registro reale; “Modulo presente” è disponibilità strutturale, non readiness runtime. I collegamenti della mappa illustrano delega possibile e non tracce eseguite.
+
+Il dettaglio aggiornato è in `frontend/COLLEGAMENTI.md`, `frontend/README.md` e nelle Impostazioni. Vite usa `/backend` come proxy locale verso FastAPI su `127.0.0.1:8000`. Il target si configura in `frontend/.env.local` con `CORA_API_TARGET`; per un URL API diretto configurare anche `VITE_API_BASE_URL` e `CORA_UI_ORIGINS` sul backend.
 
 Indirizzo predefinito:
 
@@ -443,11 +444,11 @@ Se non è attiva, lo script può:
 4. creare la virtualenv Python `.venv` se manca;
 5. installare o aggiornare le dipendenze Python quando cambia `requirements.txt`;
 6. avviare FastAPI sulla porta 8000;
-7. installare o aggiornare il frontend quando cambia `package.json`;
+7. installare o aggiornare il frontend quando cambia `package.json` o `package-lock.json`;
 8. avviare Vite sulla porta 5173;
 9. aprire automaticamente l'interfaccia.
 
-Lo script gestisce inoltre file PID, un lock di avvio e la chiusura di processi rimasti sulle porte usate dal backend e dal frontend.
+Lo script gestisce file PID e un lock di avvio. Verifica che la pagina sia il nuovo frontend e segnala le porte occupate, senza terminare processi sconosciuti. Al primo avvio aggiornato chiudere le vecchie finestre Cora. Per usare un checkout frontend separato: `powershell -File AVVIO.ps1 -FrontendPath C:\percorso\frontend`.
 
 Per creare un collegamento AVVIO sul desktop è presente:
 
