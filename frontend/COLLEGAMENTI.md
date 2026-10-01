@@ -54,3 +54,14 @@ Verifica: `python -m unittest discover -s tests -v`, `npm test --prefix frontend
 ## File: sottopagine collegate
 
 “File server” e “Libreria IA” sono su una riga subito sotto il titolo “File” e usano la stessa grafica. I contratti backend sono nel README principale. Il token di “Accesso ai file” resta in memoria, non in localStorage, URL o bundle. Download autenticato tramite fetch e URL blob; upload con FormData senza imporre Content-Type. Le mutazioni non vengono ritentate automaticamente. La cartella degli originali degli upload IA è esposta in File server come “Originali Libreria IA”. Nessuno scambio al riavvio è implementato.
+
+## Da verificare dopo l'installazione sul server — visibilità dei file
+
+Problema segnalato dall'utente: al momento i file non sembrano visibili nella pagina. La causa non è ancora verificata. La verifica e l'eventuale correzione sono rinviate all'installazione sul server: l'obiettivo è vedere le cartelle reali del server Debian, non quelle del PC o dell'ambiente di sviluppo.
+
+- Configurare `CORA_FILE_ROOTS` con i percorsi desiderati sul server (radice `/` e cartelle dei dati autorizzate; riferimento NAS: `/srv/nas/Dati/drive`).
+- Verificare disponibilità dei dischi montati, permessi dell'utente che esegue il backend ed eventuali volumi Docker.
+- Verificare accesso tramite Tailscale, token File server e risultati delle API `/roots` e `/children`, distinguendo un errore da una cartella realmente vuota.
+- Configurare e verificare anche `CORA_KNOWLEDGE_ROOT` e `CORA_LIBRARY_ORIGINALS_ROOT` sui percorsi reali del server.
+
+Questo punto resta aperto fino alla prova sul server. Non sono richiesti interventi sui percorsi locali per chiuderlo.
