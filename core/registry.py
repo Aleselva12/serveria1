@@ -122,7 +122,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
             Capability("append_word_document", "Aggiunge contenuto a Word esistenti senza cancellare quello precedente."),
             Capability("analyze_documents", "Analizza i contenuti tramite il modello locale."),
         ),
-        dependencies=("ollama",),
+        dependencies=("ollama", "pypdf"),
     ),
     ComponentDefinition(
         id="audio_agent",
@@ -214,6 +214,7 @@ def _dependency_status(name: str) -> bool | None:
     checks = {
         "ollama": bool(os.getenv("OLLAMA_BASE_URL", "http://localhost:11435")),
         "faster_whisper": importlib.util.find_spec("faster_whisper") is not None,
+        "pypdf": importlib.util.find_spec("pypdf") is not None,
     }
     return checks.get(name)
 
