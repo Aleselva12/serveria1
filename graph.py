@@ -6,7 +6,7 @@ from langgraph.prebuilt import ToolNode
 
 from core.memory import search_memories
 from core.models import get_chat_model
-from core.system_context import get_system_context
+from core.prompt_context import with_permanent_context
 from tools import supervisor_tools
 from prompt import SUPERVISOR_PROMPT
 
@@ -27,8 +27,6 @@ def _latest_user_text(messages) -> str:
 
 
 def _runtime_system_prompt(messages) -> str:
-    context = get_system_context()
-    context_text = (context.get("content") or "").strip()
     user_text = _latest_user_text(messages)
 
     relevant = []
@@ -38,14 +36,7 @@ def _runtime_system_prompt(messages) -> str:
         except Exception:
             relevant = []
 
-    sections = [SUPERVISOR_PROMPT.strip()]
-    if context_text:
-        sections.append(
-            "PERMANENT USER-CONFIGURED CONTEXT\n"
-            "Treat this as high-priority operating context. It is edited by the user "
-            "and must not be modified or reinterpreted as learned memory.\n"
-            + context_text
-        )
+    sections = [with_permanent_context(SUPERVISOR_PROMPT)]
     if relevant:
         lines = []
         for memory in relevant:
