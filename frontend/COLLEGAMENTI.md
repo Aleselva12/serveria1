@@ -1,6 +1,6 @@
 # Collegamenti frontend ↔ backend Cora
 
-Stato verificato sul backend `serveria1/main` del 29 settembre 2026, integrato nel branch `ChatGPT`.
+Stato allineato al backend `serveria1/main` dopo l'integrazione del frontend.
 
 ## Collegati
 
