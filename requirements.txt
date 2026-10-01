@@ -19,3 +19,5 @@ pyannote.audio
 reportlab
 
 pypdf
+
+python-multipart

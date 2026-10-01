@@ -14,6 +14,9 @@ Stato allineato al backend `serveria1/main` dopo l'integrazione del frontend.
 | Nuova chat / sidebar | Thread separati tramite `/chat` | Lista e messaggi in memoria nella pagina; spariscono al refresh. |
 | Attività | Esito HTTP delle richieste chat nella pagina | Non è un endpoint dei run, né una traccia degli agenti. |
 | AVVIO | Launcher di `serveria1` con frontend integrato o `-FrontendPath` | Avvio locale Windows; nessuna configurazione automatica del NAS. |
+| File server | `/api/v1/server/files/roots`, `/children`, `/upload`, `/download`, `/folders`, `/transfer`, `/trash`, `/restore` | Risorse configurate, ricerca nomi nella cartella, paginazione, upload multipli, gestione file e cestino. |
+| Libreria IA | `/api/v1/library/files/*`, `/import`, `/upload` | Cartella separata, copie dal server; upload salva anche un originale sul server. |
+
 
 ## Da realizzare — avvisi permanenti nella UI
 
@@ -28,9 +31,7 @@ Stato allineato al backend `serveria1/main` dopo l'integrazione del frontend.
 | Programma | Scrittura, revisione/conflitti, audit | `PUT /workspaces/{id}/file` con revisione, permessi server. |
 | Programma | Esecuzione autorizzata, output, timeout/cancellazione | `/workspaces/{id}/executions`, `/executions/{id}`; comandi consentiti. |
 | Calendario | Eventi personali CRUD persistenti | `/calendar/events`; nessun agente calendario e nessuna scrittura solo nel browser. |
-| File | Albero cartelle, contenuti, ricerca/paginazione e storage NAS | `/server/files/tree`, `/folders/{id}/children`, `/server/storage`. |
-| File | Upload, download, eliminazione/cestino, condivisioni | `/files`, `/download`, `/server/files/{id}`, `/shares`. |
-| File | Anteprime, processamento e collegamento artefatti ai run | `/preview`, `/processing`, `sourceRunId` e `conversationId`. |
+| File server | Anteprime e ricerca ricorsiva | Backend ancora da costruire. |
 | Audio | Acquisizione microfono, upload, trascrizione e speaker | Contratto dedicato da definire; il microfono resta disabilitato. |
 | Impostazioni | Configurazione pubblica completa, modelli per ruolo, permessi utente | `/system/config`, `/permissions`; il registro non è un manifesto permessi utente. |
 | Sessioni | Autenticazione, protezione delle mutazioni e accesso remoto | Da definire prima di una pubblicazione remota. |
@@ -49,3 +50,18 @@ GPU AMD: sysfs Linux; GPU NVIDIA: nvidia-smi se presente. Altri driver mostrano 
 Docker viene interrogato in sola lettura con `docker ps -a`, senza modificare privilegi o montare socket. Immich, Nextcloud e n8n usano gli URL di controllo configurati in `.env` (`CORA_SERVICE_IMMICH_URL`, `CORA_SERVICE_NEXTCLOUD_URL`, `CORA_SERVICE_N8N_URL`). URL vuoto significa “Non verificato”. Nessuna operazione di avvio/arresto viene esposta. Le metriche descrivono il sistema visibile al processo backend; in Docker la visibilità di dischi/sensori dipende dal container.
 
 Verifica: `python -m unittest discover -s tests -v`, `npm test --prefix frontend`, `npm run build --prefix frontend`.
+
+## File: sottopagine collegate
+
+“File server” e “Libreria IA” sono su una riga subito sotto il titolo “File” e usano la stessa grafica. I contratti backend sono nel README principale. Il token di “Accesso ai file” resta in memoria, non in localStorage, URL o bundle. Download autenticato tramite fetch e URL blob; upload con FormData senza imporre Content-Type. Le mutazioni non vengono ritentate automaticamente. La cartella degli originali degli upload IA è esposta in File server come “Originali Libreria IA”. Nessuno scambio al riavvio è implementato.
+
+## Da verificare dopo l'installazione sul server — visibilità dei file
+
+Problema segnalato dall'utente: al momento i file non sembrano visibili nella pagina. La causa non è ancora verificata. La verifica e l'eventuale correzione sono rinviate all'installazione sul server: l'obiettivo è vedere le cartelle reali del server Debian, non quelle del PC o dell'ambiente di sviluppo.
+
+- Configurare `CORA_FILE_ROOTS` con i percorsi desiderati sul server (radice `/` e cartelle dei dati autorizzate; riferimento NAS: `/srv/nas/Dati/drive`).
+- Verificare disponibilità dei dischi montati, permessi dell'utente che esegue il backend ed eventuali volumi Docker.
+- Verificare accesso tramite Tailscale, token File server e risultati delle API `/roots` e `/children`, distinguendo un errore da una cartella realmente vuota.
+- Configurare e verificare anche `CORA_KNOWLEDGE_ROOT` e `CORA_LIBRARY_ORIGINALS_ROOT` sui percorsi reali del server.
+
+Questo punto resta aperto fino alla prova sul server. Non sono richiesti interventi sui percorsi locali per chiuderlo.
