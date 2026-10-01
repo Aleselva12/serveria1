@@ -4,7 +4,9 @@ from langchain_core.messages import SystemMessage, AIMessage
 from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.prebuilt import ToolNode
 
+from core.memory import search_memories
 from core.models import get_chat_model
+from core.system_context import get_system_context
 from tools import supervisor_tools
 from prompt import SUPERVISOR_PROMPT
 
@@ -14,10 +16,57 @@ llm = get_chat_model("supervisor", temperature=0.0)
 model_with_tools = llm.bind_tools(supervisor_tools)
 
 
+def _latest_user_text(messages) -> str:
+    for message in reversed(messages):
+        role = getattr(message, "type", None)
+        if role in {"human", "user"}:
+            return str(getattr(message, "content", ""))
+        if isinstance(message, dict) and message.get("role") == "user":
+            return str(message.get("content", ""))
+    return ""
+
+
+def _runtime_system_prompt(messages) -> str:
+    context = get_system_context()
+    context_text = (context.get("content") or "").strip()
+    user_text = _latest_user_text(messages)
+
+    relevant = []
+    if user_text.strip():
+        try:
+            relevant = search_memories(user_text, limit=6)
+        except Exception:
+            relevant = []
+
+    sections = [SUPERVISOR_PROMPT.strip()]
+    if context_text:
+        sections.append(
+            "PERMANENT USER-CONFIGURED CONTEXT\n"
+            "Treat this as high-priority operating context. It is edited by the user "
+            "and must not be modified or reinterpreted as learned memory.\n"
+            + context_text
+        )
+    if relevant:
+        lines = []
+        for memory in relevant:
+            lines.append(
+                f"- [{memory.get('memory_type', 'memory')}] "
+                f"{memory.get('key', '')}: {memory.get('content', '')}"
+            )
+        sections.append(
+            "RELEVANT PERSISTENT MEMORIES\n"
+            "These are retrieved memories, not absolute truth. Prefer newer explicit "
+            "user information when conflicts exist.\n" + "\n".join(lines)
+        )
+    return "\n\n".join(sections)
+
+
 def call_model(state: MessagesState):
-    """Call Cora's supervisor model."""
+    """Call Cora's supervisor model with persistent context and relevant memories."""
     messages = state["messages"]
-    messages_for_llm = [SystemMessage(content=SUPERVISOR_PROMPT)] + messages
+    messages_for_llm = [
+        SystemMessage(content=_runtime_system_prompt(messages))
+    ] + messages
 
     response = model_with_tools.invoke(messages_for_llm)
 
