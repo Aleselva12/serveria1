@@ -45,6 +45,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         capabilities=(
             Capability("check_permission", "Verifica deterministicamente se un'azione è AUTO, CONFIRM o BLOCKED."),
             Capability("permission_manifest", "Espone le regole di permesso configurate per attore e azione."),
+            Capability("validate_permissions", "Verifica la copertura delle azioni implementate."),
         ),
     ),
     ComponentDefinition(
@@ -111,13 +112,14 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         id="local_research_agent",
         name="Local Research Agent",
         kind="agent",
-        description="Ricerca, legge, analizza e può creare documenti Word locali autorizzati.",
+        description="Ricerca e analizza documenti locali autorizzati; crea e aggiorna Word in modo non distruttivo.",
         module="search_agent.search_graph",
         capabilities=(
             Capability("list_documents", "Elenca documenti locali autorizzati."),
             Capability("search_documents", "Esegue ricerca lessicale nei documenti locali."),
-            Capability("read_documents", "Legge file testuali e documenti Word .docx autorizzati."),
+            Capability("read_documents", "Legge file testuali, Word .docx e PDF testuali autorizzati."),
             Capability("create_word_document", "Crea documenti Word .docx nella cartella autorizzata su richiesta esplicita."),
+            Capability("append_word_document", "Aggiunge contenuto a Word esistenti senza cancellare quello precedente."),
             Capability("analyze_documents", "Analizza i contenuti tramite il modello locale."),
         ),
         dependencies=("ollama",),
