@@ -121,3 +121,16 @@ CREATE INDEX IF NOT EXISTS idx_working_memory_updated
     ON working_memory(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_working_memory_expires
     ON working_memory(expires_at);
+
+
+CREATE TABLE IF NOT EXISTS memory_sources (
+    id UUID PRIMARY KEY,
+    memory_id UUID NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+    source_type TEXT NOT NULL,
+    source_ref TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_memory_sources_memory
+    ON memory_sources(memory_id, created_at DESC);
