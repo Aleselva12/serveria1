@@ -7,6 +7,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from core.models import get_chat_model
+from core.prompt_context import with_permanent_context
 from search_agent.search_prompt import SEARCH_AGENT_PROMPT
 from search_agent.search_tools import LOCAL_RESEARCH_TOOLS
 
@@ -19,7 +20,7 @@ def call_llm(state: AgentState):
     messages = state["messages"]
 
     if not messages or not isinstance(messages[0], SystemMessage):
-        messages = [SystemMessage(content=SEARCH_AGENT_PROMPT)] + list(messages)
+        messages = [SystemMessage(content=with_permanent_context(SEARCH_AGENT_PROMPT))] + list(messages)
 
     llm = get_chat_model("research", temperature=0.0)
     response = llm.bind_tools(LOCAL_RESEARCH_TOOLS).invoke(messages)
