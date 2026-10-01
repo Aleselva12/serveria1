@@ -396,7 +396,7 @@ http://127.0.0.1:8000
 
 ## File server — backend
 
-La pagina File è destinata a due sottopagine: **File server** e **Libreria IA**. Il selettore sarà su una riga separata sotto il titolo File; entrambe useranno lo stesso stile. In questa fase è implementato soltanto il backend di File server: il frontend mantiene ancora gli avvisi e i controlli disabilitati.
+La pagina File è destinata a due sottopagine: **File server** e **Libreria IA**. Il selettore è su una riga separata sotto il titolo File; entrambe usano lo stesso stile. Le due sottopagine sono collegate al backend e usano lo stesso componente grafico per navigazione, upload/download, cartelle, copia/spostamento, rinomina e cestino.
 
 `core/server_files.py` espone operazioni sul filesystem indipendenti da Ollama, dal grafo e dal knowledge root degli agenti. Un upload qui non rende automaticamente il documento disponibile all'IA.
 
@@ -416,19 +416,39 @@ Prefisso di tutti i percorsi: `/api/v1/server/files`.
 
 Le risposte dell'elenco comprendono percorso relativo, nome, tipo, dimensione dei file, ultima modifica, MIME e capacità ammesse dalla policy. I permessi del sistema operativo restano vincolanti. I link sono mostrati ma non navigabili; i file speciali non sono scaricabili. La copia di cartelle con link, file speciali o aree riservate viene rifiutata.
 
-Configurazione: `CORA_FILE_ROOTS` contiene una lista JSON di risorse con `id`, `label`, `path`, `writable`. I percorsi relativi nella configurazione sono riferiti alla repository; quelli nelle richieste sono relativi alla risorsa selezionata. Se la configurazione è vuota viene creata soltanto `./data/server_files`, per prove locali. Le risorse esplicite mancanti vengono segnalate indisponibili senza creare cartelle. Lo spazio riportato è quello del filesystem che ospita la risorsa, non la somma dei suoi file.
+Configurazione: `CORA_FILE_ROOTS` contiene una lista JSON di risorse con `id`, `label`, `path`, `writable`. I percorsi relativi nella configurazione sono riferiti alla repository; quelli nelle richieste sono relativi alla risorsa selezionata. Se la configurazione è vuota viene creata `./data/server_files`, per prove locali. File server include anche la risorsa gestita “Originali Libreria IA” (`ia-originals`), indipendente dalla lista configurata. Le risorse esplicite mancanti vengono segnalate indisponibili senza creare cartelle. Lo spazio riportato è quello del filesystem che ospita la risorsa, non la somma dei suoi file.
 
 Per Debian si può configurare `/` come “Questo server” in sola lettura e una risorsa distinta per i dati in scrittura; per Windows una cartella di prova o una radice in sola lettura. Gli esempi sono in `.env.example`. Non puntare le risorse scrivibili agli archivi interni gestiti da Immich o Nextcloud: le loro modifiche devono passare dai rispettivi servizi.
 
-`CORA_FILES_TOKEN` protegge tutti questi endpoint con `Authorization: Bearer <token>`. Se vuoto sono ammesse soltanto richieste dirette dal loopback. **Prima di accesso remoto, anche attraverso un proxy locale o Tailscale, impostare il token**: un proxy locale può altrimenti far apparire locali richieste esterne. Il token non va salvato nel codice frontend o versionato. È una protezione provvisoria per il proprietario, non un sistema multiutente; il frontend dovrà gestirne l'inserimento prima di collegare la pagina.
+`CORA_FILES_TOKEN` protegge tutti questi endpoint con `Authorization: Bearer <token>`. Se vuoto sono ammesse soltanto richieste dirette dal loopback. **Prima di accesso remoto, anche attraverso un proxy locale o Tailscale, impostare il token**: un proxy locale può altrimenti far apparire locali richieste esterne. Il token non va salvato nel codice frontend o versionato. È una protezione provvisoria per il proprietario, non un sistema multiutente; La pagina offre “Accesso ai file” per inserire il token: resta soltanto in memoria fino al ricaricamento o alla chiusura della pagina.
 
 Upload: spooling su disco e pubblicazione del file completo senza sovrascrittura. `CORA_FILES_MAX_UPLOAD_BYTES` limita il contenuto accettato (default 1 GiB); non sostituisce un limite sul corpo HTTP nel proxy. Le aree `.cora-staging` e `.cora-trash` sono escluse dalla navigazione API. Upload e cestino richiedono un filesystem compatibile e operazioni nello stesso volume: per un disco montato sotto una risorsa, configurare quel disco come risorsa autonoma.
 
 Conflitti: `409`, percorsi non validi: `400`, accesso negato: `401/403`, elementi mancanti: `404`, upload eccessivo: `413`, filesystem/configurazione indisponibile: `503`. Il ripristino richiede che la cartella originale esista ancora. Il cestino occupa spazio; non sono esposte cancellazioni definitive.
 
-Limiti della prima versione: un processo backend, operazioni serializzate; nessuna garanzia contro modifiche concorrenti dei percorsi da altri processi del server. Usare cartelle del proprietario e non directory modificabili da utenti non fidati. La paginazione limita la risposta ma l'elenco viene letto e ordinato interamente. Non sono ancora implementati ricerca ricorsiva, anteprime, condivisioni, ripresa upload, trasferimenti tra risorse o Libreria IA. Nessuna installazione sul server viene eseguita da questa modifica.
+Limiti della prima versione: un processo backend, operazioni serializzate; nessuna garanzia contro modifiche concorrenti dei percorsi da altri processi del server. Usare cartelle del proprietario e non directory modificabili da utenti non fidati. La paginazione limita la risposta ma l'elenco viene letto e ordinato interamente. Non sono ancora implementati ricerca ricorsiva, anteprime, condivisioni, ripresa upload, trasferimenti generici tra risorse. La copia dal server alla Libreria IA è disponibile attraverso il suo endpoint dedicato. Nessuna installazione sul server viene eseguita da questa modifica.
 
 Verifica API senza caricare modelli: `python -m unittest discover -s tests -v` (richiede `httpx` per TestClient oltre alle dipendenze applicative).
+
+## Libreria IA — copie separate
+
+La sottopagina Libreria IA esplora `CORA_KNOWLEDGE_ROOT`, condiviso con il Local Research Agent. Il valore predefinito è `./knowledge`; se la variabile è vuota il backend crea la cartella. Un percorso configurato esplicitamente deve già esistere. Non viene eseguita una migrazione automatica dei documenti già presenti.
+
+Le API hanno prefisso `/api/v1/library/files` e la stessa protezione di accesso di File server. Sono disponibili `/roots`, `/children`, `/download`, `/folders`, `/transfer`, `/trash`, `/restore` con gli stessi contratti e `root_id: "library"`.
+
+| Operazione | Effetto |
+| --- | --- |
+| `POST /import` — JSON `{source_root_id, source_path, destination}` | Copia un file da una risorsa del server nella libreria; non sposta o modifica la fonte, anche se la risorsa sorgente è in sola lettura. |
+| `POST /upload` — multipart `path`, `file` | Salva prima un originale in “Originali Libreria IA”, poi una copia nella libreria. |
+| Rinomina, spostamento, copia, cestino e ripristino nella libreria | Operano soltanto sulle copie; non intervengono sugli originali. |
+
+Gli upload diretti conservano gli originali in `CORA_LIBRARY_ORIGINALS_ROOT` (default `./data/library_originals`), ciascuno in una cartella con identificativo univoco per evitare sostituzioni. La risorsa è visibile in File server. I percorsi espliciti devono esistere; originali e libreria devono essere separati, senza annidamento reciproco. L'identificativo `ia-originals` è riservato.
+
+Gli originali e le copie IA sono file indipendenti, non link tra loro. La copia viene pubblicata solo quando completa; nomi esistenti generano un conflitto senza sovrascrittura. Se un upload ha salvato l'originale ma fallisce la creazione della copia, l'errore indica dove è conservato l'originale. Non esiste sincronizzazione automatica dopo una modifica della fonte, né scambio di file al riavvio o automodifica del software.
+
+In File server il pulsante “Copia nella Libreria IA” permette di indicare la destinazione. In Libreria IA “Copia dal server” apre un selettore di risorsa/cartelle/file; la copia viene aggiunta nella cartella IA aperta. “Carica copie” e drag-and-drop creano anche l'originale sul server. Upload multipli sequenziali: al primo errore viene riportato il numero di operazioni confermate e gli altri file non vengono inviati. Nessuna mutazione viene ritentata automaticamente dopo errore o timeout.
+
+Il Local Research Agent legge la stessa cartella e ignora cestino e staging. Restano i formati e i limiti di lettura esistenti; un formato archiviabile non è necessariamente leggibile dall'agente. Non sono aggiunti indicizzazione vettoriale o riassunti automatici. Gli agenti mantengono i permessi documentali già esistenti; questa modifica non amplia l'accesso al filesystem del server.
 
 ## Interfaccia
 
@@ -446,7 +466,7 @@ I collegamenti reali sono `/chat`, `/health` e `/capabilities`: risposta di Cora
 
 La Home legge `/api/v1/server/telemetry` (CPU, RAM, GPU opzionale, dischi, rete, alimentazione e cronologia CPU), `/api/v1/server/storage` e `/api/v1/system/status`. Aggiornamento automatico, errori espliciti e sensori assenti mostrati come sconosciuti. Docker è interrogato in sola lettura se accessibile; gli URL di Immich, Nextcloud e n8n si configurano in `.env`. Dettagli e limiti in `frontend/COLLEGAMENTI.md`.
 
-Le funzioni senza endpoint hanno avvisi permanenti “Collegamento da realizzare” e controlli disabilitati: file del NAS, allegati, calendario personale, editor, streaming, run, conferme, microfono, permessi e modifica della mappa. Non vengono visualizzati dati fittizi. Nessun agente calendario è stato aggiunto.
+Le funzioni senza endpoint hanno avvisi permanenti “Collegamento da realizzare” e controlli disabilitati: allegati, calendario personale, editor, streaming, run, conferme, microfono, permessi completi e modifica della mappa. Non vengono visualizzati dati fittizi. Nessun agente calendario è stato aggiunto.
 
 La mappa mostra agenti e capacità del registro reale; “Modulo presente” è disponibilità strutturale, non readiness runtime. I collegamenti della mappa illustrano delega possibile e non tracce eseguite.
 

@@ -160,3 +160,31 @@ export type BackendRegistry = {
   components: BackendComponent[];
 };
 export type BackendChatResponse = { response: string; thread_id: string };
+
+export type FileArea = "server" | "library";
+export type BrowserNode = {
+  path: string;
+  name: string;
+  kind: "file" | "folder" | "link" | "special";
+  sizeBytes: number | null;
+  modifiedAt: string;
+  mimeType: string;
+  capabilities: string[];
+};
+export type BrowserRoot = {
+  id: string;
+  label: string;
+  path: string;
+  writable: boolean;
+  available: boolean;
+  storage: { usedBytes: number; totalBytes: number; freeBytes: number } | null;
+};
+export type BrowserListing = {
+  rootId: string;
+  path: string;
+  parentPath: string | null;
+  writable: boolean;
+  total: number;
+  items: BrowserNode[];
+};
+export type TrashItem = { id: string; path: string; deletedAt: string };

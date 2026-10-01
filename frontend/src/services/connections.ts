@@ -39,11 +39,10 @@ export const missingConnections = {
     endpoints: "GET/POST/PATCH/DELETE /api/v1/calendar/events",
   },
   files: {
-    label: "File del server",
+    label: "Funzioni aggiuntive dei file",
     detail:
-      "Cartelle, ricerca, spazio, upload, download, eliminazione e condivisione del NAS sono da collegare.",
-    endpoints:
-      "/api/v1/server/files/tree; /folders/{id}/children; /api/v1/files; /download; /preview; /processing; /shares",
+      "File server e Libreria IA sono collegati. Anteprime, ricerca ricorsiva, condivisioni e upload riprendibile restano da costruire.",
+    endpoints: "Contratti per /preview, /shares e upload riprendibile da definire",
   },
   attachments: {
     label: "Allegati della chat",

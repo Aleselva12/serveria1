@@ -9,16 +9,15 @@ from langchain_core.tools import tool
 from pypdf import PdfReader
 
 from core.permissions import require_permission
+from core.file_paths import knowledge_root
 
 
 load_dotenv()
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
-KNOWLEDGE_ROOT = Path(
-    os.getenv("CORA_KNOWLEDGE_ROOT", str(DEFAULT_ROOT))
-).expanduser().resolve()
+KNOWLEDGE_ROOT = knowledge_root()
 
-BLOCKED_PARTS = {".git", ".venv", "__pycache__", "node_modules"}
+BLOCKED_PARTS = {".git", ".venv", "__pycache__", "node_modules", ".cora-trash", ".cora-staging"}
 BLOCKED_NAMES = {".env", "credentials.json", "token.json"}
 
 TEXT_EXTENSIONS = {
@@ -60,6 +59,8 @@ def _iter_documents(directory: str = ".", recursive: bool = True) -> Iterable[Pa
     return (
         path for path in iterator
         if path.is_file()
+        and not path.is_symlink()
+        and path.resolve().is_relative_to(KNOWLEDGE_ROOT)
         and path.suffix.lower() in SUPPORTED_EXTENSIONS
         and not any(part in BLOCKED_PARTS for part in path.relative_to(KNOWLEDGE_ROOT).parts)
         and path.name.lower() not in BLOCKED_NAMES
