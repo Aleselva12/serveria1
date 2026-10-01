@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 from langchain_core.messages import SystemMessage, AIMessage
 from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.prebuilt import ToolNode
-from langgraph.checkpoint.memory import MemorySaver
 
 from core.models import get_chat_model
 from tools import supervisor_tools
@@ -62,5 +61,4 @@ workflow.add_conditional_edges(
 )
 workflow.add_edge("tools", "agent")
 
-memory = MemorySaver()
-graph = workflow.compile(checkpointer=memory)
+graph = workflow.compile()
