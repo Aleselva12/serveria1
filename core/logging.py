@@ -52,6 +52,38 @@ def log_event(
     with _LOCK:
         with LOG_FILE.open("a", encoding="utf-8") as handle:
             handle.write(line + "\n")
+
+    # PostgreSQL is the authoritative structured store when available.
+    # JSONL remains a readable local copy and a fallback if the DB is offline.
+    try:
+        from core.database import database_status, db_connection
+
+        if database_status().get("reachable"):
+            with db_connection() as connection:
+                connection.execute(
+                    """
+                    INSERT INTO agent_events (
+                        id, timestamp, event_type, component, status,
+                        thread_id, duration_ms, data
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+                    """,
+                    (
+                        event["event_id"],
+                        event["timestamp"],
+                        event["event_type"],
+                        event["component"],
+                        event["status"],
+                        event["thread_id"],
+                        event["duration_ms"],
+                        json.dumps(event["data"], ensure_ascii=False, default=str),
+                    ),
+                )
+                connection.commit()
+    except Exception:
+        # Logging must never make the primary operation fail.
+        pass
+
     return event
 
 
