@@ -31,7 +31,8 @@ type Page =
   | "calendar"
   | "files"
   | "activity"
-  | "settings";
+  | "settings"
+  | "memory-management";
 type ChatMessage = Message & { failed?: boolean };
 type Chat = {
   id: string;
@@ -65,6 +66,7 @@ const labels: Record<Page, string> = {
   files: "File",
   activity: "Attività",
   settings: "Impostazioni",
+  "memory-management": "Gestione Memoria",
 };
 const uid = () => crypto.randomUUID();
 function makeChat(): Chat {
@@ -639,6 +641,31 @@ export default function App() {
               <ConnectionNotice feature="runs" />
             </section>
           )}
+          {page === "memory-management" && (
+            <section className="content-page narrow">
+              <div className="page-heading">
+                <div>
+                  <div className="eyebrow">MEMORIA</div>
+                  <h1>Gestione Memoria</h1>
+                  <p>
+                    Spazio dedicato all’organizzazione e alla gestione della memoria di Cora.
+                  </p>
+                </div>
+                <button
+                  className="text-button"
+                  onClick={() => navigate("settings")}
+                >
+                  ← Torna alle impostazioni
+                </button>
+              </div>
+              <div className="section-card">
+                <h2>Gestione Memoria</h2>
+                <p className="muted">
+                  Questa sottopagina è pronta per essere sviluppata separatamente.
+                </p>
+              </div>
+            </section>
+          )}
           {page === "settings" && (
             <section className="content-page narrow">
               <div className="page-heading">
@@ -706,6 +733,20 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                <div className="settings-row">
+                  <div>
+                    <strong>Gestione Memoria</strong>
+                    <p>
+                      Organizzazione, consultazione e gestione della memoria di Cora.
+                    </p>
+                  </div>
+                  <button
+                    className="text-button"
+                    onClick={() => navigate("memory-management")}
+                  >
+                    Apri <ArrowRight size={16} />
+                  </button>
+                </div>
               </div>
             </section>
           )}
