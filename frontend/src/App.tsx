@@ -331,7 +331,7 @@ export default function App() {
                 {currentChat.messages.length === 0 && (
                   <div className="chat-welcome">
                     <h1>Una conversazione con Cora.</h1>
-                    <p>Scrivi una richiesta al modello locale.</p>
+                    <p>Scrivi una richiesta all’agente centrale di Cora.</p>
                   </div>
                 )}
                 {currentChat.messages.map((m) => (
@@ -411,7 +411,7 @@ export default function App() {
                 <p>
                   {backend.health
                     ? backend.health.ollama_online
-                      ? "Chat collegata · Risposta completa al termine · Modello " +
+                      ? "Chat collegata all’agente centrale · Orchestratore provvisorio · Modello " +
                         backend.health.model
                       : "Ollama offline: avvia il modello locale per inviare messaggi."
                     : "Backend non collegato"}
@@ -672,7 +672,7 @@ export default function App() {
                 </div>
                 <div className="settings-row">
                   <div>
-                    <strong>Modello del supervisore</strong>
+                    <strong>Modello dell’agente centrale</strong>
                     <p>{backend.health?.model || "Non disponibile"}</p>
                   </div>
                   <span className="pill">
