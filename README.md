@@ -394,6 +394,42 @@ Il backend locale usa di default:
 http://127.0.0.1:8000
 ```
 
+## File server — backend
+
+La pagina File è destinata a due sottopagine: **File server** e **Libreria IA**. Il selettore sarà su una riga separata sotto il titolo File; entrambe useranno lo stesso stile. In questa fase è implementato soltanto il backend di File server: il frontend mantiene ancora gli avvisi e i controlli disabilitati.
+
+`core/server_files.py` espone operazioni sul filesystem indipendenti da Ollama, dal grafo e dal knowledge root degli agenti. Un upload qui non rende automaticamente il documento disponibile all'IA.
+
+Prefisso di tutti i percorsi: `/api/v1/server/files`.
+
+| Metodo e percorso | Operazione / parametri |
+| --- | --- |
+| `GET /roots` | Risorse configurate, disponibilità e spazio del filesystem di ogni risorsa. |
+| `GET /children` | `root_id`, `path` relativo (vuoto = radice), `query`, `offset`, `limit` (1–500). Cartelle prima dei file; filtro nomi nella cartella corrente. |
+| `GET /download` | `root_id`, `path`; download di un file normale come allegato. |
+| `POST /folders` | JSON `{root_id, path}`; crea una cartella con genitore esistente. |
+| `POST /upload` | Multipart: `root_id`, `path` della cartella e `file`. Un file per richiesta; la futura UI può inviare più richieste. |
+| `POST /transfer` | JSON `{root_id, path, destination, mode}`; copia (`copy`) o sposta/rinomina (`move`) nella stessa risorsa. |
+| `POST /trash` | JSON `{root_id, path}`; spostamento nel cestino persistente della risorsa. |
+| `GET /trash` | `root_id`; elenco elementi nel cestino. |
+| `POST /restore` | JSON `{root_id, id}`; ripristina nel percorso originale senza sostituire file esistenti. |
+
+Le risposte dell'elenco comprendono percorso relativo, nome, tipo, dimensione dei file, ultima modifica, MIME e capacità ammesse dalla policy. I permessi del sistema operativo restano vincolanti. I link sono mostrati ma non navigabili; i file speciali non sono scaricabili. La copia di cartelle con link, file speciali o aree riservate viene rifiutata.
+
+Configurazione: `CORA_FILE_ROOTS` contiene una lista JSON di risorse con `id`, `label`, `path`, `writable`. I percorsi relativi nella configurazione sono riferiti alla repository; quelli nelle richieste sono relativi alla risorsa selezionata. Se la configurazione è vuota viene creata soltanto `./data/server_files`, per prove locali. Le risorse esplicite mancanti vengono segnalate indisponibili senza creare cartelle. Lo spazio riportato è quello del filesystem che ospita la risorsa, non la somma dei suoi file.
+
+Per Debian si può configurare `/` come “Questo server” in sola lettura e una risorsa distinta per i dati in scrittura; per Windows una cartella di prova o una radice in sola lettura. Gli esempi sono in `.env.example`. Non puntare le risorse scrivibili agli archivi interni gestiti da Immich o Nextcloud: le loro modifiche devono passare dai rispettivi servizi.
+
+`CORA_FILES_TOKEN` protegge tutti questi endpoint con `Authorization: Bearer <token>`. Se vuoto sono ammesse soltanto richieste dirette dal loopback. **Prima di accesso remoto, anche attraverso un proxy locale o Tailscale, impostare il token**: un proxy locale può altrimenti far apparire locali richieste esterne. Il token non va salvato nel codice frontend o versionato. È una protezione provvisoria per il proprietario, non un sistema multiutente; il frontend dovrà gestirne l'inserimento prima di collegare la pagina.
+
+Upload: spooling su disco e pubblicazione del file completo senza sovrascrittura. `CORA_FILES_MAX_UPLOAD_BYTES` limita il contenuto accettato (default 1 GiB); non sostituisce un limite sul corpo HTTP nel proxy. Le aree `.cora-staging` e `.cora-trash` sono escluse dalla navigazione API. Upload e cestino richiedono un filesystem compatibile e operazioni nello stesso volume: per un disco montato sotto una risorsa, configurare quel disco come risorsa autonoma.
+
+Conflitti: `409`, percorsi non validi: `400`, accesso negato: `401/403`, elementi mancanti: `404`, upload eccessivo: `413`, filesystem/configurazione indisponibile: `503`. Il ripristino richiede che la cartella originale esista ancora. Il cestino occupa spazio; non sono esposte cancellazioni definitive.
+
+Limiti della prima versione: un processo backend, operazioni serializzate; nessuna garanzia contro modifiche concorrenti dei percorsi da altri processi del server. Usare cartelle del proprietario e non directory modificabili da utenti non fidati. La paginazione limita la risposta ma l'elenco viene letto e ordinato interamente. Non sono ancora implementati ricerca ricorsiva, anteprime, condivisioni, ripresa upload, trasferimenti tra risorse o Libreria IA. Nessuna installazione sul server viene eseguita da questa modifica.
+
+Verifica API senza caricare modelli: `python -m unittest discover -s tests -v` (richiede `httpx` per TestClient oltre alle dipendenze applicative).
+
 ## Interfaccia
 
 La UI principale è separata dal backend ed è realizzata con React + Vite.
@@ -500,7 +536,8 @@ contiene tutte le variabili attualmente previste per:
 - diarizzazione;
 - Gmail;
 - preventivi PDF;
-- limiti di lettura dei documenti.
+- limiti di lettura dei documenti;
+- risorse, token proprietario e limite upload di File server.
 
 Il file reale `.env` è escluso dal versionamento.
 

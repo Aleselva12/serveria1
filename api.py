@@ -12,6 +12,7 @@ from core.logging import logged_operation
 from core.memory import memory_stats
 from core.models import get_model_name
 from core.monitoring import router as monitoring_router
+from core.server_files import router as files_router
 from core.registry import get_agents, get_registry
 from graph import graph
 
@@ -27,6 +28,7 @@ app = FastAPI(
 )
 
 app.include_router(monitoring_router)
+app.include_router(files_router)
 
 app.add_middleware(
     CORSMiddleware,

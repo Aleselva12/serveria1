@@ -28,9 +28,10 @@ Stato allineato al backend `serveria1/main` dopo l'integrazione del frontend.
 | Programma | Scrittura, revisione/conflitti, audit | `PUT /workspaces/{id}/file` con revisione, permessi server. |
 | Programma | Esecuzione autorizzata, output, timeout/cancellazione | `/workspaces/{id}/executions`, `/executions/{id}`; comandi consentiti. |
 | Calendario | Eventi personali CRUD persistenti | `/calendar/events`; nessun agente calendario e nessuna scrittura solo nel browser. |
-| File | Albero cartelle, contenuti, ricerca/paginazione e storage NAS | `/server/files/tree`, `/folders/{id}/children`, `/server/storage`. |
-| File | Upload, download, eliminazione/cestino, condivisioni | `/files`, `/download`, `/server/files/{id}`, `/shares`. |
-| File | Anteprime, processamento e collegamento artefatti ai run | `/preview`, `/processing`, `sourceRunId` e `conversationId`. |
+| File server | Collegare risorse, cartelle, filtro nomi/paginazione e spazio | Backend pronto: `GET /api/v1/server/files/roots`, `/children`; UI ancora da collegare. |
+| File server | Collegare upload, download, cartelle, copia/spostamento e cestino | Backend pronto: `/api/v1/server/files/upload`, `/download`, `/folders`, `/transfer`, `/trash`, `/restore`. Condivisioni ancora da costruire. |
+| Libreria IA | Raccolte, associazione documenti, elaborazioni e accesso degli agenti | Backend dedicato ancora da costruire; File server non indicizza documenti. |
+| File server | Anteprime e ricerca ricorsiva | Backend ancora da costruire. |
 | Audio | Acquisizione microfono, upload, trascrizione e speaker | Contratto dedicato da definire; il microfono resta disabilitato. |
 | Impostazioni | Configurazione pubblica completa, modelli per ruolo, permessi utente | `/system/config`, `/permissions`; il registro non è un manifesto permessi utente. |
 | Sessioni | Autenticazione, protezione delle mutazioni e accesso remoto | Da definire prima di una pubblicazione remota. |
@@ -49,3 +50,7 @@ GPU AMD: sysfs Linux; GPU NVIDIA: nvidia-smi se presente. Altri driver mostrano 
 Docker viene interrogato in sola lettura con `docker ps -a`, senza modificare privilegi o montare socket. Immich, Nextcloud e n8n usano gli URL di controllo configurati in `.env` (`CORA_SERVICE_IMMICH_URL`, `CORA_SERVICE_NEXTCLOUD_URL`, `CORA_SERVICE_N8N_URL`). URL vuoto significa “Non verificato”. Nessuna operazione di avvio/arresto viene esposta. Le metriche descrivono il sistema visibile al processo backend; in Docker la visibilità di dischi/sensori dipende dal container.
 
 Verifica: `python -m unittest discover -s tests -v`, `npm test --prefix frontend`, `npm run build --prefix frontend`.
+
+## File: separazione delle sottopagine
+
+Scelta concordata: “File server” e “Libreria IA”, su una riga subito sotto il titolo “File”, con grafica condivisa. Per ora è implementato solo il backend File server, documentato nel README principale. Il frontend resta da collegare. Tutti gli endpoint richiedono `Authorization: Bearer <CORA_FILES_TOKEN>` quando configurato; non inserire token nel bundle o nelle variabili VITE pubbliche. Il download autenticato dovrà usare fetch con header e poi un URL blob, non un semplice link senza autenticazione. Le mutazioni non vanno ritentate automaticamente dopo timeout. L'upload usa multipart/FormData, quindi il client deve lasciare al browser il Content-Type con boundary.
