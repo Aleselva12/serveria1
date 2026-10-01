@@ -7,6 +7,8 @@ from typing import Optional
 from dotenv import load_dotenv
 from langchain_core.tools import tool
 
+from core.permissions import require_permission
+
 
 load_dotenv()
 
@@ -24,6 +26,10 @@ SUPPORTED_AUDIO_EXTENSIONS = {
 }
 
 BLOCKED_PARTS = {".git", ".venv", "__pycache__", "node_modules"}
+
+
+def _require_permission(action: str) -> None:
+    require_permission("audio_agent", action)
 
 
 def _safe_path(relative_path: str) -> Path:
@@ -164,6 +170,7 @@ def list_audio_files(
 ) -> str:
     """Elenca i file audio locali accessibili all'Audio Agent."""
     try:
+        _require_permission("list_audio")
         base = _safe_path(directory)
 
         if not base.exists() or not base.is_dir():
@@ -219,6 +226,7 @@ def transcribe_audio_file(
     pyannote configurato localmente.
     """
     try:
+        _require_permission("transcribe_audio")
         path = _safe_path(relative_path)
 
         if not path.exists() or not path.is_file():
@@ -336,6 +344,7 @@ def save_transcript(
     Usare solo quando l'utente chiede di salvare o esportare la trascrizione.
     """
     try:
+        _require_permission("save_transcript")
         source = _safe_path(source_audio_path)
         if not source.exists() or not source.is_file():
             return json.dumps({
