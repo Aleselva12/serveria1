@@ -6,6 +6,9 @@ from typing import Iterable
 from dotenv import load_dotenv
 from docx import Document
 from langchain_core.tools import tool
+from pypdf import PdfReader
+
+from core.permissions import require_permission
 
 
 load_dotenv()
@@ -22,9 +25,14 @@ TEXT_EXTENSIONS = {
     ".txt", ".md", ".json", ".csv", ".py",
     ".yaml", ".yml", ".toml", ".html", ".css", ".js",
 }
-SUPPORTED_EXTENSIONS = TEXT_EXTENSIONS | {".docx"}
+SUPPORTED_EXTENSIONS = TEXT_EXTENSIONS | {".docx", ".pdf"}
 MAX_FILE_BYTES = int(os.getenv("CORA_MAX_DOCUMENT_BYTES", "5000000"))
 MAX_TEXT_CHARS = int(os.getenv("CORA_MAX_DOCUMENT_CHARS", "120000"))
+MAX_PDF_PAGES = int(os.getenv("CORA_MAX_PDF_PAGES", "100"))
+
+
+def _require_permission(action: str) -> None:
+    require_permission("local_research_agent", action)
 
 
 def _safe_path(relative_path: str) -> Path:
@@ -76,15 +84,40 @@ def _read_docx(path: Path) -> str:
     return "\n".join(parts)
 
 
+def _read_pdf(path: Path) -> str:
+    reader = PdfReader(str(path))
+    if reader.is_encrypted:
+        try:
+            reader.decrypt("")
+        except Exception as error:
+            raise ValueError("PDF cifrato: impossibile leggerlo senza password.") from error
+
+    parts = []
+    for page_index, page in enumerate(reader.pages[:MAX_PDF_PAGES], start=1):
+        text = (page.extract_text() or "").strip()
+        if text:
+            parts.append(f"[PAGINA {page_index}]\n{text}")
+
+    if len(reader.pages) > MAX_PDF_PAGES:
+        parts.append(
+            f"[PDF TRONCATO: lette {MAX_PDF_PAGES} pagine su {len(reader.pages)}]"
+        )
+
+    return "\n\n".join(parts)
+
+
 def _read_document(path: Path) -> str:
     if path.stat().st_size > MAX_FILE_BYTES:
         raise ValueError(
             f"File troppo grande: limite {MAX_FILE_BYTES} byte."
         )
 
-    if path.suffix.lower() == ".docx":
+    suffix = path.suffix.lower()
+    if suffix == ".docx":
         text = _read_docx(path)
-    elif path.suffix.lower() in TEXT_EXTENSIONS:
+    elif suffix == ".pdf":
+        text = _read_pdf(path)
+    elif suffix in TEXT_EXTENSIONS:
         text = path.read_text(encoding="utf-8", errors="replace")
     else:
         raise ValueError("Formato non supportato.")
@@ -103,6 +136,7 @@ def list_local_documents(
 ) -> str:
     """Elenca i documenti locali accessibili al Local Research Agent."""
     try:
+        _require_permission("list_documents")
         normalized_extension = extension.strip().lower()
         if normalized_extension and not normalized_extension.startswith("."):
             normalized_extension = "." + normalized_extension
@@ -134,8 +168,9 @@ def list_local_documents(
 
 @tool
 def read_local_document(relative_path: str) -> str:
-    """Legge il contenuto di un documento locale supportato, inclusi file Word .docx."""
+    """Legge file testuali, Word .docx e PDF autorizzati."""
     try:
+        _require_permission("read_document")
         path = _safe_path(relative_path)
 
         if not path.exists() or not path.is_file():
@@ -168,6 +203,7 @@ def search_local_documents(
     della fonte. È una ricerca lessicale locale, non usa Internet.
     """
     try:
+        _require_permission("search_documents")
         terms = [term.casefold() for term in query.split() if len(term.strip()) >= 2]
         if not terms:
             return "La query non contiene termini utili."
@@ -219,7 +255,7 @@ def create_word_document(
 ) -> str:
     """
     Crea un documento Word .docx dentro la cartella documenti autorizzata.
-    Usare solo quando l'utente chiede esplicitamente di creare o salvare un Word.
+    La sovrascrittura di un file esistente è bloccata dalla policy corrente.
     """
     try:
         clean_name = filename.strip() or "nota.docx"
@@ -227,11 +263,16 @@ def create_word_document(
             clean_name += ".docx"
 
         output_path = _safe_path(clean_name)
-        if output_path.exists() and not overwrite:
-            return json.dumps({
-                "status": "error",
-                "error": "Il file esiste già. Imposta overwrite=true solo se l'utente ha chiesto esplicitamente di sovrascriverlo.",
-            }, ensure_ascii=False)
+
+        if output_path.exists():
+            if not overwrite:
+                return json.dumps({
+                    "status": "error",
+                    "error": "Il file esiste già. Usa l'aggiornamento non distruttivo oppure scegli un nuovo nome.",
+                }, ensure_ascii=False)
+            _require_permission("overwrite_word_document")
+        else:
+            _require_permission("create_word_document")
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -257,9 +298,65 @@ def create_word_document(
         }, ensure_ascii=False)
 
 
+@tool
+def append_word_document(
+    relative_path: str,
+    content: str,
+    heading: str = "",
+) -> str:
+    """
+    Aggiunge contenuto a un Word esistente senza cancellare il contenuto precedente.
+    """
+    try:
+        _require_permission("append_word_document")
+        path = _safe_path(relative_path)
+
+        if not path.exists() or not path.is_file():
+            return json.dumps({
+                "status": "error",
+                "error": "Il documento Word richiesto non esiste.",
+            }, ensure_ascii=False)
+
+        if path.suffix.lower() != ".docx":
+            return json.dumps({
+                "status": "error",
+                "error": "L'aggiornamento è consentito solo per file .docx.",
+            }, ensure_ascii=False)
+
+        document = Document(path)
+        if heading.strip():
+            document.add_heading(heading.strip(), level=2)
+
+        added = 0
+        for paragraph in content.splitlines() or [content]:
+            text = paragraph.strip()
+            if text:
+                document.add_paragraph(text)
+                added += 1
+
+        if added == 0:
+            return json.dumps({
+                "status": "error",
+                "error": "Nessun contenuto da aggiungere.",
+            }, ensure_ascii=False)
+
+        document.save(str(path))
+        return json.dumps({
+            "status": "ok",
+            "path": str(path.relative_to(KNOWLEDGE_ROOT)),
+            "paragraphs_added": added,
+        }, ensure_ascii=False)
+    except Exception as error:
+        return json.dumps({
+            "status": "error",
+            "error": str(error),
+        }, ensure_ascii=False)
+
+
 LOCAL_RESEARCH_TOOLS = [
     list_local_documents,
     search_local_documents,
     read_local_document,
     create_word_document,
+    append_word_document,
 ]
