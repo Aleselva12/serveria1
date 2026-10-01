@@ -19,6 +19,7 @@ import Home from "./components/Home";
 import FileManager from "./components/FileManager";
 import Architecture from "./components/Architecture";
 import ConnectionNotice from "./components/ConnectionNotice";
+import MemoryManagement from "./components/MemoryManagement";
 import { api, apiBaseUrl } from "./services/api";
 import { useBackend } from "./services/useBackend";
 import type { Message } from "./types/contracts";
@@ -642,29 +643,10 @@ export default function App() {
             </section>
           )}
           {page === "memory-management" && (
-            <section className="content-page narrow">
-              <div className="page-heading">
-                <div>
-                  <div className="eyebrow">MEMORIA</div>
-                  <h1>Gestione Memoria</h1>
-                  <p>
-                    Spazio dedicato all’organizzazione e alla gestione della memoria di Cora.
-                  </p>
-                </div>
-                <button
-                  className="text-button"
-                  onClick={() => navigate("settings")}
-                >
-                  ← Torna alle impostazioni
-                </button>
-              </div>
-              <div className="section-card">
-                <h2>Gestione Memoria</h2>
-                <p className="muted">
-                  Questa sottopagina è pronta per essere sviluppata separatamente.
-                </p>
-              </div>
-            </section>
+            <MemoryManagement
+              registry={backend.registry}
+              onBack={() => navigate("settings")}
+            />
           )}
           {page === "settings" && (
             <section className="content-page narrow">
