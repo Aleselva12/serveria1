@@ -1,6 +1,7 @@
 import { Activity, HardDrive, PlugZap, ShieldCheck, Wifi } from "lucide-react";
 import type { BackendHealth } from "../types/contracts";
 import { useHomeMonitoring } from "../services/useHomeMonitoring";
+import { missingConnections } from "../services/connections";
 
 const bytes = (value: number) =>
   (value / 1024 ** 3).toLocaleString("it-IT", { maximumFractionDigits: 1 }) +
@@ -58,6 +59,35 @@ export default function Home({
               new Date(telemetry.sampledAt).toLocaleTimeString("it-IT")
             : "In attesa delle misurazioni del server"}
         </small>
+      </div>
+      <div className="system-card home-backlog">
+        <div className="metric-head">
+          <div>
+            <span>DA COMPLETARE</span>
+            <h2>Collegamenti e obiettivi futuri</h2>
+          </div>
+          <span className="pill pending">
+            {Object.keys(missingConnections).length} da fare
+          </span>
+        </div>
+        <p className="home-backlog-intro">
+          Promemoria dei collegamenti ancora da implementare, visibile subito dalla Home.
+        </p>
+        {Object.entries(missingConnections).map(([id, item]) => (
+          <div className="connection-backlog" key={id}>
+            <div className="settings-row">
+              <div>
+                <strong>{item.label}</strong>
+                <p>{item.detail}</p>
+              </div>
+              <span className="pill pending">Da fare</span>
+            </div>
+            <details>
+              <summary>Dettagli tecnici del collegamento</summary>
+              <code>{item.endpoints}</code>
+            </details>
+          </div>
+        ))}
       </div>
       {telemetryError && (
         <div className="connection-notice" role="alert">
