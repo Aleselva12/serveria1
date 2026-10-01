@@ -6,13 +6,54 @@ from langchain_core.tools import tool
 
 from core.logging import logged_operation, tail_events
 from core.memory import delete_memory, save_memory, search_memories
+from core.permissions import require_permission
 from core.registry import registry_json
 from local_tools import (
-    calculator_tool,
-    list_project_files,
-    read_project_file,
-    system_status_tool,
+    calculator_tool as _calculator_tool,
+    list_project_files as _list_project_files,
+    read_project_file as _read_project_file,
+    system_status_tool as _system_status_tool,
 )
+
+
+def _require_supervisor_permission(action: str) -> None:
+    require_permission("supervisor", action)
+
+
+@tool
+def calculator_tool(expression: str) -> str:
+    """Esegue aritmetica di base dopo il controllo permessi del Supervisor."""
+    _require_supervisor_permission("calculate")
+    return _calculator_tool.invoke({"expression": expression})
+
+
+@tool
+def system_status_tool() -> str:
+    """Legge CPU, RAM e disco dopo il controllo permessi del Supervisor."""
+    _require_supervisor_permission("inspect_runtime")
+    return _system_status_tool.invoke({})
+
+
+@tool
+def list_project_files(
+    directory: str = ".",
+    extension: str = "",
+    recursive: bool = True,
+) -> str:
+    """Elenca file autorizzati del progetto dopo il controllo permessi."""
+    _require_supervisor_permission("list_project_files")
+    return _list_project_files.invoke({
+        "directory": directory,
+        "extension": extension,
+        "recursive": recursive,
+    })
+
+
+@tool
+def read_project_file(relative_path: str) -> str:
+    """Legge un file autorizzato del progetto dopo il controllo permessi."""
+    _require_supervisor_permission("read_project_file")
+    return _read_project_file.invoke({"relative_path": relative_path})
 
 
 @tool
@@ -22,6 +63,7 @@ def structure_registry_tool(kind: str = "") -> str:
     disponibilità strutturale. kind può essere: core, agent, tool, interface.
     Lascia vuoto per vedere tutto il registro.
     """
+    _require_supervisor_permission("inspect_structure")
     normalized = kind.strip().lower() or None
     allowed = {None, "core", "agent", "tool", "interface"}
     if normalized not in allowed:
@@ -39,6 +81,7 @@ def recent_system_events_tool(
     Legge gli eventi strutturati più recenti del sistema Cora.
     È uno strumento di osservazione: non modifica log o memoria.
     """
+    _require_supervisor_permission("inspect_events")
     events = tail_events(
         limit=max(1, min(limit, 100)),
         event_type=event_type.strip(),
@@ -60,6 +103,7 @@ def remember_tool(
     Usare solo quando l'utente chiede esplicitamente di ricordare/conservare
     un'informazione o quando il flusso applicativo lo autorizza esplicitamente.
     """
+    _require_supervisor_permission("remember_memory")
     result = save_memory(
         memory_type=memory_type,
         key=key,
@@ -80,6 +124,7 @@ def recall_memory_tool(
     Cerca nella memoria persistente locale di Cora.
     Usa una ricerca lessicale semplice su chiave e contenuto.
     """
+    _require_supervisor_permission("recall_memory")
     results = search_memories(
         query=query,
         memory_type=memory_type,
@@ -94,6 +139,7 @@ def forget_memory_tool(memory_id: str) -> str:
     Elimina una singola memoria persistente per ID.
     Usare solo quando l'utente chiede esplicitamente di cancellarla.
     """
+    _require_supervisor_permission("forget_memory")
     deleted = delete_memory(memory_id)
     return json.dumps(
         {"memory_id": memory_id, "deleted": deleted},
@@ -105,10 +151,10 @@ def forget_memory_tool(memory_id: str) -> str:
 @tool
 def structure_agent_tool(query: str, thread_id: str = "") -> str:
     """
-    Usa lo Structure Agent per analizzare architettura, componenti, dipendenze,
-    stato runtime, log recenti e possibili problemi strutturali di Cora.
-    È read-only e non modifica file, configurazione o memoria.
+    Usa lo Structure Agent per planning, evaluation, control e management.
+    Può salvare soltanto gli artefatti consentiti nel proprio workspace.
     """
+    _require_supervisor_permission("delegate_structure")
     from structure_agent.structure_graph import graph as structure_app
 
     effective_thread_id = thread_id or f"structure_{uuid.uuid4()}"
@@ -132,6 +178,7 @@ def search_agent_tool(query: str, thread_id: str = "") -> str:
     Usa il Local Research Agent per trovare, leggere, confrontare e analizzare
     informazioni contenute nei documenti locali autorizzati. Non usa Internet.
     """
+    _require_supervisor_permission("delegate_research")
     from search_agent.search_graph import create_search_graph
 
     search_app = create_search_graph()
@@ -156,6 +203,7 @@ def audio_agent_tool(query: str, thread_id: str = "") -> str:
     Usa l'Audio Agent per trovare e trascrivere file audio locali e,
     quando richiesto, riassumere o analizzare la trascrizione.
     """
+    _require_supervisor_permission("delegate_audio")
     from audio_agent.audio_graph import graph as audio_app
 
     effective_thread_id = thread_id or f"audio_{uuid.uuid4()}"
@@ -179,6 +227,7 @@ def email_agent_tool(query: str, thread_id: str = "") -> str:
     Usa l'Email & Quotes Agent per cercare nell'archivio mail, riassumere
     la posta di una giornata, preparare bozze e generare preventivi PDF.
     """
+    _require_supervisor_permission("delegate_email")
     from email_agent.email_graph import graph as email_app
 
     effective_thread_id = thread_id or f"email_{uuid.uuid4()}"
