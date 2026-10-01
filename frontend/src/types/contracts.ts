@@ -188,3 +188,46 @@ export type BrowserListing = {
   items: BrowserNode[];
 };
 export type TrashItem = { id: string; path: string; deletedAt: string };
+
+
+export type SystemContext = {
+  id: number;
+  content: string;
+  version: number;
+  updated_at: string | null;
+  metadata: Record<string, unknown>;
+};
+
+export type PersistentMemory = {
+  id: string;
+  memory_type: string;
+  key: string;
+  content: string;
+  source: string;
+  importance: number;
+  created_at: string;
+  updated_at: string;
+  expires_at?: string | null;
+  metadata: Record<string, unknown>;
+  search_score?: number;
+};
+
+export type MemoryEpisode = {
+  id: string;
+  conversation_id?: string | null;
+  title: string;
+  summary: string;
+  episode_type: string;
+  created_at: string;
+  agent_id?: string | null;
+  importance: number;
+  metadata: Record<string, unknown>;
+};
+
+export type WorkingMemoryState = {
+  agent_id: string;
+  thread_id: string;
+  state: Record<string, unknown>;
+  updated_at: string;
+  expires_at?: string | null;
+};
