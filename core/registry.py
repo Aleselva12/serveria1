@@ -21,7 +21,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         module="graph",
         capabilities=(
             Capability("route_requests", "Riceve tutte le richieste della chat e le instrada verso tool e agenti specializzati quando necessario."),
-            Capability("conversation_state", "Mantiene stato volatile della conversazione tramite LangGraph MemorySaver."),
+            Capability("conversation_state", "Ricostruisce il contesto recente dalla cronologia persistente PostgreSQL."),
         ),
         dependencies=("ollama",),
     ),
@@ -75,7 +75,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         id="persistent_memory",
         name="Persistent Memory",
         kind="core",
-        description="Memoria locale persistente SQLite separata dallo storico eventi.",
+        description="Memoria persistente PostgreSQL con pgvector, separata dalla cronologia completa e dai log.",
         module="core.memory",
         capabilities=(
             Capability("save_memory", "Crea o aggiorna memorie strutturate autorizzate."),
