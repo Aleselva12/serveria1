@@ -119,12 +119,14 @@ def structure_read_project_file(relative_path: str) -> str:
 @tool
 def structure_owner_status() -> str:
     """Mostra come viene risolta attualmente la ownership dei piani."""
+    _require_permission("inspect_owner")
     return json.dumps(resolve_plan_owner().to_dict(), ensure_ascii=False, indent=2)
 
 
 @tool
 def structure_permission_manifest() -> str:
     """Mostra le regole di permesso correnti dello Structure Agent."""
+    _require_permission("inspect_permissions")
     return json.dumps(permission_manifest("structure_agent"), ensure_ascii=False, indent=2)
 
 
