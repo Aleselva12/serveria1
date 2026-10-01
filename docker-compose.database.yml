@@ -1,0 +1,21 @@
+services:
+  cora-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: cora-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${CORA_POSTGRES_DB:-cora}
+      POSTGRES_USER: ${CORA_POSTGRES_USER:-cora}
+      POSTGRES_PASSWORD: ${CORA_POSTGRES_PASSWORD:-cora_change_me}
+    ports:
+      - "${CORA_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - cora_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CORA_POSTGRES_USER:-cora} -d ${CORA_POSTGRES_DB:-cora}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  cora_postgres_data:
