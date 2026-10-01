@@ -19,13 +19,13 @@ L’elenco completo è in [COLLEGAMENTI.md](COLLEGAMENTI.md), nelle Impostazioni
 
 ## Avvio completo consigliato
 
-Scaricare il branch **ChatGPT** aggiornato di `Aleselva12/serveria1`: contiene questa interfaccia nella cartella `frontend/`. Estrarre tutto e fare doppio clic su **AVVIO.cmd nella radice di serveria1**. Il launcher controlla/avvia backend, frontend e Ollama come nella configurazione esistente. Al primo avvio servono Python, Node.js/npm, Internet per le dipendenze e il modello locale configurato. Chiudere le vecchie finestre Cora prima del primo avvio aggiornato, se occupano le stesse porte.
+Scaricare il branch **main** aggiornato di `Aleselva12/serveria1`: contiene questa interfaccia nella cartella `frontend/`. Estrarre tutto e fare doppio clic su **AVVIO.cmd nella radice di serveria1**. Il launcher controlla/avvia backend, frontend e Ollama come nella configurazione esistente. Al primo avvio servono Python, Node.js/npm, Internet per le dipendenze e il modello locale configurato. Chiudere le vecchie finestre Cora prima del primo avvio aggiornato, se occupano le stesse porte.
 
 Questa repository separata può essere usata anche accanto al backend:
 
 ```text
 cartella-di-lavoro/
-  serveria1/    # branch ChatGPT aggiornato
+  serveria1/    # branch main aggiornato
   frontend/    # questa repository
 ```
 
