@@ -9,6 +9,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from core.models import get_chat_model
+from core.prompt_context import with_permanent_context
 from structure_agent.structure_prompt import STRUCTURE_AGENT_PROMPT
 from structure_agent.structure_tools import STRUCTURE_TOOLS
 
@@ -20,7 +21,7 @@ class AgentState(TypedDict):
 def call_llm(state: AgentState):
     messages = list(state["messages"])
     if not messages or not isinstance(messages[0], SystemMessage):
-        messages = [SystemMessage(content=STRUCTURE_AGENT_PROMPT)] + messages
+        messages = [SystemMessage(content=with_permanent_context(STRUCTURE_AGENT_PROMPT))] + messages
 
     llm = get_chat_model("structure", temperature=0.0)
     response = llm.bind_tools(STRUCTURE_TOOLS).invoke(messages)
