@@ -76,7 +76,7 @@ Il Supervisor accede al registro tramite:
 structure_registry_tool
 ```
 
-Il registro non implementa ancora permessi avanzati. Logging e memoria persistente sono ora componenti core separati e registrati.
+Il registro include il Permission Engine tra i componenti core. Logging e memoria persistente restano componenti separati e registrati.
 
 ## Ownership, piani e permessi
 
@@ -156,9 +156,9 @@ BLOCKED
 
 `CONFIRM` può essere sbloccata da un'approvazione esplicita dell'utente. `BLOCKED` rimane vietata finché la configurazione della policy non viene modificata deliberatamente; un agente non può auto-elevarsi.
 
-Per ora sono configurate regole solo per lo Structure Agent. Può leggere e osservare il sistema, creare piani/evaluation e scrivere esclusivamente nel proprio workspace. Non può modificare codice sorgente, configurazione core, memoria persistente o eseguire azioni esterne.
+Le azioni oggi implementate di Supervisor, Structure Agent, Local Research Agent, Audio Agent ed Email & Quotes Agent sono coperte da regole esplicite e i rispettivi tool eseguono il controllo prima dell'azione. Lo Structure Agent resta limitato al proprio workspace e non può modificare codice sorgente, configurazione core, memoria persistente o eseguire azioni esterne. La sovrascrittura distruttiva di Word e l'invio email sono bloccati.
 
-Questa configurazione è volutamente semplice e sarà estesa o modificata quando entreranno agenti più grandi e con maggiori responsabilità operative.
+Le policy attuali sono intenzionalmente provvisorie: le operazioni locali già previste restano utilizzabili, mentre il flusso completo CONFIRM/approvals verrà raffinato insieme alle pagine che lo espongono. Lo smoke check verifica anche duplicati e copertura delle regole.
 
 ## Logging e memoria persistente
 
@@ -287,7 +287,9 @@ Capacità implementate:
 - ricerca lessicale nei documenti;
 - lettura del contenuto;
 - analisi tramite il modello locale;
-- supporto a file testuali comuni e documenti Word `.docx`;
+- supporto a file testuali comuni, documenti Word `.docx` e PDF testuali;
+- creazione di nuovi Word e aggiornamento non distruttivo di Word esistenti tramite append;
+- sovrascrittura distruttiva di Word bloccata dalla policy corrente;
 - protezione dai percorsi esterni alla directory autorizzata;
 - limiti configurabili per dimensione del file e quantità di testo passata al modello.
 
@@ -512,6 +514,7 @@ Controlla:
 
 - sintassi dei file Python;
 - import dei moduli principali;
+- copertura del Permission Engine per le azioni implementate;
 - configurazione rilevata per i componenti principali.
 
 ## Dipendenze principali
@@ -526,6 +529,7 @@ Backend e agenti:
 - Streamlit;
 - psutil;
 - python-docx;
+- pypdf;
 - faster-whisper;
 - pyannote.audio;
 - Google API Client e librerie OAuth;
