@@ -1,27 +1,16 @@
 from __future__ import annotations
 
 import json
-import os
-import sqlite3
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
+from pgvector import Vector
 
+from core.database import database_status, db_connection
+from core.embeddings import EMBEDDING_MODEL, embed_text
 from core.logging import log_event
 
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(PROJECT_ROOT / ".env")
-
-MEMORY_ROOT = Path(
-    os.getenv("CORA_MEMORY_ROOT", str(PROJECT_ROOT / "data"))
-).expanduser().resolve()
-MEMORY_DB = Path(
-    os.getenv("CORA_MEMORY_DB", str(MEMORY_ROOT / "cora_memory.sqlite3"))
-).expanduser().resolve()
 
 ALLOWED_MEMORY_TYPES = {
     "fact",
@@ -34,55 +23,16 @@ ALLOWED_MEMORY_TYPES = {
 }
 
 
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
-def _connect() -> sqlite3.Connection:
-    MEMORY_DB.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(MEMORY_DB)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA journal_mode=WAL")
-    connection.execute("PRAGMA foreign_keys=ON")
-    _ensure_schema(connection)
-    return connection
-
-
-def _ensure_schema(connection: sqlite3.Connection) -> None:
-    connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS memories (
-            id TEXT PRIMARY KEY,
-            memory_type TEXT NOT NULL,
-            key TEXT NOT NULL,
-            content TEXT NOT NULL,
-            source TEXT NOT NULL,
-            importance INTEGER NOT NULL DEFAULT 3,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            expires_at TEXT,
-            metadata_json TEXT NOT NULL DEFAULT '{}',
-            UNIQUE(memory_type, key)
-        )
-        """
-    )
-    connection.execute(
-        "CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(memory_type)"
-    )
-    connection.execute(
-        "CREATE INDEX IF NOT EXISTS idx_memories_key ON memories(key)"
-    )
-    connection.commit()
-
-
-def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
-    result = dict(row)
-    try:
-        result["metadata"] = json.loads(result.pop("metadata_json") or "{}")
-    except json.JSONDecodeError:
-        result["metadata"] = {}
-        result.pop("metadata_json", None)
-    return result
+def _public_memory(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in row.items()
+        if key != "embedding"
+    }
 
 
 def save_memory(
@@ -96,7 +46,7 @@ def save_memory(
     metadata: dict[str, Any] | None = None,
     thread_id: str | None = None,
 ) -> dict[str, Any]:
-    """Create or update one persistent memory, identified by type + key."""
+    """Create or update one persistent memory in PostgreSQL + pgvector."""
     normalized_type = memory_type.strip().lower()
     if normalized_type not in ALLOWED_MEMORY_TYPES:
         raise ValueError(
@@ -110,83 +60,64 @@ def save_memory(
         raise ValueError("key e content non possono essere vuoti.")
 
     importance = max(1, min(int(importance), 5))
-    now = _utc_now()
+    embedding, embedding_model = embed_text(normalized_content)
+    dimensions = len(embedding) if embedding else None
+    parsed_expiry = datetime.fromisoformat(expires_at) if expires_at else None
+    memory_id = uuid.uuid4()
 
-    with _connect() as connection:
-        existing = connection.execute(
-            "SELECT id, created_at FROM memories WHERE memory_type = ? AND key = ?",
-            (normalized_type, normalized_key),
+    with db_connection() as connection:
+        row = connection.execute(
+            """
+            INSERT INTO memories (
+                id, memory_type, key, content, source, importance,
+                expires_at, embedding, embedding_model,
+                embedding_dimensions, metadata
+            )
+            VALUES (
+                %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s::jsonb
+            )
+            ON CONFLICT (memory_type, key)
+            DO UPDATE SET
+                content = EXCLUDED.content,
+                source = EXCLUDED.source,
+                importance = EXCLUDED.importance,
+                updated_at = NOW(),
+                expires_at = EXCLUDED.expires_at,
+                embedding = EXCLUDED.embedding,
+                embedding_model = EXCLUDED.embedding_model,
+                embedding_dimensions = EXCLUDED.embedding_dimensions,
+                metadata = EXCLUDED.metadata
+            RETURNING *,
+                CASE WHEN created_at = updated_at THEN 'created' ELSE 'updated' END AS action
+            """,
+            (
+                memory_id,
+                normalized_type,
+                normalized_key,
+                normalized_content,
+                source,
+                importance,
+                parsed_expiry,
+                Vector(embedding) if embedding else None,
+                embedding_model,
+                dimensions,
+                json.dumps(metadata or {}, ensure_ascii=False),
+            ),
         ).fetchone()
-
-        if existing:
-            memory_id = existing["id"]
-            created_at = existing["created_at"]
-            connection.execute(
-                """
-                UPDATE memories
-                SET content = ?, source = ?, importance = ?, updated_at = ?,
-                    expires_at = ?, metadata_json = ?
-                WHERE id = ?
-                """,
-                (
-                    normalized_content,
-                    source,
-                    importance,
-                    now,
-                    expires_at,
-                    json.dumps(metadata or {}, ensure_ascii=False),
-                    memory_id,
-                ),
-            )
-            action = "updated"
-        else:
-            memory_id = str(uuid.uuid4())
-            created_at = now
-            connection.execute(
-                """
-                INSERT INTO memories (
-                    id, memory_type, key, content, source, importance,
-                    created_at, updated_at, expires_at, metadata_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    memory_id,
-                    normalized_type,
-                    normalized_key,
-                    normalized_content,
-                    source,
-                    importance,
-                    created_at,
-                    now,
-                    expires_at,
-                    json.dumps(metadata or {}, ensure_ascii=False),
-                ),
-            )
-            action = "created"
-
         connection.commit()
 
-    result = {
-        "id": memory_id,
-        "memory_type": normalized_type,
-        "key": normalized_key,
-        "content": normalized_content,
-        "source": source,
-        "importance": importance,
-        "created_at": created_at,
-        "updated_at": now,
-        "expires_at": expires_at,
-        "metadata": metadata or {},
-        "action": action,
-    }
+    result = _public_memory(row)
     log_event(
         "memory_write",
         component="memory_store",
         thread_id=thread_id,
         data={
-            "memory_id": memory_id,
+            "memory_id": str(result["id"]),
             "memory_type": normalized_type,
-            "action": action,
+            "action": result["action"],
+            "embedding_model": embedding_model,
+            "embedding_dimensions": dimensions,
         },
     )
     return result
@@ -199,41 +130,74 @@ def search_memories(
     limit: int = 20,
     thread_id: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Search persistent memories using a simple local lexical query."""
+    """Hybrid lexical + semantic search over persistent memories."""
     limit = max(1, min(int(limit), 100))
-    clauses = ["(expires_at IS NULL OR expires_at > ?)"]
-    params: list[Any] = [_utc_now()]
-
     normalized_query = query.strip()
     normalized_type = memory_type.strip().lower()
 
+    if normalized_type and normalized_type not in ALLOWED_MEMORY_TYPES:
+        raise ValueError(
+            "memory_type non valido. Valori ammessi: "
+            + ", ".join(sorted(ALLOWED_MEMORY_TYPES))
+        )
+
+    query_embedding, embedding_model = (
+        embed_text(normalized_query) if normalized_query else (None, None)
+    )
+    dimensions = len(query_embedding) if query_embedding else None
+
+    clauses = ["(expires_at IS NULL OR expires_at > NOW())"]
+    params: list[Any] = []
+
     if normalized_type:
-        if normalized_type not in ALLOWED_MEMORY_TYPES:
-            raise ValueError(
-                "memory_type non valido. Valori ammessi: "
-                + ", ".join(sorted(ALLOWED_MEMORY_TYPES))
-            )
-        clauses.append("memory_type = ?")
+        clauses.append("memory_type = %s")
         params.append(normalized_type)
 
-    if normalized_query:
-        clauses.append("(key LIKE ? OR content LIKE ?)")
-        pattern = f"%{normalized_query}%"
-        params.extend([pattern, pattern])
+    lexical_pattern = f"%{normalized_query}%" if normalized_query else None
+    if normalized_query and query_embedding:
+        score_sql = """
+            (
+                CASE WHEN key ILIKE %s OR content ILIKE %s THEN 1.0 ELSE 0.0 END
+                +
+                CASE
+                    WHEN embedding IS NOT NULL
+                     AND embedding_model = %s
+                     AND embedding_dimensions = %s
+                    THEN GREATEST(0.0, 1.0 - (embedding <=> %s))
+                    ELSE 0.0
+                END
+            )
+        """
+        score_params = [
+            lexical_pattern,
+            lexical_pattern,
+            embedding_model,
+            dimensions,
+            Vector(query_embedding),
+        ]
+    elif normalized_query:
+        score_sql = "CASE WHEN key ILIKE %s OR content ILIKE %s THEN 1.0 ELSE 0.0 END"
+        score_params = [lexical_pattern, lexical_pattern]
+    else:
+        score_sql = "0.0"
+        score_params = []
 
-    params.append(limit)
     sql = f"""
-        SELECT *
+        SELECT *,
+               {score_sql} AS search_score
         FROM memories
         WHERE {' AND '.join(clauses)}
-        ORDER BY importance DESC, updated_at DESC
-        LIMIT ?
+        ORDER BY search_score DESC, importance DESC, updated_at DESC
+        LIMIT %s
     """
 
-    with _connect() as connection:
-        rows = connection.execute(sql, params).fetchall()
+    with db_connection() as connection:
+        rows = connection.execute(
+            sql,
+            [*score_params, *params, limit],
+        ).fetchall()
 
-    results = [_row_to_dict(row) for row in rows]
+    results = [_public_memory(row) for row in rows]
     log_event(
         "memory_read",
         component="memory_store",
@@ -242,20 +206,21 @@ def search_memories(
             "query_chars": len(normalized_query),
             "memory_type": normalized_type or None,
             "result_count": len(results),
+            "semantic_search": bool(query_embedding),
+            "embedding_model": embedding_model,
         },
     )
     return results
 
 
 def delete_memory(memory_id: str, *, thread_id: str | None = None) -> bool:
-    """Delete one memory by id."""
-    with _connect() as connection:
+    with db_connection() as connection:
         result = connection.execute(
-            "DELETE FROM memories WHERE id = ?",
-            (memory_id.strip(),),
+            "DELETE FROM memories WHERE id = %s",
+            (uuid.UUID(memory_id.strip()),),
         )
-        connection.commit()
         deleted = result.rowcount > 0
+        connection.commit()
 
     log_event(
         "memory_delete",
@@ -267,14 +232,34 @@ def delete_memory(memory_id: str, *, thread_id: str | None = None) -> bool:
 
 
 def memory_stats() -> dict[str, Any]:
-    with _connect() as connection:
-        total = connection.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
+    status = database_status()
+    if not status.get("reachable"):
+        return {
+            "backend": "postgresql+pgvector",
+            "available": False,
+            "total": 0,
+            "by_type": {},
+            "embedding_model": EMBEDDING_MODEL,
+            "database": status,
+        }
+
+    with db_connection() as connection:
+        total = connection.execute(
+            "SELECT COUNT(*) AS count FROM memories"
+        ).fetchone()["count"]
+        embedded = connection.execute(
+            "SELECT COUNT(*) AS count FROM memories WHERE embedding IS NOT NULL"
+        ).fetchone()["count"]
         by_type_rows = connection.execute(
             "SELECT memory_type, COUNT(*) AS count FROM memories GROUP BY memory_type"
         ).fetchall()
 
     return {
-        "database": str(MEMORY_DB),
-        "total": total,
-        "by_type": {row["memory_type"]: row["count"] for row in by_type_rows},
+        "backend": "postgresql+pgvector",
+        "available": True,
+        "total": int(total),
+        "embedded": int(embedded),
+        "by_type": {row["memory_type"]: int(row["count"]) for row in by_type_rows},
+        "embedding_model": EMBEDDING_MODEL,
+        "database": status,
     }
