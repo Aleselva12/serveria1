@@ -105,6 +105,21 @@ def save_memory(
                 json.dumps(metadata or {}, ensure_ascii=False),
             ),
         ).fetchone()
+        connection.execute(
+            """
+            INSERT INTO memory_sources (
+                id, memory_id, source_type, source_ref, metadata
+            )
+            VALUES (%s, %s, %s, %s, %s::jsonb)
+            """,
+            (
+                uuid.uuid4(),
+                row["id"],
+                source,
+                (metadata or {}).get("source_ref"),
+                json.dumps(metadata or {}, ensure_ascii=False),
+            ),
+        )
         connection.commit()
 
     result = _public_memory(row)
