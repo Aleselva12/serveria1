@@ -1367,6 +1367,30 @@ body {
   color: #10b981;
   flex: none;
 }
+.home-backlog {
+  padding: 22px 24px;
+  margin-bottom: 20px;
+}
+.home-backlog .metric-head > div > span {
+  color: #8a8a8a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.home-backlog h2 {
+  margin: 5px 0 0;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+.home-backlog-intro {
+  margin: 8px 0 2px;
+  color: #777;
+  font-size: 12px;
+}
+.home-backlog .connection-backlog:last-child .settings-row {
+  padding-bottom: 0;
+}
+
 .home-metrics,
 .home-secondary {
   display: grid;
