@@ -17,3 +17,5 @@ python-docx
 faster-whisper
 pyannote.audio
 reportlab
+
+pypdf
