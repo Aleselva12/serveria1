@@ -6,7 +6,7 @@ from urllib.request import urlopen
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from core.chat_store import conversation_stats, ensure_conversation, get_messages, list_conversations, recent_context, save_message
 from core.database import database_status
@@ -62,7 +62,7 @@ class MemoryWriteRequest(BaseModel):
     source: str = "user_explicit"
     importance: int = 3
     expires_at: str | None = None
-    metadata: dict = {}
+    metadata: dict = Field(default_factory=dict)
 
 
 def _ollama_online() -> bool:
