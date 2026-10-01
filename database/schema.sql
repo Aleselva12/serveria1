@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS agent_events (
     event_type TEXT NOT NULL,
     component TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'ok',
-    thread_id UUID,
+    thread_id TEXT,
     duration_ms DOUBLE PRECISION,
     data JSONB NOT NULL DEFAULT '{}'::jsonb
 );
