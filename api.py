@@ -10,8 +10,11 @@ from pydantic import BaseModel, Field
 
 from core.chat_store import conversation_stats, ensure_conversation, get_messages, list_conversations, recent_context, save_message
 from core.database import database_status
+from core.episodes import create_episode, list_episodes
 from core.logging import logged_operation
 from core.memory import delete_memory, memory_stats, save_memory, search_memories
+from core.system_context import get_system_context, update_system_context
+from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
 from core.models import get_model_name
 from core.monitoring import router as monitoring_router
 from core.server_files import router as files_router
@@ -65,6 +68,16 @@ class MemoryWriteRequest(BaseModel):
     metadata: dict = Field(default_factory=dict)
 
 
+class SystemContextRequest(BaseModel):
+    content: str
+    metadata: dict = Field(default_factory=dict)
+
+
+class WorkingMemoryRequest(BaseModel):
+    state: dict = Field(default_factory=dict)
+    ttl_minutes: int = 120
+
+
 def _ollama_online() -> bool:
     try:
         with urlopen(f"{OLLAMA_BASE_URL}/api/tags", timeout=1.5):
@@ -102,6 +115,44 @@ def conversations(limit: int = 100, include_archived: bool = False):
 @app.get("/conversations/{conversation_id}/messages")
 def conversation_messages(conversation_id: str, limit: int = 500):
     return get_messages(conversation_id, limit=limit)
+
+
+@app.get("/memory/context")
+def read_system_context():
+    return get_system_context()
+
+
+@app.put("/memory/context")
+def write_system_context(request: SystemContextRequest):
+    return update_system_context(
+        request.content,
+        metadata={**request.metadata, "source": "user_settings"},
+    )
+
+
+@app.get("/memory/episodes")
+def episodes(limit: int = 50):
+    return list_episodes(limit=limit)
+
+
+@app.get("/memory/working")
+def working_memory():
+    return list_working_memory()
+
+
+@app.put("/memory/working/{agent_id}/{thread_id}")
+def write_working_memory(agent_id: str, thread_id: str, request: WorkingMemoryRequest):
+    return set_working_memory(
+        agent_id=agent_id,
+        thread_id=thread_id,
+        state=request.state,
+        ttl_minutes=request.ttl_minutes,
+    )
+
+
+@app.delete("/memory/working/{agent_id}/{thread_id}")
+def remove_working_memory(agent_id: str, thread_id: str):
+    return {"deleted": clear_working_memory(agent_id=agent_id, thread_id=thread_id)}
 
 
 @app.get("/memory")
@@ -150,6 +201,15 @@ def chat(request: ChatRequest):
         agent_id="user",
         metadata={"source": "chat_api"},
     )
+    set_working_memory(
+        agent_id="supervisor",
+        thread_id=thread_id,
+        state={
+            "status": "running",
+            "current_request": message,
+            "last_user_message_id": str(user_message["id"]),
+        },
+    )
 
     with logged_operation(
         "chat_request",
@@ -170,6 +230,32 @@ def chat(request: ChatRequest):
             model_id=get_model_name("supervisor"),
             parent_message_id=str(user_message["id"]),
             metadata={"source": "chat_api"},
+        )
+        set_working_memory(
+            agent_id="supervisor",
+            thread_id=thread_id,
+            state={
+                "status": "completed",
+                "current_request": message,
+                "last_response": response[:1200],
+                "last_user_message_id": str(user_message["id"]),
+                "last_assistant_message_id": str(assistant_message["id"]),
+            },
+            ttl_minutes=120,
+        )
+        create_episode(
+            title=message.replace("\n", " ")[:80] or "Turno chat",
+            summary=(
+                "Richiesta: " + message[:240] +
+                "\nRisultato: " + response[:420]
+            ),
+            conversation_id=thread_id,
+            episode_type="conversation_turn",
+            agent_id="supervisor",
+            metadata={
+                "user_message_id": str(user_message["id"]),
+                "assistant_message_id": str(assistant_message["id"]),
+            },
         )
         operation["result"] = {
             "response_chars": len(response),
