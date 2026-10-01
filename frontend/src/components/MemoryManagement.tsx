@@ -6,9 +6,7 @@ import {
   Database,
   Layers3,
   Plus,
-  Save,
   Search,
-  Sparkles,
 } from "lucide-react";
 import type { BackendRegistry } from "../types/contracts";
 
@@ -69,9 +67,6 @@ const initialRecent: RecentMemory[] = [
 ];
 
 export default function MemoryManagement({ registry, onBack }: Props) {
-  const [persistentContext, setPersistentContext] = useState(
-    "Sei Cora, assistente locale del server.\nPreferisci dati verificabili e descrivi chiaramente cosa hai realmente fatto.\nUsa strumenti locali quando sono sufficienti e non inventare risultati.",
-  );
   const [semanticMemories, setSemanticMemories] =
     useState<SemanticMemory[]>(initialSemantic);
   const [recentMemories] = useState<RecentMemory[]>(initialRecent);
@@ -138,7 +133,7 @@ export default function MemoryManagement({ registry, onBack }: Props) {
           <div className="eyebrow">REGISTRO MEMORIA</div>
           <h1>Gestione Memoria</h1>
           <p>
-            Contesto comune, memoria semantica, memoria episodica e memoria di
+            Memoria semantica, memoria episodica, provenienza e memoria di
             lavoro degli agenti.
           </p>
         </div>
@@ -157,36 +152,6 @@ export default function MemoryManagement({ registry, onBack }: Props) {
           </span>
         </div>
       </div>
-
-      <section className="memory-card memory-context-card">
-        <div className="memory-card-head">
-          <div className="memory-card-icon">
-            <Sparkles size={18} />
-          </div>
-          <div>
-            <div className="memory-kicker">BASE COMUNE</div>
-            <h2>Contesto persistente</h2>
-            <p>
-              Poche frasi fondamentali caricate come contesto di base e comuni a
-              tutti i modelli.
-            </p>
-          </div>
-          <span className="memory-scope">Tutti i modelli</span>
-        </div>
-        <textarea
-          className="persistent-context-input"
-          value={persistentContext}
-          onChange={(event) => setPersistentContext(event.target.value)}
-          rows={6}
-          placeholder="Scrivi qui le frasi base comuni a Cora e agli agenti…"
-        />
-        <div className="memory-card-footer">
-          <span>{persistentContext.trim().split(/\n+/).filter(Boolean).length} frasi</span>
-          <button className="solid-button" disabled>
-            <Save size={15} /> Salva nel backend
-          </button>
-        </div>
-      </section>
 
       <div className="memory-grid">
         <section className="memory-card semantic-memory-card">
