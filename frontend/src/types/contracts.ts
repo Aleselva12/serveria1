@@ -142,7 +142,14 @@ export type BackendHealth = {
   ollama_online: boolean;
   model: string;
   agents: string[];
-  memory?: { total: number; by_type: Record<string, number> };
+  memory?: {
+    total: number;
+    by_type: Record<string, number>;
+    available?: boolean;
+    embedded?: number;
+    backend?: string;
+    embedding_model?: string;
+  };
 };
 export type BackendComponent = {
   id: string;
