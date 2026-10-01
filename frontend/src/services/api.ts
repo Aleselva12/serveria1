@@ -2,8 +2,12 @@ import type {
   BackendChatResponse,
   BackendHealth,
   BackendRegistry,
+  MemoryEpisode,
+  PersistentMemory,
   ServerTelemetry,
   ServiceStatus,
+  SystemContext,
+  WorkingMemoryState,
 } from "../types/contracts";
 
 export const apiBaseUrl = (
@@ -191,6 +195,59 @@ export const api = {
     )
       throw new ApiError("Registro dei componenti non valido.", "invalid");
     return data;
+  },
+  async systemContext(): Promise<SystemContext> {
+    return request<SystemContext>("/memory/context");
+  },
+  async saveSystemContext(content: string): Promise<SystemContext> {
+    return request<SystemContext>("/memory/context", {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    });
+  },
+  async memories(query = "", memoryType = "", limit = 100): Promise<PersistentMemory[]> {
+    const params = new URLSearchParams({
+      query,
+      memory_type: memoryType,
+      limit: String(limit),
+    });
+    return request<PersistentMemory[]>("/memory?" + params.toString());
+  },
+  async saveMemory(input: {
+    memory_type: string;
+    key: string;
+    content: string;
+    source?: string;
+    importance?: number;
+  }): Promise<PersistentMemory> {
+    return request<PersistentMemory>("/memory", {
+      method: "POST",
+      body: JSON.stringify({
+        source: "user_explicit",
+        importance: 4,
+        ...input,
+      }),
+    });
+  },
+  async deleteMemory(id: string): Promise<{ deleted: boolean }> {
+    return request<{ deleted: boolean }>("/memory/" + encodeURIComponent(id), {
+      method: "DELETE",
+    });
+  },
+  async episodes(limit = 50): Promise<MemoryEpisode[]> {
+    return request<MemoryEpisode[]>("/memory/episodes?limit=" + limit);
+  },
+  async workingMemory(): Promise<WorkingMemoryState[]> {
+    return request<WorkingMemoryState[]>("/memory/working");
+  },
+  async clearWorkingMemory(agentId: string, threadId: string): Promise<{ deleted: boolean }> {
+    return request<{ deleted: boolean }>(
+      "/memory/working/" +
+        encodeURIComponent(agentId) +
+        "/" +
+        encodeURIComponent(threadId),
+      { method: "DELETE" },
+    );
   },
   async chat(message: string, threadId: string): Promise<BackendChatResponse> {
     const data = await request<BackendChatResponse>(
