@@ -11,6 +11,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from core.permissions import validate_permission_configuration
+
 
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
@@ -40,7 +42,7 @@ MODULES = [
 
 
 def check_syntax() -> bool:
-    print("[1/3] Controllo sintassi Python...")
+    print("[1/4] Controllo sintassi Python...")
     ok = compileall.compile_dir(
         str(ROOT),
         quiet=1,
@@ -52,7 +54,7 @@ def check_syntax() -> bool:
 
 
 def check_imports() -> bool:
-    print("[2/3] Controllo import principali...")
+    print("[2/4] Controllo import principali...")
     ok = True
 
     for module_name in MODULES:
@@ -66,8 +68,21 @@ def check_imports() -> bool:
     return ok
 
 
+def check_permissions() -> bool:
+    print("[3/4] Controllo copertura Permission Engine...")
+    report = validate_permission_configuration()
+    if report["valid"]:
+        print(f"  OK  {report['rule_count']} regole / {len(report['actors'])} attori")
+        return True
+    for item in report["duplicates"]:
+        print(f"  ERR regola duplicata: {item['actor']}::{item['action']}")
+    for item in report["missing"]:
+        print(f"  ERR regola mancante: {item['actor']}::{item['action']}")
+    return False
+
+
 def check_configuration() -> None:
-    print("[3/3] Configurazione rilevata...")
+    print("[4/4] Configurazione rilevata...")
     print(f"  OLLAMA_MODEL={os.getenv('OLLAMA_MODEL', 'gpt-oss:20b')}")
     print(f"  OLLAMA_BASE_URL={os.getenv('OLLAMA_BASE_URL', 'http://localhost:11435')}")
 
@@ -91,9 +106,10 @@ def check_configuration() -> None:
 def main() -> int:
     syntax_ok = check_syntax()
     imports_ok = check_imports()
+    permissions_ok = check_permissions()
     check_configuration()
 
-    if syntax_ok and imports_ok:
+    if syntax_ok and imports_ok and permissions_ok:
         print("\nSMOKE CHECK: OK")
         return 0
 
