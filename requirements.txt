@@ -21,3 +21,6 @@ reportlab
 pypdf
 
 python-multipart
+
+psycopg[binary]
+pgvector
