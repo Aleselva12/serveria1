@@ -92,7 +92,7 @@ export type ActionApproval = {
   status: "pending" | "approved" | "rejected";
 };
 
-/** Proposed server dashboard contract. Live telemetry still needs a backend HTTP endpoint. */
+/** Live server dashboard contract. */
 export type ServerMetric = {
   percent: number | null;
   label: string;
@@ -115,7 +115,7 @@ export type ServerTelemetry = {
     receiveBitsPerSecond: number;
     transmitBitsPerSecond: number;
     interfaceName?: string;
-  };
+  } | null;
   power?: { kind: "mains" | "ups" | "battery" | "unknown"; detail?: string };
   cpuHistory?: { at: string; percent: number }[];
 };

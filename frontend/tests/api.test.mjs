@@ -125,3 +125,56 @@ test("invalid JSON and invalid registry entries are rejected", async () => {
   globalThis.fetch = async () => jsonResponse({ components: [null] });
   await assert.rejects(api.registry(), (error) => error.kind === "invalid");
 });
+
+const telemetry = {
+  sampledAt: "2026-10-01T20:00:00Z",
+  cpu: { percent: null, label: "CPU" },
+  ram: { percent: 30, label: "RAM" },
+  gpu: { percent: null, label: "GPU" },
+  disks: [{ id: "/", label: "/", usedBytes: 10, totalBytes: 20 }],
+  network: null,
+  power: { kind: "unknown" },
+  cpuHistory: [],
+};
+test("Home uses telemetry endpoint and preserves absent sensors", async () => {
+  globalThis.fetch = async (url) => {
+    assert.equal(url, "/backend/api/v1/server/telemetry");
+    return jsonResponse(telemetry);
+  };
+  assert.deepEqual(await api.telemetry(), telemetry);
+});
+test("Home rejects malformed telemetry rather than rendering invalid gauges", async () => {
+  for (const data of [
+    null,
+    {},
+    { ...telemetry, cpu: { percent: 101, label: "CPU" } },
+    { ...telemetry, disks: [null] },
+    {
+      ...telemetry,
+      network: { receiveBitsPerSecond: -1, transmitBitsPerSecond: 1 },
+    },
+  ]) {
+    globalThis.fetch = async () => jsonResponse(data);
+    await assert.rejects(api.telemetry(), (error) => error.kind === "invalid");
+  }
+});
+test("Home checks services independently and preserves unknown status", async () => {
+  const data = {
+    checkedAt: telemetry.sampledAt,
+    services: [
+      {
+        id: "docker",
+        label: "Docker",
+        status: "unknown",
+        checkedAt: telemetry.sampledAt,
+      },
+    ],
+  };
+  globalThis.fetch = async (url) => {
+    assert.equal(url, "/backend/api/v1/system/status");
+    return jsonResponse(data);
+  };
+  assert.deepEqual(await api.services(), data);
+  globalThis.fetch = async () => jsonResponse({ ...data, services: [null] });
+  await assert.rejects(api.services(), (error) => error.kind === "invalid");
+});

@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from core.logging import logged_operation
 from core.memory import memory_stats
 from core.models import get_model_name
+from core.monitoring import router as monitoring_router
 from core.registry import get_agents, get_registry
 from graph import graph
 
@@ -24,6 +25,8 @@ app = FastAPI(
     title="Cora API",
     version="0.1.0",
 )
+
+app.include_router(monitoring_router)
 
 app.add_middleware(
     CORSMiddleware,

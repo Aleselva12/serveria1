@@ -7,6 +7,7 @@ Interfaccia React + TypeScript + Vite basata sul design Figma, collegata al back
 - Chat reale: `POST /chat`, con `message` e `thread_id`, risposta completa al termine, attesa visibile, gestione errori e blocco degli invii duplicati.
 - Nuove chat e selezione delle conversazioni di **questa sessione**, con thread separati. Nessuna persistenza del frontend al ricaricamento; il contesto LangGraph resta volatile sul backend.
 - Stato FastAPI e raggiungibilità Ollama: `GET /health`, controllo ogni 15 secondi e pulsante di aggiornamento.
+- Home: telemetria reale ogni 5 secondi, cronologia CPU e stato servizi ogni 15 secondi. Sensori GPU/alimentazione opzionali; vedere COLLEGAMENTI.md per configurazione e limiti.
 - Modello del supervisore e conteggio memorie, quando restituiti da `/health`.
 - Architettura: agenti e capacità letti da `GET /capabilities`. Le linee rappresentano la delega possibile del supervisore, non tracce runtime o un grafo versionato ricevuto dal server. “Modulo presente” indica disponibilità strutturale, non readiness operativa.
 - Attività: esito delle richieste chat inviate da questa pagina nella sessione corrente. Le tracce interne degli agenti sono da collegare.
@@ -15,7 +16,7 @@ Interfaccia React + TypeScript + Vite basata sul design Figma, collegata al back
 
 Ogni parte non esposta dal backend ha un avviso permanente **“Collegamento da realizzare”**, con pulsanti disabilitati. Backend offline, errore HTTP e funzione assente sono stati distinti. Nessun valore demo, file inventato, evento locale o risposta predefinita viene presentato come dato del server.
 
-L’elenco completo è in [COLLEGAMENTI.md](COLLEGAMENTI.md), nelle Impostazioni dell’app e in `src/services/connections.ts`. Include telemetria, altri servizi, storico chat, streaming, allegati, file del NAS, editor, calendario personale, tracce, conferme, microfono, permessi e modifica della mappa. **Non è stato creato un agente calendario.**
+L’elenco completo è in [COLLEGAMENTI.md](COLLEGAMENTI.md), nelle Impostazioni dell’app e in `src/services/connections.ts`. Include storico chat, streaming, allegati, file del NAS, editor, calendario personale, tracce, conferme, microfono, permessi e modifica della mappa. **Non è stato creato un agente calendario.**
 
 ## Avvio completo consigliato
 
@@ -73,8 +74,8 @@ Base configurabile con `VITE_API_BASE_URL`; prefisso `/api/v1`. JSON UTF-8, iden
 
 | Area e file frontend | Richiesta/evento previsto | Risposta o effetto richiesto |
 | --- | --- | --- |
-| Home `components/Home.tsx`/`api.ts` | `GET /server/telemetry`, `GET /server/storage` | CPU/RAM/GPU opzionale, temperature disponibili, dischi con byte usati/totali, rete con rate in bit/s, alimentazione/UPS opzionale, cronologia CPU, `sampledAt`; valori null o stale devono apparire come sconosciuti, mai come sani. Non usare nomi hardware del Figma come dati reali. |
-| Stato `App.tsx`/`api.ts` | `GET /system/status` | Stato e ultimo controllo di FastAPI, Ollama, supervisor e servizi disponibili; distinguere offline, errore, occupato. |
+| Home `components/Home.tsx`/`api.ts` | `GET /api/v1/server/telemetry`, `GET /api/v1/server/storage` | CPU/RAM/GPU opzionale, temperature disponibili, dischi con byte usati/totali, rete con rate in bit/s, alimentazione/UPS opzionale, cronologia CPU, `sampledAt`; valori null o stale devono apparire come sconosciuti, mai come sani. Non usare nomi hardware del Figma come dati reali. |
+| Stato `App.tsx`/`api.ts` | `GET /api/v1/system/status` | Stato e ultimo controllo di FastAPI, Ollama, supervisor e servizi disponibili; distinguere offline, errore, occupato. |
 | Impostazioni `App.tsx`/`api.ts` | `GET /system/config` | Modello effettivo, capability abilitate, configurazione pubblica; mai segreti, prompt riservati o credenziali. |
 | Impostazioni/Programma, *da aggiungere* | `GET /permissions` | Capability per utente e area di lavoro: `OBSERVE`, `READ`, `DRAFT`, `WRITE`, `EXECUTE`, `ADMIN`; policy `AUTO`, `CONFIRM`, `BLOCKED`, radici consentite. L'interfaccia le rappresenta; il server le applica. |
 | Chat `App.tsx`/`api.ts` | `GET /conversations`, `POST /conversations` | Elenco, nuova conversazione, ID, titolo e aggiornamento. Aggiungere rinomina/eliminazione solo quando decise. |

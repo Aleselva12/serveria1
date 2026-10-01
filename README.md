@@ -408,7 +408,9 @@ L’interfaccia ora usa il progetto React + TypeScript di `Aleselva12/frontend`,
 
 I collegamenti reali sono `/chat`, `/health` e `/capabilities`: risposta di Cora, thread separati, stato del backend/Ollama, modello supervisore, statistiche memoria e registro degli agenti. Le conversazioni della sidebar e gli esiti delle richieste restano nella memoria della pagina, fino al ricaricamento; non sono uno storico persistente del server.
 
-Le funzioni senza endpoint hanno avvisi permanenti “Collegamento da realizzare” e controlli disabilitati: telemetria, file del NAS, allegati, calendario personale, editor, streaming, run, conferme, microfono, permessi e modifica della mappa. Non vengono visualizzati dati fittizi. Nessun agente calendario è stato aggiunto.
+La Home legge `/api/v1/server/telemetry` (CPU, RAM, GPU opzionale, dischi, rete, alimentazione e cronologia CPU), `/api/v1/server/storage` e `/api/v1/system/status`. Aggiornamento automatico, errori espliciti e sensori assenti mostrati come sconosciuti. Docker è interrogato in sola lettura se accessibile; gli URL di Immich, Nextcloud e n8n si configurano in `.env`. Dettagli e limiti in `frontend/COLLEGAMENTI.md`.
+
+Le funzioni senza endpoint hanno avvisi permanenti “Collegamento da realizzare” e controlli disabilitati: file del NAS, allegati, calendario personale, editor, streaming, run, conferme, microfono, permessi e modifica della mappa. Non vengono visualizzati dati fittizi. Nessun agente calendario è stato aggiunto.
 
 La mappa mostra agenti e capacità del registro reale; “Modulo presente” è disponibilità strutturale, non readiness runtime. I collegamenti della mappa illustrano delega possibile e non tracce eseguite.
 

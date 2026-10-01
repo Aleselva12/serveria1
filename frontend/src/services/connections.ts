@@ -6,17 +6,6 @@ export const missingConnections = {
       "La mappa dispone gli agenti del registro. Topologia, versioni e dipendenze dinamiche devono ancora arrivare dal backend.",
     endpoints: "GET /api/v1/architecture/graph; GET /api/v1/agents",
   },
-  telemetry: {
-    label: "Prestazioni del server",
-    detail:
-      "CPU, RAM, GPU, dischi, rete e cronologia: monitoraggio da collegare.",
-    endpoints: "GET /api/v1/server/telemetry; GET /api/v1/server/storage",
-  },
-  services: {
-    label: "Docker e altri servizi",
-    detail: "Sono verificati solo FastAPI e la raggiungibilità di Ollama.",
-    endpoints: "GET /api/v1/system/status",
-  },
   history: {
     label: "Storico delle conversazioni",
     detail:

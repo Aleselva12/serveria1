@@ -2,6 +2,8 @@ import type {
   BackendChatResponse,
   BackendHealth,
   BackendRegistry,
+  ServerTelemetry,
+  ServiceStatus,
 } from "../types/contracts";
 
 export const apiBaseUrl = (
@@ -52,8 +54,8 @@ async function request<T>(
         kind === "missing"
           ? "Collegamento da realizzare: funzione non esposta dal backend."
           : "Il backend ha restituito un errore (HTTP " +
-            response.status +
-            ").",
+              response.status +
+              ").",
         kind,
         response.status,
       );
@@ -82,7 +84,76 @@ async function request<T>(
   }
 }
 
+function metricValid(metric: ServerTelemetry["cpu"]) {
+  return (
+    metric &&
+    typeof metric.label === "string" &&
+    (metric.percent === null ||
+      (Number.isFinite(metric.percent) &&
+        metric.percent >= 0 &&
+        metric.percent <= 100))
+  );
+}
+const nonnegative = (value: number) => Number.isFinite(value) && value >= 0;
+
 export const api = {
+  async telemetry(): Promise<ServerTelemetry> {
+    const data = await request<ServerTelemetry>("/api/v1/server/telemetry");
+    if (
+      !data ||
+      !Number.isFinite(Date.parse(data.sampledAt)) ||
+      !metricValid(data.cpu) ||
+      !metricValid(data.ram) ||
+      (data.gpu && !metricValid(data.gpu)) ||
+      !Array.isArray(data.disks) ||
+      !data.disks.every(
+        (d) =>
+          d &&
+          typeof d.id === "string" &&
+          typeof d.label === "string" &&
+          nonnegative(d.usedBytes) &&
+          nonnegative(d.totalBytes) &&
+          d.usedBytes <= d.totalBytes,
+      ) ||
+      (data.network &&
+        (!nonnegative(data.network.receiveBitsPerSecond) ||
+          !nonnegative(data.network.transmitBitsPerSecond))) ||
+      (data.cpuHistory &&
+        (!Array.isArray(data.cpuHistory) ||
+          !data.cpuHistory.every(
+            (p) =>
+              p &&
+              Number.isFinite(Date.parse(p.at)) &&
+              nonnegative(p.percent) &&
+              p.percent <= 100,
+          ))) ||
+      (data.power &&
+        !["mains", "ups", "battery", "unknown"].includes(data.power.kind))
+    )
+      throw new ApiError("Misurazioni del server non valide.", "invalid");
+    return data;
+  },
+  async services(): Promise<{ checkedAt: string; services: ServiceStatus[] }> {
+    const data = await request<{
+      checkedAt: string;
+      services: ServiceStatus[];
+    }>("/api/v1/system/status");
+    if (
+      !data ||
+      !Number.isFinite(Date.parse(data.checkedAt)) ||
+      !Array.isArray(data.services) ||
+      !data.services.every(
+        (s) =>
+          s &&
+          typeof s.id === "string" &&
+          typeof s.label === "string" &&
+          ["ready", "busy", "offline", "error", "unknown"].includes(s.status) &&
+          Number.isFinite(Date.parse(s.checkedAt)),
+      )
+    )
+      throw new ApiError("Stato dei servizi non valido.", "invalid");
+    return data;
+  },
   async health(): Promise<BackendHealth> {
     const data = await request<BackendHealth>("/health");
     if (
