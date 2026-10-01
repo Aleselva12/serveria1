@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   ArrowRight,
@@ -87,14 +87,57 @@ export default function App() {
   const sendLock = useRef(false);
   const [activity, setActivity] = useState<RequestActivity[]>([]);
   const [selectedNode, setSelectedNode] = useState("supervisor");
-  const [permanentContext, setPermanentContext] = useState(
-    "Sei Cora, assistente locale del server.\nPrivilegia informazioni verificabili e descrivi chiaramente ciò che hai realmente fatto.\nUsa strumenti locali quando sono sufficienti e non inventare risultati.",
-  );
-  const [contextUpdatedAt] = useState("02/10/2026 00:42");
+  const [permanentContext, setPermanentContext] = useState("");
+  const [contextUpdatedAt, setContextUpdatedAt] = useState<string | null>(null);
+  const [contextVersion, setContextVersion] = useState<number | null>(null);
+  const [contextSaving, setContextSaving] = useState(false);
+  const [contextError, setContextError] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   );
   const backend = useBackend();
+
+  useEffect(() => {
+    if (!backend.health) return;
+    let cancelled = false;
+    void api
+      .systemContext()
+      .then((context) => {
+        if (cancelled) return;
+        setPermanentContext(context.content);
+        setContextUpdatedAt(context.updated_at);
+        setContextVersion(context.version);
+        setContextError("");
+      })
+      .catch((error) => {
+        if (!cancelled)
+          setContextError(
+            error instanceof Error ? error.message : "Contesto non disponibile.",
+          );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [backend.health]);
+
+  async function savePermanentContext() {
+    if (contextSaving) return;
+    setContextSaving(true);
+    setContextError("");
+    try {
+      const saved = await api.saveSystemContext(permanentContext);
+      setPermanentContext(saved.content);
+      setContextUpdatedAt(saved.updated_at);
+      setContextVersion(saved.version);
+    } catch (error) {
+      setContextError(
+        error instanceof Error ? error.message : "Salvataggio non riuscito.",
+      );
+    } finally {
+      setContextSaving(false);
+    }
+  }
+
   const currentChat = chats.find((c) => c.id === activeChat) || chats[0];
   const statusLabel = backend.health
     ? "Backend collegato"
@@ -718,7 +761,9 @@ export default function App() {
                         automaticamente.
                       </p>
                     </div>
-                    <span className="pill pending">Backend da collegare</span>
+                    <span className={"pill " + (contextUpdatedAt ? "success" : "pending")}>
+                      {contextUpdatedAt ? "Collegato" : "Non caricato"}
+                    </span>
                   </div>
                   <textarea
                     value={permanentContext}
@@ -726,10 +771,24 @@ export default function App() {
                     rows={7}
                     placeholder="Scrivi poche frasi base comuni a Cora e agli agenti…"
                   />
+                  {contextError && (
+                    <div className="connection-error">{contextError}</div>
+                  )}
                   <div className="settings-memory-actions">
-                    <small>Ultima modifica: {contextUpdatedAt}</small>
-                    <button className="solid-button" disabled>
-                      <Save size={15} /> Salva modifiche
+                    <small>
+                      {contextUpdatedAt
+                        ? "Ultima modifica: " +
+                          new Date(contextUpdatedAt).toLocaleString("it-IT") +
+                          (contextVersion ? " · versione " + contextVersion : "")
+                        : "Contesto non ancora caricato"}
+                    </small>
+                    <button
+                      className="solid-button"
+                      disabled={!backend.health || contextSaving}
+                      onClick={() => void savePermanentContext()}
+                    >
+                      <Save size={15} />{" "}
+                      {contextSaving ? "Salvataggio…" : "Salva modifiche"}
                     </button>
                   </div>
                 </div>
@@ -742,11 +801,15 @@ export default function App() {
                   </div>
                   <div className="settings-row compact">
                     <span>Contesto permanente</span>
-                    <strong>Configurato</strong>
+                    <strong>{permanentContext.trim() ? "Configurato" : "Vuoto"}</strong>
                   </div>
                   <div className="settings-row compact">
                     <span>Motore di recupero</span>
-                    <strong>Non ancora attivo</strong>
+                    <strong>
+                      {backend.health?.memory?.available === false
+                        ? "Non disponibile"
+                        : "PostgreSQL + pgvector"}
+                    </strong>
                   </div>
                 </div>
                 <div className="settings-row">
