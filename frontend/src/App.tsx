@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Send,
   Settings,
+  Save,
 } from "lucide-react";
 import Home from "./components/Home";
 import FileManager from "./components/FileManager";
@@ -86,6 +87,10 @@ export default function App() {
   const sendLock = useRef(false);
   const [activity, setActivity] = useState<RequestActivity[]>([]);
   const [selectedNode, setSelectedNode] = useState("supervisor");
+  const [permanentContext, setPermanentContext] = useState(
+    "Sei Cora, assistente locale del server.\nPrivilegia informazioni verificabili e descrivi chiaramente ciò che hai realmente fatto.\nUsa strumenti locali quando sono sufficienti e non inventare risultati.",
+  );
+  const [contextUpdatedAt] = useState("02/10/2026 00:42");
   const [selectedMonth, setSelectedMonth] = useState(
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   );
@@ -703,18 +708,47 @@ export default function App() {
                     </p>
                   </div>
                 </div>
-                {backend.health?.memory && (
-                  <div className="settings-row">
+                <div className="settings-memory-context">
+                  <div className="settings-memory-head">
                     <div>
-                      <strong>Memoria persistente di Cora</strong>
+                      <strong>Contesto permanente di Cora</strong>
                       <p>
-                        {backend.health.memory.total} memorie registrate. Lo
-                        storico chat usa un collegamento separato ancora da
-                        realizzare.
+                        Informazioni fondamentali che Cora riceverà all’inizio di
+                        ogni conversazione e che non verranno modificate
+                        automaticamente.
                       </p>
                     </div>
+                    <span className="pill pending">Backend da collegare</span>
                   </div>
-                )}
+                  <textarea
+                    value={permanentContext}
+                    onChange={(event) => setPermanentContext(event.target.value)}
+                    rows={7}
+                    placeholder="Scrivi poche frasi base comuni a Cora e agli agenti…"
+                  />
+                  <div className="settings-memory-actions">
+                    <small>Ultima modifica: {contextUpdatedAt}</small>
+                    <button className="solid-button" disabled>
+                      <Save size={15} /> Salva modifiche
+                    </button>
+                  </div>
+                </div>
+
+                <div className="settings-memory-summary">
+                  <div className="eyebrow">MEMORIA</div>
+                  <div className="settings-row compact">
+                    <span>Memorie persistenti</span>
+                    <strong>{backend.health?.memory?.total ?? 0}</strong>
+                  </div>
+                  <div className="settings-row compact">
+                    <span>Contesto permanente</span>
+                    <strong>Configurato</strong>
+                  </div>
+                  <div className="settings-row compact">
+                    <span>Motore di recupero</span>
+                    <strong>Non ancora attivo</strong>
+                  </div>
+                </div>
                 <div className="settings-row">
                   <div>
                     <strong>Gestione Memoria</strong>
