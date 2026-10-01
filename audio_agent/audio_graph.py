@@ -7,6 +7,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from core.models import get_chat_model
+from core.prompt_context import with_permanent_context
 from audio_agent.audio_prompt import AUDIO_AGENT_PROMPT
 from audio_agent.audio_tools import AUDIO_TOOLS
 
@@ -19,7 +20,7 @@ def call_llm(state: AgentState):
     messages = state["messages"]
 
     if not messages or not isinstance(messages[0], SystemMessage):
-        messages = [SystemMessage(content=AUDIO_AGENT_PROMPT)] + list(messages)
+        messages = [SystemMessage(content=with_permanent_context(AUDIO_AGENT_PROMPT))] + list(messages)
 
     llm = get_chat_model("audio", temperature=0.0)
     response = llm.bind_tools(AUDIO_TOOLS).invoke(messages)
