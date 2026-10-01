@@ -21,7 +21,6 @@ import Architecture from "./components/Architecture";
 import ConnectionNotice from "./components/ConnectionNotice";
 import { api, apiBaseUrl } from "./services/api";
 import { useBackend } from "./services/useBackend";
-import { missingConnections } from "./services/connections";
 import type { Message } from "./types/contracts";
 
 type Page =
@@ -646,7 +645,7 @@ export default function App() {
                 <div>
                   <div className="eyebrow">PREFERENZE</div>
                   <h1>Impostazioni</h1>
-                  <p>Connessione e collegamenti da completare.</p>
+                  <p>Connessione e parametri reali del sistema.</p>
                 </div>
                 <button
                   className="solid-button"
@@ -707,30 +706,6 @@ export default function App() {
                     </div>
                   </div>
                 )}
-              </div>
-              <div className="section-card">
-                <h2>
-                  Collegamenti da completare (
-                  {Object.keys(missingConnections).length})
-                </h2>
-                <p className="muted">
-                  Questo elenco resta visibile anche quando il backend è online.
-                </p>
-                {Object.entries(missingConnections).map(([id, item]) => (
-                  <div className="connection-backlog" key={id}>
-                    <div className="settings-row">
-                      <div>
-                        <strong>{item.label}</strong>
-                        <p>{item.detail}</p>
-                      </div>
-                      <span className="pill pending">Da fare</span>
-                    </div>
-                    <details>
-                      <summary>Dettagli tecnici del collegamento</summary>
-                      <code>{item.endpoints}</code>
-                    </details>
-                  </div>
-                ))}
               </div>
             </section>
           )}
