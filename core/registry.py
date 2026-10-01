@@ -82,6 +82,10 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
             Capability("search_memory", "Cerca memorie persistenti per tipo, chiave e contenuto."),
             Capability("delete_memory", "Elimina una memoria per ID su richiesta esplicita."),
             Capability("memory_stats", "Espone statistiche sintetiche della memoria."),
+            Capability("system_context", "Gestisce il contesto permanente configurato dall’utente e caricato in ogni richiesta."),
+            Capability("episodic_memory", "Registra e consulta episodi sintetici separati dai log tecnici."),
+            Capability("working_memory", "Mantiene stato operativo temporaneo per agente e thread con scadenza."),
+            Capability("memory_provenance", "Registra la provenienza delle memorie persistenti."),
         ),
     ),
     ComponentDefinition(
@@ -192,6 +196,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
             Capability("health_api", "Espone lo stato generale del backend."),
             Capability("capabilities_api", "Espone il registro strutturale."),
             Capability("chat_api", "Espone l'ingresso chat verso Cora."),
+            Capability("memory_api", "Espone contesto permanente, memoria semantica, episodica e working memory."),
         ),
     ),
     ComponentDefinition(
