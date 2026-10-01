@@ -40,6 +40,10 @@ def _json(data) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2)
 
 
+def _require_permission(action: str) -> None:
+    require_permission("email_quotes_agent", action)
+
+
 @tool
 def search_email_archive(query: str, max_results: int = 30) -> str:
     """
