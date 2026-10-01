@@ -8,6 +8,7 @@ from core.logging import logged_operation, tail_events
 from core.memory import delete_memory, save_memory, search_memories
 from core.permissions import require_permission
 from core.registry import registry_json
+from core.working_memory import set_working_memory
 from local_tools import (
     calculator_tool as _calculator_tool,
     list_project_files as _list_project_files,
@@ -122,7 +123,7 @@ def recall_memory_tool(
 ) -> str:
     """
     Cerca nella memoria persistente locale di Cora.
-    Usa una ricerca lessicale semplice su chiave e contenuto.
+    Usa ricerca ibrida lessicale + pgvector su chiave e contenuto.
     """
     _require_supervisor_permission("recall_memory")
     results = search_memories(
@@ -161,15 +162,41 @@ def structure_agent_tool(query: str, thread_id: str = "") -> str:
     config = {"configurable": {"thread_id": effective_thread_id}}
     state = {"messages": [HumanMessage(content=query)]}
 
-    with logged_operation(
-        "agent_delegation",
-        component="structure_agent",
+    set_working_memory(
+        agent_id="structure_agent",
         thread_id=effective_thread_id,
-        data={"query_chars": len(query)},
-    ):
-        result = structure_app.invoke(state, config=config)
-
-    return result["messages"][-1].content
+        state={"status": "running", "current_request": query},
+    )
+    try:
+        with logged_operation(
+            "agent_delegation",
+            component="structure_agent",
+            thread_id=effective_thread_id,
+            data={"query_chars": len(query)},
+        ):
+            result = structure_app.invoke(state, config=config)
+        output = result["messages"][-1].content
+        set_working_memory(
+            agent_id="structure_agent",
+            thread_id=effective_thread_id,
+            state={
+                "status": "completed",
+                "current_request": query,
+                "last_response": str(output)[:1200],
+            },
+        )
+        return output
+    except Exception as error:
+        set_working_memory(
+            agent_id="structure_agent",
+            thread_id=effective_thread_id,
+            state={
+                "status": "error",
+                "current_request": query,
+                "error": str(error)[:1200],
+            },
+        )
+        raise
 
 
 @tool
@@ -186,15 +213,41 @@ def search_agent_tool(query: str, thread_id: str = "") -> str:
     config = {"configurable": {"thread_id": effective_thread_id}}
     state = {"messages": [HumanMessage(content=query)]}
 
-    with logged_operation(
-        "agent_delegation",
-        component="local_research_agent",
+    set_working_memory(
+        agent_id="local_research_agent",
         thread_id=effective_thread_id,
-        data={"query_chars": len(query)},
-    ):
-        result = search_app.invoke(state, config=config)
-
-    return result["messages"][-1].content
+        state={"status": "running", "current_request": query},
+    )
+    try:
+        with logged_operation(
+            "agent_delegation",
+            component="local_research_agent",
+            thread_id=effective_thread_id,
+            data={"query_chars": len(query)},
+        ):
+            result = search_app.invoke(state, config=config)
+        output = result["messages"][-1].content
+        set_working_memory(
+            agent_id="local_research_agent",
+            thread_id=effective_thread_id,
+            state={
+                "status": "completed",
+                "current_request": query,
+                "last_response": str(output)[:1200],
+            },
+        )
+        return output
+    except Exception as error:
+        set_working_memory(
+            agent_id="local_research_agent",
+            thread_id=effective_thread_id,
+            state={
+                "status": "error",
+                "current_request": query,
+                "error": str(error)[:1200],
+            },
+        )
+        raise
 
 
 @tool
@@ -210,15 +263,41 @@ def audio_agent_tool(query: str, thread_id: str = "") -> str:
     config = {"configurable": {"thread_id": effective_thread_id}}
     state = {"messages": [HumanMessage(content=query)]}
 
-    with logged_operation(
-        "agent_delegation",
-        component="audio_agent",
+    set_working_memory(
+        agent_id="audio_agent",
         thread_id=effective_thread_id,
-        data={"query_chars": len(query)},
-    ):
-        result = audio_app.invoke(state, config=config)
-
-    return result["messages"][-1].content
+        state={"status": "running", "current_request": query},
+    )
+    try:
+        with logged_operation(
+            "agent_delegation",
+            component="audio_agent",
+            thread_id=effective_thread_id,
+            data={"query_chars": len(query)},
+        ):
+            result = audio_app.invoke(state, config=config)
+        output = result["messages"][-1].content
+        set_working_memory(
+            agent_id="audio_agent",
+            thread_id=effective_thread_id,
+            state={
+                "status": "completed",
+                "current_request": query,
+                "last_response": str(output)[:1200],
+            },
+        )
+        return output
+    except Exception as error:
+        set_working_memory(
+            agent_id="audio_agent",
+            thread_id=effective_thread_id,
+            state={
+                "status": "error",
+                "current_request": query,
+                "error": str(error)[:1200],
+            },
+        )
+        raise
 
 
 @tool
@@ -234,15 +313,41 @@ def email_agent_tool(query: str, thread_id: str = "") -> str:
     config = {"configurable": {"thread_id": effective_thread_id}}
     state = {"messages": [HumanMessage(content=query)]}
 
-    with logged_operation(
-        "agent_delegation",
-        component="email_quotes_agent",
+    set_working_memory(
+        agent_id="email_quotes_agent",
         thread_id=effective_thread_id,
-        data={"query_chars": len(query)},
-    ):
-        result = email_app.invoke(state, config=config)
-
-    return result["messages"][-1].content
+        state={"status": "running", "current_request": query},
+    )
+    try:
+        with logged_operation(
+            "agent_delegation",
+            component="email_quotes_agent",
+            thread_id=effective_thread_id,
+            data={"query_chars": len(query)},
+        ):
+            result = email_app.invoke(state, config=config)
+        output = result["messages"][-1].content
+        set_working_memory(
+            agent_id="email_quotes_agent",
+            thread_id=effective_thread_id,
+            state={
+                "status": "completed",
+                "current_request": query,
+                "last_response": str(output)[:1200],
+            },
+        )
+        return output
+    except Exception as error:
+        set_working_memory(
+            agent_id="email_quotes_agent",
+            thread_id=effective_thread_id,
+            state={
+                "status": "error",
+                "current_request": query,
+                "error": str(error)[:1200],
+            },
+        )
+        raise
 
 
 supervisor_tools = [
