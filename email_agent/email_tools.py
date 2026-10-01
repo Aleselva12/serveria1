@@ -5,6 +5,8 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 from langchain_core.tools import tool
+
+from core.permissions import require_permission
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import A4
@@ -45,6 +47,7 @@ def search_email_archive(query: str, max_results: int = 30) -> str:
     Esempi: 'from:cliente@example.com ombrelloni', 'subject:preventivo Rossi'.
     """
     try:
+        _require_permission("search_email")
         emails = search_messages(query=query, max_results=max_results)
         return _json({
             "status": "ok",
@@ -63,6 +66,7 @@ def get_email_by_id(message_id: str) -> str:
     Utile prima di riassumere o classificare un messaggio specifico.
     """
     try:
+        _require_permission("read_email")
         email = get_message(message_id)
         return _json({
             "status": "ok",
@@ -79,6 +83,7 @@ def get_daily_emails(day_iso: str = "") -> str:
     Se day_iso è vuoto usa la data locale corrente.
     """
     try:
+        _require_permission("read_daily_email")
         selected_day = date.fromisoformat(day_iso) if day_iso else date.today()
         emails = messages_for_day(selected_day)
         return _json({
@@ -98,6 +103,7 @@ def save_email_draft(to_email: str, subject: str, body: str) -> str:
     Usare solo quando l'utente chiede esplicitamente di salvare una bozza.
     """
     try:
+        _require_permission("save_email_draft")
         result = save_as_draft(to_email, subject, body)
         return _json({
             "status": "ok",
@@ -126,6 +132,7 @@ def generate_quote_pdf(
     [{"description":"Ombrellone...", "quantity":2, "unit_price":150.0}]
     """
     try:
+        _require_permission("generate_quote_pdf")
         items = json.loads(items_json)
         if not isinstance(items, list) or not items:
             raise ValueError("items_json deve contenere una lista non vuota.")
