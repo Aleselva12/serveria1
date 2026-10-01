@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Brain,
@@ -6,73 +6,34 @@ import {
   Database,
   Layers3,
   Plus,
+  RefreshCw,
   Search,
+  Trash2,
 } from "lucide-react";
-import type { BackendRegistry } from "../types/contracts";
+import { api } from "../services/api";
+import type {
+  BackendRegistry,
+  MemoryEpisode,
+  PersistentMemory,
+  WorkingMemoryState,
+} from "../types/contracts";
 
 type Props = {
   registry?: BackendRegistry | null;
   onBack: () => void;
 };
 
-type SemanticMemory = {
-  id: string;
-  title: string;
-  content: string;
-  type: string;
-  source: string;
-};
-
-type RecentMemory = {
-  id: string;
-  title: string;
-  summary: string;
-  time: string;
-};
-
-const initialSemantic: SemanticMemory[] = [
-  {
-    id: "sem-1",
-    title: "Preferenza architetturale",
-    content:
-      "Per compiti semplici e ripetitivi preferire strumenti deterministici o modelli specialistici agli LLM generalisti.",
-    type: "Preferenza",
-    source: "Esempio frontend",
-  },
-  {
-    id: "sem-2",
-    title: "Architettura chat",
-    content:
-      "La chat entra dall’agente centrale di Cora, che per ora svolge anche il ruolo di orchestratore.",
-    type: "Decisione",
-    source: "Esempio frontend",
-  },
-];
-
-const initialRecent: RecentMemory[] = [
-  {
-    id: "recent-1",
-    title: "Ultima sessione",
-    summary:
-      "Definita la persistenza con PostgreSQL + pgvector, transcript Markdown, log e metadata.",
-    time: "Resoconto di esempio",
-  },
-  {
-    id: "recent-2",
-    title: "Sessione precedente",
-    summary:
-      "La chat è stata collegata all’agente centrale di Cora e separata concettualmente dal futuro orchestratore.",
-    time: "Resoconto di esempio",
-  },
-];
-
 export default function MemoryManagement({ registry, onBack }: Props) {
-  const [semanticMemories, setSemanticMemories] =
-    useState<SemanticMemory[]>(initialSemantic);
-  const [recentMemories] = useState<RecentMemory[]>(initialRecent);
+  const [semanticMemories, setSemanticMemories] = useState<PersistentMemory[]>([]);
+  const [recentMemories, setRecentMemories] = useState<MemoryEpisode[]>([]);
+  const [workingMemory, setWorkingMemory] = useState<WorkingMemoryState[]>([]);
   const [memoryDraft, setMemoryDraft] = useState("");
   const [memoryTitle, setMemoryTitle] = useState("");
+  const [memoryType, setMemoryType] = useState("note");
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const agents = useMemo(() => {
     const fromRegistry =
@@ -98,32 +59,85 @@ export default function MemoryManagement({ registry, onBack }: Props) {
     ];
   }, [registry]);
 
-  const visibleSemantic = semanticMemories.filter((memory) => {
-    const query = search.trim().toLowerCase();
-    if (!query) return true;
-    return (
-      memory.title.toLowerCase().includes(query) ||
-      memory.content.toLowerCase().includes(query) ||
-      memory.type.toLowerCase().includes(query)
-    );
-  });
+  async function refreshAll(query = search) {
+    setLoading(true);
+    setError("");
+    try {
+      const [memories, episodes, working] = await Promise.all([
+        api.memories(query, "", 100),
+        api.episodes(50),
+        api.workingMemory(),
+      ]);
+      setSemanticMemories(memories);
+      setRecentMemories(episodes);
+      setWorkingMemory(working);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Memoria non raggiungibile.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  function addSemanticMemory() {
+  useEffect(() => {
+    void refreshAll("");
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void api
+        .memories(search, "", 100)
+        .then(setSemanticMemories)
+        .catch((err) =>
+          setError(
+            err instanceof Error ? err.message : "Ricerca memoria non riuscita.",
+          ),
+        );
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  async function addSemanticMemory() {
     const content = memoryDraft.trim();
     const title = memoryTitle.trim();
-    if (!content) return;
-    setSemanticMemories((current) => [
-      {
-        id: crypto.randomUUID(),
-        title: title || "Memoria inserita manualmente",
+    if (!content || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await api.saveMemory({
+        memory_type: memoryType,
+        key: title || "manual-" + crypto.randomUUID(),
         content,
-        type: "Manuale",
-        source: "Utente · solo frontend",
-      },
-      ...current,
-    ]);
-    setMemoryDraft("");
-    setMemoryTitle("");
+        source: "user_explicit",
+        importance: 4,
+      });
+      setMemoryDraft("");
+      setMemoryTitle("");
+      await refreshAll(search);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Salvataggio non riuscito.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeMemory(id: string) {
+    setError("");
+    try {
+      await api.deleteMemory(id);
+      await refreshAll(search);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Eliminazione non riuscita.");
+    }
+  }
+
+  async function clearAgentWorkingMemory(agentId: string, threadId: string) {
+    setError("");
+    try {
+      await api.clearWorkingMemory(agentId, threadId);
+      setWorkingMemory(await api.workingMemory());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Pulizia memoria non riuscita.");
+    }
   }
 
   return (
@@ -142,16 +156,24 @@ export default function MemoryManagement({ registry, onBack }: Props) {
         </button>
       </div>
 
-      <div className="memory-backend-note">
+      <div className="memory-backend-note connected">
         <Database size={16} />
         <div>
-          <strong>Interfaccia pronta · backend da collegare</strong>
+          <strong>PostgreSQL + pgvector</strong>
           <span>
-            I dati modificati in questa pagina restano locali alla sessione del
-            frontend finché non collegheremo PostgreSQL + pgvector.
+            Le memorie mostrate in questa pagina provengono dal backend reale di Cora.
           </span>
         </div>
+        <button
+          className="text-button"
+          disabled={loading}
+          onClick={() => void refreshAll()}
+        >
+          <RefreshCw size={14} /> Aggiorna
+        </button>
       </div>
+
+      {error && <div className="connection-error">{error}</div>}
 
       <div className="memory-grid">
         <section className="memory-card semantic-memory-card">
@@ -163,8 +185,8 @@ export default function MemoryManagement({ registry, onBack }: Props) {
               <div className="memory-kicker">MEMORIA SEMANTICA</div>
               <h2>Memorie importanti</h2>
               <p>
-                Informazioni utili e durevoli selezionate dall’IA o inserite
-                manualmente dall’utente.
+                Conoscenze persistenti recuperabili semanticamente e modificabili
+                dall’utente.
               </p>
             </div>
           </div>
@@ -175,17 +197,31 @@ export default function MemoryManagement({ registry, onBack }: Props) {
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Cerca nelle memorie…"
+                placeholder="Ricerca semantica nelle memorie…"
               />
             </label>
           </div>
 
           <div className="manual-memory-form">
-            <input
-              value={memoryTitle}
-              onChange={(event) => setMemoryTitle(event.target.value)}
-              placeholder="Titolo breve"
-            />
+            <div className="manual-memory-row">
+              <input
+                value={memoryTitle}
+                onChange={(event) => setMemoryTitle(event.target.value)}
+                placeholder="Chiave / titolo breve"
+              />
+              <select
+                value={memoryType}
+                onChange={(event) => setMemoryType(event.target.value)}
+              >
+                <option value="fact">Fatto</option>
+                <option value="preference">Preferenza</option>
+                <option value="person">Persona</option>
+                <option value="project">Progetto</option>
+                <option value="decision">Decisione</option>
+                <option value="note">Nota</option>
+                <option value="task_context">Contesto task</option>
+              </select>
+            </div>
             <textarea
               value={memoryDraft}
               onChange={(event) => setMemoryDraft(event.target.value)}
@@ -194,24 +230,42 @@ export default function MemoryManagement({ registry, onBack }: Props) {
             />
             <button
               className="memory-add-button"
-              onClick={addSemanticMemory}
-              disabled={!memoryDraft.trim()}
+              onClick={() => void addSemanticMemory()}
+              disabled={!memoryDraft.trim() || saving}
             >
-              <Plus size={15} /> Aggiungi memoria
+              <Plus size={15} /> {saving ? "Salvataggio…" : "Aggiungi memoria"}
             </button>
           </div>
 
           <div className="memory-list">
-            {visibleSemantic.map((memory) => (
-              <article className="memory-entry" key={memory.id}>
-                <div className="memory-entry-top">
-                  <strong>{memory.title}</strong>
-                  <span>{memory.type}</span>
-                </div>
-                <p>{memory.content}</p>
-                <small>{memory.source}</small>
-              </article>
-            ))}
+            {loading && semanticMemories.length === 0 ? (
+              <p className="muted">Caricamento memorie…</p>
+            ) : semanticMemories.length === 0 ? (
+              <p className="muted">Nessuna memoria trovata.</p>
+            ) : (
+              semanticMemories.map((memory) => (
+                <article className="memory-entry" key={memory.id}>
+                  <div className="memory-entry-top">
+                    <strong>{memory.key}</strong>
+                    <div className="memory-entry-actions">
+                      <span>{memory.memory_type}</span>
+                      <button
+                        aria-label="Elimina memoria"
+                        title="Elimina memoria"
+                        onClick={() => void removeMemory(memory.id)}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                  <p>{memory.content}</p>
+                  <small>
+                    {memory.source} · importanza {memory.importance} ·{" "}
+                    {new Date(memory.updated_at).toLocaleString("it-IT")}
+                  </small>
+                </article>
+              ))
+            )}
           </div>
         </section>
 
@@ -224,31 +278,37 @@ export default function MemoryManagement({ registry, onBack }: Props) {
               <div className="memory-kicker">MEMORIA EPISODICA</div>
               <h2>Memorie recenti</h2>
               <p>
-                Brevi resoconti di ciò che è successo, salvati dal sistema come
-                piccoli commit della continuità operativa.
+                Brevi resoconti append-only degli ultimi avvenimenti significativi.
               </p>
             </div>
           </div>
 
           <div className="episodic-timeline">
-            {recentMemories.map((memory) => (
-              <article className="episodic-entry" key={memory.id}>
-                <div className="episodic-marker" />
-                <div>
-                  <div className="episodic-title">
-                    <strong>{memory.title}</strong>
-                    <span>{memory.time}</span>
+            {recentMemories.length === 0 ? (
+              <p className="muted">Nessun episodio registrato.</p>
+            ) : (
+              recentMemories.map((memory) => (
+                <article className="episodic-entry" key={memory.id}>
+                  <div className="episodic-marker" />
+                  <div>
+                    <div className="episodic-title">
+                      <strong>{memory.title}</strong>
+                      <span>
+                        {new Date(memory.created_at).toLocaleString("it-IT")}
+                      </span>
+                    </div>
+                    <p>{memory.summary}</p>
+                    <small>{memory.episode_type}</small>
                   </div>
-                  <p>{memory.summary}</p>
-                </div>
-              </article>
-            ))}
+                </article>
+              ))
+            )}
           </div>
 
           <div className="memory-system-note">
             <Clock3 size={15} />
             <span>
-              Questa sezione sarà alimentata automaticamente dal sistema.
+              I turni chat completati generano automaticamente un breve episodio.
             </span>
           </div>
         </section>
@@ -263,33 +323,71 @@ export default function MemoryManagement({ registry, onBack }: Props) {
             <div className="memory-kicker">CONTESTO OPERATIVO</div>
             <h2>Memoria di lavoro</h2>
             <p>
-              Ogni agente dispone di uno spazio temporaneo per obiettivi,
-              contesto corrente, risultati intermedi e passaggi di consegne.
+              Stato temporaneo per agente. Scade automaticamente e non viene
+              trattato come conoscenza permanente.
             </p>
           </div>
           <span className="memory-scope">Per agente</span>
         </div>
 
         <div className="working-agent-grid">
-          {agents.map((agent) => (
-            <article className="working-agent-card" key={agent.id}>
-              <div className="working-agent-top">
-                <span className="agent-memory-dot" />
-                <strong>{agent.name}</strong>
-                <span className="working-agent-status">
-                  {agent.available ? "Disponibile" : "Da collegare"}
-                </span>
-              </div>
-              <div className="working-memory-placeholder">
-                <span>Memoria di lavoro</span>
-                <strong>Contesto corrente non disponibile</strong>
-                <small>
-                  Qui vedremo task attivo, ultimi risultati, handoff e riferimenti
-                  alle memorie persistenti.
-                </small>
-              </div>
-            </article>
-          ))}
+          {agents.map((agent) => {
+            const states = workingMemory.filter(
+              (item) => item.agent_id === agent.id,
+            );
+            const latest = states[0];
+            return (
+              <article className="working-agent-card" key={agent.id}>
+                <div className="working-agent-top">
+                  <span className="agent-memory-dot" />
+                  <strong>{agent.name}</strong>
+                  <span className="working-agent-status">
+                    {latest ? "Memoria attiva" : "Vuota"}
+                  </span>
+                </div>
+                <div className="working-memory-placeholder">
+                  {latest ? (
+                    <>
+                      <span>Thread {latest.thread_id}</span>
+                      <strong>
+                        {String(latest.state.status || "Contesto disponibile")}
+                      </strong>
+                      <small>
+                        {String(
+                          latest.state.current_request ||
+                            latest.state.last_response ||
+                            "Stato operativo disponibile.",
+                        ).slice(0, 260)}
+                      </small>
+                      <small>
+                        Aggiornata:{" "}
+                        {new Date(latest.updated_at).toLocaleString("it-IT")}
+                      </small>
+                      <button
+                        className="text-button working-clear"
+                        onClick={() =>
+                          void clearAgentWorkingMemory(
+                            latest.agent_id,
+                            latest.thread_id,
+                          )
+                        }
+                      >
+                        Azzera memoria di lavoro
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span>Memoria di lavoro</span>
+                      <strong>Nessun contesto attivo</strong>
+                      <small>
+                        Verrà popolata durante l’esecuzione dell’agente.
+                      </small>
+                    </>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
     </section>
