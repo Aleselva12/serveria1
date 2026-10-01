@@ -8,8 +8,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from core.chat_store import conversation_stats, ensure_conversation, get_messages, list_conversations, recent_context, save_message
+from core.database import database_status
 from core.logging import logged_operation
-from core.memory import memory_stats
+from core.memory import delete_memory, memory_stats, save_memory, search_memories
 from core.models import get_model_name
 from core.monitoring import router as monitoring_router
 from core.server_files import router as files_router
@@ -53,6 +55,16 @@ class ChatResponse(BaseModel):
     thread_id: str
 
 
+class MemoryWriteRequest(BaseModel):
+    memory_type: str
+    key: str
+    content: str
+    source: str = "user_explicit"
+    importance: int = 3
+    expires_at: str | None = None
+    metadata: dict = {}
+
+
 def _ollama_online() -> bool:
     try:
         with urlopen(f"{OLLAMA_BASE_URL}/api/tags", timeout=1.5):
@@ -69,12 +81,55 @@ def health():
         "model": get_model_name("supervisor"),
         "agents": [agent["name"] for agent in get_agents()],
         "memory": memory_stats(),
+        "database": database_status(),
+        "chat": conversation_stats() if database_status().get("reachable") else {
+            "conversations": 0,
+            "messages": 0,
+        },
     }
 
 
 @app.get("/capabilities")
 def capabilities():
     return get_registry()
+
+
+@app.get("/conversations")
+def conversations(limit: int = 100, include_archived: bool = False):
+    return list_conversations(limit=limit, include_archived=include_archived)
+
+
+@app.get("/conversations/{conversation_id}/messages")
+def conversation_messages(conversation_id: str, limit: int = 500):
+    return get_messages(conversation_id, limit=limit)
+
+
+@app.get("/memory")
+def memories(query: str = "", memory_type: str = "", limit: int = 50):
+    return search_memories(query, memory_type=memory_type, limit=limit)
+
+
+@app.get("/memory/stats")
+def memory_status():
+    return memory_stats()
+
+
+@app.post("/memory")
+def write_memory(request: MemoryWriteRequest):
+    return save_memory(
+        memory_type=request.memory_type,
+        key=request.key,
+        content=request.content,
+        source=request.source,
+        importance=request.importance,
+        expires_at=request.expires_at,
+        metadata=request.metadata,
+    )
+
+
+@app.delete("/memory/{memory_id}")
+def remove_memory(memory_id: str):
+    return {"deleted": delete_memory(memory_id)}
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -87,27 +142,39 @@ def chat(request: ChatRequest):
         )
 
     thread_id = request.thread_id or str(uuid.uuid4())
-    config = {"configurable": {"thread_id": thread_id}}
+    ensure_conversation(thread_id)
+    user_message = save_message(
+        conversation_id=thread_id,
+        role="user",
+        content=message,
+        agent_id="user",
+        metadata={"source": "chat_api"},
+    )
 
     with logged_operation(
         "chat_request",
         component="supervisor",
         thread_id=thread_id,
-        data={"message_chars": len(message)},
+        data={
+            "message_chars": len(message),
+            "user_message_id": str(user_message["id"]),
+        },
     ) as operation:
-        result = graph.invoke(
-            {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": message,
-                    }
-                ]
-            },
-            config=config,
-        )
+        result = graph.invoke({"messages": recent_context(thread_id)})
         response = result["messages"][-1].content
-        operation["result"] = {"response_chars": len(response)}
+        assistant_message = save_message(
+            conversation_id=thread_id,
+            role="assistant",
+            content=response,
+            agent_id="supervisor",
+            model_id=get_model_name("supervisor"),
+            parent_message_id=str(user_message["id"]),
+            metadata={"source": "chat_api"},
+        )
+        operation["result"] = {
+            "response_chars": len(response),
+            "assistant_message_id": str(assistant_message["id"]),
+        }
 
     return ChatResponse(
         response=response,
