@@ -15,12 +15,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 COMPONENTS: tuple[ComponentDefinition, ...] = (
     ComponentDefinition(
         id="supervisor",
-        name="Cora Supervisor",
+        name="Cora · Agente centrale",
         kind="core",
-        description="Orchestratore centrale LangGraph che risponde o delega ai componenti disponibili.",
+        description="Agente principale di Cora e orchestratore provvisorio della chat; risponde direttamente o delega ai componenti disponibili.",
         module="graph",
         capabilities=(
-            Capability("route_requests", "Instrada richieste verso tool e agenti specializzati."),
+            Capability("route_requests", "Riceve tutte le richieste della chat e le instrada verso tool e agenti specializzati quando necessario."),
             Capability("conversation_state", "Mantiene stato volatile della conversazione tramite LangGraph MemorySaver."),
         ),
         dependencies=("ollama",),
