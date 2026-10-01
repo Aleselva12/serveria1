@@ -39,7 +39,6 @@ def _ensure_schema(connection: psycopg.Connection) -> None:
         raise RuntimeError(f"Schema PostgreSQL non trovato: {SCHEMA_FILE}")
     connection.execute(SCHEMA_FILE.read_text(encoding="utf-8"))
     connection.commit()
-    register_vector(connection)
     _schema_ready = True
 
 
@@ -49,8 +48,7 @@ def db_connection(*, ensure_schema: bool = True) -> Iterator[psycopg.Connection]
     try:
         if ensure_schema:
             _ensure_schema(connection)
-        else:
-            register_vector(connection)
+        register_vector(connection)
         yield connection
     finally:
         connection.close()
