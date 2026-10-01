@@ -77,3 +77,47 @@ CREATE INDEX IF NOT EXISTS idx_agent_events_thread
     ON agent_events(thread_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_events_component
     ON agent_events(component, timestamp DESC);
+
+
+CREATE TABLE IF NOT EXISTS system_context (
+    id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    content TEXT NOT NULL DEFAULT '',
+    version INTEGER NOT NULL DEFAULT 1,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+INSERT INTO system_context (id, content)
+VALUES (1, '')
+ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS episodes (
+    id UUID PRIMARY KEY,
+    conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    episode_type TEXT NOT NULL DEFAULT 'conversation',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    agent_id TEXT,
+    importance SMALLINT NOT NULL DEFAULT 3 CHECK (importance BETWEEN 1 AND 5),
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_episodes_created
+    ON episodes(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_episodes_conversation
+    ON episodes(conversation_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS working_memory (
+    agent_id TEXT NOT NULL,
+    thread_id TEXT NOT NULL,
+    state JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,
+    PRIMARY KEY (agent_id, thread_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_working_memory_updated
+    ON working_memory(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_working_memory_expires
+    ON working_memory(expires_at);
