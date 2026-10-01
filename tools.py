@@ -98,11 +98,12 @@ def remember_tool(
     content: str,
     importance: int = 3,
     expires_at: str = "",
+    reason: str = "",
 ) -> str:
     """
-    Salva o aggiorna una memoria persistente locale.
-    Usare solo quando l'utente chiede esplicitamente di ricordare/conservare
-    un'informazione o quando il flusso applicativo lo autorizza esplicitamente.
+    Salva o aggiorna una memoria semantica persistente.
+    Usare per informazioni esplicite, stabili e chiaramente utili tra sessioni.
+    Non salvare deduzioni, dettagli transitori o contenuti di scarso valore futuro.
     """
     _require_supervisor_permission("remember_memory")
     result = save_memory(
@@ -111,6 +112,8 @@ def remember_tool(
         content=content,
         importance=importance,
         expires_at=expires_at.strip() or None,
+        source="assistant_selected",
+        metadata={"reason": reason.strip()} if reason.strip() else {},
     )
     return json.dumps(result, ensure_ascii=False, indent=2)
 
