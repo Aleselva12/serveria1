@@ -184,12 +184,26 @@ EMAIL_AGENT_RULES: tuple[ActionPermission, ...] = (
 )
 
 
+CALENDAR_ACTORS = ("supervisor", "email_quotes_agent", "audio_agent", "local_research_agent")
+CALENDAR_RULES = tuple(
+    ActionPermission(actor, "calendar_" + action + "_event", level, policy, "calendar")
+    for actor in CALENDAR_ACTORS
+    for action, level, policy in (
+        ("list", PermissionLevel.READ, ApprovalPolicy.AUTO),
+        ("get", PermissionLevel.READ, ApprovalPolicy.AUTO),
+        ("create", PermissionLevel.WRITE, ApprovalPolicy.CONFIRM),
+        ("update", PermissionLevel.WRITE, ApprovalPolicy.CONFIRM),
+        ("delete", PermissionLevel.WRITE, ApprovalPolicy.CONFIRM),
+    )
+)
+
 RULES: tuple[ActionPermission, ...] = (
     SUPERVISOR_RULES
     + STRUCTURE_AGENT_RULES
     + RESEARCH_AGENT_RULES
     + AUDIO_AGENT_RULES
     + EMAIL_AGENT_RULES
+    + CALENDAR_RULES
 )
 
 
@@ -252,6 +266,10 @@ EXPECTED_ACTIONS: dict[str, set[str]] = {
         "send_email",
     },
 }
+
+
+for _actor in CALENDAR_ACTORS:
+    EXPECTED_ACTIONS[_actor].update({"calendar_" + action + "_event" for action in ("list", "get", "create", "update", "delete")})
 
 
 def get_permission_rule(actor: str, action: str) -> ActionPermission | None:

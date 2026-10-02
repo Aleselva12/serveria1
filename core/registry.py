@@ -14,6 +14,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 COMPONENTS: tuple[ComponentDefinition, ...] = (
     ComponentDefinition(
+        id="calendar", name="Calendario", kind="core",
+        description="Calendario PostgreSQL condiviso tra interfaccia e tool: storico, recupero e proposte agenti approvabili.",
+        module="core.calendar",
+        capabilities=(
+            Capability("calendar_events", "Legge e gestisce gli eventi persistenti nelle viste mese e giorno."),
+            Capability("calendar_proposals", "Gestisce le proposte degli agenti con conferma utente e controllo versione."),
+            Capability("calendar_history", "Conserva lo storico e recupera gli eventi eliminati."),
+        ),
+    ),
+    ComponentDefinition(
         id="supervisor",
         name="Cora · Agente centrale",
         kind="core",

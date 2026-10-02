@@ -377,3 +377,7 @@ AUDIO_TOOLS = [
     transcribe_audio_file,
     save_transcript,
 ]
+
+
+from core.calendar_tools import calendar_tools_for
+AUDIO_TOOLS += calendar_tools_for("audio_agent")

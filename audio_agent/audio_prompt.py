@@ -33,3 +33,7 @@ WORKFLOW
 
 Do not claim that a speaker is a specific person unless the user or reliable metadata provides that identity.
 """
+
+
+from core.calendar_tools import CALENDAR_INSTRUCTIONS
+AUDIO_AGENT_PROMPT += "\n" + CALENDAR_INSTRUCTIONS

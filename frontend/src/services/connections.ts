@@ -25,12 +25,6 @@ export const missingConnections = {
     endpoints:
       "/api/v1/workspaces; /api/v1/workspaces/{id}/files; /file; /executions",
   },
-  calendar: {
-    label: "Calendario personale",
-    detail:
-      "Gli eventi devono essere salvati sul server. Nessun agente calendario è previsto.",
-    endpoints: "GET/POST/PATCH/DELETE /api/v1/calendar/events",
-  },
   files: {
     label: "Funzioni aggiuntive dei file",
     detail:

@@ -15,6 +15,7 @@ from core.logging import logged_operation
 from core.memory import delete_memory, memory_stats, save_memory, search_memories
 from core.system_context import get_system_context, update_system_context
 from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
+from core.calendar_api import router as calendar_router
 from core.models import get_model_name
 from core.monitoring import router as monitoring_router
 from core.server_files import router as files_router
@@ -36,6 +37,7 @@ app = FastAPI(
 app.include_router(monitoring_router)
 app.include_router(files_router)
 app.include_router(library_router)
+app.include_router(calendar_router)
 
 app.add_middleware(
     CORSMiddleware,
