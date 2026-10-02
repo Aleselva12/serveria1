@@ -175,3 +175,49 @@ CREATE TABLE IF NOT EXISTS calendar_proposals (
     resolved_by TEXT,
     CHECK (action = 'create' OR (event_id IS NOT NULL AND expected_version IS NOT NULL))
 );
+
+
+-- Generic owner approvals for CONFIRM policies outside domain-specific stores.
+CREATE TABLE IF NOT EXISTS approval_requests (
+    id UUID PRIMARY KEY,
+    actor TEXT NOT NULL,
+    action TEXT NOT NULL,
+    scope TEXT NOT NULL DEFAULT '',
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    reason TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending','approved','rejected','consumed','expired')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,
+    resolved_at TIMESTAMPTZ,
+    resolved_by TEXT,
+    consumed_at TIMESTAMPTZ,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_status
+    ON approval_requests(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_actor
+    ON approval_requests(actor, created_at DESC);
+
+-- Persistent lifecycle separate from the technical trace stream.
+CREATE TABLE IF NOT EXISTS runtime_runs (
+    id UUID PRIMARY KEY,
+    thread_id TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'chat',
+    target TEXT NOT NULL DEFAULT 'supervisor',
+    parent_run_id UUID REFERENCES runtime_runs(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'queued'
+        CHECK (status IN ('queued','running','waiting_approval','completed','failed','cancelled','timed_out')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    cancel_requested BOOLEAN NOT NULL DEFAULT FALSE,
+    error_type TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_runs_created
+    ON runtime_runs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_runtime_runs_thread
+    ON runtime_runs(thread_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_runtime_runs_status
+    ON runtime_runs(status, created_at DESC);
