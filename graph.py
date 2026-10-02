@@ -130,11 +130,14 @@ def after_tools(state: CoraState):
     End the run there instead of paying for a redundant Supervisor rewrite.
     """
     ensure_runtime_active()
+    tool_failed = False
     for message in reversed(state["messages"]):
+        if getattr(message, "type", None) == "tool" and getattr(message, "status", None) == "error":
+            tool_failed = True
         calls = getattr(message, "tool_calls", None)
         if calls:
             names = {_tool_name(call) for call in calls}
-            if names & TERMINAL_DELEGATION_TOOLS:
+            if names & TERMINAL_DELEGATION_TOOLS and not tool_failed:
                 return END
             break
     return "agent"
