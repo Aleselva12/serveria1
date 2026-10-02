@@ -1,0 +1,40 @@
+name: Core check
+
+on:
+  push:
+    branches:
+      - main
+      - core-fastpath-protocol-runtime
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Install Python test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install             langchain langchain-core langgraph langchain-ollama             python-dotenv pydantic fastapi httpx psutil             python-docx pypdf python-multipart             "psycopg[binary,pool]" pgvector reportlab             google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+      - name: Python unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Python smoke check
+        run: python smoke_check.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        run: npm ci --prefix frontend
+      - name: Frontend tests
+        run: npm test --prefix frontend
+      - name: Frontend build
+        run: npm run build --prefix frontend
