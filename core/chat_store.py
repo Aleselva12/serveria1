@@ -13,6 +13,7 @@ from core.transcripts import write_transcript
 
 
 CHAT_CONTEXT_MESSAGES = max(2, int(os.getenv("CORA_CHAT_CONTEXT_MESSAGES", "40")))
+CHAT_EMBED_MESSAGES = os.getenv("CORA_CHAT_EMBED_MESSAGES", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def ensure_conversation(
@@ -20,6 +21,7 @@ def ensure_conversation(
     *,
     title: str | None = None,
     metadata: dict[str, Any] | None = None,
+    refresh_transcript_now: bool = True,
 ) -> dict[str, Any]:
     cid = uuid.UUID(conversation_id)
     with db_connection() as connection:
@@ -65,7 +67,7 @@ def save_message(
         raise ValueError("content non può essere vuoto")
 
     conversation = ensure_conversation(conversation_id)
-    embedding, embedding_model = embed_text(normalized)
+    embedding, embedding_model = embed_text(normalized) if CHAT_EMBED_MESSAGES else (None, None)
     embedding_dimensions = len(embedding) if embedding else None
     message_id = uuid.uuid4()
 
@@ -111,7 +113,8 @@ def save_message(
         )
         connection.commit()
 
-    refresh_transcript(conversation_id)
+    if refresh_transcript_now:
+        refresh_transcript(conversation_id)
     return row
 
 

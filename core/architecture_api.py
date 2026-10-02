@@ -2,6 +2,7 @@
 import hashlib
 import importlib
 import json
+from functools import lru_cache
 from fastapi import APIRouter, HTTPException, Query
 from core.execution_traces import read_runs
 
@@ -15,6 +16,7 @@ GRAPH_SOURCES = (
 )
 
 
+@lru_cache(maxsize=1)
 def architecture_graph():
     graphs, errors = [], []
     for component, module, attribute in GRAPH_SOURCES:
@@ -58,6 +60,7 @@ def run_detail(run_id: str):
     return matches[0]
 
 
+@lru_cache(maxsize=1)
 def architecture_overview():
     """System-level view: agent delegation, shared support and direct API paths."""
     from core.registry import get_registry

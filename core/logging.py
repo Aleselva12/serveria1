@@ -56,30 +56,29 @@ def log_event(
     # PostgreSQL is the authoritative structured store when available.
     # JSONL remains a readable local copy and a fallback if the DB is offline.
     try:
-        from core.database import database_status, db_connection
+        from core.database import db_connection
 
-        if database_status().get("reachable"):
-            with db_connection() as connection:
-                connection.execute(
-                    """
-                    INSERT INTO agent_events (
-                        id, timestamp, event_type, component, status,
-                        thread_id, duration_ms, data
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)
-                    """,
-                    (
-                        event["event_id"],
-                        event["timestamp"],
-                        event["event_type"],
-                        event["component"],
-                        event["status"],
-                        event["thread_id"],
-                        event["duration_ms"],
-                        json.dumps(event["data"], ensure_ascii=False, default=str),
-                    ),
+        with db_connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO agent_events (
+                    id, timestamp, event_type, component, status,
+                    thread_id, duration_ms, data
                 )
-                connection.commit()
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+                """,
+                (
+                    event["event_id"],
+                    event["timestamp"],
+                    event["event_type"],
+                    event["component"],
+                    event["status"],
+                    event["thread_id"],
+                    event["duration_ms"],
+                    json.dumps(event["data"], ensure_ascii=False, default=str),
+                ),
+            )
+            connection.commit()
     except Exception:
         # Logging must never make the primary operation fail.
         pass
