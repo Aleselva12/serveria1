@@ -3,7 +3,13 @@ import { api } from "../services/api";
 import type { ArchitectureGraph, ExecutionRun } from "../types/contracts";
 import "./architecture-runtime.css";
 
-export default function ArchitectureRuntime() {
+export default function ArchitectureRuntime({
+  showGraph = true,
+  showTraces = true,
+}: {
+  showGraph?: boolean;
+  showTraces?: boolean;
+}) {
   const [graph, setGraph] = useState<ArchitectureGraph | null>(null);
   const [runs, setRuns] = useState<ExecutionRun[]>([]);
   const [selected, setSelected] = useState("");
@@ -13,18 +19,23 @@ export default function ArchitectureRuntime() {
   async function refresh() {
     setLoading(true);
     await Promise.all([
-      api.architectureGraph().then(g => { setGraph(g); setGraphError(""); }).catch(e => { setGraph(null); setGraphError(e.message); }),
-      api.executionRuns().then(r => { setRuns(r); setRunError(""); }).catch(e => { setRuns([]); setRunError(e.message); }),
+      showGraph
+        ? api.architectureGraph().then(g => { setGraph(g); setGraphError(""); }).catch(e => { setGraph(null); setGraphError(e.message); })
+        : Promise.resolve(),
+      showTraces
+        ? api.executionRuns().then(r => { setRuns(r); setRunError(""); }).catch(e => { setRuns([]); setRunError(e.message); })
+        : Promise.resolve(),
     ]);
     setLoading(false);
   }
-  useEffect(() => { let active = true; const update = () => { if (active) void refresh(); }; update(); const timer = setInterval(update, 10000); return () => { active = false; clearInterval(timer); }; }, []);
+  useEffect(() => { let active = true; const update = () => { if (active) void refresh(); }; update(); const timer = setInterval(update, 10000); return () => { active = false; clearInterval(timer); }; }, [showGraph, showTraces]);
   const run = runs.find(r => r.id === selected) || runs[0];
   return <div className="runtime-architecture">
-    <div className="runtime-toolbar"><h2>Grafo eseguibile</h2><button className="chip" disabled={loading} onClick={() => void refresh()}>Aggiorna</button></div>
-    {graphError && <p role="alert">{graphError}</p>}
-    {loading && !graph && !graphError && <p>Caricamento grafo…</p>}
-    {graph && <>
+    {showGraph && <>
+      <div className="runtime-toolbar"><h2>Grafo eseguibile</h2><button className="chip" disabled={loading} onClick={() => void refresh()}>Aggiorna</button></div>
+      {graphError && <p role="alert">{graphError}</p>}
+      {loading && !graph && !graphError && <p>Caricamento grafo…</p>}
+      {graph && <>
       <p>Topologia LangGraph · versione <code>{graph.version}</code>. Le frecce tratteggiate indicano una scelta condizionale.</p>
       <div className="runtime-graphs">{graph.graphs.map(g => {
         const positions = Object.fromEntries(g.nodes.map((n, i) => [n.id, { x: 100 + (i % 2) * 200, y: 48 + Math.floor(i / 2) * 105 }]));
@@ -36,13 +47,14 @@ export default function ArchitectureRuntime() {
       })}</div>
       <div className="section-card"><h3>Deleghe disponibili</h3>{graph.delegations.map(d => <p key={d.tool}><strong>{d.source} → {d.target}</strong> · <code>{d.tool}</code></p>)}<p>Questi collegamenti sono strumenti disponibili; l’elenco seguente mostra quelli effettivamente eseguiti.</p></div>
       {graph.errors.map(e => <p role="alert" key={e.component}>Grafo non disponibile: {e.component} · {e.error_type}</p>)}
+      </>}
     </>}
-    <div className="section-card"><h2>Tracce di esecuzione</h2><p>Ultime 50 richieste chat · aggiornamento ogni 10 secondi · conservate dopo il riavvio.</p>
+    {showTraces && <div className="section-card"><div className="runtime-toolbar"><h2>Tracce di esecuzione</h2><button className="chip" disabled={loading} onClick={() => void refresh()}>Aggiorna</button></div><p>Ultime 50 richieste chat · aggiornamento ogni 10 secondi · conservate dopo il riavvio.</p>
       {runError && <p role="alert">{runError}</p>}
       {!loading && !runError && !runs.length && <p>Nessuna esecuzione registrata. Invia un messaggio a Cora per generare la prima traccia.</p>}
       {runs.length > 0 && <><label>Esecuzione <select value={run?.id || ""} onChange={e => setSelected(e.target.value)}>{runs.map(r => <option value={r.id} key={r.id}>{new Date(r.started_at).toLocaleString("it-IT")} · {r.status} · {r.id.slice(0, 8)}</option>)}</select></label>
       {run && <><p>Chat: <code>{run.thread_id}</code> · Grafo: <code>{run.graph_version}</code> · Errori registrati: {run.error_count}</p>{run.note && <p>{run.note}</p>}<div className="trace-table"><table><thead><tr><th>Ora</th><th>Passaggio</th><th>Stato</th><th>Durata</th><th>Relazione</th></tr></thead><tbody>{run.events.map((e, i) => <tr key={i}><td>{new Date(e.timestamp).toLocaleTimeString("it-IT")}</td><td>{e.kind} · {e.name}</td><td>{e.status}{e.error_type && ` · ${e.error_type}`}</td><td>{e.duration_ms === null ? "—" : `${e.duration_ms} ms`}</td><td title={e.parent_id || ""}>{e.span_id?.slice(0, 8) || "richiesta"}{e.parent_id && ` ← ${e.parent_id.slice(0, 8)}`}</td></tr>)}</tbody></table></div></>}
       </>}
-    </div>
+    </div>}
   </div>;
 }
