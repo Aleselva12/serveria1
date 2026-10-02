@@ -30,8 +30,8 @@ from core.architecture_api import router as architecture_router, architecture_gr
 from core.execution_traces import ExecutionTrace
 from core.permissions_api import router as permissions_router
 from core.runtime_api import router as runtime_router
-from core.run_lifecycle import create_run, transition_run
-from core.runtime_context import bind_runtime
+from core.run_lifecycle import RunCancelled, create_run, transition_run
+from core.runtime_context import RunTimedOut, bind_runtime
 
 
 load_dotenv()
@@ -282,8 +282,13 @@ def chat(request: ChatRequest, background_tasks: BackgroundTasks):
                 duration_ms=round((time.perf_counter() - trace_started) * 1000, 2),
                 error_type=type(error).__name__,
             )
+            terminal_status = (
+                "cancelled" if isinstance(error, RunCancelled)
+                else "timed_out" if isinstance(error, RunTimedOut)
+                else "failed"
+            )
             try:
-                transition_run(run_id, "failed", error_type=type(error).__name__)
+                transition_run(run_id, terminal_status, error_type=type(error).__name__)
                 set_working_memory(
                     agent_id="supervisor",
                     thread_id=thread_id,

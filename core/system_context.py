@@ -1,13 +1,23 @@
 from __future__ import annotations
 
 import json
+import threading
 from typing import Any
 
 from core.database import db_connection
 from core.logging import log_event
 
 
+_CACHE_LOCK = threading.Lock()
+_CACHE: dict[str, Any] | None = None
+
+
 def get_system_context() -> dict[str, Any]:
+    global _CACHE
+    with _CACHE_LOCK:
+        if _CACHE is not None:
+            return dict(_CACHE)
+
     with db_connection() as connection:
         row = connection.execute(
             """
@@ -16,13 +26,16 @@ def get_system_context() -> dict[str, Any]:
             WHERE id = 1
             """
         ).fetchone()
-    return row or {
+    result = row or {
         "id": 1,
         "content": "",
         "version": 1,
         "updated_at": None,
         "metadata": {},
     }
+    with _CACHE_LOCK:
+        _CACHE = dict(result)
+    return dict(result)
 
 
 def update_system_context(
@@ -47,6 +60,10 @@ def update_system_context(
             (normalized, json.dumps(metadata or {}, ensure_ascii=False)),
         ).fetchone()
         connection.commit()
+
+    global _CACHE
+    with _CACHE_LOCK:
+        _CACHE = dict(row)
 
     log_event(
         "system_context_update",

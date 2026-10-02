@@ -7,6 +7,7 @@ from langgraph.prebuilt import ToolNode
 from core.memory import search_memories
 from core.models import get_chat_model
 from core.prompt_context import with_permanent_context
+from core.runtime_context import ensure_runtime_active
 from tools import supervisor_tools
 from prompt import SUPERVISOR_PROMPT
 
@@ -106,6 +107,7 @@ def _bounded_tool_calls(response: AIMessage) -> AIMessage:
 
 
 def call_model(state: CoraState):
+    ensure_runtime_active()
     messages_for_llm = [
         SystemMessage(content=state["system_prompt"])
     ] + list(state["messages"])
@@ -115,6 +117,7 @@ def call_model(state: CoraState):
 
 
 def should_continue(state: CoraState):
+    ensure_runtime_active()
     last_message = state["messages"][-1]
     if getattr(last_message, "tool_calls", None):
         return "tools"
@@ -126,6 +129,7 @@ def after_tools(state: CoraState):
     A delegated specialist already returns user-facing natural language.
     End the run there instead of paying for a redundant Supervisor rewrite.
     """
+    ensure_runtime_active()
     for message in reversed(state["messages"]):
         calls = getattr(message, "tool_calls", None)
         if calls:

@@ -6,6 +6,7 @@ from langgraph.prebuilt import ToolNode
 
 from core.models import get_chat_model
 from core.prompt_context import with_permanent_context
+from core.runtime_context import ensure_runtime_active
 from email_agent.email_prompt import EMAIL_AGENT_PROMPT
 from email_agent.email_tools import EMAIL_TOOLS
 
@@ -23,12 +24,14 @@ def prepare_prompt(state: AgentState):
 
 
 def call_llm(state: AgentState):
+    ensure_runtime_active()
     messages = [SystemMessage(content=state["system_prompt"])] + list(state["messages"])
     response = model_with_tools.invoke(messages)
     return {"messages": [response]}
 
 
 def should_continue(state: AgentState):
+    ensure_runtime_active()
     last_message = state["messages"][-1]
     if getattr(last_message, "tool_calls", None):
         return "tools"

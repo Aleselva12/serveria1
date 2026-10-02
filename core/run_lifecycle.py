@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import uuid
 from typing import Any
 
@@ -25,6 +26,19 @@ TRANSITIONS = {
 
 class RunConflict(RuntimeError):
     pass
+
+
+class RunCancelled(RuntimeError):
+    pass
+
+
+_cancelled: set[str] = set()
+_cancel_lock = threading.Lock()
+
+
+def cancel_requested(run_id: str) -> bool:
+    with _cancel_lock:
+        return run_id in _cancelled
 
 
 def create_run(
@@ -91,6 +105,9 @@ def transition_run(
             ),
         ).fetchone()
         connection.commit()
+    if status in TERMINAL:
+        with _cancel_lock:
+            _cancelled.discard(str(run_id))
     return row
 
 
@@ -114,6 +131,8 @@ def request_cancel(run_id: str) -> dict[str, Any]:
         if not row:
             raise RunConflict("Run non cancellabile o inesistente.")
         connection.commit()
+    with _cancel_lock:
+        _cancelled.add(str(run_id))
     return row
 
 

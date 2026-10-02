@@ -11,8 +11,8 @@ from core.memory import delete_memory, save_memory, search_memories
 from core.permissions import require_permission
 from core.protocol import TaskEnvelope
 from core.registry import registry_json
-from core.run_lifecycle import create_run, transition_run
-from core.runtime_context import bind_runtime, current_runtime
+from core.run_lifecycle import RunCancelled, create_run, transition_run
+from core.runtime_context import RunTimedOut, bind_runtime, current_runtime
 from core.working_memory import set_working_memory
 from local_tools import (
     calculator_tool as _calculator_tool,
@@ -224,8 +224,13 @@ def _delegate_agent(
         )
         return result.content
     except Exception as error:
+        terminal_status = (
+            "cancelled" if isinstance(error, RunCancelled)
+            else "timed_out" if isinstance(error, RunTimedOut)
+            else "failed"
+        )
         try:
-            transition_run(child_run_id, "failed", error_type=type(error).__name__)
+            transition_run(child_run_id, terminal_status, error_type=type(error).__name__)
         except Exception:
             pass
         set_working_memory(
