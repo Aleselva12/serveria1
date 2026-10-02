@@ -60,7 +60,6 @@ def run_detail(run_id: str):
     return matches[0]
 
 
-@lru_cache(maxsize=1)
 def architecture_overview():
     """System-level view: agent delegation, shared support and direct API paths."""
     from core.registry import get_registry
