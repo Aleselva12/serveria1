@@ -1,11 +1,11 @@
 import type { BackendHealth, BackendRegistry } from "../types/contracts";
 import ConnectionNotice from "./ConnectionNotice";
 import { useState } from "react";
+import ArchitectureRuntime from "./ArchitectureRuntime";
 import ArchitectureTools from "./ArchitectureTools";
 
 export default function Architecture({
   registry,
-  health,
   selectedNode,
   onSelect,
 }: {
@@ -33,10 +33,11 @@ export default function Architecture({
           </div>
         </div>
         {navigation}
+        <ArchitectureRuntime />
       </section>
     );
   const supervisor = registry.components.find((c) => c.id === "supervisor");
-  const agents = registry.components.filter((c) => c.kind === "agent");
+
   const selected =
     registry.components.find((c) => c.id === selectedNode) || supervisor;
   return (
@@ -46,91 +47,14 @@ export default function Architecture({
           <div className="eyebrow">OSSERVA IL SISTEMA</div>
           <h1>Architettura</h1>
           <p>
-            Componenti letti dal backend. I collegamenti illustrano la delega
-            possibile, non un’esecuzione.
+            Grafo e tracce letti dal backend. Le deleghe disponibili e i passaggi eseguiti sono mostrati separatamente.
           </p>
         </div>
         <span className="pill">Registro reale · Sola lettura</span>
       </div>
       {navigation}
       <div className="arch-layout">
-        <div className="arch-canvas">
-          <div className="canvas-label">
-            MAPPA DEI COMPONENTI <span>{registry.project}</span>
-          </div>
-          <div className="graph-area">
-            <svg
-              viewBox="0 0 820 440"
-              className="graph-lines"
-              aria-hidden="true"
-            >
-              {agents.map((a, i) => (
-                <path
-                  key={a.id}
-                  d={
-                    "M 410 104 C 410 150 " +
-                    ((i + 0.5) * 820) / agents.length +
-                    " 145 " +
-                    ((i + 0.5) * 820) / agents.length +
-                    " 211"
-                  }
-                />
-              ))}
-              <path d="M 410 104 C 410 270 410 295 410 343" />
-            </svg>
-            {supervisor && (
-              <button
-                className={
-                  "graph-node central " +
-                  (selected?.id === "supervisor" ? "selected" : "")
-                }
-                onClick={() => onSelect("supervisor")}
-              >
-                <span>✦</span>
-                <strong>Supervisore</strong>
-                <small>Orchestrazione</small>
-              </button>
-            )}
-            {agents.map((a, i) => (
-              <button
-                key={a.id}
-                style={{ left: ((i + 0.5) * 100) / agents.length + "%" }}
-                className={
-                  "graph-node leaf " + (selected?.id === a.id ? "selected" : "")
-                }
-                onClick={() => onSelect(a.id)}
-              >
-                <span
-                  className={"node-dot " + (a.available ? "" : "unavailable")}
-                />
-                <strong>
-                  {a.name
-                    .replace("Local Research Agent", "Documenti")
-                    .replace("Email & Quotes Agent", "Mail e preventivi")
-                    .replace(" Agent", "")}
-                </strong>
-                <small>
-                  {a.available ? "Modulo presente" : "Dipendenze mancanti"}
-                </small>
-              </button>
-            ))}
-            <div className="graph-node model">
-              <span
-                className={
-                  "node-dot " + (health?.ollama_online ? "" : "unavailable")
-                }
-              />
-              <strong>Ollama</strong>
-              <small>
-                {health
-                  ? health.ollama_online
-                    ? "Raggiungibile"
-                    : "Offline"
-                  : "Non verificato"}
-              </small>
-            </div>
-          </div>
-        </div>
+        <ArchitectureRuntime />
         <aside className="side-panel">
           <div className="eyebrow">COMPONENTE SELEZIONATO</div>
           <h2>{selected?.name || "Seleziona un componente"}</h2>
@@ -156,10 +80,10 @@ export default function Architecture({
         </aside>
       </div>
       <div className="section-card">
-        <h2>Componenti di supporto</h2>
+        <h2>Agenti e componenti</h2>
         <div className="chip-row">
           {registry.components
-            .filter((c) => c.kind !== "agent" && c.id !== "supervisor")
+            
             .map((c) => (
               <button
                 className="chip"
@@ -172,8 +96,6 @@ export default function Architecture({
             ))}
         </div>
       </div>
-      <ConnectionNotice feature="graph" />
-      <ConnectionNotice feature="runs" />
       <ConnectionNotice feature="graphEdit" compact />
     </section>
   );

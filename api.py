@@ -1,5 +1,6 @@
 import os
 import uuid
+import time
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -23,6 +24,8 @@ from core.ia_library import router as library_router
 from core.registry import get_agents, get_registry
 from graph import graph
 from core.tool_inventory import inventory
+from core.architecture_api import router as architecture_router, architecture_graph
+from core.execution_traces import ExecutionTrace
 
 
 load_dotenv()
@@ -39,6 +42,7 @@ app.include_router(monitoring_router)
 app.include_router(files_router)
 app.include_router(library_router)
 app.include_router(calendar_router)
+app.include_router(architecture_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -228,7 +232,16 @@ def chat(request: ChatRequest):
             "user_message_id": str(user_message["id"]),
         },
     ) as operation:
-        result = graph.invoke({"messages": recent_context(thread_id)})
+        trace = ExecutionTrace(thread_id, architecture_graph()["version"])
+        trace_started = time.perf_counter()
+        trace.event("run", "running", name="Grafo chat Cora")
+        try:
+            result = graph.invoke({"messages": recent_context(thread_id)}, config={"callbacks": [trace]})
+        except Exception as error:
+            trace.event("run", "error", name="Grafo chat Cora", duration_ms=round((time.perf_counter() - trace_started) * 1000, 2), error_type=type(error).__name__)
+            raise
+        else:
+            trace.event("run", "completed", name="Grafo chat Cora", duration_ms=round((time.perf_counter() - trace_started) * 1000, 2))
         response = result["messages"][-1].content
         assistant_message = save_message(
             conversation_id=thread_id,

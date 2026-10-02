@@ -29,6 +29,7 @@ const Tools = await compile('../src/components/ArchitectureTools.tsx', [
 ]);
 globalThis.__Tools = Tools;
 const Architecture = await compile('../src/components/Architecture.tsx', [
+  ['import ArchitectureRuntime from "./ArchitectureRuntime";', 'const ArchitectureRuntime = () => null;'],
   ['import ArchitectureTools from "./ArchitectureTools";', 'const ArchitectureTools = globalThis.__Tools;'],
   ['import ConnectionNotice from "./ConnectionNotice";', 'const ConnectionNotice = () => null;'],
 ]);

@@ -36,11 +36,6 @@ export type ArchitectureEdge = {
   target: string;
   label?: string;
 };
-export type ArchitectureGraph = {
-  version: string;
-  nodes: Agent[];
-  edges: ArchitectureEdge[];
-};
 export type RunStep = {
   id: string;
   runId: string;
@@ -287,3 +282,15 @@ export type SavedMessage = {
   content: string;
   created_at: string;
 };
+
+export interface ArchitectureGraph {
+  version: string;
+  graphs: { id: string; nodes: { id: string; name: string }[]; edges: { source: string; target: string; conditional: boolean; label: string }[] }[];
+  delegations: { source: string; target: string; tool: string }[];
+  errors: { component: string; error_type: string }[];
+}
+export interface ExecutionRun {
+  id: string; thread_id: string; graph_version: string; status: string;
+  started_at: string; duration_ms: number | null; error_count: number; note: string | null;
+  events: { timestamp: string; kind: string; name: string; status: string; span_id: string | null; parent_id: string | null; duration_ms: number | null; error_type: string | null }[];
+}

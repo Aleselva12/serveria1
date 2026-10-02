@@ -1,4 +1,6 @@
 import type {
+  ArchitectureGraph,
+  ExecutionRun,
   ToolInventory,
   SavedConversation,
   SavedMessage,
@@ -104,6 +106,16 @@ function metricValid(metric: ServerTelemetry["cpu"]) {
 const nonnegative = (value: number) => Number.isFinite(value) && value >= 0;
 
 export const api = {
+  async architectureGraph(): Promise<ArchitectureGraph> {
+    const data = await request<ArchitectureGraph>("/api/v1/architecture/graph");
+    if (!data || typeof data.version !== "string" || !Array.isArray(data.graphs) || !Array.isArray(data.delegations) || !Array.isArray(data.errors) || !data.graphs.every(g => typeof g.id === "string" && Array.isArray(g.nodes) && Array.isArray(g.edges) && g.nodes.every(n => typeof n.id === "string" && typeof n.name === "string") && g.edges.every(e => typeof e.source === "string" && typeof e.target === "string" && typeof e.conditional === "boolean"))) throw new ApiError("Grafo non valido.", "invalid");
+    return data;
+  },
+  async executionRuns(): Promise<ExecutionRun[]> {
+    const data = await request<ExecutionRun[]>("/api/v1/runs?limit=50");
+    if (!Array.isArray(data) || !data.every(r => typeof r.id === "string" && typeof r.thread_id === "string" && Number.isFinite(Date.parse(r.started_at)) && Array.isArray(r.events) && r.events.every(e => typeof e.name === "string" && typeof e.kind === "string" && Number.isFinite(Date.parse(e.timestamp))))) throw new ApiError("Tracce non valide.", "invalid");
+    return data;
+  },
   async toolInventory(): Promise<ToolInventory> {
     const data = await request<ToolInventory>("/tools/inventory");
     if (!data || !Array.isArray(data.entries) || !Array.isArray(data.errors) ||

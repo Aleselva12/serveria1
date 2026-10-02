@@ -81,8 +81,8 @@ Base configurabile con `VITE_API_BASE_URL`; prefisso `/api/v1`. JSON UTF-8, iden
 | Chat `App.tsx`/`api.ts` | `GET /conversations`, `POST /conversations` | Elenco, nuova conversazione, ID, titolo e aggiornamento. Aggiungere rinomina/eliminazione solo quando decise. |
 | Chat `App.tsx`/`api.ts` | `GET /conversations/{id}/messages`, `POST /conversations/{id}/messages` con `{content,attachmentIds}` | Messaggi ordinati, ID persistenti, ruolo, timestamp, allegati e `runId` per seguire l'esecuzione. Validare ID e dimensioni. |
 | Chat/Attività, *da aggiungere* | `GET /runs/{id}/events` via SSE, o protocollo equivalente definito col backend | Eventi `message.delta`, `message.completed`, `run.started`, `step.started`, `step.completed`, `step.failed`, `approval.requested`, `run.completed`, `run.failed`; ogni evento con `runId`, `eventId`, sequenza e timestamp. Gestire riconnessione, duplicati e risposta finale. Polling `GET /runs/{id}` come fallback. |
-| Architettura `App.tsx`/`api.ts` | `GET /architecture/graph`, `GET /agents` | Grafo `{version,nodes,edges}`, ID stabili, capacità, tipo, stato. Il grafo rappresenta possibilità, non necessariamente il percorso svolto. |
-| Architettura/Attività `App.tsx`/`api.ts` | `GET /runs`, `GET /runs/{id}` | Stato del run e passi effettivi `{id,runId,nodeId,parentStepId,status,summary,startedAt,finishedAt}`; selezione run e corrispondenza con nodi. In futuro filtri e paginazione. |
+| Architettura `ArchitectureRuntime.tsx`/`api.ts` | `GET /api/v1/architecture/graph` | Implementato: `{version,graphs,delegations,errors}` estratto dai grafi compilati. |
+| Architettura `ArchitectureRuntime.tsx`/`api.ts` | `GET /api/v1/runs`, `GET /api/v1/runs/{id}` | Implementato: tracce tecniche correlate persistenti; timestamp, stato, durata, genitore e tipo di errore. |
 | Attività/Chat `App.tsx`/`api.ts` | `POST /approvals/{id}` con `{decision:"approved"|"rejected"}` | Anteprima comprensibile dell'azione, scadenza, risposta idempotente e nuovo stato. Nessuna esecuzione implicita per apertura pagina. |
 | Programma `App.tsx`/`api.ts` | `GET /workspaces`, `GET /workspaces/{id}/files`, `GET /workspaces/{id}/file?path=...` | Aree autorizzate `cora` e `project`, radici visibili, permessi, albero e file con `revision`; filtrare e normalizzare percorsi sul server. |
 | Programma `App.tsx`/`api.ts` | `PUT /workspaces/{id}/file` con `{path,content,revision}` | Salvataggio solo dove `WRITE`; controllo revisione/conflitti (`409`), audit e risposta con nuova revisione. |
@@ -111,3 +111,21 @@ Base configurabile con `VITE_API_BASE_URL`; prefisso `/api/v1`. JSON UTF-8, iden
 
 Il backend resta la fonte dei dati e dei permessi. I prossimi collegamenti si aggiungono uno alla volta, rimuovendo l’avviso corrispondente solo dopo una verifica completa. La console mantiene la struttura modulare e locale di Cora.
 
+
+### Grafo eseguibile e tracce nella pagina Architettura
+
+`GET /api/v1/architecture/graph` estrae nodi e archi dai cinque LangGraph compilati,
+con hash della topologia e deleghe derivate dagli strumenti del supervisore.
+La disponibilità del grafo non certifica credenziali o operatività dell'agente.
+La pagina mostra separatamente i flussi interni, le deleghe disponibili e il registro dei componenti.
+
+`GET /api/v1/runs?limit=50` e `GET /api/v1/runs/{id}` espongono le tracce delle nuove
+esecuzioni del grafo chat. I callback LangChain seguono anche le deleghe annidate:
+nodi, modelli e strumenti hanno ID, genitore, timestamp, stato, durata e tipo di errore.
+Il frontend aggiorna ogni dieci secondi e consente la scelta dell'esecuzione.
+Le tracce tecniche sono persistite in `CORA_LOG_ROOT/executions.jsonl`, indipendentemente
+dai log preesistenti: nessuna ricostruzione retroattiva, prompt, argomento tool o risposta
+viene salvata in questa traccia. Un avvio senza evento finale rimane indicato come
+"in corso o interrotta"; un errore gestito da ToolNode può comparire in un'esecuzione completata.
+Il grafo è in sola lettura. SSE, modifica architettura e gestione generale delle approvazioni
+restano lavori distinti; le conferme calendario restano gestite dalla pagina Calendario.

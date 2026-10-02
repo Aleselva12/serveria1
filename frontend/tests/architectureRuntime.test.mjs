@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+import {readFile} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+import ts from 'typescript';
+import React from 'react';
+import {create,act} from 'react-test-renderer';
+const require=createRequire(import.meta.url);
+const external=n=>JSON.stringify(pathToFileURL(require.resolve(n)).href);
+globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+const fixture={version:'v1',graphs:[{id:'supervisor',nodes:[{id:'agent',name:'agent'},{id:'tools',name:'tools'}],edges:[{source:'agent',target:'tools',conditional:true,label:''}]}],delegations:[],errors:[]};
+let offline=false;
+globalThis.__runtimeApi={architectureGraph:async()=>{if(offline)throw Error('Offline');return fixture;},executionRuns:async()=>{if(offline)throw Error('Offline');return [{id:'run1',thread_id:'chat1',graph_version:'v1',status:'error',started_at:'2026-10-02T10:00:00Z',error_count:1,note:null,events:[{timestamp:'2026-10-02T10:00:00Z',kind:'tool',name:'calculator',status:'error',duration_ms:2,span_id:'span',parent_id:'parent',error_type:'ValueError'}]}];}};
+const source=await readFile(new URL('../src/components/ArchitectureRuntime.tsx',import.meta.url),'utf8');
+const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText.replace(/from "react\/jsx-runtime"/g,'from '+external('react/jsx-runtime')).replace(/from "react"/g,'from '+external('react')).replace('import { api } from "../services/api";','const api=globalThis.__runtimeApi;').replace('import "./architecture-runtime.css";','');
+const Runtime=(await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'))).default;
+test('graph and real trace are rendered, offline refresh clears stale data',async()=>{
+ let r;await act(async()=>{r=create(React.createElement(Runtime));});
+ assert.equal(r.root.findAllByType('svg').length,1);
+ assert.ok(JSON.stringify(r.toJSON()).includes('ValueError'));
+ offline=true;
+ await act(async()=>r.root.findByType('button').props.onClick());
+ assert.equal(r.root.findAllByProps({role:'alert'}).length,2);
+ assert.equal(r.root.findAllByType('svg').length,0);
+ await act(async()=>r.unmount());
+});
