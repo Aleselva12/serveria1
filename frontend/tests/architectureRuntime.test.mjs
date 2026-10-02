@@ -20,7 +20,7 @@ test('graph and real trace are rendered, offline refresh clears stale data',asyn
  assert.equal(r.root.findAllByType('svg').length,1);
  assert.ok(JSON.stringify(r.toJSON()).includes('ValueError'));
  offline=true;
- await act(async()=>r.root.findByType('button').props.onClick());
+ await act(async()=>r.root.findAllByType('button')[0].props.onClick());
  assert.equal(r.root.findAllByProps({role:'alert'}).length,2);
  assert.equal(r.root.findAllByType('svg').length,0);
  await act(async()=>r.unmount());

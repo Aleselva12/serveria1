@@ -294,3 +294,13 @@ export interface ExecutionRun {
   started_at: string; duration_ms: number | null; error_count: number; note: string | null;
   events: { timestamp: string; kind: string; name: string; status: string; span_id: string | null; parent_id: string | null; duration_ms: number | null; error_type: string | null }[];
 }
+
+export interface ArchitectureOverview {
+  version: string;
+  framework: string;
+  nodes: (BackendComponent & { model: string | null })[];
+  edges: { source: string; target: string; label: string; kind: "request" | "delegation" }[];
+  components: BackendComponent[];
+  direct_paths: { id: string; name: string; trigger: string; description: string; routes: string[]; source: string }[];
+  automations: { id: string; name: string; trigger: string; description: string; source: string }[];
+}
