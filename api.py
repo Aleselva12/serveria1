@@ -5,7 +5,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import BackgroundTasks, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -215,7 +215,7 @@ def remove_memory(memory_id: str):
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
+def chat(request: ChatRequest, background_tasks: BackgroundTasks):
     message = request.message.strip()
     if not message:
         return ChatResponse(
@@ -294,9 +294,9 @@ def chat(request: ChatRequest):
                         "run_id": run_id,
                     },
                 )
-                refresh_transcript(thread_id)
-            finally:
-                raise
+            except Exception:
+                pass
+            raise
         else:
             trace.event(
                 "run",
@@ -316,10 +316,6 @@ def chat(request: ChatRequest):
             metadata={"source": "chat_api", "run_id": run_id},
             refresh_transcript_now=False,
         )
-        # Regenerate the readable Markdown transcript once per completed turn,
-        # not once for every message insert.
-        refresh_transcript(thread_id)
-
         set_working_memory(
             agent_id="supervisor",
             thread_id=thread_id,
@@ -333,12 +329,13 @@ def chat(request: ChatRequest):
             },
             ttl_minutes=120,
         )
-        create_episode(
+        # Secondary persistence happens after the HTTP response. The authoritative
+        # chat messages and run state are already committed at this point.
+        background_tasks.add_task(refresh_transcript, thread_id)
+        background_tasks.add_task(
+            create_episode,
             title=message.replace("\n", " ")[:80] or "Turno chat",
-            summary=(
-                "Richiesta: " + message[:240] +
-                "\nRisultato: " + response[:420]
-            ),
+            summary="Richiesta: " + message[:240] + "\nRisultato: " + response[:420],
             conversation_id=thread_id,
             episode_type="conversation_turn",
             agent_id="supervisor",
