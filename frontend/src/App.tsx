@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Activity,
+  ArrowRight,
   ChevronDown,
   Code2,
   FileText,
