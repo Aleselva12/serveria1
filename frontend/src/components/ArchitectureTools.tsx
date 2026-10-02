@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
-import { Search, RefreshCw, Wrench, Workflow, ZoomIn, ZoomOut } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Search, RefreshCw, Wrench } from "lucide-react";
 import { api } from "../services/api";
-import type { ToolInventory, ToolEntry } from "../types/contracts";
+import { toolsApi } from "../services/toolsApi";
+import type { ToolDefinition, ToolInventory, ToolEntry } from "../types/contracts";
+import ToolFlowCanvas from "./ToolFlowCanvas";
+import AutomationEditor from "./AutomationEditor";
 import "./architecture-tools.css";
+import "./tool-flow.css";
 
 const states = { connected: "Collegato agli agenti", unconnected: "Implementato · non collegato", planned: "Predisposto · da implementare" };
-
 export default function ArchitectureTools() {
   const [data, setData] = useState<ToolInventory | null>(null);
   const [error, setError] = useState("");
@@ -15,7 +18,12 @@ export default function ArchitectureTools() {
   const [status, setStatus] = useState("all");
   const [group, setGroup] = useState("all");
   const [selectedId, setSelectedId] = useState("");
-  const [zoom, setZoom] = useState(1);
+  const [definition, setDefinition] = useState<ToolDefinition | null>(null);
+  const [definitionLoading, setDefinitionLoading] = useState(false);
+  const [definitionError, setDefinitionError] = useState("");
+  const [stepId, setStepId] = useState("");
+  const [mode, setMode] = useState<"inspect" | "draft">("inspect");
+  const viewer = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let cancelled = false;
     setLoading(true); setError(""); setData(null);
@@ -24,48 +32,66 @@ export default function ArchitectureTools() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [revision]);
+  useEffect(() => {
+    let cancelled = false;
+    setDefinition(null); setDefinitionError(""); setStepId("");
+    if (!selectedId) { setDefinitionLoading(false); return; }
+    setDefinitionLoading(true);
+    toolsApi.definition(selectedId).then(result => { if (!cancelled) { setDefinition(result); setStepId(result.flow.nodes[0]?.id || ""); } })
+      .catch(e => { if (!cancelled) setDefinitionError(e instanceof Error ? e.message : "Definizione non disponibile."); })
+      .finally(() => { if (!cancelled) setDefinitionLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedId, revision]);
   const entries = data?.entries || [];
   const groups = [...new Set(entries.map(e => e.group))];
   const filtered = entries.filter(e => (status === "all" || e.status === status) &&
     (group === "all" || e.group === group) &&
     `${e.name} ${e.description} ${e.agents.join(" ")} ${e.group}`.toLocaleLowerCase("it").includes(query.toLocaleLowerCase("it")));
-  const selected = filtered.find(e => e.id === selectedId) || filtered[0];
-  function select(entry: ToolEntry) { setSelectedId(entry.id); }
+  const selected = entries.find(e => e.id === selectedId);
+  const step = definition?.flow.nodes.find(n => n.id === stepId);
+  function select(entry: ToolEntry) { setSelectedId(entry.id); setMode("inspect"); viewer.current?.scrollIntoView?.({ behavior: "smooth", block: "start" }); }
   return <div className="architecture-tools">
-    <div className="tools-intro"><div><h2>Tools e automatizzazioni</h2><p>Esplora ogni strumento, la sua funzione e il collegamento agli agenti.</p></div>
+    <div className="tools-intro"><div><h2>Tools e automatizzazioni</h2><p>Seleziona un tool dall’elenco per esplorarne il funzionamento, oppure costruisci una nuova bozza.</p></div>
       <button className="file-tool" disabled={loading} onClick={() => setRevision(r => r + 1)}><RefreshCw size={14} /> Aggiorna</button></div>
-    <div className="tools-counts">{Object.entries(states).map(([key, label]) =>
-      <button key={key} className={`tools-state ${key}`} aria-pressed={status === key} onClick={() => setStatus(status === key ? "all" : key)}>
-        <strong>{entries.filter(e => e.status === key).length}</strong> {label}</button>)}</div>
-    <div className="tools-filters"><label className="tools-search"><Search size={16} /><input aria-label="Cerca tools" placeholder="Cerca nome, funzione o agente…" value={query} onChange={e => setQuery(e.target.value)} /></label>
-      <select aria-label="Filtra per funzione" value={group} onChange={e => setGroup(e.target.value)}><option value="all">Tutte le funzioni</option>{groups.map(g => <option key={g}>{g}</option>)}</select>
-      <select aria-label="Filtra per stato" value={status} onChange={e => setStatus(e.target.value)}><option value="all">Tutti gli stati</option>{Object.entries(states).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+    <nav className="flow-view-tabs" aria-label="Modalità tools">
+      <button aria-pressed={mode === "inspect"} onClick={() => setMode("inspect")}>Tool selezionato</button>
+      <button aria-pressed={mode === "draft"} onClick={() => setMode("draft")}>Costruisci automazione</button>
+    </nav>
+    <div ref={viewer} className="tool-viewer" hidden={mode !== "inspect"}>
+      <div className="tools-intro"><h3>{selected?.name || "Visualizzatore del tool"}</h3><span>Schema e caratteristiche</span></div>
+      {definitionError && <div className="connection-error" role="alert">{definitionError}<button onClick={() => setRevision(r => r + 1)}>Riprova</button></div>}
+      <div className="tools-workspace">
+        {definition ? <ToolFlowCanvas flow={definition.flow} selected={stepId} onSelect={setStepId} /> :
+          <div className="tool-flow-empty">{definitionLoading ? <p role="status">Lettura della definizione…</p> :
+            <><Wrench size={32} /><h3>{selected ? "Flusso non disponibile" : "Scegli un tool dall’elenco"}</h3><p>Qui vedrai soltanto il suo flusso: ingresso, controlli, operazione e risultato.</p></>}</div>}
+        <aside className="tools-detail" aria-live="polite"><div><div className="eyebrow">PASSAGGIO SELEZIONATO</div>
+          {step ? <><h3>{step.label}</h3><p className="flow-step-detail">{step.detail}</p></> : <p>Seleziona un passaggio del flusso per i dettagli.</p>}
+          </div><div className="tool-attributes">{selected && <><div className="eyebrow">CARATTERISTICHE DEL TOOL</div><span className={`tools-badge ${selected.status}`}>{states[selected.status]}</span>
+            <p>{selected.description}</p><dl><dt>Funzione</dt><dd>{selected.group}</dd><dt>Agenti collegati</dt><dd>{selected.agents.join(", ") || "Nessuno"}</dd><dt>Origine</dt><dd>{selected.source}</dd><dt>Output dichiarato</dt><dd>{definition?.output_type || "Non disponibile"}</dd></dl></>}
+          </div></aside>
+      </div>
+      {definition && <><p className="tools-scope">{definition.note}</p>
+        <div className="tool-signature"><h3>Ingressi e parametri</h3>{definition.parameters.length ? <div className="tool-parameter-table"><table><thead><tr><th>Parametro</th><th>Tipo</th><th>Obbligatorio</th><th>Valore iniziale</th></tr></thead><tbody>
+          {definition.parameters.map(p => <tr key={p.name}><td>{p.name}</td><td>{p.type}</td><td>{p.required ? "Sì" : "No"}</td><td>{p.default ?? "—"}</td></tr>)}
+        </tbody></table></div> : <p>Nessun parametro dichiarato.</p>}</div>
+        <details className="tool-source-details"><summary>Operazioni chiamate e controlli interni</summary><div><h4>Operazioni nel codice</h4>{definition.operations.length ? <ul>{definition.operations.map(c => <li key={c}>{c}</li>)}</ul> : <p>Nessuna chiamata diretta rilevata.</p>}
+          <h4>Controlli espliciti</h4><ul>{[...definition.checks, ...definition.conditions].map((c, i) => <li key={i}>{c}</li>)}</ul></div></details></>}
+    </div>
+    <div hidden={mode !== "draft"}><AutomationEditor entries={entries} /></div>
     {error && <div className="connection-error" role="alert">{error}</div>}
     {data?.errors.length ? <div className="connection-error" role="alert">Inventario parziale: {data.errors.join("; ")}</div> : null}
-    <div className="tools-workspace">
-      <div className="tools-canvas"><header><span><Workflow size={15} /> STRUMENTI · {filtered.length} NODI</span><div>
-        <button aria-label="Riduci nodi" disabled={zoom <= .75} onClick={() => setZoom(z => Math.max(.75, z - .25))}><ZoomOut size={16} /></button>
-        <button onClick={() => setZoom(1)} aria-label="Ripristina dimensioni">{Math.round(zoom * 100)}%</button>
-        <button aria-label="Ingrandisci nodi" disabled={zoom >= 1.5} onClick={() => setZoom(z => Math.min(1.5, z + .25))}><ZoomIn size={16} /></button></div></header>
-        <div className="tools-canvas-scroll"><div className="tools-node-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${180 * zoom}px, 1fr))` }}>
-          {filtered.map(e => <button key={e.id} className={`tool-node ${e.status} ${selected?.id === e.id ? "selected" : ""}`} aria-pressed={selected?.id === e.id} onClick={() => select(e)}>
-            <span className="tool-port left" /><span className="tool-node-icon"><Wrench size={19} /></span><small>{e.group} · {e.kind === "api" ? "API" : e.kind === "planned" ? "Predisposizione" : "Tool"}</small>
-            <strong>{e.name}</strong><span className={`tools-badge ${e.status}`}>{states[e.status]}</span><span className="tool-port right" /></button>)}
-        </div>{loading && <p className="tools-empty" role="status">Caricamento dell’inventario…</p>}{!loading && !error && !filtered.length && <p className="tools-empty">Nessuno strumento corrisponde ai filtri.</p>}</div>
-        <footer>Nodi singoli in sola lettura · seleziona uno strumento per i dettagli</footer>
-      </div>
-      <aside className="tools-detail" aria-live="polite"><div className="eyebrow">STRUMENTO SELEZIONATO</div>{selected ? <>
-        <h3>{selected.name}</h3><span className={`tools-badge ${selected.status}`}>{states[selected.status]}</span><p>{selected.description}</p>
-        <dl><dt>Funzione</dt><dd>{selected.group}</dd><dt>Agenti collegati</dt><dd>{selected.agents.join(", ") || "Nessuno"}</dd><dt>Origine</dt><dd>{selected.source}</dd>
-        <dt>Parametri del tool</dt><dd>{selected.kind === "api" ? "Definiti dal contratto API" : selected.parameters.join(", ") || "Nessuno dichiarato"}</dd></dl>
-        <div className="panel-note">{selected.detail}</div></> : <p>Seleziona un nodo dopo il caricamento dell’inventario.</p>}</aside>
-    </div>
-    <div className="tools-catalog"><div className="tools-intro"><h2>Elenco per funzione</h2><span>{filtered.length} elementi</span></div>
+    <div className="tools-catalog"><div className="tools-intro"><h2>Elenco per funzione</h2><span>{filtered.length} elementi · clicca per aprire il flusso</span></div>
+      <div className="tools-counts">{Object.entries(states).map(([key, label]) =>
+        <button key={key} className={`tools-state ${key}`} aria-pressed={status === key} onClick={() => setStatus(status === key ? "all" : key)}><strong>{entries.filter(e => e.status === key).length}</strong> {label}</button>)}</div>
+      <div className="tools-filters"><label className="tools-search"><Search size={16} /><input aria-label="Cerca tools" placeholder="Cerca nome, funzione o agente…" value={query} onChange={e => setQuery(e.target.value)} /></label>
+        <select aria-label="Filtra per funzione" value={group} onChange={e => setGroup(e.target.value)}><option value="all">Tutte le funzioni</option>{groups.map(g => <option key={g}>{g}</option>)}</select>
+        <select aria-label="Filtra per stato" value={status} onChange={e => setStatus(e.target.value)}><option value="all">Tutti gli stati</option>{Object.entries(states).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+      {loading && <p className="tools-empty" role="status">Caricamento dell’inventario…</p>}
+      {!loading && !error && !filtered.length && <p className="tools-empty">Nessuno strumento corrisponde ai filtri.</p>}
       {groups.filter(g => filtered.some(e => e.group === g)).map(g => <section className="tools-function" key={g}><h3>{g}<span>{filtered.filter(e => e.group === g).length}</span></h3>
-        {filtered.filter(e => e.group === g).map(e => <button key={e.id} className={`tools-list-row ${selected?.id === e.id ? "selected" : ""}`} onClick={() => select(e)} aria-pressed={selected?.id === e.id}>
+        {filtered.filter(e => e.group === g).map(e => <button key={e.id} className={`tools-list-row ${selectedId === e.id ? "selected" : ""}`} onClick={() => select(e)} aria-pressed={selectedId === e.id}>
           <Wrench size={16} /><div><strong>{e.name}</strong><p>{e.description}</p><small>{e.agents.join(", ") || (e.kind === "api" ? "Operazione backend / frontend" : "Nessun agente collegato")}</small></div><span className={`tools-badge ${e.status}`}>{states[e.status]}</span></button>)}
       </section>)}
-    </div>
-    <p className="tools-scope">{data?.scope} Le predisposizioni non vengono conteggiate come strumenti implementati.</p>
+    </div><p className="tools-scope">{data?.scope}</p>
   </div>;
 }

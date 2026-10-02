@@ -68,10 +68,20 @@ Questo punto resta aperto fino alla prova sul server. Non sono richiesti interve
 
 # Architettura — Tools
 
-La pagina Architettura ha due sezioni: Architettura conserva la mappa degli agenti; Tools mostra nodi singoli selezionabili, dettagli ed elenco per funzione con ricerca e filtri. Il catalogo arriva da `GET /tools/inventory` e non contiene dati simulati.
+La pagina Architettura ha due sezioni: Architettura conserva la mappa degli agenti; Tools mostra il flusso di un solo elemento selezionato dall’elenco per funzione sottostante. Ricerca e filtri agiscono sull’elenco senza sostituire il tool selezionato. `GET /tools/inventory` alimenta il catalogo; `GET /tools/definition?tool_id=...` restituisce firma, parametri obbligatori/opzionali, default, tipo di risultato e schema sintetico ricavato dal codice.
 
 L’inventario ispeziona le dichiarazioni Python e le liste di tool collegate ai grafi, senza caricare modelli o eseguire strumenti. Le API effettivamente registrate da FastAPI sono mostrate separatamente come operazioni backend non direttamente assegnate agli agenti. Le predisposizioni sono marcate come non implementate nella versione osservata. La rilevazione calendario include i moduli `*tools.py` nella radice, nel core e nelle cartelle degli agenti; una lista calendario importata e aggiunta al Supervisor viene risolta dal catalogo.
 
-Gli stati descrivono collegamenti strutturali, non readiness runtime, credenziali o autorizzazioni. Automazioni, editor dei flussi ed esecuzione non vengono attivati da questa pagina. I nodi sono in sola lettura, senza collegamenti fittizi fra strumenti.
+Gli stati descrivono collegamenti strutturali, non readiness runtime, credenziali o autorizzazioni. Il diagramma del tool raggruppa ingresso, controlli, operazione e risultato: non rappresenta integralmente ogni ramo o ciclo e non è una traccia runtime. Le scritture del calendario terminano in una proposta da approvare.
+
+## Bozze grafiche di automazioni
+
+La modalità “Costruisci automazione” permette di aggiungere ingressi, tool/API, condizioni e uscite; spostare i nodi con mouse/touch o frecce della tastiera; collegare porte e rami sì/no; configurare ogni nodo in JSON e rimuovere nodi o collegamenti. JSON non valido blocca salvataggio e cambio passaggio.
+
+Le bozze sono salvate e riaperte sul server attraverso `GET/POST /tools/drafts` e `GET/PUT /tools/drafts/{id}`. Si conserva il grafo con posizioni e configurazioni, sempre con stato `draft`. Il salvataggio controlla struttura, riferimenti ai tool, duplicati, coordinate e cicli; le parti incomplete vengono conservate con avvisi. Un aggiornamento richiede la versione letta, con `409` per conflitti e nessun retry automatico.
+
+Archivio predefinito: `data/automation_drafts`, configurabile con `CORA_AUTOMATION_ROOT`. Scritture JSON atomiche e lock nel processo; prima versione con un processo backend. L’accesso alle bozze usa la protezione proprietario di File server (`CORA_FILES_TOKEN`, oppure loopback diretto quando assente); il token si inserisce nel pannello “Bozze salvate e accesso al server” e resta soltanto in memoria.
+
+L’editor e la persistenza sono implementati. Esecuzione, schedulazione, mapping dei dati fra nodi, interpretazione delle condizioni e assegnazione agli agenti rimangono da collegare: non esistono un comando di attivazione né un endpoint di esecuzione delle bozze.
 
 La panoramica Architettura usa `/api/v1/architecture/overview`: il framework generale e le deleghe reali sono separati dai componenti di supporto e dai percorsi API senza agenti. I flussi interni degli agenti non sono nella vista principale.
