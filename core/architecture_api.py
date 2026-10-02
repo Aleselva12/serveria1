@@ -56,3 +56,57 @@ def run_detail(run_id: str):
     if not matches:
         raise HTTPException(404, "Esecuzione non trovata")
     return matches[0]
+
+
+def architecture_overview():
+    """System-level view: agent delegation, shared support and direct API paths."""
+    from core.registry import get_registry
+    from core.models import get_model_name
+    from tools import supervisor_tools
+    from core.calendar_api import router as calendar_router
+    from core.monitoring import router as monitoring_router
+    from core.server_files import router as files_router
+    from core.ia_library import router as library_router
+
+    registry = get_registry()
+    roles = {"supervisor": "supervisor", "structure_agent": "structure",
+             "local_research_agent": "research", "audio_agent": "audio",
+             "email_quotes_agent": "email"}
+    nodes = [{**c, "kind": "agent" if c["id"] in roles else c["kind"],
+              "model": get_model_name(roles[c["id"]]) if c["id"] in roles else None}
+             for c in registry["components"] if c["id"] in roles or c["kind"] == "interface"]
+    targets = {"structure_agent_tool": "structure_agent", "search_agent_tool": "local_research_agent",
+               "audio_agent_tool": "audio_agent", "email_agent_tool": "email_quotes_agent"}
+    edges = [dict(source="react_ui", target="fastapi_backend", label="Richiesta chat", kind="request"),
+             dict(source="fastapi_backend", target="supervisor", label="/chat", kind="request")]
+    edges += [dict(source="supervisor", target=targets[t.name], label="Delega", kind="delegation")
+              for t in supervisor_tools if t.name in targets]
+    components = [c for c in registry["components"] if c["kind"] == "core" and c["id"] != "supervisor"]
+    direct_paths = []
+    for identifier, name, trigger, router, description in (
+        ("calendar_direct", "Calendario", "Azioni dell’utente", calendar_router,
+         "Eventi, storico e approvazione delle proposte attraverso API e PostgreSQL."),
+        ("files_direct", "File server", "Azioni dell’utente", files_router,
+         "Esplorazione, caricamento e gestione dei file tramite API."),
+        ("library_direct", "Libreria IA", "Azioni dell’utente", library_router,
+         "Gestione delle copie dei file tramite API."),
+        ("monitoring_direct", "Monitoraggio", "Aggiornamento della Home", monitoring_router,
+         "Lettura di sensori e stato dei servizi con codice deterministico."),
+    ):
+        paths = sorted({r.path for r in router.routes})
+        if paths:
+            direct_paths.append(dict(id=identifier, name=name, trigger=trigger,
+                                     description=description, routes=paths, source=router.routes[0].endpoint.__module__))
+    # These hooks are executed by /chat itself, outside the agent graph.
+    automations = [dict(id="chat_persistence", name="Salvataggio della chat",
+                        trigger="Richiesta e risposta chat", source="api.py:chat",
+                        description="Cronologia, stato temporaneo ed episodio salvati da codice deterministico. Nessun agente aggiuntivo.")]
+    payload = dict(nodes=nodes, edges=edges, components=components, direct_paths=direct_paths,
+                   automations=automations, framework="LangGraph")
+    version = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
+    return dict(version=version, **payload)
+
+
+@router.get("/architecture/overview")
+def overview_endpoint():
+    return architecture_overview()

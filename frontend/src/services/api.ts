@@ -1,5 +1,6 @@
 import type {
   ArchitectureGraph,
+  ArchitectureOverview,
   ExecutionRun,
   ToolInventory,
   SavedConversation,
@@ -106,6 +107,17 @@ function metricValid(metric: ServerTelemetry["cpu"]) {
 const nonnegative = (value: number) => Number.isFinite(value) && value >= 0;
 
 export const api = {
+  async architectureOverview(): Promise<ArchitectureOverview> {
+    const data = await request<ArchitectureOverview>("/api/v1/architecture/overview");
+    if (!data || typeof data.version !== "string" || typeof data.framework !== "string" ||
+        !Array.isArray(data.nodes) || !data.nodes.every(n => n && typeof n.id === "string" && typeof n.name === "string" && typeof n.available === "boolean" && Array.isArray(n.capabilities) && (n.model === null || typeof n.model === "string")) ||
+        !Array.isArray(data.edges) || !data.edges.every(e => e && typeof e.source === "string" && typeof e.target === "string" && typeof e.label === "string" && ["request", "delegation"].includes(e.kind) && data.nodes.some(n => n.id === e.source) && data.nodes.some(n => n.id === e.target)) ||
+        !Array.isArray(data.components) || !data.components.every(c => c && typeof c.id === "string" && typeof c.name === "string" && typeof c.description === "string" && typeof c.available === "boolean" && Array.isArray(c.capabilities)) ||
+        !Array.isArray(data.direct_paths) || !data.direct_paths.every(p => p && typeof p.id === "string" && typeof p.name === "string" && typeof p.trigger === "string" && typeof p.description === "string" && Array.isArray(p.routes) && p.routes.every(r => typeof r === "string")) ||
+        !Array.isArray(data.automations) || !data.automations.every(a => a && typeof a.id === "string" && typeof a.name === "string" && typeof a.trigger === "string" && typeof a.description === "string"))
+      throw new ApiError("Panoramica dell’architettura non valida.", "invalid");
+    return data;
+  },
   async architectureGraph(): Promise<ArchitectureGraph> {
     const data = await request<ArchitectureGraph>("/api/v1/architecture/graph");
     if (!data || typeof data.version !== "string" || !Array.isArray(data.graphs) || !Array.isArray(data.delegations) || !Array.isArray(data.errors) || !data.graphs.every(g => typeof g.id === "string" && Array.isArray(g.nodes) && Array.isArray(g.edges) && g.nodes.every(n => typeof n.id === "string" && typeof n.name === "string") && g.edges.every(e => typeof e.source === "string" && typeof e.target === "string" && typeof e.conditional === "boolean"))) throw new ApiError("Grafo non valido.", "invalid");

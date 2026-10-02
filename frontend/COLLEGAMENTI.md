@@ -12,7 +12,7 @@ Calendario: viste mese/giorno e CRUD persistente sotto `/api/v1/calendar`; stori
 | Home / Impostazioni | `GET /health` | FastAPI, raggiungibilità Ollama, modello supervisore, statistiche memoria. |
 | Home | `GET /api/v1/server/telemetry`, `GET /api/v1/server/storage` | CPU/RAM/dischi/rete e cronologia reali; GPU e alimentazione solo se rilevabili. |
 | Servizi Home | `GET /api/v1/system/status` | FastAPI, Ollama, Docker/container se accessibili; Immich/Nextcloud/n8n con URL configurato. Raggiungibilità, non readiness degli agenti. |
-| Architettura | `GET /capabilities`, `GET /api/v1/architecture/graph`, `GET /api/v1/runs`, `GET /api/v1/runs/{id}` | Registro strutturale, topologia eseguibile versionata e tracce correlate persistenti. |
+| Architettura | `GET /capabilities`, `GET /api/v1/architecture/overview`, `GET /api/v1/architecture/graph`, `GET /api/v1/runs`, `GET /api/v1/runs/{id}` | Registro strutturale, topologia eseguibile versionata e tracce correlate persistenti. |
 | Nuova chat / sidebar | `GET /conversations`, `GET /conversations/{id}/messages`, `POST /chat` | Storico PostgreSQL caricato all’apertura e alla selezione; aggiornamento manuale e dopo invio. Ultime 500 chat e 2.000 messaggi per chat. Nuove chat salvate al primo messaggio. |
 | Attività | Esito HTTP delle richieste chat nella pagina | Non è un endpoint dei run, né una traccia degli agenti. |
 | AVVIO | Launcher di `serveria1` con frontend integrato o `-FrontendPath` | Avvio locale Windows; nessuna configurazione automatica del NAS. |
@@ -73,3 +73,5 @@ La pagina Architettura ha due sezioni: Architettura conserva la mappa degli agen
 L’inventario ispeziona le dichiarazioni Python e le liste di tool collegate ai grafi, senza caricare modelli o eseguire strumenti. Le API effettivamente registrate da FastAPI sono mostrate separatamente come operazioni backend non direttamente assegnate agli agenti. Le predisposizioni sono marcate come non implementate nella versione osservata. La rilevazione calendario include i moduli `*tools.py` nella radice, nel core e nelle cartelle degli agenti; una lista calendario importata e aggiunta al Supervisor viene risolta dal catalogo.
 
 Gli stati descrivono collegamenti strutturali, non readiness runtime, credenziali o autorizzazioni. Automazioni, editor dei flussi ed esecuzione non vengono attivati da questa pagina. I nodi sono in sola lettura, senza collegamenti fittizi fra strumenti.
+
+La panoramica Architettura usa `/api/v1/architecture/overview`: il framework generale e le deleghe reali sono separati dai componenti di supporto e dai percorsi API senza agenti. I flussi interni degli agenti non sono nella vista principale.
