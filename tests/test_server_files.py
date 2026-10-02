@@ -150,6 +150,27 @@ class ServerFilesTests(unittest.TestCase):
         with patch.dict(os.environ, {'CORA_FILE_ROOTS': 'not-json'}):
             self.assertEqual(self.get('/roots').status_code, 503)
 
+    def test_roots_do_not_expose_absolute_paths(self):
+        self.assertTrue(all('path' not in root for root in self.get('/roots').json()['roots']))
+
+    def test_reserved_names_are_case_insensitive(self):
+        self.assertEqual(self.get('/children', path='.CORA-Trash').status_code, 400)
+        self.assertEqual(self.post('/folders', path='.Cora-Staging').status_code, 400)
+
+    def test_invalid_transfer_mode_is_validation_error(self):
+        self.upload()
+        self.assertEqual(self.post('/transfer', path='hello.txt', destination='b.txt', mode='x').status_code, 422)
+
+    def test_long_name_is_bad_request(self):
+        self.assertEqual(self.post('/folders', path='a' * 300).status_code, 400)
+
+    def test_loopback_accepts_ipv4_mapped_address(self):
+        from core.server_files import is_loopback
+        self.assertTrue(is_loopback('::ffff:127.0.0.1'))
+        self.assertTrue(is_loopback('::1'))
+        self.assertFalse(is_loopback('192.168.1.5'))
+        self.assertFalse(is_loopback(''))
+
 
 if __name__ == '__main__':
     unittest.main()

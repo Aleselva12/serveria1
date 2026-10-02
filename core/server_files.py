@@ -1,7 +1,9 @@
 """Owner-facing filesystem API. Does not expose files to agents or index them."""
 from __future__ import annotations
 
+import errno
 import hmac
+import ipaddress
 import json
 import mimetypes
 import os
@@ -12,6 +14,7 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse
@@ -24,13 +27,23 @@ RESERVED = {".cora-trash", ".cora-staging"}
 LOCK = threading.RLock()
 
 
+def is_loopback(host: str):
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+        address = address.ipv4_mapped
+    return address.is_loopback
+
+
 def owner_access(request: Request):
     token = os.getenv("CORA_FILES_TOKEN", "")
     if token:
         supplied = request.headers.get("authorization", "")
-        if not hmac.compare_digest(supplied, "Bearer " + token):
+        if not hmac.compare_digest(supplied.encode("utf-8"), ("Bearer " + token).encode("utf-8")):
             raise HTTPException(401, "Accesso File server non autorizzato.")
-    elif not request.client or request.client.host not in {"127.0.0.1", "::1"}:
+    elif not is_loopback(request.client.host if request.client else ""):
         raise HTTPException(403, "Configura CORA_FILES_TOKEN per l'accesso remoto.")
 
 
@@ -80,7 +93,7 @@ def parts(path: str):
     if path.startswith("/") or "\\" in path or ":" in path or "\x00" in path:
         raise HTTPException(400, "Percorso relativo non valido.")
     segments = path.split("/") if path else []
-    if any(p in {"", ".", ".."} or p in RESERVED for p in segments):
+    if any(p in {"", ".", ".."} or p.casefold() in RESERVED for p in segments):
         raise HTTPException(400, "Percorso relativo non valido.")
     return segments
 
@@ -109,14 +122,27 @@ def vacant(path: Path):
 
 
 @contextmanager
+def guard():
+    try:
+        yield
+    except PermissionError:
+        raise HTTPException(403, "Permessi del sistema operativo insufficienti.") from None
+    except FileExistsError:
+        raise HTTPException(409, "Esiste già un elemento con questo nome.") from None
+    except (FileNotFoundError, NotADirectoryError):
+        raise HTTPException(404, "File o cartella non trovato.") from None
+    except OSError as error:
+        if error.errno == errno.ENAMETOOLONG:
+            raise HTTPException(400, "Nome o percorso troppo lungo.") from None
+        if error.errno in {errno.ENOSPC, errno.EDQUOT}:
+            raise HTTPException(507, "Spazio insufficiente sul filesystem del server.") from None
+        raise HTTPException(503, "Operazione non riuscita sul filesystem del server.") from None
+
+
+@contextmanager
 def operation():
-    with LOCK:
-        try:
-            yield
-        except PermissionError:
-            raise HTTPException(403, "Permessi del sistema operativo insufficienti.") from None
-        except OSError:
-            raise HTTPException(503, "Operazione non riuscita sul filesystem del server.") from None
+    with LOCK, guard():
+        yield
 
 
 def iso(timestamp: float):
@@ -137,30 +163,30 @@ def node(base: Path, target: Path, writable: bool):
 
 
 def upload_to(root: dict, base: Path, path: str, file: UploadFile):
-    # Spool to disk; publish only completed uploads. Never overwrite an existing file.
+    # Spool to disk outside the global lock; publish only completed uploads. Never overwrite an existing file.
+    try:
+        limit = int(os.getenv("CORA_FILES_MAX_UPLOAD_BYTES", "1073741824"))
+        if limit < 1:
+            raise ValueError
+    except ValueError:
+        raise HTTPException(503, "Limite upload non valido.") from None
+    name = file.filename or ""
+    if len(parts(name)) != 1:
+        raise HTTPException(400, "Nome file non valido.")
     with operation():
         folder = resolve(base, path)
         exists(folder)
         if not folder.is_dir():
             raise HTTPException(400, "Destinazione non valida.")
-        name = file.filename or ""
-        if len(parts(name)) != 1:
-            raise HTTPException(400, "Nome file non valido.")
-        target = resolve(base, "/".join(filter(None, [path, name])))
-        vacant(target)
+        vacant(resolve(base, "/".join(filter(None, [path, name]))))
         staging = base / ".cora-staging"
         if staging.is_symlink():
             raise HTTPException(403, "Area temporanea non valida.")
         staging.mkdir(exist_ok=True)
-        try:
-            limit = int(os.getenv("CORA_FILES_MAX_UPLOAD_BYTES", "1073741824"))
-            if limit < 1:
-                raise ValueError
-        except ValueError:
-            raise HTTPException(503, "Limite upload non valido.") from None
         fd, tempname = tempfile.mkstemp(dir=staging)
-        temp = Path(tempname)
-        try:
+    temp = Path(tempname)
+    try:
+        with guard():
             size = 0
             with os.fdopen(fd, "wb") as out:
                 while chunk := file.file.read(1024 * 1024):
@@ -168,14 +194,19 @@ def upload_to(root: dict, base: Path, path: str, file: UploadFile):
                     if size > limit:
                         raise HTTPException(413, "File oltre il limite di upload configurato.")
                     out.write(chunk)
-            try:
-                os.link(temp, target)  # Atomic no-clobber publication on the same volume.
-            except FileExistsError:
-                raise HTTPException(409, "Esiste già un elemento con questo nome.") from None
-        finally:
-            temp.unlink(missing_ok=True)
-            file.file.close()
-        return node(base, target, root["writable"])
+            os.chmod(temp, 0o644)  # mkstemp creates 0600 files; published uploads should be normal files.
+        with operation():
+            folder = resolve(base, path)
+            exists(folder)
+            if not folder.is_dir():
+                raise HTTPException(400, "Destinazione non valida.")
+            target = resolve(base, "/".join(filter(None, [path, name])))
+            vacant(target)
+            os.link(temp, target)  # Atomic no-clobber publication on the same volume.
+            return node(base, target, root["writable"])
+    finally:
+        temp.unlink(missing_ok=True)
+        file.file.close()
 
 
 def trash_area(base: Path):
@@ -193,7 +224,7 @@ class Location(BaseModel):
 
 class Transfer(Location):
     destination: str = Field(min_length=1)
-    mode: str = "move"
+    mode: Literal["move", "copy"] = "move"
 
 
 class Restore(BaseModel):
@@ -221,7 +252,8 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
                         storage = {"usedBytes": usage.used, "totalBytes": usage.total, "freeBytes": usage.free}
                     except OSError:
                         available = False
-                result.append({**root, "available": available, "storage": storage})
+                result.append({"id": root["id"], "label": root["label"], "writable": root["writable"],
+                               "available": available, "storage": storage})
             return {"roots": result}
 
 
@@ -235,7 +267,7 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
                 raise HTTPException(400, "Il percorso non è una cartella.")
             entries = []
             for child in target.iterdir():
-                if child.name in RESERVED or not query.casefold() in child.name.casefold():
+                if child.name.casefold() in RESERVED or not query.casefold() in child.name.casefold():
                     continue
                 try:
                     entries.append(node(base, child, root["writable"]))
@@ -278,8 +310,6 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
     @router.post("/transfer")
     def transfer(body: Transfer):
         with operation():
-            if body.mode not in {"move", "copy"}:
-                raise HTTPException(400, "Modalità non valida.")
             root, base = select_root(body.root_id, write=True)
             src = resolve(base, body.path)
             dst = resolve(base, body.destination)
@@ -289,11 +319,11 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
                 raise HTTPException(400, "Non puoi spostare o copiare una cartella dentro se stessa.")
             if not src.is_file() and not src.is_dir():
                 raise HTTPException(400, "Tipo di file non supportato.")
-            if src.is_dir():
+            if body.mode == "copy" and src.is_dir():
                 for directory, directories, files in os.walk(src, followlinks=False):
                     for name in directories + files:
                         child = Path(directory) / name
-                        if child.is_symlink() or (not child.is_dir() and not child.is_file()) or name in RESERVED:
+                        if child.is_symlink() or (not child.is_dir() and not child.is_file()) or name.casefold() in RESERVED:
                             raise HTTPException(403, "La cartella contiene collegamenti, file speciali o aree riservate.")
             if body.mode == "move":
                 src.rename(dst)
@@ -356,7 +386,9 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
                         continue
                     try:
                         data = json.loads(metadata.read_text(encoding="utf-8"))
-                        if (slot / "content").exists():
+                        if (isinstance(data, dict) and isinstance(data.get("id"), str)
+                                and isinstance(data.get("path"), str) and isinstance(data.get("deletedAt"), str)
+                                and (slot / "content").exists()):
                             items.append(data)
                     except (ValueError, OSError):
                         continue
@@ -375,13 +407,14 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
             exists(slot / "content")
             try:
                 data = json.loads((slot / "metadata.json").read_text(encoding="utf-8"))
+                if not isinstance(data.get("path"), str):
+                    raise ValueError
                 dst = resolve(base, data["path"])
-            except (ValueError, KeyError, TypeError):
+            except (ValueError, KeyError, TypeError, AttributeError, OSError):
                 raise HTTPException(409, "Metadati cestino non validi.") from None
             vacant(dst)
             (slot / "content").rename(dst)
-            (slot / "metadata.json").unlink()
-            slot.rmdir()
+            shutil.rmtree(slot, ignore_errors=True)  # content already restored; leftovers must not fail the request
             return node(base, dst, root["writable"])
 
     return router
