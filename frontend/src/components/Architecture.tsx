@@ -33,7 +33,7 @@ export default function Architecture({
           </div>
         </div>
         {navigation}
-        <ArchitectureRuntime />
+        <ArchitectureRuntime showTraces={false} />
       </section>
     );
   const supervisor = registry.components.find((c) => c.id === "supervisor");
@@ -47,14 +47,14 @@ export default function Architecture({
           <div className="eyebrow">OSSERVA IL SISTEMA</div>
           <h1>Architettura</h1>
           <p>
-            Grafo e tracce letti dal backend. Le deleghe disponibili e i passaggi eseguiti sono mostrati separatamente.
+            Grafo e componenti letti dal backend. Le tracce delle esecuzioni sono state spostate nella pagina Attività.
           </p>
         </div>
         <span className="pill">Registro reale · Sola lettura</span>
       </div>
       {navigation}
       <div className="arch-layout">
-        <ArchitectureRuntime />
+        <ArchitectureRuntime showTraces={false} />
         <aside className="side-panel">
           <div className="eyebrow">COMPONENTE SELEZIONATO</div>
           <h2>{selected?.name || "Seleziona un componente"}</h2>
