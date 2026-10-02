@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import errno
-import hmac
-import ipaddress
 import json
 import mimetypes
 import os
@@ -20,6 +18,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from core.access import is_loopback, require_owner
 from core.file_paths import ORIGINALS_ID, original_resource
 
 BASE = Path(__file__).resolve().parent.parent
@@ -27,24 +26,8 @@ RESERVED = {".cora-trash", ".cora-staging"}
 LOCK = threading.RLock()
 
 
-def is_loopback(host: str):
-    try:
-        address = ipaddress.ip_address(host)
-    except ValueError:
-        return False
-    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
-        address = address.ipv4_mapped
-    return address.is_loopback
-
-
 def owner_access(request: Request):
-    token = os.getenv("CORA_FILES_TOKEN", "")
-    if token:
-        supplied = request.headers.get("authorization", "")
-        if not hmac.compare_digest(supplied.encode("utf-8"), ("Bearer " + token).encode("utf-8")):
-            raise HTTPException(401, "Accesso File server non autorizzato.")
-    elif not is_loopback(request.client.host if request.client else ""):
-        raise HTTPException(403, "Configura CORA_FILES_TOKEN per l'accesso remoto.")
+    require_owner(request, "files")
 
 
 def roots():

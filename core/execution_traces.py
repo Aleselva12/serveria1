@@ -20,8 +20,8 @@ def append_event(event):
 
 
 class ExecutionTrace(BaseCallbackHandler):
-    def __init__(self, thread_id, graph_version):
-        self.id = str(uuid.uuid4())
+    def __init__(self, thread_id, graph_version, run_id=None):
+        self.id = str(run_id or uuid.uuid4())
         self.thread_id = thread_id
         self.graph_version = graph_version
         self.started = {}

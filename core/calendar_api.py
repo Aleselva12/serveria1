@@ -1,24 +1,15 @@
 from datetime import datetime
 from uuid import UUID
-import hmac
-import os
-
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from pydantic import BaseModel, Field
 from psycopg import OperationalError
 
 from core import calendar as store
-from core.server_files import is_loopback
+from core.access import require_owner
 
 
 def calendar_owner(request: Request):
-    token = os.getenv("CORA_CALENDAR_TOKEN", "")
-    if token:
-        supplied = request.headers.get("authorization", "")
-        if not hmac.compare_digest(supplied.encode(), ("Bearer " + token).encode()):
-            raise HTTPException(401, "Token calendario non valido.")
-    elif not is_loopback(request.client.host if request.client else ""):
-        raise HTTPException(403, "Configura CORA_CALENDAR_TOKEN per l'accesso remoto.")
+    require_owner(request, "calendar")
 
 
 router = APIRouter(prefix="/api/v1/calendar", tags=["calendar"], dependencies=[Depends(calendar_owner)])

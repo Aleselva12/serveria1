@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from core.chat_store import conversation_stats, ensure_conversation, get_messages, list_conversations, recent_context, save_message
+from core.chat_store import conversation_stats, ensure_conversation, get_messages, list_conversations, recent_context, refresh_transcript, save_message
 from core.database import database_status
 from core.episodes import create_episode, list_episodes
 from core.logging import logged_operation
@@ -28,6 +28,10 @@ from core.tool_definitions import definition
 from core.automation_api import router as automation_router
 from core.architecture_api import router as architecture_router, architecture_graph
 from core.execution_traces import ExecutionTrace
+from core.permissions_api import router as permissions_router
+from core.runtime_api import router as runtime_router
+from core.run_lifecycle import create_run, transition_run
+from core.runtime_context import bind_runtime
 
 
 load_dotenv()
@@ -46,6 +50,8 @@ app.include_router(library_router)
 app.include_router(calendar_router)
 app.include_router(architecture_router)
 app.include_router(automation_router)
+app.include_router(permissions_router)
+app.include_router(runtime_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -66,6 +72,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     thread_id: str
+    run_id: str | None = None
 
 
 class MemoryWriteRequest(BaseModel):
@@ -214,6 +221,7 @@ def chat(request: ChatRequest):
         return ChatResponse(
             response="Scrivi un messaggio per iniziare.",
             thread_id=request.thread_id or str(uuid.uuid4()),
+            run_id=None,
         )
 
     thread_id = request.thread_id or str(uuid.uuid4())
@@ -224,7 +232,18 @@ def chat(request: ChatRequest):
         content=message,
         agent_id="user",
         metadata={"source": "chat_api"},
+        refresh_transcript_now=False,
     )
+
+    run = create_run(
+        thread_id=thread_id,
+        kind="chat",
+        target="supervisor",
+        metadata={"user_message_id": str(user_message["id"])},
+    )
+    run_id = str(run["id"])
+    transition_run(run_id, "running")
+
     set_working_memory(
         agent_id="supervisor",
         thread_id=thread_id,
@@ -232,6 +251,7 @@ def chat(request: ChatRequest):
             "status": "running",
             "current_request": message,
             "last_user_message_id": str(user_message["id"]),
+            "run_id": run_id,
         },
     )
 
@@ -242,19 +262,50 @@ def chat(request: ChatRequest):
         data={
             "message_chars": len(message),
             "user_message_id": str(user_message["id"]),
+            "run_id": run_id,
         },
     ) as operation:
-        trace = ExecutionTrace(thread_id, architecture_graph()["version"])
+        trace = ExecutionTrace(thread_id, architecture_graph()["version"], run_id=run_id)
         trace_started = time.perf_counter()
         trace.event("run", "running", name="Grafo chat Cora")
         try:
-            result = graph.invoke({"messages": recent_context(thread_id)}, config={"callbacks": [trace]})
+            with bind_runtime(run_id, thread_id):
+                result = graph.invoke(
+                    {"messages": recent_context(thread_id)},
+                    config={"callbacks": [trace]},
+                )
         except Exception as error:
-            trace.event("run", "error", name="Grafo chat Cora", duration_ms=round((time.perf_counter() - trace_started) * 1000, 2), error_type=type(error).__name__)
-            raise
+            trace.event(
+                "run",
+                "error",
+                name="Grafo chat Cora",
+                duration_ms=round((time.perf_counter() - trace_started) * 1000, 2),
+                error_type=type(error).__name__,
+            )
+            try:
+                transition_run(run_id, "failed", error_type=type(error).__name__)
+                set_working_memory(
+                    agent_id="supervisor",
+                    thread_id=thread_id,
+                    state={
+                        "status": "error",
+                        "current_request": message,
+                        "error": str(error)[:1200],
+                        "run_id": run_id,
+                    },
+                )
+                refresh_transcript(thread_id)
+            finally:
+                raise
         else:
-            trace.event("run", "completed", name="Grafo chat Cora", duration_ms=round((time.perf_counter() - trace_started) * 1000, 2))
-        response = result["messages"][-1].content
+            trace.event(
+                "run",
+                "completed",
+                name="Grafo chat Cora",
+                duration_ms=round((time.perf_counter() - trace_started) * 1000, 2),
+            )
+
+        response = str(result["messages"][-1].content)
         assistant_message = save_message(
             conversation_id=thread_id,
             role="assistant",
@@ -262,8 +313,13 @@ def chat(request: ChatRequest):
             agent_id="supervisor",
             model_id=get_model_name("supervisor"),
             parent_message_id=str(user_message["id"]),
-            metadata={"source": "chat_api"},
+            metadata={"source": "chat_api", "run_id": run_id},
+            refresh_transcript_now=False,
         )
+        # Regenerate the readable Markdown transcript once per completed turn,
+        # not once for every message insert.
+        refresh_transcript(thread_id)
+
         set_working_memory(
             agent_id="supervisor",
             thread_id=thread_id,
@@ -273,6 +329,7 @@ def chat(request: ChatRequest):
                 "last_response": response[:1200],
                 "last_user_message_id": str(user_message["id"]),
                 "last_assistant_message_id": str(assistant_message["id"]),
+                "run_id": run_id,
             },
             ttl_minutes=120,
         )
@@ -288,14 +345,22 @@ def chat(request: ChatRequest):
             metadata={
                 "user_message_id": str(user_message["id"]),
                 "assistant_message_id": str(assistant_message["id"]),
+                "run_id": run_id,
             },
+        )
+        transition_run(
+            run_id,
+            "completed",
+            metadata={"assistant_message_id": str(assistant_message["id"])},
         )
         operation["result"] = {
             "response_chars": len(response),
             "assistant_message_id": str(assistant_message["id"]),
+            "run_id": run_id,
         }
 
     return ChatResponse(
         response=response,
         thread_id=thread_id,
+        run_id=run_id,
     )
