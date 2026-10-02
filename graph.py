@@ -32,6 +32,8 @@ PARALLEL_READ_TOOLS = {
     "calendar_get_event",
 }
 TERMINAL_DELEGATION_TOOLS = {
+    "calculator_tool",
+    "system_status_tool",
     "structure_agent_tool",
     "search_agent_tool",
     "audio_agent_tool",

@@ -123,7 +123,10 @@ def inventory(routes=(), root: Path = ROOT):
         path = getattr(route, "path", "")
         if path in {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/tools/inventory", "/tools/definition"}:
             continue
-        group = ("Automazioni" if path.startswith("/tools/drafts") else "File server" if "/server/files" in path else "Libreria IA" if "/library/files" in path else
+        group = ("Automazioni" if path.startswith("/tools/drafts") else
+                 "Permessi e approvazioni" if path.startswith("/api/v1/permissions") or path.startswith("/api/v1/approvals") else
+                 "Runtime" if path.startswith("/api/v1/runtime") else
+                 "File server" if "/server/files" in path else "Libreria IA" if "/library/files" in path else
                  "Architettura e tracce" if "/architecture/" in path or path.startswith("/api/v1/runs") else "Calendario" if "calendar" in path else "Memoria" if path.startswith("/memory") else
                  "Conversazioni" if path.startswith("/conversations") else "Sistema")
         for method in sorted(getattr(route, "methods", ()) or ()):

@@ -212,7 +212,7 @@ export type BackendRegistry = {
   component_count: number;
   components: BackendComponent[];
 };
-export type BackendChatResponse = { response: string; thread_id: string };
+export type BackendChatResponse = { response: string; thread_id: string; run_id?: string | null };
 
 export type FileArea = "server" | "library";
 export type BrowserNode = {

@@ -23,6 +23,15 @@ MODULES = [
     "core.logging",
     "core.memory",
     "core.permissions",
+    "core.protocol",
+    "core.component_bus",
+    "core.access",
+    "core.approvals",
+    "core.run_lifecycle",
+    "core.runtime_context",
+    "core.runtime_status",
+    "core.permissions_api",
+    "core.runtime_api",
     "core.orchestration",
     "core.plans",
     "local_tools",
@@ -87,6 +96,10 @@ def check_configuration() -> None:
     print(f"  OLLAMA_BASE_URL={os.getenv('OLLAMA_BASE_URL', 'http://localhost:11435')}")
 
     optional = {
+        "CORA_OWNER_TOKEN": "accesso proprietario remoto",
+        "CORA_DB_POOL_MIN": "pool PostgreSQL minimo",
+        "CORA_DB_POOL_MAX": "pool PostgreSQL massimo",
+        "CORA_CHAT_EMBED_MESSAGES": "embedding opzionale dei messaggi chat",
         "CORA_KNOWLEDGE_ROOT": "Local Research Agent",
         "CORA_AUDIO_ROOT": "Audio Agent",
         "CORA_DIARIZATION_MODEL": "diarizzazione audio",

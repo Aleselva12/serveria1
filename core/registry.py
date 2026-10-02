@@ -56,6 +56,43 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
             Capability("check_permission", "Verifica deterministicamente se un'azione è AUTO, CONFIRM o BLOCKED."),
             Capability("permission_manifest", "Espone le regole di permesso configurate per attore e azione."),
             Capability("validate_permissions", "Verifica la copertura delle azioni implementate."),
+            Capability("owner_access", "Unifica il gate proprietario per le API protette, con compatibilità per i token legacy."),
+        ),
+    ),
+    ComponentDefinition(
+        id="component_protocol",
+        name="Component Protocol & Bus",
+        kind="core",
+        description="Contratto tipizzato TaskEnvelope/ComponentResult e comunicazione diretta in-process tra componenti.",
+        module="core.component_bus",
+        capabilities=(
+            Capability("typed_tasks", "Scambia richieste strutturate tra componenti senza serializzazione o hop di rete."),
+            Capability("typed_results", "Normalizza risultati, artefatti, osservazioni ed errori dei componenti."),
+            Capability("runtime_bus_state", "Espone lo stato locale busy/ready/error dei componenti attraversati dal bus."),
+        ),
+    ),
+    ComponentDefinition(
+        id="runtime_lifecycle",
+        name="Runtime Lifecycle",
+        kind="core",
+        description="Stato persistente dei run e delle deleghe, separato dalle tracce tecniche.",
+        module="core.run_lifecycle",
+        capabilities=(
+            Capability("run_state", "Gestisce queued, running, waiting_approval e stati terminali."),
+            Capability("child_runs", "Collega le deleghe specialistiche al run padre."),
+            Capability("cooperative_cancel", "Registra richieste di cancellazione per i confini sicuri del runtime."),
+        ),
+    ),
+    ComponentDefinition(
+        id="generic_approvals",
+        name="Generic Approvals",
+        kind="core",
+        description="Workflow generico persistente per azioni con policy CONFIRM, riutilizzabile dai domini futuri.",
+        module="core.approvals",
+        capabilities=(
+            Capability("request_approval", "Crea richieste persistenti soltanto per azioni CONFIRM."),
+            Capability("resolve_approval", "Permette al proprietario di approvare o rifiutare."),
+            Capability("consume_approval", "Consuma una approvazione una sola volta prima dell'effetto collaterale."),
         ),
     ),
     ComponentDefinition(

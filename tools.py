@@ -37,7 +37,18 @@ def calculator_tool(expression: str) -> str:
 def system_status_tool() -> str:
     """Legge CPU, RAM e disco dopo il controllo permessi del Supervisor."""
     _require_supervisor_permission("inspect_runtime")
-    return _system_status_tool.invoke({})
+    raw = _system_status_tool.invoke({})
+    try:
+        status = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return str(raw)
+    return (
+        f"CPU {status['cpu_percent']}% · "
+        f"RAM {status['ram_used_gb']} / {status['ram_total_gb']} GB "
+        f"({status['ram_percent']}%) · "
+        f"Disco {status['disk_used_gb']} / {status['disk_total_gb']} GB "
+        f"({status['disk_percent']}%)"
+    )
 
 
 @tool
