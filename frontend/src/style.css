@@ -3094,3 +3094,24 @@ select:disabled {
 .calendar-page button:focus-visible { outline:2px solid #14936b; outline-offset:2px; }
 @media(max-width:1000px) { .calendar-page .calendar-layout, .calendar-bottom { grid-template-columns:1fr; } }
 @media(max-width:600px) { .calendar-page .calendar-day { min-height:85px; padding:3px; } .calendar-event { font-size:9px; padding:3px; } .calendar-add { display:none; } .calendar-page .calendar-toolbar h2 { font-size:14px; } }
+
+/* Activity: session overview + persistent execution traces. */
+.activity-page {
+  max-width: 1380px;
+  margin: 0 auto;
+}
+.activity-layout {
+  display: grid;
+  gap: 20px;
+}
+.activity-session-card {
+  margin: 0;
+}
+.activity-layout .runtime-architecture > .section-card {
+  margin-top: 0;
+}
+@media (max-width: 760px) {
+  .activity-page .trace-table {
+    overflow-x: auto;
+  }
+}
