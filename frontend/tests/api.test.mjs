@@ -178,3 +178,23 @@ test("Home checks services independently and preserves unknown status", async ()
   globalThis.fetch = async () => jsonResponse({ ...data, services: [null] });
   await assert.rejects(api.services(), (error) => error.kind === "invalid");
 });
+
+
+test("history uses the implemented endpoints and encoded conversation ID", async () => {
+  const id = "thread/one";
+  const saved = [{ id, title: "Test", created_at: "2026-10-02T12:00:00Z", updated_at: "2026-10-02T12:00:00Z", archived: false }];
+  const messages = [{ id: "message", conversation_id: id, role: "assistant", content: "Saved answer", created_at: "2026-10-02T12:00:00Z" }];
+  globalThis.fetch = async url => {
+    if (url === "/backend/conversations?limit=500") return jsonResponse(saved);
+    assert.equal(url, "/backend/conversations/thread%2Fone/messages?limit=2000");
+    return jsonResponse(messages);
+  };
+  assert.deepEqual(await api.conversations(), saved);
+  assert.deepEqual(await api.conversationMessages(id), messages);
+});
+test("history rejects malformed rows and messages from a different conversation", async () => {
+  globalThis.fetch = async () => jsonResponse([{ id: "bad", title: "Test" }]);
+  await assert.rejects(api.conversations(), e => e instanceof ApiError && e.kind === "invalid");
+  globalThis.fetch = async () => jsonResponse([{ id: "m", conversation_id: "other", role: "user", content: "Wrong chat", created_at: "2026-10-02T12:00:00Z" }]);
+  await assert.rejects(api.conversationMessages("selected"), e => e instanceof ApiError && e.kind === "invalid");
+});

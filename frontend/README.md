@@ -5,7 +5,7 @@ Interfaccia React + TypeScript + Vite basata sul design Figma, collegata al back
 ## Cosa funziona adesso
 
 - Chat reale: `POST /chat`, con `message` e `thread_id`, risposta completa al termine, attesa visibile, gestione errori e blocco degli invii duplicati.
-- Nuove chat e selezione delle conversazioni di **questa sessione**, con thread separati. Nessuna persistenza del frontend al ricaricamento; il contesto LangGraph resta volatile sul backend.
+- Storico PostgreSQL nella sidebar, recuperato anche dopo riavvio. Selezione con caricamento dei messaggi e prosecuzione dello stesso thread. Le nuove chat vengono salvate al primo messaggio; pulsante di aggiornamento e errori espliciti. Visualizzazione delle ultime 500 chat e fino a 2.000 messaggi per chat; il backend usa gli ultimi 40 messaggi come contesto per impostazione predefinita.
 - Stato FastAPI e raggiungibilità Ollama: `GET /health`, controllo ogni 15 secondi e pulsante di aggiornamento.
 - Home: telemetria reale ogni 5 secondi, cronologia CPU e stato servizi ogni 15 secondi. Sensori GPU/alimentazione opzionali; vedere COLLEGAMENTI.md per configurazione e limiti.
 - Modello del supervisore e conteggio memorie, quando restituiti da `/health`.
@@ -16,7 +16,7 @@ Interfaccia React + TypeScript + Vite basata sul design Figma, collegata al back
 
 Ogni parte non esposta dal backend ha un avviso permanente **“Collegamento da realizzare”**, con pulsanti disabilitati. Backend offline, errore HTTP e funzione assente sono stati distinti. Nessun valore demo, file inventato, evento locale o risposta predefinita viene presentato come dato del server.
 
-L’elenco completo è in [COLLEGAMENTI.md](COLLEGAMENTI.md), nelle Impostazioni dell’app e in `src/services/connections.ts`. Include storico chat, streaming, allegati, file del NAS, editor, calendario personale, tracce, conferme, microfono, permessi e modifica della mappa. **Non è stato creato un agente calendario.**
+L’elenco completo è in [COLLEGAMENTI.md](COLLEGAMENTI.md), nelle Impostazioni dell’app e in `src/services/connections.ts`. Include streaming, allegati, file del NAS, editor, calendario personale, tracce, conferme, microfono, permessi e modifica della mappa. **Non è stato creato un agente calendario.**
 
 ## Avvio completo consigliato
 
@@ -110,3 +110,4 @@ Base configurabile con `VITE_API_BASE_URL`; prefisso `/api/v1`. JSON UTF-8, iden
 ## Direzione del progetto
 
 Il backend resta la fonte dei dati e dei permessi. I prossimi collegamenti si aggiungono uno alla volta, rimuovendo l’avviso corrispondente solo dopo una verifica completa. La console mantiene la struttura modulare e locale di Cora.
+

@@ -11,7 +11,7 @@ Stato allineato al backend `serveria1/main` dopo l'integrazione del frontend.
 | Home | `GET /api/v1/server/telemetry`, `GET /api/v1/server/storage` | CPU/RAM/dischi/rete e cronologia reali; GPU e alimentazione solo se rilevabili. |
 | Servizi Home | `GET /api/v1/system/status` | FastAPI, Ollama, Docker/container se accessibili; Immich/Nextcloud/n8n con URL configurato. Raggiungibilità, non readiness degli agenti. |
 | Architettura | `GET /capabilities` | Registro strutturale, capacità e disponibilità moduli; non health runtime degli agenti. |
-| Nuova chat / sidebar | Thread separati tramite `/chat` | Lista e messaggi in memoria nella pagina; spariscono al refresh. |
+| Nuova chat / sidebar | `GET /conversations`, `GET /conversations/{id}/messages`, `POST /chat` | Storico PostgreSQL caricato all’apertura e alla selezione; aggiornamento manuale e dopo invio. Ultime 500 chat e 2.000 messaggi per chat. Nuove chat salvate al primo messaggio. |
 | Attività | Esito HTTP delle richieste chat nella pagina | Non è un endpoint dei run, né una traccia degli agenti. |
 | AVVIO | Launcher di `serveria1` con frontend integrato o `-FrontendPath` | Avvio locale Windows; nessuna configurazione automatica del NAS. |
 | File server | `/api/v1/server/files/roots`, `/children`, `/upload`, `/download`, `/folders`, `/transfer`, `/trash`, `/restore` | Risorse configurate, ricerca nomi nella cartella, paginazione, upload multipli, gestione file e cestino. |
@@ -22,7 +22,6 @@ Stato allineato al backend `serveria1/main` dopo l'integrazione del frontend.
 
 | Area | Collegamenti da completare | Promemoria tecnico |
 | --- | --- | --- |
-| Chat | Storico persistente, creazione/lista conversazioni, recupero messaggi | `/api/v1/conversations` e relativi messaggi; non confondere memoria SQLite con storico chat. |
 | Chat | Streaming, polling e ripresa dopo disconnessione | `/runs/{id}/events`, fallback `/runs/{id}`. |
 | Chat | Allegati, upload e associazione alla richiesta | `/files`, `attachmentIds`; la graffetta resta disabilitata. |
 | Architettura | Grafo backend versionato e traccia reale dei passi | `/architecture/graph`, `/agents`, `/runs`; il registro ora è letto da `/capabilities`. |
@@ -65,3 +64,4 @@ Problema segnalato dall'utente: al momento i file non sembrano visibili nella pa
 - Configurare e verificare anche `CORA_KNOWLEDGE_ROOT` e `CORA_LIBRARY_ORIGINALS_ROOT` sui percorsi reali del server.
 
 Questo punto resta aperto fino alla prova sul server. Non sono richiesti interventi sui percorsi locali per chiuderlo.
+

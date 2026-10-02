@@ -6,13 +6,6 @@ export const missingConnections = {
       "La mappa dispone gli agenti del registro. Topologia, versioni e dipendenze dinamiche devono ancora arrivare dal backend.",
     endpoints: "GET /api/v1/architecture/graph; GET /api/v1/agents",
   },
-  history: {
-    label: "Storico delle conversazioni",
-    detail:
-      "Le chat restano in questa pagina fino al ricaricamento. Il contesto del backend è volatile.",
-    endpoints:
-      "GET/POST /api/v1/conversations; GET /api/v1/conversations/{id}/messages",
-  },
   streaming: {
     label: "Risposta progressiva",
     detail: "Cora restituisce la risposta completa al termine della richiesta.",
@@ -72,3 +65,4 @@ export const missingConnections = {
   },
 } as const;
 export type ConnectionKey = keyof typeof missingConnections;
+

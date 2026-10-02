@@ -238,3 +238,20 @@ export type WorkingMemoryState = {
   updated_at: string;
   expires_at?: string | null;
 };
+
+
+/** Rows returned by the PostgreSQL conversation APIs. */
+export type SavedConversation = {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  archived: boolean;
+};
+export type SavedMessage = {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  created_at: string;
+};

@@ -1,4 +1,6 @@
 import type {
+  SavedConversation,
+  SavedMessage,
   BackendChatResponse,
   BackendHealth,
   BackendRegistry,
@@ -101,6 +103,27 @@ function metricValid(metric: ServerTelemetry["cpu"]) {
 const nonnegative = (value: number) => Number.isFinite(value) && value >= 0;
 
 export const api = {
+  async conversations(): Promise<SavedConversation[]> {
+    const data = await request<SavedConversation[]>("/conversations?limit=500");
+    if (!Array.isArray(data) || !data.every(c => c &&
+      typeof c.id === "string" && typeof c.title === "string" &&
+      Number.isFinite(Date.parse(c.created_at)) && Number.isFinite(Date.parse(c.updated_at)) &&
+      typeof c.archived === "boolean"))
+      throw new ApiError("Elenco conversazioni non valido.", "invalid");
+    return data;
+  },
+  async conversationMessages(id: string): Promise<SavedMessage[]> {
+    const data = await request<SavedMessage[]>(
+      "/conversations/" + encodeURIComponent(id) + "/messages?limit=2000",
+    );
+    if (!Array.isArray(data) || !data.every(m => m &&
+      typeof m.id === "string" && m.conversation_id === id &&
+      ["user", "assistant", "system"].includes(m.role) && typeof m.content === "string" &&
+      Number.isFinite(Date.parse(m.created_at))))
+      throw new ApiError("Messaggi della conversazione non validi.", "invalid");
+    return data;
+  },
+
   async telemetry(): Promise<ServerTelemetry> {
     const data = await request<ServerTelemetry>("/api/v1/server/telemetry");
     if (
@@ -267,3 +290,4 @@ export const api = {
     return data;
   },
 };
+

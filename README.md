@@ -462,7 +462,7 @@ frontend/
 
 L’interfaccia ora usa il progetto React + TypeScript di `Aleselva12/frontend`, incluso in questa cartella. Comprende Home, Chat, Architettura, Programma, Calendario, File, Attività e Impostazioni.
 
-I collegamenti reali sono `/chat`, `/health` e `/capabilities`: risposta di Cora, thread separati, stato del backend/Ollama, modello supervisore, statistiche memoria e registro degli agenti. Le conversazioni della sidebar e gli esiti delle richieste restano nella memoria della pagina, fino al ricaricamento; non sono uno storico persistente del server.
+I collegamenti reali sono `/chat`, `/health` e `/capabilities`: risposta di Cora, thread separati, stato del backend/Ollama, modello supervisore, statistiche memoria e registro degli agenti. La sidebar legge lo storico PostgreSQL da `/conversations` e carica i messaggi tramite `/conversations/{id}/messages`, anche dopo riavvio. Le nuove chat sono salvate al primo messaggio; la selezione prosegue lo stesso thread. La UI mostra le ultime 500 chat e fino a 2.000 messaggi per chat. Gli esiti nel pannello Attività restano limitati alla sessione corrente.
 
 La Home legge `/api/v1/server/telemetry` (CPU, RAM, GPU opzionale, dischi, rete, alimentazione e cronologia CPU), `/api/v1/server/storage` e `/api/v1/system/status`. Aggiornamento automatico, errori espliciti e sensori assenti mostrati come sconosciuti. Docker è interrogato in sola lettura se accessibile; gli URL di Immich, Nextcloud e n8n si configurano in `.env`. Dettagli e limiti in `frontend/COLLEGAMENTI.md`.
 
@@ -613,7 +613,7 @@ Nel codice attuale:
 - il salvataggio di una bozza Gmail richiede una richiesta esplicita;
 - il sistema non deve inventare risultati di tool o dati commerciali mancanti;
 - il log runtime e il database della memoria sono esclusi da Git;
-- la memoria volatile LangGraph e la memoria persistente SQLite sono due livelli distinti.
+- cronologia, contesto permanente e memorie persistono in PostgreSQL + pgvector; LangGraph ricostruisce il contesto recente dalla cronologia.
 
 ## Struttura essenziale
 
@@ -643,3 +643,4 @@ serveria1/
 ├── audio_agent/
 └── email_agent/
 ```
+

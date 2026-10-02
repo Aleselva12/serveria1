@@ -23,7 +23,7 @@ import ConnectionNotice from "./components/ConnectionNotice";
 import MemoryManagement from "./components/MemoryManagement";
 import { api, apiBaseUrl } from "./services/api";
 import { useBackend } from "./services/useBackend";
-import type { Message } from "./types/contracts";
+import { useConversations } from "./services/useConversations";
 
 type Page =
   | "home"
@@ -35,13 +35,6 @@ type Page =
   | "activity"
   | "settings"
   | "memory-management";
-type ChatMessage = Message & { failed?: boolean };
-type Chat = {
-  id: string;
-  threadId: string;
-  title: string;
-  messages: ChatMessage[];
-};
 type RequestActivity = {
   id: string;
   title: string;
@@ -71,20 +64,14 @@ const labels: Record<Page, string> = {
   "memory-management": "Gestione Memoria",
 };
 const uid = () => crypto.randomUUID();
-function makeChat(): Chat {
-  const id = uid();
-  return { id, threadId: id, title: "Nuova chat", messages: [] };
-}
-
 export default function App() {
   const [page, setPage] = useState<Page>("home");
   const [menu, setMenu] = useState(false);
-  const [chats, setChats] = useState<Chat[]>(() => [makeChat()]);
-  const [activeChat, setActiveChat] = useState("");
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState("");
   const sendLock = useRef(false);
+  const messagesEnd = useRef<HTMLDivElement>(null);
   const [activity, setActivity] = useState<RequestActivity[]>([]);
   const [selectedNode, setSelectedNode] = useState("supervisor");
   const [permanentContext, setPermanentContext] = useState("");
@@ -96,6 +83,12 @@ export default function App() {
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   );
   const backend = useBackend();
+  const history = useConversations(Boolean(backend.health), sending);
+  const { chats, setChats, currentChat } = history;
+  useEffect(() => {
+    if (page === "chat" && !history.messagesLoading)
+      messagesEnd.current?.scrollIntoView({ block: "end" });
+  }, [page, currentChat.id, currentChat.messages.length, history.messagesLoading, sending]);
 
   useEffect(() => {
     if (!backend.health) return;
@@ -138,7 +131,6 @@ export default function App() {
     }
   }
 
-  const currentChat = chats.find((c) => c.id === activeChat) || chats[0];
   const statusLabel = backend.health
     ? "Backend collegato"
     : backend.checking
@@ -150,16 +142,14 @@ export default function App() {
   }
   function newChat() {
     if (sendLock.current) return;
-    const chat = makeChat();
-    setChats((prev) => [chat, ...prev]);
-    setActiveChat(chat.id);
+    history.newChat();
     setDraft("");
     setChatError("");
     navigate("chat");
   }
   async function send() {
     const content = draft.trim();
-    if (!content || sendLock.current || !backend.health?.ollama_online) return;
+    if (!content || sendLock.current || history.messagesLoading || history.historyLoading || history.messagesError || !backend.health?.ollama_online) return;
     sendLock.current = true;
     setSending(true);
     setChatError("");
@@ -206,6 +196,7 @@ export default function App() {
             ? {
                 ...c,
                 threadId: result.thread_id,
+                persisted: true,
                 messages: [
                   ...c.messages,
                   {
@@ -248,6 +239,7 @@ export default function App() {
     } finally {
       sendLock.current = false;
       setSending(false);
+      void history.refreshHistory();
     }
   }
   const withSidebar = page !== "home" && page !== "files";
@@ -270,8 +262,14 @@ export default function App() {
               <span>✧</span> Nuova chat
             </button>
             <div className="sidebar-caption">
-              CONVERSAZIONI · QUESTA SESSIONE
+              CONVERSAZIONI · STORICO
             </div>
+            <button className="sidebar-history" disabled={sending || history.historyLoading}
+              onClick={() => void history.refreshHistory()}>
+              <RefreshCw size={14} /> {history.historyLoading ? "Caricamento…" : "Aggiorna storico"}
+            </button>
+            {history.historyError && <div className="sidebar-history-error" role="alert">{history.historyError}</div>}
+            {chats.filter(c => !c.persisted).length > 0 && <small className="sidebar-history-note">Le nuove chat vengono salvate al primo messaggio.</small>}
             {chats.map((chat) => (
               <button
                 key={chat.id}
@@ -281,7 +279,8 @@ export default function App() {
                   (chat.id === currentChat.id ? "active" : "")
                 }
                 onClick={() => {
-                  setActiveChat(chat.id);
+                  history.selectChat(chat.id);
+                  setDraft("");
                   setChatError("");
                   navigate("chat");
                 }}
@@ -379,7 +378,12 @@ export default function App() {
           {page === "chat" && (
             <section className="chat-page">
               <div className="messages" aria-live="polite">
-                {currentChat.messages.length === 0 && (
+                {history.messagesLoading && <p role="status">Caricamento dei messaggi…</p>}
+                {history.messagesError && <div className="connection-error" role="alert">
+                  {history.messagesError}
+                  <button disabled={history.messagesLoading} onClick={() => history.selectChat(currentChat.id)}>Riprova</button>
+                </div>}
+                {!history.messagesLoading && !history.messagesError && currentChat.messages.length === 0 && (
                   <div className="chat-welcome">
                     <h1>Una conversazione con Cora.</h1>
                     <p>Scrivi una richiesta all’agente centrale di Cora.</p>
@@ -388,7 +392,7 @@ export default function App() {
                 {currentChat.messages.map((m) => (
                   <div key={m.id} className={"message " + m.role}>
                     <div className="message-avatar">
-                      {m.role === "assistant" ? "✦" : "A"}
+                      {m.role === "assistant" ? "✦" : m.role === "system" ? "S" : "A"}
                     </div>
                     <div className="message-content">
                       {m.content}
@@ -408,6 +412,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                <div ref={messagesEnd} />
               </div>
               <div className="chat-bottom">
                 {chatError && (
@@ -424,6 +429,7 @@ export default function App() {
                     <Paperclip size={19} />
                   </button>
                   <textarea
+                    disabled={history.historyLoading || history.messagesLoading}
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => {
@@ -450,7 +456,7 @@ export default function App() {
                   <button
                     className="send-button"
                     disabled={
-                      sending || !backend.health?.ollama_online || !draft.trim()
+                      sending || history.messagesLoading || history.historyLoading || Boolean(history.messagesError) || !backend.health?.ollama_online || !draft.trim()
                     }
                     title="Invia messaggio"
                     aria-label="Invia messaggio"
@@ -467,7 +473,7 @@ export default function App() {
                       : "Ollama offline: avvia il modello locale per inviare messaggi."
                     : "Backend non collegato"}
                 </p>
-                <ConnectionNotice feature="history" compact />
+                <p>Storico salvato sul server · ultime 500 conversazioni, fino a 2.000 messaggi per chat.</p>
                 <div className="composer-notes">
                   <span>Allegati · da collegare</span>
                   <span>Microfono · da collegare</span>
@@ -847,3 +853,4 @@ export default function App() {
     </div>
   );
 }
+

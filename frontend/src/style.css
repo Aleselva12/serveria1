@@ -3043,3 +3043,10 @@ select:disabled {
     margin-left: 0;
   }
 }
+
+
+.sidebar-history-error { margin: 10px 8px; color: #f3b8a9; font-size: 12px; line-height: 1.5; }
+.sidebar-history-note { display: block; margin: 10px 8px; color: #b6b6b6; font-size: 11px; line-height: 1.5; }
+
+.sidebar-top { min-height: 0; flex: 1; overflow-y: auto; }
+.sidebar-bottom { flex-shrink: 0; padding-top: 12px; }
