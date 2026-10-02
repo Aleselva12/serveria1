@@ -22,7 +22,7 @@ def _parse(path: Path):
 
 
 def _tool_functions(tree):
-    for node in tree.body:
+    for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and any(
             isinstance(d, ast.Name) and d.id == "tool"
             or isinstance(d, ast.Call) and isinstance(d.func, ast.Name) and d.func.id == "tool"
@@ -38,7 +38,8 @@ def _binding(tree, list_name, root=ROOT, seen=None):
     seen = seen | {list_name}
     names = set()
     for node in tree.body:
-        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == list_name for t in node.targets):
+        if (isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == list_name for t in node.targets) or
+            isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name) and node.target.id == list_name):
             # Include names in literal lists, concatenations and starred lists.
             for ref in (n.id for n in ast.walk(node.value) if isinstance(n, ast.Name)):
                 expanded = _binding(tree, ref, root, seen)
@@ -47,7 +48,12 @@ def _binding(tree, list_name, root=ROOT, seen=None):
                         alias = next((a for a in imp.names if (a.asname or a.name) == ref), None)
                         imported_path = root / (imp.module.replace(".", "/") + ".py")
                         if alias and imported_path.is_file():
-                            expanded = _binding(_parse(imported_path), alias.name, root, seen)
+                            imported_tree = _parse(imported_path)
+                            expanded = _binding(imported_tree, alias.name, root, seen)
+                            factory = next((f for f in imported_tree.body if isinstance(f, ast.FunctionDef) and f.name == alias.name), None)
+                            if factory and any(isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == ref for n in ast.walk(node.value)):
+                                declared = {f.name for f in _tool_functions(factory)}
+                                expanded = {n.id for ret in ast.walk(factory) if isinstance(ret, ast.Return) for n in ast.walk(ret) if isinstance(n, ast.Name)} & declared
                             break
                 names.update(expanded or {ref})
     return names
@@ -99,12 +105,15 @@ def inventory(routes=(), root: Path = ROOT):
                     continue
                 # Calendar tools are classified only as declared until their
                 # explicit presence in the supervisor list can be established.
-                connected = (_uses_list(_parse(root / "graph.py"), "supervisor_tools") and
-                             fn.name in _binding(_parse(root / "tools.py"), "supervisor_tools", root))
+                agents = []
+                for source, graph, list_name, owner, _ in SOURCES:
+                    if (root / source).is_file() and (root / graph).is_file() and _uses_list(_parse(root / graph), list_name) and fn.name in _binding(_parse(root / source), list_name, root):
+                        agents.append(owner)
+                connected = bool(agents)
                 entries.append(dict(id=f"{relative}:{fn.name}", name=fn.name,
                     description=" ".join((ast.get_docstring(fn) or "Operazione calendario.").split()),
                     group="Calendario", kind="tool", status="connected" if connected else "unconnected",
-                    agents=["Cora / Supervisor"] if connected else [], source=relative,
+                    agents=agents, source=relative,
                     parameters=[a.arg for a in fn.args.args], detail="Disponibilità strutturale; non è un test di esecuzione."))
         except (OSError, SyntaxError) as error:
             errors.append(f"{relative}: {type(error).__name__}")

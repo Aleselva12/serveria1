@@ -63,3 +63,7 @@ SAFETY / AUTHORITY
 - Never invent prices, discounts, VAT rules, customer data, delivery dates, or contractual terms.
 - Reading/searching email is allowed only through the provided tools.
 """
+
+
+from core.calendar_tools import CALENDAR_INSTRUCTIONS
+EMAIL_AGENT_PROMPT += "\n" + CALENDAR_INSTRUCTIONS

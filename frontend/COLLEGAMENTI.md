@@ -4,6 +4,8 @@ Stato allineato al backend `serveria1/main` dopo l'integrazione del frontend.
 
 ## Collegati
 
+Calendario: viste mese/giorno e CRUD persistente sotto `/api/v1/calendar`; storico, recupero eliminati e proposte degli agenti da approvare. `CORA_CALENDAR_TOKEN` richiesto per accesso remoto.
+
 | Interfaccia | API reale | Limite attuale |
 | --- | --- | --- |
 | Chat | `POST /chat` con `{message, thread_id}` → `{response, thread_id}` | Risposta completa, nessuno streaming o allegato. |
@@ -29,7 +31,6 @@ Stato allineato al backend `serveria1/main` dopo l'integrazione del frontend.
 | Programma | Workspace consentiti, albero file, lettura | `/workspaces`, `/workspaces/{id}/files`, `/file?path=...`. |
 | Programma | Scrittura, revisione/conflitti, audit | `PUT /workspaces/{id}/file` con revisione, permessi server. |
 | Programma | Esecuzione autorizzata, output, timeout/cancellazione | `/workspaces/{id}/executions`, `/executions/{id}`; comandi consentiti. |
-| Calendario | Eventi personali CRUD persistenti | `/calendar/events`; nessun agente calendario e nessuna scrittura solo nel browser. |
 | File server | Anteprime e ricerca ricorsiva | Backend ancora da costruire. |
 | Audio | Acquisizione microfono, upload, trascrizione e speaker | Contratto dedicato da definire; il microfono resta disabilitato. |
 | Impostazioni | Configurazione pubblica completa, modelli per ruolo, permessi utente | `/system/config`, `/permissions`; il registro non è un manifesto permessi utente. |
@@ -64,6 +65,7 @@ Problema segnalato dall'utente: al momento i file non sembrano visibili nella pa
 - Configurare e verificare anche `CORA_KNOWLEDGE_ROOT` e `CORA_LIBRARY_ORIGINALS_ROOT` sui percorsi reali del server.
 
 Questo punto resta aperto fino alla prova sul server. Non sono richiesti interventi sui percorsi locali per chiuderlo.
+
 # Architettura — Tools
 
 La pagina Architettura ha due sezioni: Architettura conserva la mappa degli agenti; Tools mostra nodi singoli selezionabili, dettagli ed elenco per funzione con ricerca e filtri. Il catalogo arriva da `GET /tools/inventory` e non contiene dati simulati.

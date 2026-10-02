@@ -297,3 +297,7 @@ EMAIL_TOOLS = [
     save_email_draft,
     generate_quote_pdf,
 ]
+
+
+from core.calendar_tools import calendar_tools_for
+EMAIL_TOOLS += calendar_tools_for("email_quotes_agent")

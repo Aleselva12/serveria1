@@ -58,3 +58,7 @@ SECURITY
 - Never attempt to access paths outside the authorized knowledge root.
 - Never request or expose credential files.
 """
+
+
+from core.calendar_tools import CALENDAR_INSTRUCTIONS
+SEARCH_AGENT_PROMPT += "\n" + CALENDAR_INSTRUCTIONS

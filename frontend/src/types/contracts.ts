@@ -74,13 +74,40 @@ export type WorkspaceFile = {
   content: string;
   revision: string;
 };
-export type CalendarEvent = {
-  id: string;
+export type CalendarInput = {
   title: string;
   start: string;
   end: string;
-  notes?: string;
-  source: "user";
+  all_day: boolean;
+  notes: string;
+};
+export type CalendarEvent = CalendarInput & {
+  id: string;
+  version: number;
+  created_by: string;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+export type CalendarHistory = {
+  id: string;
+  action: string;
+  actor: string;
+  changed_at: string;
+  snapshot: Record<string, unknown>;
+};
+export type CalendarProposal = {
+  id: string;
+  actor: string;
+  action: "create" | "update" | "delete";
+  event_id: string | null;
+  expected_version: number | null;
+  payload: Partial<CalendarInput>;
+  previous: Partial<CalendarEvent>;
+  reason: string;
+  created_at: string;
+  status: string;
 };
 export type FileItem = {
   id: string;
@@ -203,7 +230,6 @@ export type BrowserListing = {
 };
 export type TrashItem = { id: string; path: string; deletedAt: string };
 
-
 export type SystemContext = {
   id: number;
   content: string;
@@ -245,7 +271,6 @@ export type WorkingMemoryState = {
   updated_at: string;
   expires_at?: string | null;
 };
-
 
 /** Rows returned by the PostgreSQL conversation APIs. */
 export type SavedConversation = {

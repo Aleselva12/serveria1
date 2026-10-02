@@ -368,3 +368,7 @@ supervisor_tools = [
     audio_agent_tool,
     email_agent_tool,
 ]
+
+
+from core.calendar_tools import calendar_tools_for
+supervisor_tools += calendar_tools_for("supervisor")

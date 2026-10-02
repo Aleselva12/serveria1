@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   ArrowRight,
-  CalendarDays,
   ChevronDown,
   Code2,
   FileText,
@@ -10,13 +9,13 @@ import {
   Menu,
   Mic,
   Paperclip,
-  Plus,
   RefreshCw,
   Send,
   Settings,
   Save,
 } from "lucide-react";
 import Home from "./components/Home";
+import Calendar from "./components/Calendar";
 import FileManager from "./components/FileManager";
 import Architecture from "./components/Architecture";
 import ConnectionNotice from "./components/ConnectionNotice";
@@ -79,9 +78,6 @@ export default function App() {
   const [contextVersion, setContextVersion] = useState<number | null>(null);
   const [contextSaving, setContextSaving] = useState(false);
   const [contextError, setContextError] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState(
-    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-  );
   const backend = useBackend();
   const history = useConversations(Boolean(backend.health), sending);
   const { chats, setChats, currentChat } = history;
@@ -243,10 +239,6 @@ export default function App() {
     }
   }
   const withSidebar = page !== "home" && page !== "files";
-  const monthTitle = new Intl.DateTimeFormat("it-IT", {
-    month: "long",
-    year: "numeric",
-  }).format(selectedMonth);
   return (
     <div
       className={"app app-" + page + " " + (withSidebar ? "has-sidebar" : "")}
@@ -547,108 +539,7 @@ export default function App() {
               </div>
             </section>
           )}
-          {page === "calendar" && (
-            <section className="content-page">
-              <div className="page-heading">
-                <div>
-                  <div className="eyebrow">ORGANIZZA IL TEMPO</div>
-                  <h1>Calendario</h1>
-                  <p>Spazio personale gestito dall’utente.</p>
-                </div>
-                <span className="pill pending">Da collegare</span>
-              </div>
-              <ConnectionNotice feature="calendar" />
-              <div className="calendar-layout">
-                <div className="section-card calendar-card">
-                  <div className="calendar-toolbar">
-                    <button
-                      aria-label="Mese precedente"
-                      onClick={() =>
-                        setSelectedMonth(
-                          new Date(
-                            selectedMonth.getFullYear(),
-                            selectedMonth.getMonth() - 1,
-                            1,
-                          ),
-                        )
-                      }
-                    >
-                      ←
-                    </button>
-                    <h2>{monthTitle}</h2>
-                    <button
-                      aria-label="Mese successivo"
-                      onClick={() =>
-                        setSelectedMonth(
-                          new Date(
-                            selectedMonth.getFullYear(),
-                            selectedMonth.getMonth() + 1,
-                            1,
-                          ),
-                        )
-                      }
-                    >
-                      →
-                    </button>
-                  </div>
-                  <div className="calendar-grid">
-                    {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map(
-                      (d) => (
-                        <strong key={d}>{d}</strong>
-                      ),
-                    )}
-                    {Array.from(
-                      {
-                        length:
-                          (new Date(
-                            selectedMonth.getFullYear(),
-                            selectedMonth.getMonth(),
-                            1,
-                          ).getDay() +
-                            6) %
-                          7,
-                      },
-                      (_, i) => (
-                        <span key={"empty-" + i} className="empty" />
-                      ),
-                    )}
-                    {Array.from(
-                      {
-                        length: new Date(
-                          selectedMonth.getFullYear(),
-                          selectedMonth.getMonth() + 1,
-                          0,
-                        ).getDate(),
-                      },
-                      (_, i) => (
-                        <div className="calendar-day" key={i}>
-                          <span>{i + 1}</span>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </div>
-                <aside className="side-panel calendar-side">
-                  <div className="eyebrow">NUOVO EVENTO · DA COLLEGARE</div>
-                  <label>
-                    Titolo
-                    <input disabled placeholder="Collegamento da realizzare" />
-                  </label>
-                  <label>
-                    Data e ora
-                    <input disabled type="datetime-local" />
-                  </label>
-                  <button className="solid-button" disabled>
-                    <Plus size={16} /> Aggiungi evento
-                  </button>
-                  <div className="panel-note">
-                    <CalendarDays size={17} />
-                    Gli eventi del server non sono ancora disponibili.
-                  </div>
-                </aside>
-              </div>
-            </section>
-          )}
+          {page === "calendar" && <Calendar />}
           {page === "files" && <FileManager />}
           {page === "activity" && (
             <section className="content-page narrow">
