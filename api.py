@@ -24,6 +24,8 @@ from core.ia_library import router as library_router
 from core.registry import get_agents, get_registry
 from graph import graph
 from core.tool_inventory import inventory
+from core.tool_definitions import definition
+from core.automation_api import router as automation_router
 from core.architecture_api import router as architecture_router, architecture_graph
 from core.execution_traces import ExecutionTrace
 
@@ -43,6 +45,7 @@ app.include_router(files_router)
 app.include_router(library_router)
 app.include_router(calendar_router)
 app.include_router(architecture_router)
+app.include_router(automation_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -112,6 +115,15 @@ def health():
 @app.get("/tools/inventory")
 def tools_inventory():
     return inventory(app.routes)
+
+
+@app.get("/tools/definition")
+def tools_definition(tool_id: str):
+    from fastapi import HTTPException
+    try:
+        return definition(tool_id, app.routes)
+    except KeyError as error:
+        raise HTTPException(404, "Tool non trovato.") from error
 
 
 @app.get("/capabilities")

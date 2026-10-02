@@ -121,9 +121,9 @@ def inventory(routes=(), root: Path = ROOT):
     # Registered routes are backend operations, not agent tools.
     for route in routes:
         path = getattr(route, "path", "")
-        if path in {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/tools/inventory"}:
+        if path in {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/tools/inventory", "/tools/definition"}:
             continue
-        group = ("File server" if "/server/files" in path else "Libreria IA" if "/library/files" in path else
+        group = ("Automazioni" if path.startswith("/tools/drafts") else "File server" if "/server/files" in path else "Libreria IA" if "/library/files" in path else
                  "Architettura e tracce" if "/architecture/" in path or path.startswith("/api/v1/runs") else "Calendario" if "calendar" in path else "Memoria" if path.startswith("/memory") else
                  "Conversazioni" if path.startswith("/conversations") else "Sistema")
         for method in sorted(getattr(route, "methods", ()) or ()):
@@ -140,7 +140,7 @@ def inventory(routes=(), root: Path = ROOT):
         ("calendar_create_event", "Calendario", "Proposta di creazione di un evento."),
         ("calendar_update_event", "Calendario", "Proposta di modifica di un evento."),
         ("calendar_delete_event", "Calendario", "Proposta di eliminazione di un evento."),
-        ("Automazioni e modifica dei flussi", "Automazioni", "Predisposizione dell’interfaccia; API di validazione e pubblicazione ancora da costruire."),
+        ("Esecuzione e pubblicazione delle automazioni", "Automazioni", "Editor grafico e salvataggio bozze disponibili; esecutore, pianificazione e assegnazione agli agenti ancora da implementare."),
         ("Editor ed esecuzione del codice", "Programmazione", "Interfaccia predisposta; tool di modifica ed esecuzione non implementati."),
         ("Allegati della chat", "Documenti", "Controllo UI predisposto; caricamento e associazione ai messaggi da implementare."),
         ("Microfono dalla UI", "Audio", "Controllo UI predisposto; acquisizione e invio al backend da implementare."),

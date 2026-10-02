@@ -6,6 +6,23 @@ export type ToolEntry = {
   agents: string[]; source: string; parameters: string[]; detail: string;
 };
 export type ToolInventory = { entries: ToolEntry[]; errors: string[]; scope: string };
+export type FlowNode = {
+  id: string; kind: "trigger" | "tool" | "condition" | "output";
+  label: string; x: number; y: number; config: Record<string, unknown>;
+  tool_id?: string | null; detail?: string;
+};
+export type FlowEdge = { id: string; source: string; target: string; label: string; dashed?: boolean };
+export type ToolFlow = { nodes: FlowNode[]; edges: FlowEdge[] };
+export type ToolDefinition = {
+  entry: ToolEntry; parameters: { name: string; type: string; required: boolean; default: string | null }[];
+  output_type: string; operations: string[]; checks: string[]; conditions: string[];
+  flow: ToolFlow; note: string;
+};
+export type AutomationDraft = ToolFlow & {
+  id?: string; title: string; description: string; version?: number;
+  updated_at?: string; status: "draft"; warnings?: string[];
+};
+export type DraftSummary = { id: string; title: string; version: number; updated_at: string; status: "draft" };
 export type ServiceStatus = {
   id: string;
   label: string;

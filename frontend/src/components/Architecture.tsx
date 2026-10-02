@@ -19,7 +19,7 @@ export default function Architecture({
     <button aria-current={view === "architecture" ? "page" : undefined} aria-selected={view === "architecture"} onClick={() => setView("architecture")}>Architettura</button>
     <button aria-current={view === "tools" ? "page" : undefined} aria-selected={view === "tools"} onClick={() => setView("tools")}>Tools</button>
   </nav>;
-  if (view === "tools") return <section className="content-page"><div className="page-heading"><div><div className="eyebrow">OSSERVA IL SISTEMA</div><h1>Architettura</h1></div><span className="pill">Inventario · Sola lettura</span></div>{navigation}<ArchitectureTools /></section>;
+  if (view === "tools") return <section className="content-page"><div className="page-heading"><div><div className="eyebrow">OSSERVA IL SISTEMA</div><h1>Architettura</h1></div><span className="pill">Tools e bozze grafiche</span></div>{navigation}<ArchitectureTools /></section>;
   if (!registry)
     return (
       <section className="content-page">
