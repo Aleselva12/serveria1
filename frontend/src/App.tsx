@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Activity,
-  ArrowRight,
   ChevronDown,
   Code2,
   FileText,
@@ -18,6 +17,7 @@ import Home from "./components/Home";
 import Calendar from "./components/Calendar";
 import FileManager from "./components/FileManager";
 import Architecture from "./components/Architecture";
+import ArchitectureRuntime from "./components/ArchitectureRuntime";
 import ConnectionNotice from "./components/ConnectionNotice";
 import MemoryManagement from "./components/MemoryManagement";
 import { api, apiBaseUrl } from "./services/api";
@@ -542,49 +542,57 @@ export default function App() {
           {page === "calendar" && <Calendar />}
           {page === "files" && <FileManager />}
           {page === "activity" && (
-            <section className="content-page narrow">
+            <section className="content-page activity-page">
               <div className="page-heading">
                 <div>
                   <div className="eyebrow">TRASPARENZA</div>
                   <h1>Attività</h1>
-                  <p>Richieste inviate dalla chat in questa sessione.</p>
-                </div>
-              </div>
-              <div className="section-card">
-                <h2>Richieste della sessione</h2>
-                {activity.length === 0 ? (
-                  <p className="muted">
-                    Nessuna richiesta inviata da questa pagina.
+                  <p>
+                    Attività recenti della sessione e tracce tecniche persistenti
+                    delle esecuzioni di Cora.
                   </p>
-                ) : (
-                  activity.map((a) => (
-                    <div className="settings-row" key={a.id}>
-                      <div>
-                        <strong>{a.title}</strong>
-                        <p>{new Date(a.startedAt).toLocaleString("it-IT")}</p>
-                      </div>
-                      <span
-                        className={
-                          "pill " + (a.status === "completed" ? "success" : "")
-                        }
-                      >
-                        {a.status === "completed"
-                          ? "Risposta ricevuta"
-                          : a.status === "running"
-                            ? "In corso"
-                            : "Esito non confermato"}
-                      </span>
-                    </div>
-                  ))
-                )}
-                <button
-                  className="text-button"
-                  onClick={() => navigate("architecture")}
-                >
-                  Apri la mappa <ArrowRight size={16} />
-                </button>
+                </div>
+                <span className="pill">Runtime · Sola lettura</span>
               </div>
-              <p className="panel-note">Le tracce di esecuzione sono consultabili nella pagina Architettura.</p>
+              <div className="activity-layout">
+                <div className="section-card activity-session-card">
+                  <h2>Richieste della sessione</h2>
+                  <p className="muted">
+                    Vista immediata delle richieste inviate da questa interfaccia.
+                  </p>
+                  {activity.length === 0 ? (
+                    <p className="muted">
+                      Nessuna richiesta inviata in questa sessione.
+                    </p>
+                  ) : (
+                    activity.map((a) => (
+                      <div className="settings-row" key={a.id}>
+                        <div>
+                          <strong>{a.title}</strong>
+                          <p>{new Date(a.startedAt).toLocaleString("it-IT")}</p>
+                        </div>
+                        <span
+                          className={
+                            "pill " +
+                            (a.status === "completed"
+                              ? "success"
+                              : a.status === "failed"
+                                ? "pending"
+                                : "")
+                          }
+                        >
+                          {a.status === "completed"
+                            ? "Risposta ricevuta"
+                            : a.status === "running"
+                              ? "In corso"
+                              : "Esito non confermato"}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <ArchitectureRuntime showGraph={false} showTraces />
+              </div>
             </section>
           )}
           {page === "memory-management" && (
