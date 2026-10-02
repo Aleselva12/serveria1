@@ -8,20 +8,16 @@ from typing import Any
 from core.database import db_connection
 
 
-STATUSES = {
-    "queued", "running", "waiting_approval",
-    "completed", "failed", "cancelled", "timed_out",
-}
-TERMINAL = {"completed", "failed", "cancelled", "timed_out"}
-TRANSITIONS = {
-    "queued": {"running", "cancelled"},
-    "running": {"waiting_approval", "completed", "failed", "cancelled", "timed_out"},
-    "waiting_approval": {"running", "cancelled", "failed", "timed_out"},
-    "completed": set(),
-    "failed": set(),
-    "cancelled": set(),
-    "timed_out": set(),
-}
+from core.runtime import TRANSITIONS as RUNTIME_TRANSITIONS, TERMINAL as RUNTIME_TERMINAL
+
+TERMINAL = set(RUNTIME_TERMINAL)
+TRANSITIONS = {key: set(value) for key,value in RUNTIME_TRANSITIONS.items()}
+for status in TERMINAL: TRANSITIONS[status] = set()
+# Compatibility for old persisted rows; owner approvals no longer resume a run.
+TRANSITIONS["running"].add("waiting_approval")
+TRANSITIONS["waiting_approval"] = {"running", "cancelled", "failed", "timed_out", "interrupted"}
+STATUSES = set(TRANSITIONS)
+
 
 
 class RunConflict(RuntimeError):
@@ -92,7 +88,7 @@ def transition_run(
             UPDATE runtime_runs
             SET status=%s,
                 started_at=CASE WHEN %s='running' AND started_at IS NULL THEN NOW() ELSE started_at END,
-                finished_at=CASE WHEN %s IN ('completed','failed','cancelled','timed_out') THEN NOW() ELSE finished_at END,
+                finished_at=CASE WHEN %s IN ('completed','failed','cancelled','timed_out','awaiting_approval','interrupted') THEN NOW() ELSE finished_at END,
                 error_type=COALESCE(%s,error_type),
                 metadata=metadata || %s::jsonb
             WHERE id=%s
@@ -118,12 +114,17 @@ def request_cancel(run_id: str) -> dict[str, Any]:
     Running synchronous LLM calls cannot be forcibly interrupted safely yet;
     components must inspect cancel_requested at safe boundaries.
     """
+    from core.runtime import runtime
+    live = runtime.get(run_id)
+    if live:
+        live.stop()
+        return get_run(run_id)
     with db_connection() as connection:
         row = connection.execute(
             """
             UPDATE runtime_runs
             SET cancel_requested=TRUE
-            WHERE id=%s AND status NOT IN ('completed','failed','cancelled','timed_out')
+            WHERE id=%s AND status NOT IN ('completed','failed','cancelled','timed_out','awaiting_approval','interrupted')
             RETURNING *
             """,
             (uuid.UUID(run_id),),
@@ -158,3 +159,17 @@ def list_runs(limit: int = 100, status: str = "") -> list[dict[str, Any]]:
             f"SELECT * FROM runtime_runs {clause} ORDER BY created_at DESC LIMIT %s",
             params,
         ).fetchall()
+
+
+
+def persist_live_run(run):
+    from core.database import database_configured
+    if not database_configured(): return
+    with db_connection() as conn:
+        conn.execute("""INSERT INTO runtime_runs (id,thread_id,status,started_at,finished_at,cancel_requested,error_type,metadata)
+            VALUES (%s,%s,%s,CASE WHEN %s THEN NOW() END,CASE WHEN %s THEN NOW() END,%s,%s,%s::jsonb)
+            ON CONFLICT(id) DO UPDATE SET status=EXCLUDED.status,
+            started_at=COALESCE(runtime_runs.started_at,EXCLUDED.started_at), finished_at=EXCLUDED.finished_at,
+            cancel_requested=EXCLUDED.cancel_requested,error_type=EXCLUDED.error_type,metadata=EXCLUDED.metadata""",
+            (uuid.UUID(run.id),run.thread_id,run.status,run.started is not None,run.status in TERMINAL,
+             run.cancel.is_set(),run.error_type,json.dumps({"graph_version":run.graph_version,"metrics":run.timings},default=str)))

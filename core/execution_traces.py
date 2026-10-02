@@ -20,8 +20,13 @@ def append_event(event):
 
 
 class ExecutionTrace(BaseCallbackHandler):
-    def __init__(self, thread_id, graph_version, run_id=None):
-        self.id = str(run_id or uuid.uuid4())
+    raise_error = True
+    run_inline = True
+    def __init__(self, thread_id, graph_version):
+        from core.runtime import current_run
+        self.runtime_run = current_run.get()
+        self.id = self.runtime_run.id if self.runtime_run else str(uuid.uuid4())
+        self.model_roles = {}
         self.thread_id = thread_id
         self.graph_version = graph_version
         self.started = {}
@@ -36,6 +41,7 @@ class ExecutionTrace(BaseCallbackHandler):
                           name=name, duration_ms=duration_ms, error_type=error_type))
 
     def start(self, kind, name, run_id, parent_run_id):
+        if self.runtime_run: self.runtime_run.check()
         with self.lock:
             self.started[str(run_id)] = (time.perf_counter(), kind, name)
         self.event(kind, "running", run_id, parent_run_id, name)
@@ -45,6 +51,9 @@ class ExecutionTrace(BaseCallbackHandler):
             entry = self.started.pop(str(run_id), None)
         if entry:
             start, kind, name = entry
+            if self.runtime_run:
+                self.runtime_run.timings.setdefault(kind + "_ms", 0)
+                self.runtime_run.timings[kind + "_ms"] += round((time.perf_counter()-start)*1000,2)
             self.event(kind, "error" if error else "completed", run_id, parent_run_id,
                        name, round((time.perf_counter() - start) * 1000, 2),
                        type(error).__name__ if error else None)
@@ -53,7 +62,13 @@ class ExecutionTrace(BaseCallbackHandler):
         self.start("node", kwargs.get("name") or (serialized or {}).get("name", "Graph"), run_id, parent_run_id)
 
     def on_chat_model_start(self, serialized, messages, *, run_id, parent_run_id=None, **kwargs):
-        self.start("model", (serialized or {}).get("name", "Ollama"), run_id, parent_run_id)
+        role = kwargs.get("metadata", {}).get("cora_role", "unknown")
+        self.model_roles[str(run_id)] = role
+        if self.runtime_run:
+            from core.event_bus import bus
+            self.runtime_run.agents[role] = "running"
+            bus.publish("agent.state", role, run_id=self.id, thread_id=self.thread_id, payload={"status": "running"})
+        self.start("model", role, run_id, parent_run_id)
 
     def on_tool_start(self, serialized, input_str, *, run_id, parent_run_id=None, **kwargs):
         self.start("tool", (serialized or {}).get("name", "Tool"), run_id, parent_run_id)
@@ -62,12 +77,24 @@ class ExecutionTrace(BaseCallbackHandler):
         self.end(run_id, parent_run_id)
 
     def on_llm_end(self, response, *, run_id, parent_run_id=None, **kwargs):
+        if self.runtime_run:
+            role = self.model_roles.pop(str(run_id), "unknown")
+            self.runtime_run.agents[role] = "idle"
+            usage = {}
+            for group in response.generations:
+                for generation in group:
+                    meta = getattr(getattr(generation, "message", None), "response_metadata", {})
+                    usage.update({k:v for k,v in meta.items() if k in {"prompt_eval_count", "eval_count", "load_duration", "prompt_eval_duration", "eval_duration", "total_duration"}})
+            self.runtime_run.timings.setdefault("models", []).append({"role": role, **usage})
         self.end(run_id, parent_run_id)
 
     def on_tool_end(self, output, *, run_id, parent_run_id=None, **kwargs):
         # ToolNode may convert a tool exception into a ToolMessage.
         error = RuntimeError() if getattr(output, "status", None) == "error" else None
         self.end(run_id, parent_run_id, error)
+
+    def on_llm_new_token(self, token, **kwargs):
+        if self.runtime_run: self.runtime_run.check()
 
     def on_chain_error(self, error, *, run_id, parent_run_id=None, **kwargs):
         self.end(run_id, parent_run_id, error)
@@ -102,6 +129,6 @@ def read_runs(limit=50, run_id=None):
         result.append(dict(id=identifier, thread_id=last["thread_id"],
                            graph_version=last["graph_version"], status=status,
                            started_at=events[0]["timestamp"], duration_ms=last["duration_ms"],
-                           events=events, error_count=sum(e["status"] == "error" for e in events),
-                           note="Esecuzione senza evento finale: in corso o interrotta" if status == "running" else None))
+                           metrics=last.get("metrics", {}), events=events, error_count=sum(e["status"] == "error" for e in events),
+                           note="Esecuzione senza evento finale: in corso o interrotta" if status in {"queued", "running", "cancelling"} else None))
     return result

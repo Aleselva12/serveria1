@@ -39,7 +39,7 @@ export default function Calendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([]),
     [trash, setTrash] = useState<CalendarEvent[]>([]);
   const [proposals, setProposals] = useState<CalendarProposal[]>([]),
-    [token, setToken] = useState("");
+    [token] = useState("");
   const [editing, setEditing] = useState<CalendarEvent>(),
     [form, setForm] = useState(() => initialForm(romeToday()));
   const [history, setHistory] = useState<CalendarHistory[]>([]);
@@ -241,20 +241,7 @@ export default function Calendar() {
               : "Non disponibile"}
         </span>
       </div>
-      <details className="calendar-access">
-        <summary>Accesso remoto</summary>
-        <label>
-          Token calendario
-          <input
-            disabled={busy}
-            type="password"
-            autoComplete="off"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="Richiesto se configurato sul server"
-          />
-        </label>
-      </details>
+
       {error && (
         <p role="alert" className="calendar-error">
           {error}{" "}

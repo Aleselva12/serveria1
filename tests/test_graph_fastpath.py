@@ -33,6 +33,11 @@ class FastPathTests(unittest.TestCase):
         self.assertEqual(len(bounded.tool_calls), 1)
         self.assertEqual(bounded.tool_calls[0]["name"], "remember_tool")
 
+    def test_multiple_reads_are_not_reduced_to_the_last_tool_result(self):
+        ai=AIMessage(content="",tool_calls=[call("system_status_tool","1"),call("recall_memory_tool","2")])
+        state={"messages":[ai,ToolMessage(content="status",tool_call_id="1"),ToolMessage(content="memories",tool_call_id="2")]}
+        self.assertEqual(after_tools(state),"agent")
+
     def test_delegation_and_deterministic_tools_can_end_without_rewrite(self):
         for name in ("search_agent_tool", "calculator_tool", "system_status_tool"):
             ai = AIMessage(content="", tool_calls=[call(name, "1")])

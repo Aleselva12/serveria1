@@ -13,6 +13,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 COMPONENTS: tuple[ComponentDefinition, ...] = (
+    ComponentDefinition(id="app_auth", name="Accesso personale", kind="core", module="core.auth",
+        description="Login del proprietario, sessioni revocabili di sette giorni e protezione globale API.",
+        capabilities=(Capability("owner_login", "Autentica il proprietario prima di accedere alle API."),)),
     ComponentDefinition(
         id="calendar", name="Calendario", kind="core",
         description="Calendario PostgreSQL condiviso tra interfaccia e tool: storico, recupero e proposte agenti approvabili.",
@@ -76,7 +79,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         name="Runtime Lifecycle",
         kind="core",
         description="Stato persistente dei run e delle deleghe, separato dalle tracce tecniche.",
-        module="core.run_lifecycle",
+        module="core.runtime",
         capabilities=(
             Capability("run_state", "Gestisce queued, running, waiting_approval e stati terminali."),
             Capability("child_runs", "Collega le deleghe specialistiche al run padre."),
@@ -88,11 +91,11 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         name="Generic Approvals",
         kind="core",
         description="Workflow generico persistente per azioni con policy CONFIRM, riutilizzabile dai domini futuri.",
-        module="core.approvals",
+        module="core.governance",
         capabilities=(
             Capability("request_approval", "Crea richieste persistenti soltanto per azioni CONFIRM."),
             Capability("resolve_approval", "Permette al proprietario di approvare o rifiutare."),
-            Capability("consume_approval", "Consuma una approvazione una sola volta prima dell'effetto collaterale."),
+            Capability("execute_approved_tool", "Esegue una sola volta il tool e i parametri mostrati, senza rilasciare grant riutilizzabili."),
         ),
     ),
     ComponentDefinition(

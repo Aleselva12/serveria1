@@ -13,7 +13,7 @@ trap {
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Frontend = if ($FrontendPath) { (Resolve-Path $FrontendPath).Path } else { Join-Path $Root "frontend" }
 $UiUrl = "http://127.0.0.1:5173"
-$ApiHealthUrl = "http://127.0.0.1:8000/health"
+$ApiHealthUrl = "http://127.0.0.1:8000/auth/status"
 $OllamaUrl = "http://127.0.0.1:11435"
 
 function Test-Url($Url, $TimeoutSec = 2) {

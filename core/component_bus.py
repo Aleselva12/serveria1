@@ -29,6 +29,12 @@ class ComponentBus:
             self._state[component] = {**self._state.get(component, {}), **state}
 
     def dispatch(self, envelope: TaskEnvelope, handler: Handler) -> ComponentResult:
+        from core.event_bus import bus
+        from core.runtime import checkpoint, current_run
+        parent = current_run.get()
+        checkpoint()
+        bus.publish("component.request", envelope.source, run_id=parent.id if parent else envelope.run_id, thread_id=envelope.thread_id,
+            payload={"task_id":envelope.task_id,"target":envelope.target,"capability":envelope.capability})
         started = time.perf_counter()
         self._set_state(
             envelope.target,
@@ -58,7 +64,7 @@ class ComponentBus:
                 )
             else:
                 raise TypeError(f"Risultato componente non supportato: {type(raw).__name__}")
-        except Exception as error:
+        except BaseException as error:
             self._set_state(envelope.target, status="error", error_type=type(error).__name__)
             raise
 
@@ -71,6 +77,8 @@ class ComponentBus:
             last_duration_ms=duration_ms,
             error_type=None,
         )
+        bus.publish("component.finished", envelope.target, run_id=parent.id if parent else envelope.run_id, thread_id=envelope.thread_id,
+            payload={"task_id":envelope.task_id,"duration_ms":duration_ms})
         return result
 
     def snapshot(self) -> dict[str, dict[str, Any]]:

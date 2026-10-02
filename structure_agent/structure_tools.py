@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import json
 
-from langchain_core.tools import tool
+from core.governance import agent_tool
 
 from core.logging import tail_events
 from core.memory import memory_stats
 from core.orchestration import resolve_plan_owner
-from core.permissions import check_permission, permission_manifest
+from core.permissions import check_permission, permission_manifest, require_permission
 from core.plans import (
     create_evaluation_record,
     create_management_record,
@@ -23,12 +23,10 @@ from local_tools import list_project_files, read_project_file, system_status_too
 
 
 def _require_permission(action: str) -> None:
-    decision = check_permission("structure_agent", action)
-    if not decision.allowed:
-        raise PermissionError(decision.reason)
+    require_permission("structure_agent", action)
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_components(kind: str = "") -> str:
     """
     Restituisce il registro centrale dei componenti di Cora.
@@ -42,14 +40,14 @@ def structure_components(kind: str = "") -> str:
     return json.dumps(get_registry(kind=normalized), ensure_ascii=False, indent=2)
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_memory_status() -> str:
     """Restituisce solo statistiche tecniche della memoria persistente."""
     _require_permission("inspect_memory_status")
     return json.dumps(memory_stats(), ensure_ascii=False, indent=2)
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_recent_events(
     limit: int = 30,
     event_type: str = "",
@@ -65,7 +63,7 @@ def structure_recent_events(
     return json.dumps(events, ensure_ascii=False, indent=2)
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_control_snapshot(event_limit: int = 20) -> str:
     """
     Restituisce una fotografia tecnica sintetica utile a control e management:
@@ -85,14 +83,14 @@ def structure_control_snapshot(event_limit: int = 20) -> str:
     return json.dumps(snapshot, ensure_ascii=False, indent=2)
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_system_status() -> str:
     """Legge CPU, RAM e disco passando dal permission engine."""
     _require_permission("inspect_runtime")
     return system_status_tool.invoke({})
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_list_project_files(
     directory: str = ".",
     extension: str = "",
@@ -109,28 +107,28 @@ def structure_list_project_files(
     )
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_read_project_file(relative_path: str) -> str:
     """Legge un file autorizzato del progetto passando dal permission engine."""
     _require_permission("read_project_file")
     return read_project_file.invoke({"relative_path": relative_path})
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_owner_status() -> str:
     """Mostra come viene risolta attualmente la ownership dei piani."""
     _require_permission("inspect_owner")
     return json.dumps(resolve_plan_owner().to_dict(), ensure_ascii=False, indent=2)
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_permission_manifest() -> str:
     """Mostra le regole di permesso correnti dello Structure Agent."""
     _require_permission("inspect_permissions")
     return json.dumps(permission_manifest("structure_agent"), ensure_ascii=False, indent=2)
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_save_plan(
     objective: str,
     tasks: list[dict],
@@ -161,7 +159,7 @@ def structure_save_plan(
     )
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_save_evaluation(
     target: str,
     criteria: list[str],
@@ -193,7 +191,7 @@ def structure_save_evaluation(
     )
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_save_management(
     title: str,
     summary: str,
@@ -219,13 +217,13 @@ def structure_save_management(
     )
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_list_artifacts(artifact_type: str = "") -> str:
     """Elenca plan, evaluation e management artifact salvati."""
     return json.dumps(list_artifacts(artifact_type), ensure_ascii=False, indent=2)
 
 
-@tool
+@agent_tool("structure_agent")
 def structure_read_artifact(relative_path: str) -> str:
     """Legge un artefatto JSON dal workspace Structure."""
     return json.dumps(read_artifact(relative_path), ensure_ascii=False, indent=2)

@@ -309,6 +309,7 @@ export interface ArchitectureGraph {
 export interface ExecutionRun {
   id: string; thread_id: string; graph_version: string; status: string;
   started_at: string; duration_ms: number | null; error_count: number; note: string | null;
+  metrics?: Record<string, unknown>;
   events: { timestamp: string; kind: string; name: string; status: string; span_id: string | null; parent_id: string | null; duration_ms: number | null; error_type: string | null }[];
 }
 

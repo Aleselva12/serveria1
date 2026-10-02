@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./transport";
 import { apiBaseUrl } from "./api";
 import type {
   CalendarEvent,
@@ -14,7 +15,7 @@ export async function calendarRequest<T>(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch(apiBaseUrl + "/api/v1/calendar" + path, {
+    const response = await authenticatedFetch(apiBaseUrl + "/api/v1/calendar" + path, {
       ...init,
       signal: controller.signal,
       headers: {

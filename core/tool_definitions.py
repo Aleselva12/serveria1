@@ -68,6 +68,8 @@ def _flow(entry, fn):
 
 
 def definition(tool_id, routes=(), root: Path = ROOT):
+    from core.tool_inventory import flatten_routes
+    routes = list(flatten_routes(routes))
     entry = next((e for e in inventory(routes, root)["entries"] if e["id"] == tool_id), None)
     if entry is None:
         raise KeyError("Strumento non presente nell’inventario.")

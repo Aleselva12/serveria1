@@ -1,736 +1,85 @@
 # Cora Lab
 
-Cora Lab è l'attuale proof of concept locale di Cora: un assistente multi-agente eseguito sul PC Windows, con modello LLM locale tramite Ollama, orchestrazione LangGraph, backend FastAPI e interfaccia React/Vite.
+Cora è un assistente locale con backend FastAPI, frontend React/Vite, agenti LangGraph e modelli Ollama. Backend e frontend sono mantenuti **nella stessa repository**, in cartelle separate. Questa è la fonte del codice dell'applicazione; la vecchia repository `frontend` è archiviata.
 
-Questo README descrive esclusivamente lo stato implementato nella repository.
+## Avvio sul PC
 
-## Architettura attuale
+1. Copiare `.env.example` in `.env` e impostare `CORA_DATABASE_URL`, percorsi autorizzati e configurazione Ollama.
+2. Avviare PostgreSQL + pgvector: `docker compose -f docker-compose.database.yml up -d`.
+3. Installare le dipendenze nell'ambiente Python: `python -m pip install -r requirements.txt`.
+4. **Prima del primo accesso**, dalla radice della repository e con lo stesso ambiente Python del backend, eseguire `python -m core.auth`. Inserire nome e password, richiesti in modo interattivo. Su Windows con l'ambiente creato da AVVIO: `.\.venv\Scripts\python.exe -m core.auth`. Il comando crea il proprietario o cambia la sua password e revoca le sessioni precedenti. Non mettere la password nel codice o nelle variabili frontend.
+5. Avviare `AVVIO.cmd` su Windows oppure `uvicorn api:app --host 127.0.0.1 --port 8000` e, in `frontend`, `npm ci` seguito da `npm run dev`.
+6. Aprire `http://127.0.0.1:5173` e accedere. La sessione dura sette giorni; nelle Impostazioni sono disponibili logout e revoca di tutti i dispositivi.
 
-```text
-React / Vite
-      ↓
-FastAPI
-      ↓
-Cora / Supervisor LangGraph
-├── strumenti locali
-├── Structure Agent
-├── Local Research Agent
-├── Audio Agent
-└── Email & Quotes Agent
-      ↓
-Ollama locale
-```
+Il launcher verifica `/auth/status`, pubblico e privo di dati del server. Tutte le API operative, `/health`, documentazione OpenAPI e download richiedono la sessione. Il browser usa un cookie HttpOnly, SameSite Strict; le scritture richiedono anche `X-Cora-Client: ui` e, quando presente, un'Origin autorizzata da `CORA_UI_ORIGINS`. I token File/Calendario precedenti non sostituiscono il login globale. Le vecchie verifiche restano nei router per i test e gli utilizzi isolati; l'app autenticata riusa l'identità del proprietario.
 
-Il Supervisor è il punto centrale di ingresso. Riceve la richiesta dell'utente, può rispondere direttamente oppure delegare a uno strumento locale o a uno dei quattro agenti specializzati.
+Per accesso remoto mantenere backend, PostgreSQL e Ollama nella rete privata. Servire UI e API sullo stesso sito tramite proxy e Tailscale, configurare l'origine reale in `CORA_UI_ORIGINS`. Con HTTPS impostare `CORA_COOKIE_SECURE=true`; il valore false serve per HTTP locale. È implementato un unico proprietario: la struttura account/sessioni non costituisce ancora isolamento dei dati fra più utenti.
 
-Tutti gli agenti LLM usano la configurazione Ollama definita nelle variabili d'ambiente. La configurazione predefinita è:
+## Agenti e capacità
 
-```env
-OLLAMA_MODEL=gpt-oss:20b
-OLLAMA_BASE_URL=http://localhost:11435
-```
+Il Supervisor risponde o delega a quattro agenti distinti:
 
-## Supervisor
-
-Il Supervisor è definito principalmente in:
-
-```text
-graph.py
-prompt.py
-tools.py
-```
-
-Usa LangGraph e `MemorySaver` per mantenere lo stato della conversazione durante l'esecuzione. È inoltre presente una memoria persistente locale separata, basata su SQLite.
-
-Il Supervisor può usare direttamente questi strumenti locali:
-
-- calcolatrice per operazioni aritmetiche di base;
-- lettura dello stato reale di CPU, RAM e disco;
-- elenco dei file autorizzati della repository;
-- lettura dei file testuali autorizzati della repository;
-- lettura del registro centrale di struttura e capacità.
-
-Può inoltre delegare ai quattro agenti specializzati.
-
-## Registro centrale di struttura e capacità
-
-Il progetto contiene ora un nucleo condiviso:
-
-```text
-core/
-├── capabilities.py
-└── registry.py
-```
-
-`capabilities.py` definisce lo schema comune usato per descrivere componenti e capacità.
-
-`registry.py` è la fonte centrale per sapere quali componenti sono definiti nel sistema. Registra attualmente il Supervisor, i quattro agenti specializzati, i tool locali principali, il backend FastAPI e l'interfaccia React.
-
-Per ogni componente sono descritti identificativo, nome, tipo, descrizione, capacità dichiarate, modulo associato e dipendenze strutturali.
-
-Il registro può verificare se il modulo Python associato è disponibile e restituisce uno stato strutturale del componente. Questo controllo non sostituisce gli health check runtime dei servizi esterni.
-
-Il Supervisor accede al registro tramite:
-
-```text
-structure_registry_tool
-```
-
-Il registro include il Permission Engine tra i componenti core. Logging e memoria persistente restano componenti separati e registrati.
-
-## Runtime core e comunicazione tra componenti
-
-Il runtime usa ora un protocollo interno tipizzato anziché affidarsi soltanto a stringhe libere tra componenti:
-
-```text
-TaskEnvelope
-├── task_id / run_id / thread_id
-├── source / target / capability
-├── payload
-├── context_refs
-└── priority / metadata
-
-ComponentResult
-├── status
-├── content
-├── artifacts
-├── observations
-├── errors
-└── next_action
-```
-
-`core/component_bus.py` esegue la comunicazione tra componenti nello stesso processo tramite chiamate Python dirette. Non viene introdotto Redis: un trasporto distribuito potrà in futuro implementare lo stesso contratto senza cambiare il formato dei messaggi.
-
-Ogni chat e ogni delega specialistica hanno inoltre un lifecycle persistente in PostgreSQL:
-
-```text
-queued → running → waiting_approval → completed
-                         ├──────────→ failed
-                         ├──────────→ cancelled
-                         └──────────→ timed_out
-```
-
-La cancellazione e il timeout sono cooperativi: vengono controllati ai confini sicuri tra inferenze e tool. Una singola chiamata Ollama già in corso non viene terminata forzatamente.
-
-Endpoint runtime:
-
-- `GET /api/v1/runtime/components`: readiness operativa dei componenti;
-- `GET /api/v1/runtime/runs`: lifecycle persistenti;
-- `GET /api/v1/runtime/runs/{id}`: dettaglio del run;
-- `POST /api/v1/runtime/runs/{id}/cancel`: richiesta di cancellazione proprietaria.
-
-Le tracce tecniche `/api/v1/runs` restano separate dal lifecycle: descrivono nodi, modelli e tool; il lifecycle descrive lo stato operativo del lavoro.
-
-### Fast path della chat
-
-Il percorso sincrono è stato alleggerito senza rimuovere memoria o osservabilità:
-
-- contesto permanente e memorie pertinenti vengono preparati una sola volta per turno;
-- gli embedding dei singoli messaggi chat sono disattivati di default perché non sono usati dal recupero del contesto corrente;
-- transcript Markdown ed episodio vengono generati dopo la risposta HTTP;
-- il transcript viene aggiornato una volta per turno invece che dopo ogni messaggio;
-- PostgreSQL usa un connection pool;
-- i grafi specialistici e i relativi modelli/tool binding vengono costruiti una sola volta per processo;
-- una delega specialistica completa può terminare direttamente con il risultato dello specialista, evitando una seconda riscrittura del Supervisor;
-- calcolatrice e stato macchina possono terminare direttamente dopo il tool;
-- tool di sola lettura indipendenti possono essere richiesti nello stesso ciclo, mentre le mutazioni restano serializzate.
-
-Lo streaming token-per-token non è ancora collegato: `POST /chat` continua a restituire la risposta completa a fine esecuzione.
-
-### Accesso proprietario e approvazioni
-
-`CORA_OWNER_TOKEN` è il token proprietario condiviso consigliato per le API protette. Durante la migrazione i token File e Calendario restano fallback compatibili. Senza token, le API protette accettano soltanto loopback diretto.
-
-Il Permission Engine resta la fonte delle policy `AUTO / CONFIRM / BLOCKED`. È disponibile anche un workflow generico persistente di approvazione per future azioni `CONFIRM`:
-
-- `GET /api/v1/permissions`;
-- `GET /api/v1/approvals`;
-- `POST /api/v1/approvals/{id}/resolve`.
-
-Il Calendario mantiene per ora il proprio sistema di proposal perché include versioning e controllo dei conflitti specifici del dominio. Le azioni ancora marcate `BLOCKED` (ad esempio invio email o sovrascritture distruttive) non vengono sbloccate automaticamente dal nuovo archivio di approvazioni: ciascun dominio dovrà consumare esplicitamente una approval prima dell'effetto collaterale.
-
-## Ownership, piani e permessi
-
-Il progetto contiene ora tre moduli core aggiuntivi:
-
-```text
-core/
-├── orchestration.py
-├── permissions.py
-└── plans.py
-```
-
-### Ownership provvisoria
-
-I piani e i task usano sempre:
-
-```text
-owner = orchestrator
-```
-
-L'orchestratore leggero ispirato a reti biologiche non è ancora implementato. `core/orchestration.py` mantiene quindi questa ownership attraverso un resolver deterministico di fallback.
-
-Il fallback non esegue e non instrada autonomamente i task. Serve soltanto a mantenere stabile il contratto dei piani finché verrà collegato l'orchestratore reale.
-
-Ogni task separa l'owner dal componente che dovrebbe eseguire materialmente il lavoro:
-
-```text
-owner: orchestrator
-target_component: email_quotes_agent
-```
-
-### Artefatti strutturati
-
-`core/plans.py` definisce e salva tre tipi di artefatti runtime:
-
-```text
-structure_workspace/
-├── plans/
-├── evaluations/
-└── management/
-```
-
-I piani contengono obiettivo, owner, priorità, stato, task, dipendenze, azioni richieste, target component, output attesi, criteri di valutazione, rischi, blocker, checkpoint e criteri di completamento.
-
-Le evaluation distinguono criteri, evidenze, elementi passed, failed e unknown, rischi, correzioni richieste e raccomandazione.
-
-Gli artefatti management conservano priorità, dipendenze, handoff e prossimi passi.
-
-Il workspace è escluso da Git ed è configurabile con:
-
-```env
-CORA_STRUCTURE_WORKSPACE=./structure_workspace
-```
-
-### Permission Engine
-
-`core/permissions.py` implementa un controllo deterministico dei permessi per singola azione.
-
-Livelli attualmente definiti:
-
-```text
-OBSERVE
-READ
-DRAFT
-WRITE
-EXECUTE
-ADMIN
-```
-
-Ogni azione ha inoltre una policy:
-
-```text
-AUTO
-CONFIRM
-BLOCKED
-```
-
-`CONFIRM` può essere sbloccata da un'approvazione esplicita dell'utente. `BLOCKED` rimane vietata finché la configurazione della policy non viene modificata deliberatamente; un agente non può auto-elevarsi.
-
-Le azioni oggi implementate di Supervisor, Structure Agent, Local Research Agent, Audio Agent ed Email & Quotes Agent sono coperte da regole esplicite e i rispettivi tool eseguono il controllo prima dell'azione. Lo Structure Agent resta limitato al proprio workspace e non può modificare codice sorgente, configurazione core, memoria persistente o eseguire azioni esterne. La sovrascrittura distruttiva di Word e l'invio email sono bloccati.
-
-Le policy attuali sono intenzionalmente provvisorie: le operazioni locali già previste restano utilizzabili, mentre il flusso completo CONFIRM/approvals verrà raffinato insieme alle pagine che lo espongono. Lo smoke check verifica anche duplicati e copertura delle regole.
-
-## Logging e memoria persistente
-
-Il core contiene ora due componenti distinti ma collegati:
-
-```text
-core/
-├── logging.py
-└── memory.py
-```
-
-### Logging
-
-`core/logging.py` scrive eventi strutturati append-only in formato JSONL.
-
-Percorso predefinito:
-
-```env
-CORA_LOG_ROOT=./logs
-```
-
-File runtime:
-
-```text
-logs/cora.jsonl
-```
-
-Gli eventi includono identificativo, timestamp UTC, tipo evento, componente, stato, thread, durata e metadati tecnici. Il logging evita di salvare automaticamente il contenuto completo dei messaggi utente.
-
-Sono già registrati almeno:
-
-- richieste chat al Supervisor;
-- deleghe agli agenti specializzati;
-- letture della memoria;
-- scritture della memoria;
-- cancellazioni dalla memoria;
-- errori nelle operazioni osservate.
-
-Il Supervisor può leggere gli eventi recenti tramite `recent_system_events_tool`.
-
-### Memoria persistente
-
-`core/memory.py` usa SQLite locale e non richiede una nuova dipendenza Python esterna.
-
-Percorso predefinito:
-
-```env
-CORA_MEMORY_ROOT=./data
-CORA_MEMORY_DB=./data/cora_memory.sqlite3
-```
-
-La memoria è strutturata e supporta attualmente questi tipi:
-
-```text
-fact
-preference
-person
-project
-decision
-note
-task_context
-```
-
-Ogni memoria contiene almeno ID, tipo, chiave, contenuto, fonte, importanza, data di creazione, data di aggiornamento, eventuale scadenza e metadati.
-
-Sono disponibili tre operazioni al Supervisor:
-
-- `remember_tool`: crea o aggiorna una memoria;
-- `recall_memory_tool`: ricerca nella memoria persistente;
-- `forget_memory_tool`: elimina una memoria per ID.
-
-La regola attuale è conservativa: Cora non salva automaticamente tutte le conversazioni e non trasforma automaticamente il log in memoria. Le scritture persistenti avvengono solo su richiesta esplicita o in un workflow esplicitamente autorizzato.
-
-Ogni operazione sulla memoria genera a sua volta un evento nel log, creando il collegamento tra memoria e osservabilità senza confondere i due livelli.
-
-## Structure Agent
-
-Cartella:
-
-```text
-structure_agent/
-```
-
-Lo Structure Agent è l'agente di livello sistema dedicato a quattro responsabilità principali:
-
-- **Planner**: trasforma obiettivi in passi ordinati, dipendenze, checkpoint e assegnazioni ai componenti adatti;
-- **Evaluation**: valuta piani, output e implementazioni rispetto a obiettivi, criteri e vincoli espliciti;
-- **Control**: controlla struttura dichiarata, stato runtime, memoria e log per individuare anomalie, mismatch e dipendenze mancanti;
-- **Management**: mantiene una vista di priorità, avanzamento, handoff e prossimi passi tra componenti e agenti.
-
-Per svolgere questi compiti può:
-
-- interrogare il registro centrale di componenti e capacità;
-- leggere lo stato reale di CPU, RAM e disco;
-- leggere le statistiche tecniche della memoria persistente;
-- analizzare gli eventi recenti del log strutturato;
-- ottenere uno snapshot combinato di controllo del sistema;
-- elencare e leggere i file testuali autorizzati del progetto;
-- produrre piani, checklist, valutazioni, decisioni e istruzioni di handoff;
-- salvare plan, evaluation e management artifact strutturati nel proprio workspace;
-- consultare il manifest dei permessi e lo stato del resolver dell'owner.
-
-La sua autorità di esecuzione è per ora volutamente limitata: può scrivere soltanto piani, evaluation e artefatti di management nel workspace dedicato. Non può modificare codice, configurazione core o memoria persistente e non esegue azioni esterne.
-
-Il modello può essere configurato separatamente:
-
-```env
-CORA_MODEL_STRUCTURE=
-```
-
-Se la variabile è vuota, eredita `OLLAMA_MODEL`.
-
-## Local Research Agent
-
-Cartella:
-
-```text
-search_agent/
-```
-
-Lavora su documenti locali autorizzati e non effettua ricerche Internet.
-
-Capacità implementate:
-
-- elenco dei documenti disponibili;
-- ricerca lessicale nei documenti;
-- lettura del contenuto;
-- analisi tramite il modello locale;
-- supporto a file testuali comuni, documenti Word `.docx` e PDF testuali;
-- creazione di nuovi Word e aggiornamento non distruttivo di Word esistenti tramite append;
-- sovrascrittura distruttiva di Word bloccata dalla policy corrente;
-- protezione dai percorsi esterni alla directory autorizzata;
-- limiti configurabili per dimensione del file e quantità di testo passata al modello.
-
-Directory predefinita:
-
-```env
-CORA_KNOWLEDGE_ROOT=./knowledge
-```
-
-## Audio Agent
-
-Cartella:
-
-```text
-audio_agent/
-```
-
-Lavora su file audio locali autorizzati.
-
-Capacità implementate:
-
-- elenco dei file audio;
-- trascrizione locale tramite `faster-whisper`;
-- timestamp della trascrizione;
-- supporto ai principali formati audio e ad alcuni contenitori video;
-- diarizzazione opzionale tramite un modello locale `pyannote`;
-- etichette generiche degli speaker come `Interlocutore 1`, `Interlocutore 2`, ecc.;
-- riassunto o analisi della trascrizione tramite l'agente;
-- salvataggio opzionale della trascrizione in un file `.txt`.
-
-Configurazione principale:
-
-```env
-CORA_AUDIO_ROOT=./audio
-CORA_TRANSCRIPT_ROOT=./audio/_transcripts
-CORA_WHISPER_MODEL=small
-CORA_WHISPER_DEVICE=cpu
-CORA_WHISPER_COMPUTE_TYPE=int8
-CORA_DIARIZATION_MODEL=
-```
-
-Se la diarizzazione non è configurata o fallisce, la trascrizione può comunque essere prodotta senza attribuzione degli speaker.
-
-## Email & Quotes Agent
-
-Cartella:
-
-```text
-email_agent/
-```
-
-Capacità implementate:
-
-- ricerca nell'archivio Gmail tramite sintassi di ricerca Gmail;
-- recupero delle email di una giornata;
-- sintesi e analisi delle email recuperate tramite il modello locale;
-- scrittura del testo di email;
-- salvataggio di bozze Gmail solo quando richiesto esplicitamente;
-- generazione locale di preventivi PDF da dati strutturati;
-- calcolo di imponibile, IVA e totale del preventivo.
-
-Configurazione principale:
-
-```env
-CORA_GMAIL_CREDENTIALS_PATH=./email_agent/credentials.json
-CORA_GMAIL_TOKEN_PATH=./email_agent/token.json
-CORA_EMAIL_MAX_BODY_CHARS=6000
-CORA_QUOTE_ROOT=./quotes
-```
-
-Le credenziali Gmail e il token OAuth non sono versionati nella repository.
-
-Il generatore di preventivi richiede attualmente dati già strutturati, compresi descrizione, quantità e prezzo unitario. Il codice non recupera automaticamente prezzi o condizioni commerciali da cataloghi esterni.
-
-## Backend API
-
-File:
-
-```text
-api.py
-```
-
-Il backend usa FastAPI.
-
-Endpoint presenti:
-
-```text
-GET  /health
-GET  /capabilities
-POST /chat
-```
-
-`/health` restituisce lo stato del backend, la raggiungibilità di Ollama, il modello effettivo del supervisore (incluso CORA_MODEL_SUPERVISOR) e l'elenco degli agenti letto dal registro centrale.
-
-`/capabilities` restituisce il registro centrale dei componenti e delle capacità.
-
-`/chat` riceve il messaggio dell'utente e un eventuale `thread_id`, invoca il grafo principale e restituisce la risposta di Cora.
-
-Il backend locale usa di default:
-
-```text
-http://127.0.0.1:8000
-```
-
-## File server — backend
-
-La pagina File è destinata a due sottopagine: **File server** e **Libreria IA**. Il selettore è su una riga separata sotto il titolo File; entrambe usano lo stesso stile. Le due sottopagine sono collegate al backend e usano lo stesso componente grafico per navigazione, upload/download, cartelle, copia/spostamento, rinomina e cestino.
-
-`core/server_files.py` espone operazioni sul filesystem indipendenti da Ollama, dal grafo e dal knowledge root degli agenti. Un upload qui non rende automaticamente il documento disponibile all'IA.
-
-Prefisso di tutti i percorsi: `/api/v1/server/files`.
-
-| Metodo e percorso | Operazione / parametri |
+| Agente | Capacità implementate |
 | --- | --- |
-| `GET /roots` | Risorse configurate, disponibilità e spazio del filesystem di ogni risorsa. |
-| `GET /children` | `root_id`, `path` relativo (vuoto = radice), `query`, `offset`, `limit` (1–500). Cartelle prima dei file; filtro nomi nella cartella corrente. |
-| `GET /download` | `root_id`, `path`; download di un file normale come allegato. |
-| `POST /folders` | JSON `{root_id, path}`; crea una cartella con genitore esistente. |
-| `POST /upload` | Multipart: `root_id`, `path` della cartella e `file`. Un file per richiesta; la futura UI può inviare più richieste. |
-| `POST /transfer` | JSON `{root_id, path, destination, mode}`; copia (`copy`) o sposta/rinomina (`move`) nella stessa risorsa. |
-| `POST /trash` | JSON `{root_id, path}`; spostamento nel cestino persistente della risorsa. |
-| `GET /trash` | `root_id`; elenco elementi nel cestino. |
-| `POST /restore` | JSON `{root_id, id}`; ripristina nel percorso originale senza sostituire file esistenti. |
+| Supervisor | Calcolatrice, monitoraggio, lettura file autorizzati, registro componenti, memoria persistente e deleghe. |
+| Structure | Planning, evaluation, control e management; scrive soltanto nel proprio workspace. |
+| Local Research | Documenti locali, ricerca lessicale, lettura Word/PDF/testo, nuovi Word e append non distruttivo. Non cerca sul web. |
+| Audio | Trascrizione locale faster-whisper, timestamp, diarizzazione locale opzionale, riassunti e salvataggio trascrizioni. |
+| Email & Quotes | Ricerca e lettura Gmail, riepiloghi, bozze Gmail e preventivi PDF da dati strutturati. Invio email bloccato. |
 
-Le risposte dell'elenco comprendono percorso relativo, nome, tipo, dimensione dei file, ultima modifica, MIME e capacità ammesse dalla policy. I permessi del sistema operativo restano vincolanti. I link sono mostrati ma non navigabili; i file speciali non sono scaricabili. La copia di cartelle con link, file speciali o aree riservate viene rifiutata.
+Le azioni calendario sono tool assegnati agli agenti autorizzati, senza un agente calendario dedicato. PostgreSQL è la fonte degli eventi, con versioni, storico, eliminazione recuperabile e proposte.
 
-Configurazione: `CORA_FILE_ROOTS` contiene una lista JSON di risorse con `id`, `label`, `path`, `writable`. I percorsi relativi nella configurazione sono riferiti alla repository; quelli nelle richieste sono relativi alla risorsa selezionata. Se la configurazione è vuota viene creata `./data/server_files`, per prove locali. File server include anche la risorsa gestita “Originali Libreria IA” (`ia-originals`), indipendente dalla lista configurata. Le risorse esplicite mancanti vengono segnalate indisponibili senza creare cartelle. Lo spazio riportato è quello del filesystem che ospita la risorsa, non la somma dei suoi file.
+Modello predefinito: `gpt-oss:20b`, endpoint `http://localhost:11435`. Le variabili `CORA_MODEL_SUPERVISOR/STRUCTURE/RESEARCH/AUDIO/EMAIL` consentono scelte per ruolo. La configurazione effettiva si trova in `core/models.py`; le richieste dei modelli non usano proxy di ambiente.
 
-Per Debian si può configurare `/` come “Questo server” in sola lettura e una risorsa distinta per i dati in scrittura; per Windows una cartella di prova o una radice in sola lettura. Gli esempi sono in `.env.example`. Non puntare le risorse scrivibili agli archivi interni gestiti da Immich o Nextcloud: le loro modifiche devono passare dai rispettivi servizi.
+## Runtime e prestazioni
 
-`CORA_FILES_TOKEN` protegge tutti questi endpoint con `Authorization: Bearer <token>`. Se vuoto sono ammesse soltanto richieste dirette dal loopback. **Prima di accesso remoto, anche attraverso un proxy locale o Tailscale, impostare il token**: un proxy locale può altrimenti far apparire locali richieste esterne. Il token non va salvato nel codice frontend o versionato. È una protezione provvisoria per il proprietario, non un sistema multiutente; La pagina offre “Accesso ai file” per inserire il token: resta soltanto in memoria fino al ricaricamento o alla chiusura della pagina.
+`core/runtime.py` ammette un'esecuzione del modello alla volta, con coda FIFO limitata e una sola richiesta attiva per conversazione. Il nuovo ingresso chat è `POST /api/v1/chat/runs`; `POST /chat` conserva il contratto sincrono per i client precedenti. Il frontend riceve testo e stati attraverso SSE.
 
-Upload: spooling su disco e pubblicazione del file completo senza sovrascrittura. `CORA_FILES_MAX_UPLOAD_BYTES` limita il contenuto accettato (default 1 GiB); non sostituisce un limite sul corpo HTTP nel proxy. Le aree `.cora-staging` e `.cora-trash` sono escluse dalla navigazione API. Upload e cestino richiedono un filesystem compatibile e operazioni nello stesso volume: per un disco montato sotto una risorsa, configurare quel disco come risorsa autonoma.
+Lifecycle: `queued → running → completed / failed / awaiting_approval`. Un annullamento avviato durante il lavoro passa per `cancelling` e termina come `cancelled` o `timed_out`. Al riavvio le tracce incompiute diventano `interrupted`; non vengono rieseguite automaticamente.
 
-Conflitti: `409`, percorsi non validi: `400`, accesso negato: `401/403`, elementi mancanti: `404`, upload eccessivo: `413`, filesystem/configurazione indisponibile: `503`. Il ripristino richiede che la cartella originale esista ancora. Il cestino occupa spazio; non sono esposte cancellazioni definitive.
+La cancellazione è **cooperativa**: controlli prima dei nodi/tool e durante i token del modello, timeout HTTP verso Ollama, timeout delle query PostgreSQL. Un'operazione bloccante già partita può terminare prima che la cancellazione venga osservata. Il runtime mantiene occupato il posto fino al ritorno; nessun rollback implicito di effetti già avvenuti. Il timeout del run include coda, contesto e salvataggi. Il modello ha un timeout di lettura distinto.
 
-Limiti della prima versione: un processo backend, operazioni serializzate; nessuna garanzia contro modifiche concorrenti dei percorsi da altri processi del server. Usare cartelle del proprietario e non directory modificabili da utenti non fidati. La paginazione limita la risposta ma l'elenco viene letto e ordinato interamente. Non sono ancora implementati ricerca ricorsiva, anteprime, condivisioni, ripresa upload, trasferimenti generici tra risorse. La copia dal server alla Libreria IA è disponibile attraverso il suo endpoint dedicato. Nessuna installazione sul server viene eseguita da questa modifica.
+Il prompt di turno e il contesto permanente sono riutilizzati; i tool deterministici e le deleghe con risultato finale possono terminare senza un secondo passaggio del Supervisor. Le letture sicure possono essere eseguite in parallelo, le scritture vengono serializzate. Trascrizioni derivate ed episodi sono aggiornati fuori dal percorso di risposta.
 
-Verifica API senza caricare modelli: `python -m unittest discover -s tests -v` (richiede `httpx` per TestClient oltre alle dipendenze applicative).
+La profilazione conserva durate di coda, preparazione del contesto, modelli, tool e salvataggi; registra i conteggi e le durate restituiti da Ollama quando disponibili. I log tecnici non registrano prompt, parametri tool o risposte. Le metriche finali sono nelle tracce persistenti e consultabili in Attività. Le durate dei nodi nidificati possono sovrapporsi: non sommarle per calcolare il tempo totale.
 
-## Libreria IA — copie separate
+I messaggi sono salvati immediatamente senza attendere gli embedding. `core/background_embeddings.py` indicizza la coda persistente quando non ci sono run in attesa; usa lo stesso posto del modello. Un indice fallito non perde il testo, viene marcato con il modello e non viene ritentato continuamente. Per ritentare deliberatamente una mancata indicizzazione, azzerare `embedding_model` dei soli messaggi interessati ancora privi di embedding. Memorie e ricerca semantica mantengono i loro embedding sincroni.
 
-La sottopagina Libreria IA esplora `CORA_KNOWLEDGE_ROOT`, condiviso con il Local Research Agent. Il valore predefinito è `./knowledge`; se la variabile è vuota il backend crea la cartella. Un percorso configurato esplicitamente deve già esistere. Non viene eseguita una migrazione automatica dei documenti già presenti.
+`core/context_budget.py` conserva identità e istruzioni, una sintesi separata degli scambi vecchi e messaggi recenti. La sintesi viene riutilizzata e aggiornata in PostgreSQL, non trasformata in memoria semantica. Ogni agente limita anche la cronologia dei propri turni/tool prima del modello. Il conteggio preventivo è una stima conservativa UTF-8, non il tokenizer esatto del modello: i conteggi reali di Ollama servono alla taratura. Un singolo messaggio o risultato troppo grande viene rifiutato. Gli schemi dei tool effettivamente assegnati e l’output hanno spazio riservato; il contesto predefinito è 16.384 token, configurabile. `num_ctx` e `num_predict` sono impostati esplicitamente.
 
-Le API hanno prefisso `/api/v1/library/files` e la stessa protezione di accesso di File server. Sono disponibili `/roots`, `/children`, `/download`, `/folders`, `/transfer`, `/trash`, `/restore` con gli stessi contratti e `root_id: "library"`.
+PostgreSQL usa un pool per processo, con connessioni riutilizzate, registrazione pgvector una volta per connessione, attesa limitata, rollback delle transazioni fallite e chiusura nel lifecycle FastAPI. Eseguire **un solo processo Uvicorn**: coda, bus, rate limit e stati vivi sono locali al processo.
 
-| Operazione | Effetto |
-| --- | --- |
-| `POST /import` — JSON `{source_root_id, source_path, destination}` | Copia un file da una risorsa del server nella libreria; non sposta o modifica la fonte, anche se la risorsa sorgente è in sola lettura. |
-| `POST /upload` — multipart `path`, `file` | Salva prima un originale in “Originali Libreria IA”, poi una copia nella libreria. |
-| Rinomina, spostamento, copia, cestino e ripristino nella libreria | Operano soltanto sulle copie; non intervengono sugli originali. |
+## Permessi e approvazioni
 
-Gli upload diretti conservano gli originali in `CORA_LIBRARY_ORIGINALS_ROOT` (default `./data/library_originals`), ciascuno in una cartella con identificativo univoco per evitare sostituzioni. La risorsa è visibile in File server. I percorsi espliciti devono esistere; originali e libreria devono essere separati, senza annidamento reciproco. L'identificativo `ia-originals` è riservato.
+Il Permission Engine nega le azioni sconosciute e distingue `auto`, `confirm`, `blocked`. I tool eseguibili sono registrati con attore fisso; l'LLM non può scegliere un'identità o fornire un'approvazione. `GET /api/v1/runtime/registry` unisce componenti, tool effettivi, schema parametri, azioni e regole. Il catalogo grafico mantiene anche API e predisposizioni, distinguendole dalle capability degli agenti.
 
-Gli originali e le copie IA sono file indipendenti, non link tra loro. La copia viene pubblicata solo quando completa; nomi esistenti generano un conflitto senza sovrascrittura. Se un upload ha salvato l'originale ma fallisce la creazione della copia, l'errore indica dove è conservato l'originale. Non esiste sincronizzazione automatica dopo una modifica della fonte, né scambio di file al riavvio o automodifica del software.
+Nella pagina Attività si possono consultare e modificare le policy per azione, fermare un run e gestire le proposte. Le capability bloccate alla base perché prive di un percorso verificato restano bloccate. Le policy effettive sono conservate in PostgreSQL.
 
-In File server il pulsante “Copia nella Libreria IA” permette di indicare la destinazione. In Libreria IA “Copia dal server” apre un selettore di risorsa/cartelle/file; la copia viene aggiunta nella cartella IA aperta. “Carica copie” e drag-and-drop creano anche l'originale sul server. Upload multipli sequenziali: al primo errore viene riportato il numero di operazioni confermate e gli altri file non vengono inviati. Nessuna mutazione viene ritentata automaticamente dopo errore o timeout.
+Le proposte generiche contengono attore, azione, tool e parametri esatti; scadono dopo 24 ore. La risoluzione verifica anche la revisione del tool, ricontrolla i permessi e reclama la proposta una sola volta prima dell'effetto. Uno stato `executing` lasciato da un arresto richiede verifica manuale dell'esito: non viene ripetuto. Errori strutturati del tool non vengono segnati come successo. L'esito è disponibile in Attività. L'approvazione esegue soltanto l'azione mostrata: non fa continuare automaticamente il ragionamento di Cora.
 
-Il Local Research Agent legge la stessa cartella e ignora cestino e staging. Restano i formati e i limiti di lettura esistenti; un formato archiviabile non è necessariamente leggibile dall'agente. Non sono aggiunti indicizzazione vettoriale o riassunti automatici. Gli agenti mantengono i permessi documentali già esistenti; questa modifica non amplia l'accesso al filesystem del server.
+Le richieste del precedente prototipo non legate a un tool restano nel database per evitare perdita di dati; non vengono convertite in autorizzazioni eseguibili. Il servizio operativo è unico.
 
-## Interfaccia
+Il calendario conserva il proprio flusso transazionale e il controllo di versione; le sue proposte sono visibili anche nel pannello comune. Con policy `auto` i tool calendario possono applicare l'azione direttamente, con `confirm` producono proposte, con `blocked` negano l'azione. Il salvataggio manuale dell'utente non passa dalla policy di un agente.
 
-La UI principale è separata dal backend ed è realizzata con React + Vite.
+## Protocollo componenti e bus
 
-Cartella:
+`core/protocol.py` definisce envelope v1 per richieste/eventi: ID, sorgente, destinazione/capability per richieste, run, thread, correlazione, timestamp/deadline e payload. Il bus di `core/event_bus.py` è in-process, con buffer limitato, sequenza e replay; lifecycle, tool e streaming lo usano. Non aggiunge Redis o round-trip di rete ai turni del modello.
 
-```text
-frontend/
-```
+È una prima infrastruttura interna, non una coda distribuita durevole: dopo riavvio si usano le tracce e il database, non il replay del bus. Le deleghe ai quattro agenti passano dal dispatcher tipizzato `core/component_bus.py`, che collega richiesta, stato e correlazione agli input LangGraph. I nodi interni continuano a usare il contratto nativo del framework.
 
-L’interfaccia ora usa il progetto React + TypeScript di `Aleselva12/frontend`, incluso in questa cartella. Comprende Home, Chat, Architettura, Programma, Calendario, File, Attività e Impostazioni.
+## Dati, file e interfaccia
 
-I collegamenti reali sono `/chat`, `/health` e `/capabilities`: risposta di Cora, thread separati, stato del backend/Ollama, modello supervisore, statistiche memoria e registro degli agenti. La sidebar legge lo storico PostgreSQL da `/conversations` e carica i messaggi tramite `/conversations/{id}/messages`, anche dopo riavvio. Le nuove chat sono salvate al primo messaggio; la selezione prosegue lo stesso thread. La UI mostra le ultime 500 chat e fino a 2.000 messaggi per chat. Gli esiti nel pannello Attività restano limitati alla sessione corrente.
+PostgreSQL + pgvector conserva conversazioni/messaggi, memorie/relazioni/fonti, episodi, contesto permanente, working memory, calendario/storico/proposte, utenti/sessioni, policy e approvazioni. Le trascrizioni Markdown sono copie derivate delle chat. Il lifecycle è conservato in `runtime_runs`, con run delle deleghe collegati al run padre. I log JSONL e le tracce tecniche restano distinti; gli eventi applicativi sono inoltre salvati nella tabella `agent_events`. Il database è necessario per le operazioni persistenti: non esiste un fallback SQLite.
 
-La Home legge `/api/v1/server/telemetry` (CPU, RAM, GPU opzionale, dischi, rete, alimentazione e cronologia CPU), `/api/v1/server/storage` e `/api/v1/system/status`. Aggiornamento automatico, errori espliciti e sensori assenti mostrati come sconosciuti. Docker è interrogato in sola lettura se accessibile; gli URL di Immich, Nextcloud e n8n si configurano in `.env`. Dettagli e limiti in `frontend/COLLEGAMENTI.md`.
+La UI comprende Home con misure reali disponibili, chat con cronologia persistente e streaming, File server/Libreria IA, architettura generale e tools con editor grafico delle bozze, Programma predisposto, calendario mese/giorno, Attività, Impostazioni e Gestione Memoria. In assenza di backend si può visualizzare l'interfaccia offline senza fingere che le operazioni siano riuscite.
 
-Le funzioni senza endpoint hanno avvisi permanenti “Collegamento da realizzare” e controlli disabilitati: allegati, editor, streaming, run, conferme, microfono, permessi completi e modifica della mappa. Non vengono visualizzati dati fittizi. Nessun agente calendario è stato aggiunto.
+I file server sono gestiti sotto risorse autorizzate da `CORA_FILE_ROOTS`, con upload, download, cartelle, copia/spostamento/rinomina, cestino e ripristino. La Libreria IA opera su copie in `CORA_KNOWLEDGE_ROOT`; gli upload conservano un originale distinto. Protezioni di percorso, link, limiti upload, conflitti e sola lettura restano attive. I file caricati sul server non diventano automaticamente documenti dell'IA. Non puntare cartelle scrivibili agli archivi interni di Immich/Nextcloud.
 
-La mappa mostra agenti e capacità del registro reale; “Modulo presente” è disponibilità strutturale, non readiness runtime. I collegamenti della mappa illustrano delega possibile e non tracce eseguite.
+## Verifica
 
-Il dettaglio aggiornato è in `frontend/COLLEGAMENTI.md`, `frontend/README.md` e nelle Impostazioni. Vite usa `/backend` come proxy locale verso FastAPI su `127.0.0.1:8000`. Il target si configura in `frontend/.env.local` con `CORA_API_TARGET`; per un URL API diretto configurare anche `VITE_API_BASE_URL` e `CORA_UI_ORIGINS` sul backend.
+- Backend: `python -m unittest discover -s tests -v` (installare anche `httpx`).
+- Test transazionali: usare **esclusivamente un database sacrificabile** e impostare `CORA_CALENDAR_TEST_DATABASE_URL` e `CORA_RUNTIME_TEST_DATABASE_URL`; per i test runtime impostare anche `CORA_DATABASE_URL` allo stesso database. Questi test cancellano dati di prova.
+- Import e copertura: `python smoke_check.py`.
+- Frontend, nella sua cartella: `npm test` e `npm run build`.
 
-Indirizzo predefinito:
-
-```text
-http://127.0.0.1:5173
-```
-
-Il file `app.py` contiene ancora la precedente interfaccia Streamlit ed è presente come alternativa/fallback nel proof of concept.
-
-## AVVIO su Windows
-
-Il punto di ingresso principale è:
-
-```text
-AVVIO.cmd
-```
-
-che esegue:
-
-```text
-AVVIO.ps1
-```
-
-Se Cora è già attiva, AVVIO apre direttamente l'interfaccia nel browser.
-
-Se non è attiva, lo script può:
-
-1. creare `.env` a partire da `.env.example` se manca;
-2. verificare Ollama;
-3. provare ad avviare Docker Desktop e il container `ia-ollama` quando necessario;
-4. creare la virtualenv Python `.venv` se manca;
-5. installare o aggiornare le dipendenze Python quando cambia `requirements.txt`;
-6. avviare FastAPI sulla porta 8000;
-7. installare o aggiornare il frontend quando cambia `package.json` o `package-lock.json`;
-8. avviare Vite sulla porta 5173;
-9. aprire automaticamente l'interfaccia.
-
-Lo script gestisce file PID e un lock di avvio. Verifica che la pagina sia il nuovo frontend e segnala le porte occupate, senza terminare processi sconosciuti. Al primo avvio aggiornato chiudere le vecchie finestre Cora. Per usare un checkout frontend separato: `powershell -File AVVIO.ps1 -FrontendPath C:\percorso\frontend`.
-
-Per creare un collegamento AVVIO sul desktop è presente:
-
-```text
-CREA_AVVIO_DESKTOP.ps1
-```
-
-## Avvio manuale
-
-Dipendenze Python:
-
-```bash
-python -m venv .venv
-pip install -r requirements.txt
-```
-
-Backend:
-
-```bash
-python -m uvicorn api:app --host 127.0.0.1 --port 8000
-```
-
-Frontend, in un secondo terminale:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## Configurazione
-
-Il file:
-
-```text
-.env.example
-```
-
-contiene tutte le variabili attualmente previste per:
-
-- Ollama;
-- documenti locali;
-- audio e trascrizioni;
-- Whisper;
-- diarizzazione;
-- Gmail;
-- preventivi PDF;
-- limiti di lettura dei documenti;
-- risorse, token proprietario e limite upload di File server.
-
-Il file reale `.env` è escluso dal versionamento.
-
-## Controllo del progetto
-
-È presente uno smoke test non distruttivo:
-
-```bash
-python smoke_check.py
-```
-
-Controlla:
-
-- sintassi dei file Python;
-- import dei moduli principali;
-- copertura del Permission Engine per le azioni implementate;
-- configurazione rilevata per i componenti principali.
-
-## Dipendenze principali
-
-Backend e agenti:
-
-- Python;
-- LangChain;
-- LangGraph;
-- Ollama tramite `langchain-ollama`;
-- FastAPI + Uvicorn;
-- Streamlit;
-- psutil;
-- python-docx;
-- pypdf;
-- faster-whisper;
-- pyannote.audio;
-- Google API Client e librerie OAuth;
-- ReportLab.
-
-Frontend:
-
-- React;
-- React DOM;
-- Vite;
-- Lucide React.
-
-## Vincoli e protezioni attuali
-
-Nel codice attuale:
-
-- i file locali sono accessibili solo nelle directory autorizzate;
-- alcuni percorsi e file sensibili sono esplicitamente bloccati;
-- `.env`, credenziali Gmail e token non devono essere versionati;
-- il Local Research Agent non usa Internet;
-- l'Email Agent non invia automaticamente email;
-- il salvataggio di una bozza Gmail richiede una richiesta esplicita;
-- il sistema non deve inventare risultati di tool o dati commerciali mancanti;
-- il log runtime e il database della memoria sono esclusi da Git;
-- cronologia, contesto permanente e memorie persistono in PostgreSQL + pgvector; LangGraph ricostruisce il contesto recente dalla cronologia.
-
-## Struttura essenziale
-
-```text
-serveria1/
-├── AVVIO.cmd
-├── AVVIO.ps1
-├── CREA_AVVIO_DESKTOP.ps1
-├── api.py
-├── app.py
-├── graph.py
-├── prompt.py
-├── tools.py
-├── local_tools.py
-├── smoke_check.py
-├── requirements.txt
-├── .env.example
-├── core/
-│   ├── logging.py
-│   ├── memory.py
-│   ├── orchestration.py
-│   ├── permissions.py
-│   └── plans.py
-├── frontend/
-├── structure_agent/
-├── search_agent/
-├── audio_agent/
-└── email_agent/
-```
-
-
-
-## Calendario persistente
-
-La pagina Calendario usa PostgreSQL, con viste mese/giorno, orari italiani `Europe/Rome`, eventi sovrapposti, inserimento/modifica manuale, note ed eventi tutto il giorno. Una durata di 30 minuti viene proposta alla creazione. Gli eventi non vengono duplicati nella memoria semantica.
-
-Le tabelle `calendar_events`, `calendar_event_history` e `calendar_proposals` sono create automaticamente dallo schema al primo accesso dopo il riavvio del backend. Nessun nuovo servizio o agente calendario è richiesto.
-
-API sotto `/api/v1/calendar`: `GET/POST /events`, `GET/PATCH/DELETE /events/{id}`, `POST /events/{id}/restore`, `GET /events/{id}/history`, `GET /proposals`, `POST /proposals/{id}/resolve` con `{approve: true|false}`. Lettura eventi con `start`, `end` ISO 8601 comprensivi di offset, massimo 370 giorni; intervallo semiaperto, inclusi eventi che attraversano il periodo. PATCH sostituisce tutti i campi editabili e richiede `version`; DELETE e restore richiedono la versione nella query. I conflitti restituiscono 409: riaprire l'evento prima di intervenire. Eventi tutto il giorno: mezzanotte italiana, fine esclusa; il modulo mostra invece l'ultimo giorno incluso.
-
-Le scritture e i relativi snapshot storici sono atomici. L'eliminazione è recuperabile, non fisica. Lo storico registra attore, data e dati dell'evento. Le proposte approvate attribuiscono la modifica all'agente e registrano separatamente l'approvazione dell'utente.
-
-I cinque tool `calendar_list_events`, `calendar_get_event`, `calendar_create_event`, `calendar_update_event`, `calendar_delete_event` sono collegati al supervisore e agli agenti mail, audio e documenti. L'identità è fissata dal backend. La lettura è automatica; **in questa prima versione tutte le scritture degli agenti, anche su richiesta in chat, producono proposte da approvare/rifiutare nella pagina**. Nessun parametro del tool può dichiarare l'approvazione. Il backend verifica di nuovo permessi e versione quando l'utente approva. Proposte rifiutate o già approvate non possono essere eseguite una seconda volta.
-
-Per accesso remoto configurare `CORA_CALENDAR_TOKEN` nel backend e inserire il token nella sezione Accesso remoto della pagina. Senza token sono consentite solo richieste loopback. Il token resta in memoria durante l'apertura della pagina e non viene salvato nel browser. Non pubblicare il backend direttamente su Internet; l'accesso previsto è tramite Tailscale. La pagina aggiorna i dati al ritorno in primo piano e ogni 30 secondi; le mutazioni non vengono ritentate automaticamente.
-
-Durante il salto primaverile gli orari inesistenti sono rifiutati. Per il nuovo inserimento nell'ora ripetuta autunnale viene usata la prima occorrenza; l'offset originale degli eventi esistenti viene conservato se il relativo orario non cambia. Ricorrenze, notifiche, sincronizzazione esterna e trascinamento non sono ancora implementati.
-
-Verifica calendario: `python -m unittest discover -s tests -p test_calendar.py -v`. I test CRUD/approvazioni richiedono `CORA_CALENDAR_TEST_DATABASE_URL` verso un database PostgreSQL **di test dedicato e sacrificabile**: svuotano esclusivamente le tre tabelle calendario. Non puntare questa variabile al database operativo. Nell'ambiente di sviluppo i sei test SQL sono stati eseguiti su PostgreSQL embedded PGlite attraverso il protocollo PostgreSQL; resta da verificare l'installazione nel database dell'utente e l'esecuzione reale dei tool con il modello Ollama.
+Non ancora implementati: orchestratore autonomo, agente programmatore e automodifica, esecutore/pianificazione delle bozze grafiche, server multiutente, bus distribuito, arresto forzato sicuro di qualsiasi tool, ripresa automatica dei run interrotti. La latenza sul PC reale e il comportamento del modello locale vanno misurati con la nuova profilazione; i test non equivalgono a un benchmark di Ollama o Whisper sul server finale.

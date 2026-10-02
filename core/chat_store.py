@@ -13,7 +13,6 @@ from core.transcripts import write_transcript
 
 
 CHAT_CONTEXT_MESSAGES = max(2, int(os.getenv("CORA_CHAT_CONTEXT_MESSAGES", "40")))
-CHAT_EMBED_MESSAGES = os.getenv("CORA_CHAT_EMBED_MESSAGES", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def ensure_conversation(
@@ -21,7 +20,6 @@ def ensure_conversation(
     *,
     title: str | None = None,
     metadata: dict[str, Any] | None = None,
-    refresh_transcript_now: bool = True,
 ) -> dict[str, Any]:
     cid = uuid.UUID(conversation_id)
     with db_connection() as connection:
@@ -59,6 +57,7 @@ def save_message(
     model_id: str | None = None,
     parent_message_id: str | None = None,
     metadata: dict[str, Any] | None = None,
+    refresh_transcript_now: bool = True,
 ) -> dict[str, Any]:
     if role not in {"user", "assistant", "system"}:
         raise ValueError("role non valido")
@@ -67,7 +66,7 @@ def save_message(
         raise ValueError("content non può essere vuoto")
 
     conversation = ensure_conversation(conversation_id)
-    embedding, embedding_model = embed_text(normalized) if CHAT_EMBED_MESSAGES else (None, None)
+    embedding, embedding_model = None, None  # Indexed later by the idle background worker.
     embedding_dimensions = len(embedding) if embedding else None
     message_id = uuid.uuid4()
 

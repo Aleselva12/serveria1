@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { readFile } from "node:fs/promises";
 import ts from "typescript";
+const transportSource = await readFile(new URL("../src/services/transport.ts", import.meta.url), "utf8");
+const transportUrl = "data:text/javascript;base64," + Buffer.from(ts.transpileModule(transportSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText).toString("base64");
 
 // Run the actual TypeScript adapter under Node; only Vite's environment lookup is replaced.
 const source = (
   await readFile(new URL("../src/services/api.ts", import.meta.url), "utf8")
 ).replace("import.meta.env.VITE_API_BASE_URL", "undefined");
-const compiled = ts.transpileModule(source, {
+const compiled = ts.transpileModule(source.replaceAll('"./transport"', JSON.stringify(transportUrl)), {
   compilerOptions: {
     target: ts.ScriptTarget.ES2022,
     module: ts.ModuleKind.ES2022,

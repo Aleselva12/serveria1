@@ -43,6 +43,8 @@ def require_owner(request: Request, scope: str = "") -> None:
     and Calendar keep their legacy token fallback. Without a token only direct
     loopback is accepted.
     """
+    if getattr(request.state, "user", None):
+        return
     token = configured_owner_token(scope)
     if token:
         supplied = request.headers.get("authorization", "")

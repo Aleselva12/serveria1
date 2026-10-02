@@ -148,10 +148,16 @@ def propose_event(actor, action, *, event_id=None, version=None, data=None, reas
             previous = current
             if current["version"] != version:
                 raise CalendarConflict("L'evento è cambiato. Rileggilo prima di proporre una modifica.")
+        if decision.allowed:
+            result = _write(conn, action, actor=actor, event_id=event_id, version=version, data=normalized)
+            return {"status": "executed", "event": result}
         row = conn.execute("""INSERT INTO calendar_proposals
             (id,actor,action,event_id,expected_version,payload,previous,reason) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *""",
             (uuid4(), actor, action, UUID(event_id) if event_id else None, version, Jsonb(normalized), Jsonb(previous), reason[:2000])).fetchone()
         conn.commit()
+        from core.runtime import current_run
+        run = current_run.get()
+        if run: run.approvals.append("calendar:" + str(row["id"]))
         return {"status": "pending", "proposal": json_row(row),
                 "message": "Proposta salvata: richiede approvazione dalla pagina Calendario. L'evento non è ancora stato modificato."}
 

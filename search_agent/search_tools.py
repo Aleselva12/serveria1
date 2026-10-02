@@ -5,7 +5,7 @@ from typing import Iterable
 
 from dotenv import load_dotenv
 from docx import Document
-from langchain_core.tools import tool
+from core.governance import agent_tool
 from pypdf import PdfReader
 
 from core.permissions import require_permission
@@ -129,7 +129,7 @@ def _read_document(path: Path) -> str:
     return text
 
 
-@tool
+@agent_tool("local_research_agent")
 def list_local_documents(
     directory: str = ".",
     extension: str = "",
@@ -167,7 +167,7 @@ def list_local_documents(
         return f"Errore durante l'elenco dei documenti: {error}"
 
 
-@tool
+@agent_tool("local_research_agent")
 def read_local_document(relative_path: str) -> str:
     """Legge file testuali, Word .docx e PDF autorizzati."""
     try:
@@ -193,7 +193,7 @@ def read_local_document(relative_path: str) -> str:
         return f"Errore durante la lettura del documento: {error}"
 
 
-@tool
+@agent_tool("local_research_agent")
 def search_local_documents(
     query: str,
     directory: str = ".",
@@ -247,7 +247,7 @@ def search_local_documents(
         return f"Errore durante la ricerca locale: {error}"
 
 
-@tool
+@agent_tool("local_research_agent")
 def create_word_document(
     title: str,
     content: str,
@@ -299,7 +299,7 @@ def create_word_document(
         }, ensure_ascii=False)
 
 
-@tool
+@agent_tool("local_research_agent")
 def append_word_document(
     relative_path: str,
     content: str,

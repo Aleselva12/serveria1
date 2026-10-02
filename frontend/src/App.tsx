@@ -1,3 +1,6 @@
+import { streamChat, runtimeRequest } from "./services/runtimeApi";
+import { authenticatedFetch } from "./services/transport";
+import RuntimePanel from "./components/RuntimePanel";
 import { useEffect, useRef, useState } from "react";
 import {
   Activity,
@@ -69,6 +72,9 @@ export default function App() {
   const [menu, setMenu] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [liveText, setLiveText] = useState("");
+  const [runState, setRunState] = useState("");
+  const [activeRun, setActiveRun] = useState("");
   const [chatError, setChatError] = useState("");
   const sendLock = useRef(false);
   const messagesEnd = useRef<HTMLDivElement>(null);
@@ -149,6 +155,9 @@ export default function App() {
     if (!content || sendLock.current || history.messagesLoading || history.historyLoading || history.messagesError || !backend.health?.ollama_online) return;
     sendLock.current = true;
     setSending(true);
+    setLiveText("");
+    setActiveRun("");
+    setRunState("queued");
     setChatError("");
     setDraft("");
     const conversationId = currentChat.id,
@@ -186,7 +195,7 @@ export default function App() {
       ...prev,
     ]);
     try {
-      const result = await api.chat(content, threadId);
+      const result = await streamChat(content, threadId, setActiveRun, setLiveText, setRunState);
       setChats((prev) =>
         prev.map((c) =>
           c.id === conversationId
@@ -236,6 +245,8 @@ export default function App() {
     } finally {
       sendLock.current = false;
       setSending(false);
+      setLiveText("");
+      setActiveRun("");
       void history.refreshHistory();
     }
   }
@@ -397,14 +408,7 @@ export default function App() {
                     </div>
                   </div>
                 ))}
-                {sending && (
-                  <div className="message assistant">
-                    <div className="message-avatar">✦</div>
-                    <div className="message-content" role="status">
-                      Cora sta elaborando la richiesta…
-                    </div>
-                  </div>
-                )}
+                {sending && <div className="message assistant"><div className="message-body"><p>{liveText || (runState === "queued" ? "In coda…" : runState === "cancelling" ? "Annullamento in corso…" : "Cora sta lavorando…")}</p>{activeRun && <button className="text-button" disabled={runState === "cancelling"} onClick={() => void runtimeRequest("/runtime/runs/" + activeRun + "/cancel", { method: "POST" }).then(() => setRunState("cancelling")).catch(e => setChatError(e.message))}>Annulla esecuzione</button>}</div></div>}
                 <div ref={messagesEnd} />
               </div>
               <div className="chat-bottom">
@@ -592,6 +596,7 @@ export default function App() {
                     ))
                   )}
                 </div>
+                <RuntimePanel />
                 <ArchitectureRuntime showGraph={false} showTraces />
               </div>
             </section>
@@ -608,6 +613,8 @@ export default function App() {
                 <div>
                   <div className="eyebrow">PREFERENZE</div>
                   <h1>Impostazioni</h1>
+                  <button className="text-button" onClick={async () => { const r = await authenticatedFetch(apiBaseUrl + "/auth/logout", { method: "POST" }); if (r.ok) window.dispatchEvent(new Event("cora:unauthorized")); }}>Esci</button>
+                  <button className="text-button" onClick={async () => { const r = await authenticatedFetch(apiBaseUrl + "/auth/logout?all_sessions=true", { method: "POST" }); if (r.ok) window.dispatchEvent(new Event("cora:unauthorized")); }}>Disconnetti tutti i dispositivi</button>
                   <p>Connessione e parametri reali del sistema.</p>
                 </div>
                 <button

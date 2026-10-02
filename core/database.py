@@ -6,11 +6,11 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
+import psycopg
+from psycopg_pool import ConnectionPool
 from dotenv import load_dotenv
 from pgvector.psycopg import register_vector
-from psycopg import Connection
 from psycopg.rows import dict_row
-from psycopg_pool import ConnectionPool
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -20,8 +20,8 @@ DATABASE_URL = os.getenv("CORA_DATABASE_URL", "").strip()
 SCHEMA_FILE = PROJECT_ROOT / "database" / "schema.sql"
 _schema_ready = False
 _schema_lock = threading.Lock()
-_pool: ConnectionPool | None = None
 _pool_lock = threading.Lock()
+_pool = None
 
 
 def database_configured() -> bool:
@@ -36,67 +36,53 @@ def _require_database_url() -> str:
     return DATABASE_URL
 
 
-def _pool_sizes() -> tuple[int, int]:
-    try:
-        minimum = max(1, int(os.getenv("CORA_DB_POOL_MIN", "1")))
-        maximum = max(minimum, int(os.getenv("CORA_DB_POOL_MAX", "6")))
-    except ValueError as error:
-        raise RuntimeError("CORA_DB_POOL_MIN/MAX non validi.") from error
-    return minimum, maximum
-
-
-def _get_pool() -> ConnectionPool:
-    global _pool
-    if _pool is not None:
-        return _pool
-    with _pool_lock:
-        if _pool is None:
-            minimum, maximum = _pool_sizes()
-            _pool = ConnectionPool(
-                conninfo=_require_database_url(),
-                min_size=minimum,
-                max_size=maximum,
-                kwargs={"row_factory": dict_row},
-                open=True,
-            )
-    return _pool
-
-
-def close_pool() -> None:
-    global _pool
-    with _pool_lock:
-        if _pool is not None:
-            _pool.close()
-            _pool = None
-
-
-def _ensure_schema(connection: Connection) -> None:
+def _ensure_schema(connection: psycopg.Connection) -> None:
     global _schema_ready
     if _schema_ready:
         return
-    with _schema_lock:
-        if _schema_ready:
-            return
-        if not SCHEMA_FILE.exists():
-            raise RuntimeError(f"Schema PostgreSQL non trovato: {SCHEMA_FILE}")
-        connection.execute(SCHEMA_FILE.read_text(encoding="utf-8"))
-        connection.commit()
-        _schema_ready = True
+    if not SCHEMA_FILE.exists():
+        raise RuntimeError(f"Schema PostgreSQL non trovato: {SCHEMA_FILE}")
+    connection.execute(SCHEMA_FILE.read_text(encoding="utf-8"))
+    connection.commit()
+    _schema_ready = True
+
+
+def get_pool():
+    global _pool
+    with _pool_lock:
+        if _pool is None:
+            _pool = ConnectionPool(_require_database_url(), min_size=1,
+                max_size=max(1, int(os.getenv("CORA_DB_POOL_SIZE", "4"))),
+                timeout=float(os.getenv("CORA_DB_POOL_TIMEOUT", "10")), max_waiting=16,
+                kwargs={"row_factory": dict_row, "connect_timeout": 5,
+                        "prepare_threshold": None if os.getenv("CORA_DB_PREPARE_THRESHOLD", "5") == "none" else int(os.getenv("CORA_DB_PREPARE_THRESHOLD", "5")),
+                        "options": "-c statement_timeout=30000 -c lock_timeout=5000"}, open=True)
+        return _pool
+
+
+def close_pool():
+    global _pool, _schema_ready
+    with _pool_lock:
+        if _pool is not None:
+            _pool.close()
+        _pool = None
+        _schema_ready = False
 
 
 @contextmanager
-def db_connection(*, ensure_schema: bool = True) -> Iterator[Connection]:
-    pool = _get_pool()
-    with pool.connection() as connection:
+def db_connection(*, ensure_schema: bool = True) -> Iterator[psycopg.Connection]:
+    with get_pool().connection() as connection:
         if ensure_schema:
-            _ensure_schema(connection)
-        # pgvector registration is cheap and tied to the live psycopg connection.
-        register_vector(connection)
-        try:
-            yield connection
-        except Exception:
-            connection.rollback()
-            raise
+            with _schema_lock:
+                _ensure_schema(connection)
+        if not getattr(connection, "_cora_vector_ready", False):
+            register_vector(connection)
+            connection._cora_vector_ready = True
+        yield connection
+
+
+def pool_stats():
+    return _pool.get_stats() if _pool is not None else {"pool_size": 0}
 
 
 def database_status() -> dict:
@@ -125,10 +111,6 @@ def database_status() -> dict:
             "backend": "postgresql+pgvector",
             "database": row["database"],
             "pgvector": bool(row["pgvector"]),
-            "pool": {
-                "min": _pool_sizes()[0],
-                "max": _pool_sizes()[1],
-            },
         }
     except Exception as error:
         return {

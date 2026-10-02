@@ -24,8 +24,8 @@ def _parse(path: Path):
 def _tool_functions(tree):
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and any(
-            isinstance(d, ast.Name) and d.id == "tool"
-            or isinstance(d, ast.Call) and isinstance(d.func, ast.Name) and d.func.id == "tool"
+            isinstance(d, ast.Name) and d.id in {"tool", "agent_tool"}
+            or isinstance(d, ast.Call) and isinstance(d.func, ast.Name) and d.func.id in {"tool", "agent_tool"}
             for d in node.decorator_list
         ):
             yield node
@@ -67,7 +67,17 @@ def _uses_list(tree, list_name):
                for n in ast.walk(tree))
 
 
+def flatten_routes(routes):
+    for route in routes:
+        nested = getattr(route, "original_router", None)
+        if nested is not None:
+            yield from flatten_routes(nested.routes)
+        else:
+            yield route
+
+
 def inventory(routes=(), root: Path = ROOT):
+    routes = list(flatten_routes(routes))
     entries, errors = [], []
     for source, graph, list_name, owner, group in SOURCES:
         try:

@@ -3,7 +3,7 @@ import uuid
 from collections.abc import Callable
 
 from langchain_core.messages import HumanMessage
-from langchain_core.tools import tool
+from core.governance import agent_tool
 
 from core.component_bus import component_bus
 from core.logging import logged_operation, tail_events
@@ -13,6 +13,7 @@ from core.protocol import TaskEnvelope
 from core.registry import registry_json
 from core.run_lifecycle import RunCancelled, create_run, transition_run
 from core.runtime_context import RunTimedOut, bind_runtime, current_runtime
+from core.runtime import RunStopped
 from core.working_memory import set_working_memory
 from local_tools import (
     calculator_tool as _calculator_tool,
@@ -26,14 +27,14 @@ def _require_supervisor_permission(action: str) -> None:
     require_permission("supervisor", action)
 
 
-@tool
+@agent_tool("supervisor")
 def calculator_tool(expression: str) -> str:
     """Esegue aritmetica di base dopo il controllo permessi del Supervisor."""
     _require_supervisor_permission("calculate")
     return _calculator_tool.invoke({"expression": expression})
 
 
-@tool
+@agent_tool("supervisor")
 def system_status_tool() -> str:
     """Legge CPU, RAM e disco dopo il controllo permessi del Supervisor."""
     _require_supervisor_permission("inspect_runtime")
@@ -51,7 +52,7 @@ def system_status_tool() -> str:
     )
 
 
-@tool
+@agent_tool("supervisor")
 def list_project_files(
     directory: str = ".",
     extension: str = "",
@@ -66,14 +67,14 @@ def list_project_files(
     })
 
 
-@tool
+@agent_tool("supervisor")
 def read_project_file(relative_path: str) -> str:
     """Legge un file autorizzato del progetto dopo il controllo permessi."""
     _require_supervisor_permission("read_project_file")
     return _read_project_file.invoke({"relative_path": relative_path})
 
 
-@tool
+@agent_tool("supervisor")
 def structure_registry_tool(kind: str = "") -> str:
     """
     Restituisce il registro centrale dei componenti di Cora, con capacità e
@@ -88,7 +89,7 @@ def structure_registry_tool(kind: str = "") -> str:
     return registry_json(kind=normalized)
 
 
-@tool
+@agent_tool("supervisor")
 def recent_system_events_tool(
     limit: int = 20,
     event_type: str = "",
@@ -104,7 +105,7 @@ def recent_system_events_tool(
     return json.dumps(events, ensure_ascii=False, indent=2)
 
 
-@tool
+@agent_tool("supervisor")
 def remember_tool(
     memory_type: str,
     key: str,
@@ -127,7 +128,7 @@ def remember_tool(
     return json.dumps(result, ensure_ascii=False, indent=2)
 
 
-@tool
+@agent_tool("supervisor")
 def recall_memory_tool(
     query: str = "",
     memory_type: str = "",
@@ -143,7 +144,7 @@ def recall_memory_tool(
     return json.dumps(results, ensure_ascii=False, indent=2)
 
 
-@tool
+@agent_tool("supervisor")
 def forget_memory_tool(memory_id: str) -> str:
     """Elimina una singola memoria persistente per ID su richiesta esplicita."""
     _require_supervisor_permission("forget_memory")
@@ -174,6 +175,9 @@ def _delegate_agent(
         metadata={"capability": capability, "source": "supervisor"},
     )
     child_run_id = str(child["id"])
+    from core.runtime import current_run
+    parent_runtime = current_run.get()
+    if parent_runtime: parent_runtime.component_threads.add(effective_thread_id)
     transition_run(child_run_id, "running")
 
     envelope = TaskEnvelope(
@@ -223,10 +227,10 @@ def _delegate_agent(
             },
         )
         return result.content
-    except Exception as error:
+    except BaseException as error:
         terminal_status = (
-            "cancelled" if isinstance(error, RunCancelled)
-            else "timed_out" if isinstance(error, RunTimedOut)
+            "cancelled" if isinstance(error, RunCancelled) or (isinstance(error,RunStopped) and parent_runtime and parent_runtime.reason == "cancelled")
+            else "timed_out" if isinstance(error, RunTimedOut) or (isinstance(error,RunStopped) and parent_runtime and parent_runtime.reason == "timed_out")
             else "failed"
         )
         try:
@@ -246,7 +250,7 @@ def _delegate_agent(
         raise
 
 
-@tool
+@agent_tool("supervisor")
 def structure_agent_tool(query: str, thread_id: str = "") -> str:
     """Delega planning, evaluation, control e management allo Structure Agent."""
     _require_supervisor_permission("delegate_structure")
@@ -264,7 +268,7 @@ def structure_agent_tool(query: str, thread_id: str = "") -> str:
     )
 
 
-@tool
+@agent_tool("supervisor")
 def search_agent_tool(query: str, thread_id: str = "") -> str:
     """Delega ricerca e analisi dei documenti locali al Local Research Agent."""
     _require_supervisor_permission("delegate_research")
@@ -282,7 +286,7 @@ def search_agent_tool(query: str, thread_id: str = "") -> str:
     )
 
 
-@tool
+@agent_tool("supervisor")
 def audio_agent_tool(query: str, thread_id: str = "") -> str:
     """Delega trascrizione e analisi audio all'Audio Agent."""
     _require_supervisor_permission("delegate_audio")
@@ -300,7 +304,7 @@ def audio_agent_tool(query: str, thread_id: str = "") -> str:
     )
 
 
-@tool
+@agent_tool("supervisor")
 def email_agent_tool(query: str, thread_id: str = "") -> str:
     """Delega ricerca mail, bozze e preventivi all'Email & Quotes Agent."""
     _require_supervisor_permission("delegate_email")

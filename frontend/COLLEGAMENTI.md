@@ -1,106 +1,24 @@
-# Collegamenti frontend ↔ backend Cora
+# Collegamenti correnti
 
-Stato allineato al backend `serveria1/main` dopo l'integrazione del frontend.
+Frontend e backend sono aggiornati insieme in `serveria1`; `/backend` è il prefisso del proxy, rimosso prima di FastAPI. Tutte le operazioni richiedono la sessione personale, eccetto login e stato di autenticazione. I servizi UI usano `services/transport.ts`.
 
-## Collegati
-
-Calendario: viste mese/giorno e CRUD persistente sotto `/api/v1/calendar`; storico, recupero eliminati e proposte degli agenti da approvare. `CORA_CALENDAR_TOKEN` richiesto per accesso remoto.
-
-| Interfaccia | API reale | Limite attuale |
+| Area | API backend | Adattatore frontend |
 | --- | --- | --- |
-| Chat | `POST /chat` con `{message, thread_id}` → `{response, thread_id}` | Risposta completa, nessuno streaming o allegato. |
-| Home / Impostazioni | `GET /health` | FastAPI, raggiungibilità Ollama, modello supervisore, statistiche memoria. |
-| Home | `GET /api/v1/server/telemetry`, `GET /api/v1/server/storage` | CPU/RAM/dischi/rete e cronologia reali; GPU e alimentazione solo se rilevabili. |
-| Servizi Home | `GET /api/v1/system/status` | FastAPI, Ollama, Docker/container se accessibili; Immich/Nextcloud/n8n con URL configurato. Raggiungibilità, non readiness degli agenti. |
-| Architettura | `GET /capabilities`, `GET /api/v1/architecture/overview`, `GET /api/v1/architecture/graph`, `GET /api/v1/runs`, `GET /api/v1/runs/{id}` | Registro strutturale, topologia eseguibile versionata e tracce correlate persistenti. |
-| Nuova chat / sidebar | `GET /conversations`, `GET /conversations/{id}/messages`, `POST /chat` | Storico PostgreSQL caricato all’apertura e alla selezione; aggiornamento manuale e dopo invio. Ultime 500 chat e 2.000 messaggi per chat. Nuove chat salvate al primo messaggio. |
-| Attività | Esito HTTP delle richieste chat nella pagina | Non è un endpoint dei run, né una traccia degli agenti. |
-| AVVIO | Launcher di `serveria1` con frontend integrato o `-FrontendPath` | Avvio locale Windows; nessuna configurazione automatica del NAS. |
-| File server | `/api/v1/server/files/roots`, `/children`, `/upload`, `/download`, `/folders`, `/transfer`, `/trash`, `/restore` | Risorse configurate, ricerca nomi nella cartella, paginazione, upload multipli, gestione file e cestino. |
-| Libreria IA | `/api/v1/library/files/*`, `/import`, `/upload` | Cartella separata, copie dal server; upload salva anche un originale sul server. |
+| Accesso | `/auth/status`, `/auth/login`, `/auth/logout` | `AuthGate`, `transport.ts` |
+| Home | `/health`, `/api/v1/server/telemetry`, `/api/v1/system/status` | `api.ts`, `useBackend.ts` |
+| Chat | `/conversations`, `/conversations/{id}/messages`, `/api/v1/chat/runs`, `/api/v1/runtime/runs/{id}/events` | `api.ts`, `runtimeApi.ts`, `useConversations.ts` |
+| Stop/stato | `/api/v1/runtime`, `/api/v1/runtime/runs/{id}`, `/api/v1/runtime/runs/{id}/cancel` | `runtimeApi.ts`, `RuntimePanel` |
+| Framework | `/api/v1/architecture/overview`, `/api/v1/architecture/graph` | `api.ts` |
+| Tracce | `/api/v1/runs`, `/api/v1/runs/{id}` | `api.ts`, `ArchitectureRuntime` |
+| Catalogo tools | `/tools/inventory`, `/tools/definition` | `api.ts`, `toolsApi.ts` |
+| Registry/permessi | `/api/v1/runtime/registry`, `/api/v1/runtime/policies` | `runtimeApi.ts`, `RuntimePanel` |
+| Approvazioni | `/api/v1/approvals`, `/api/v1/approvals/{id}/resolve`, `/api/v1/approvals/calendar/{id}/resolve` | `runtimeApi.ts`, `RuntimePanel` |
+| Bozze grafiche | `/tools/drafts` e dettaglio per ID | `toolsApi.ts` |
+| File server | `/api/v1/server/files/*` | `filesApi.ts` |
+| Libreria IA | `/api/v1/library/files/*` | `filesApi.ts` |
+| Calendario | `/api/v1/calendar/events`, storico/ripristino e proposte | `calendarApi.ts` |
+| Memoria | `/memory`, `/memory/context`, `/memory/episodes`, `/memory/working` | `api.ts` |
 
+SSE mostra token provvisori, aggiornamenti dello stato e risultato finale; il risultato persistito resta autorevole. Sono collegati timeout e stop cooperativo; lo stop non annulla gli effetti già avvenuti. Il pannello delle proposte non continua automaticamente il ragionamento del modello.
 
-## Da realizzare — avvisi permanenti nella UI
-
-| Area | Collegamenti da completare | Promemoria tecnico |
-| --- | --- | --- |
-| Chat | Streaming, polling e ripresa dopo disconnessione | `/runs/{id}/events`, fallback `/runs/{id}`. |
-| Chat | Allegati, upload e associazione alla richiesta | `/files`, `attachmentIds`; la graffetta resta disabilitata. |
-| Architettura | Modifica e pubblicazione del grafo | Grafo eseguibile e tracce ora collegati; API di modifica ancora da progettare. |
-| Attività | Lista run, passi, log, errori, anteprime e approvazioni | `/runs`, `/approvals/{id}`; evitare approvazioni implicite. |
-| Programma | Workspace consentiti, albero file, lettura | `/workspaces`, `/workspaces/{id}/files`, `/file?path=...`. |
-| Programma | Scrittura, revisione/conflitti, audit | `PUT /workspaces/{id}/file` con revisione, permessi server. |
-| Programma | Esecuzione autorizzata, output, timeout/cancellazione | `/workspaces/{id}/executions`, `/executions/{id}`; comandi consentiti. |
-| File server | Anteprime e ricerca ricorsiva | Backend ancora da costruire. |
-| Audio | Acquisizione microfono, upload, trascrizione e speaker | Contratto dedicato da definire; il microfono resta disabilitato. |
-| Impostazioni | Configurazione pubblica completa, modelli per ruolo, permessi utente | `/system/config`, `/permissions`; il registro non è un manifesto permessi utente. |
-| Sessioni | Autenticazione, protezione delle mutazioni e accesso remoto | Da definire prima di una pubblicazione remota. |
-| Architettura modificabile | Bozze, validazione, simulazione/pubblicazione e rollback | Contratti dedicati versionati; mappa sola lettura. |
-
-I percorsi `/api/v1` delle sezioni da realizzare sono proposte; le tre API di monitoraggio Home sono implementate. La UI non prova mutazioni inesistenti e non mostra dati demo come reali. Le voci sono centralizzate in `src/services/connections.ts` e mostrate nelle Impostazioni, anche con il backend online.
-
-“Collegamento da realizzare” indica lavoro futuro. “Collegamento non riuscito” indica un errore attuale di rete/API su un collegamento esistente. Dopo un errore di chat non viene ripetuta automaticamente la richiesta: il backend potrebbe aver già iniziato l’elaborazione.
-
-## Monitoraggio Home
-
-CPU/RAM/rete/dischi vengono letti con psutil ogni 5 secondi quando la Home è aperta; servizi ogni 15 secondi. CPU e velocità di rete richiedono due campioni; CPU conserva gli ultimi 120 campioni in memoria nel processo backend. In caso di errore i valori precedenti vengono rimossi. Il traffico è la somma delle interfacce attive diverse dal loopback; interfacce virtuali possono contabilizzare lo stesso traffico.
-
-GPU AMD: sysfs Linux; GPU NVIDIA: nvidia-smi se presente. Altri driver mostrano “Non disponibile”. Alimentazione: sensore batteria del sistema, se esposto; nessuna inferenza sulla presenza di UPS o consumo in watt.
-
-Docker viene interrogato in sola lettura con `docker ps -a`, senza modificare privilegi o montare socket. Immich, Nextcloud e n8n usano gli URL di controllo configurati in `.env` (`CORA_SERVICE_IMMICH_URL`, `CORA_SERVICE_NEXTCLOUD_URL`, `CORA_SERVICE_N8N_URL`). URL vuoto significa “Non verificato”. Nessuna operazione di avvio/arresto viene esposta. Le metriche descrivono il sistema visibile al processo backend; in Docker la visibilità di dischi/sensori dipende dal container.
-
-Verifica: `python -m unittest discover -s tests -v`, `npm test --prefix frontend`, `npm run build --prefix frontend`.
-
-## File: sottopagine collegate
-
-“File server” e “Libreria IA” sono su una riga subito sotto il titolo “File” e usano la stessa grafica. I contratti backend sono nel README principale. Il token di “Accesso ai file” resta in memoria, non in localStorage, URL o bundle. Download autenticato tramite fetch e URL blob; upload con FormData senza imporre Content-Type. Le mutazioni non vengono ritentate automaticamente. La cartella degli originali degli upload IA è esposta in File server come “Originali Libreria IA”. Nessuno scambio al riavvio è implementato.
-
-## Da verificare dopo l'installazione sul server — visibilità dei file
-
-Problema segnalato dall'utente: al momento i file non sembrano visibili nella pagina. La causa non è ancora verificata. La verifica e l'eventuale correzione sono rinviate all'installazione sul server: l'obiettivo è vedere le cartelle reali del server Debian, non quelle del PC o dell'ambiente di sviluppo.
-
-- Configurare `CORA_FILE_ROOTS` con i percorsi desiderati sul server (radice `/` e cartelle dei dati autorizzate; riferimento NAS: `/srv/nas/Dati/drive`).
-- Verificare disponibilità dei dischi montati, permessi dell'utente che esegue il backend ed eventuali volumi Docker.
-- Verificare accesso tramite Tailscale, token File server e risultati delle API `/roots` e `/children`, distinguendo un errore da una cartella realmente vuota.
-- Configurare e verificare anche `CORA_KNOWLEDGE_ROOT` e `CORA_LIBRARY_ORIGINALS_ROOT` sui percorsi reali del server.
-
-Questo punto resta aperto fino alla prova sul server. Non sono richiesti interventi sui percorsi locali per chiuderlo.
-
-# Architettura — Tools
-
-La pagina Architettura ha due sezioni: Architettura conserva la mappa degli agenti; Tools mostra il flusso di un solo elemento selezionato dall’elenco per funzione sottostante. Ricerca e filtri agiscono sull’elenco senza sostituire il tool selezionato. `GET /tools/inventory` alimenta il catalogo; `GET /tools/definition?tool_id=...` restituisce firma, parametri obbligatori/opzionali, default, tipo di risultato e schema sintetico ricavato dal codice.
-
-L’inventario ispeziona le dichiarazioni Python e le liste di tool collegate ai grafi, senza caricare modelli o eseguire strumenti. Le API effettivamente registrate da FastAPI sono mostrate separatamente come operazioni backend non direttamente assegnate agli agenti. Le predisposizioni sono marcate come non implementate nella versione osservata. La rilevazione calendario include i moduli `*tools.py` nella radice, nel core e nelle cartelle degli agenti; una lista calendario importata e aggiunta al Supervisor viene risolta dal catalogo.
-
-Gli stati descrivono collegamenti strutturali, non readiness runtime, credenziali o autorizzazioni. Il diagramma del tool raggruppa ingresso, controlli, operazione e risultato: non rappresenta integralmente ogni ramo o ciclo e non è una traccia runtime. Le scritture del calendario terminano in una proposta da approvare.
-
-## Bozze grafiche di automazioni
-
-La modalità “Costruisci automazione” permette di aggiungere ingressi, tool/API, condizioni e uscite; spostare i nodi con mouse/touch o frecce della tastiera; collegare porte e rami sì/no; configurare ogni nodo in JSON e rimuovere nodi o collegamenti. JSON non valido blocca salvataggio e cambio passaggio.
-
-Le bozze sono salvate e riaperte sul server attraverso `GET/POST /tools/drafts` e `GET/PUT /tools/drafts/{id}`. Si conserva il grafo con posizioni e configurazioni, sempre con stato `draft`. Il salvataggio controlla struttura, riferimenti ai tool, duplicati, coordinate e cicli; le parti incomplete vengono conservate con avvisi. Un aggiornamento richiede la versione letta, con `409` per conflitti e nessun retry automatico.
-
-Archivio predefinito: `data/automation_drafts`, configurabile con `CORA_AUTOMATION_ROOT`. Scritture JSON atomiche e lock nel processo; prima versione con un processo backend. L’accesso alle bozze usa la protezione proprietario di File server (`CORA_FILES_TOKEN`, oppure loopback diretto quando assente); il token si inserisce nel pannello “Bozze salvate e accesso al server” e resta soltanto in memoria.
-
-L’editor e la persistenza sono implementati. Esecuzione, schedulazione, mapping dei dati fra nodi, interpretazione delle condizioni e assegnazione agli agenti rimangono da collegare: non esistono un comando di attivazione né un endpoint di esecuzione delle bozze.
-
-La panoramica Architettura usa `/api/v1/architecture/overview`: il framework generale e le deleghe reali sono separati dai componenti di supporto e dai percorsi API senza agenti. I flussi interni degli agenti non sono nella vista principale.
-
-
-## Runtime core, permessi e fast path
-
-Il backend dispone ora di un protocollo interno tipizzato (`TaskEnvelope` / `ComponentResult`) e di un bus in-process: le deleghe tra Supervisor e agenti non richiedono Redis o chiamate di rete. Ogni chat crea inoltre un run persistente e le deleghe specialistiche creano child-run collegati.
-
-Nuove API:
-
-| Area | API | Stato |
-| --- | --- | --- |
-| Runtime | `GET /api/v1/runtime/components` | Readiness di Supervisor, agenti, Ollama e PostgreSQL. |
-| Runtime | `GET /api/v1/runtime/runs`, `GET /api/v1/runtime/runs/{id}` | Lifecycle persistente separato dalle tracce tecniche. |
-| Runtime | `POST /api/v1/runtime/runs/{id}/cancel` | Cancellazione cooperativa proprietaria. |
-| Permessi | `GET /api/v1/permissions` | Manifest reale e validazione delle regole. |
-| Approvazioni | `GET /api/v1/approvals`, `POST /api/v1/approvals/{id}/resolve` | Substrato generico per future azioni `CONFIRM`. |
-
-`CORA_OWNER_TOKEN` è il token condiviso consigliato per accesso remoto alle API proprietarie. I token File/Calendario rimangono fallback durante la migrazione.
-
-La chat continua a usare `POST /chat` con risposta completa. Lo streaming resta un collegamento da realizzare; il fast path ha però eliminato diversi lavori sincroni inutili: memoria una volta per turno, embedding messaggi disattivabili (default off), PostgreSQL pool, transcript/episodio dopo la risposta, grafi specialistici riusati e uscita diretta dopo deleghe riuscite o tool deterministici terminali.
+Restano predisposizioni: esecuzione/pianificazione delle bozze, agente programmatore/editor eseguibile, allegati chat e acquisizione microfono. Non considerarli tool operativi.
