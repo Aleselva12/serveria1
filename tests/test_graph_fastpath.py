@@ -53,6 +53,15 @@ class FastPathTests(unittest.TestCase):
         }
         self.assertEqual(after_tools(state), "agent")
 
+        delegated = AIMessage(content="", tool_calls=[call("search_agent_tool", "2")])
+        failed = {
+            "messages": [
+                delegated,
+                ToolMessage(content="errore", tool_call_id="2", status="error"),
+            ]
+        }
+        self.assertEqual(after_tools(failed), "agent")
+
 
 if __name__ == "__main__":
     unittest.main()
