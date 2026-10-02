@@ -45,7 +45,7 @@ export default function ArchitectureRuntime({
           {g.nodes.map(n => <g key={n.id}><rect className="runtime-node" x={positions[n.id].x - 85} y={positions[n.id].y - 20} width="170" height="40" rx="10"/><text x={positions[n.id].x} y={positions[n.id].y + 5} textAnchor="middle">{n.name}</text></g>)}
         </svg></article>;
       })}</div>
-      <div className="section-card"><h3>Deleghe disponibili</h3>{graph.delegations.map(d => <p key={d.tool}><strong>{d.source} → {d.target}</strong> · <code>{d.tool}</code></p>)}<p>Questi collegamenti sono strumenti disponibili; l’elenco seguente mostra quelli effettivamente eseguiti.</p></div>
+      <div className="section-card"><h3>Deleghe disponibili</h3>{graph.delegations.map(d => <p key={d.tool}><strong>{d.source} → {d.target}</strong> · <code>{d.tool}</code></p>)}<p>Questi collegamenti sono strumenti disponibili. Le esecuzioni effettive sono consultabili nella pagina Attività.</p></div>
       {graph.errors.map(e => <p role="alert" key={e.component}>Grafo non disponibile: {e.component} · {e.error_type}</p>)}
       </>}
     </>}
