@@ -85,3 +85,22 @@ Archivio predefinito: `data/automation_drafts`, configurabile con `CORA_AUTOMATI
 L’editor e la persistenza sono implementati. Esecuzione, schedulazione, mapping dei dati fra nodi, interpretazione delle condizioni e assegnazione agli agenti rimangono da collegare: non esistono un comando di attivazione né un endpoint di esecuzione delle bozze.
 
 La panoramica Architettura usa `/api/v1/architecture/overview`: il framework generale e le deleghe reali sono separati dai componenti di supporto e dai percorsi API senza agenti. I flussi interni degli agenti non sono nella vista principale.
+
+
+## Runtime core, permessi e fast path
+
+Il backend dispone ora di un protocollo interno tipizzato (`TaskEnvelope` / `ComponentResult`) e di un bus in-process: le deleghe tra Supervisor e agenti non richiedono Redis o chiamate di rete. Ogni chat crea inoltre un run persistente e le deleghe specialistiche creano child-run collegati.
+
+Nuove API:
+
+| Area | API | Stato |
+| --- | --- | --- |
+| Runtime | `GET /api/v1/runtime/components` | Readiness di Supervisor, agenti, Ollama e PostgreSQL. |
+| Runtime | `GET /api/v1/runtime/runs`, `GET /api/v1/runtime/runs/{id}` | Lifecycle persistente separato dalle tracce tecniche. |
+| Runtime | `POST /api/v1/runtime/runs/{id}/cancel` | Cancellazione cooperativa proprietaria. |
+| Permessi | `GET /api/v1/permissions` | Manifest reale e validazione delle regole. |
+| Approvazioni | `GET /api/v1/approvals`, `POST /api/v1/approvals/{id}/resolve` | Substrato generico per future azioni `CONFIRM`. |
+
+`CORA_OWNER_TOKEN` è il token condiviso consigliato per accesso remoto alle API proprietarie. I token File/Calendario rimangono fallback durante la migrazione.
+
+La chat continua a usare `POST /chat` con risposta completa. Lo streaming resta un collegamento da realizzare; il fast path ha però eliminato diversi lavori sincroni inutili: memoria una volta per turno, embedding messaggi disattivabili (default off), PostgreSQL pool, transcript/episodio dopo la risposta, grafi specialistici riusati e uscita diretta dopo deleghe riuscite o tool deterministici terminali.

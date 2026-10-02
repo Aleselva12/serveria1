@@ -78,6 +78,77 @@ structure_registry_tool
 
 Il registro include il Permission Engine tra i componenti core. Logging e memoria persistente restano componenti separati e registrati.
 
+## Runtime core e comunicazione tra componenti
+
+Il runtime usa ora un protocollo interno tipizzato anziché affidarsi soltanto a stringhe libere tra componenti:
+
+```text
+TaskEnvelope
+├── task_id / run_id / thread_id
+├── source / target / capability
+├── payload
+├── context_refs
+└── priority / metadata
+
+ComponentResult
+├── status
+├── content
+├── artifacts
+├── observations
+├── errors
+└── next_action
+```
+
+`core/component_bus.py` esegue la comunicazione tra componenti nello stesso processo tramite chiamate Python dirette. Non viene introdotto Redis: un trasporto distribuito potrà in futuro implementare lo stesso contratto senza cambiare il formato dei messaggi.
+
+Ogni chat e ogni delega specialistica hanno inoltre un lifecycle persistente in PostgreSQL:
+
+```text
+queued → running → waiting_approval → completed
+                         ├──────────→ failed
+                         ├──────────→ cancelled
+                         └──────────→ timed_out
+```
+
+La cancellazione e il timeout sono cooperativi: vengono controllati ai confini sicuri tra inferenze e tool. Una singola chiamata Ollama già in corso non viene terminata forzatamente.
+
+Endpoint runtime:
+
+- `GET /api/v1/runtime/components`: readiness operativa dei componenti;
+- `GET /api/v1/runtime/runs`: lifecycle persistenti;
+- `GET /api/v1/runtime/runs/{id}`: dettaglio del run;
+- `POST /api/v1/runtime/runs/{id}/cancel`: richiesta di cancellazione proprietaria.
+
+Le tracce tecniche `/api/v1/runs` restano separate dal lifecycle: descrivono nodi, modelli e tool; il lifecycle descrive lo stato operativo del lavoro.
+
+### Fast path della chat
+
+Il percorso sincrono è stato alleggerito senza rimuovere memoria o osservabilità:
+
+- contesto permanente e memorie pertinenti vengono preparati una sola volta per turno;
+- gli embedding dei singoli messaggi chat sono disattivati di default perché non sono usati dal recupero del contesto corrente;
+- transcript Markdown ed episodio vengono generati dopo la risposta HTTP;
+- il transcript viene aggiornato una volta per turno invece che dopo ogni messaggio;
+- PostgreSQL usa un connection pool;
+- i grafi specialistici e i relativi modelli/tool binding vengono costruiti una sola volta per processo;
+- una delega specialistica completa può terminare direttamente con il risultato dello specialista, evitando una seconda riscrittura del Supervisor;
+- calcolatrice e stato macchina possono terminare direttamente dopo il tool;
+- tool di sola lettura indipendenti possono essere richiesti nello stesso ciclo, mentre le mutazioni restano serializzate.
+
+Lo streaming token-per-token non è ancora collegato: `POST /chat` continua a restituire la risposta completa a fine esecuzione.
+
+### Accesso proprietario e approvazioni
+
+`CORA_OWNER_TOKEN` è il token proprietario condiviso consigliato per le API protette. Durante la migrazione i token File e Calendario restano fallback compatibili. Senza token, le API protette accettano soltanto loopback diretto.
+
+Il Permission Engine resta la fonte delle policy `AUTO / CONFIRM / BLOCKED`. È disponibile anche un workflow generico persistente di approvazione per future azioni `CONFIRM`:
+
+- `GET /api/v1/permissions`;
+- `GET /api/v1/approvals`;
+- `POST /api/v1/approvals/{id}/resolve`.
+
+Il Calendario mantiene per ora il proprio sistema di proposal perché include versioning e controllo dei conflitti specifici del dominio. Le azioni ancora marcate `BLOCKED` (ad esempio invio email o sovrascritture distruttive) non vengono sbloccate automaticamente dal nuovo archivio di approvazioni: ciascun dominio dovrà consumare esplicitamente una approval prima dell'effetto collaterale.
+
 ## Ownership, piani e permessi
 
 Il progetto contiene ora tre moduli core aggiuntivi:
