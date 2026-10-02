@@ -28,7 +28,7 @@ def owner_access(request: Request):
     token = os.getenv("CORA_FILES_TOKEN", "")
     if token:
         supplied = request.headers.get("authorization", "")
-        if not hmac.compare_digest(supplied, "Bearer " + token):
+        if not hmac.compare_digest(supplied.encode("utf-8"), ("Bearer " + token).encode("utf-8")):
             raise HTTPException(401, "Accesso File server non autorizzato.")
     elif not request.client or request.client.host not in {"127.0.0.1", "::1"}:
         raise HTTPException(403, "Configura CORA_FILES_TOKEN per l'accesso remoto.")
@@ -168,6 +168,7 @@ def upload_to(root: dict, base: Path, path: str, file: UploadFile):
                     if size > limit:
                         raise HTTPException(413, "File oltre il limite di upload configurato.")
                     out.write(chunk)
+            os.chmod(temp, 0o644)  # mkstemp creates 0600 files; published uploads should be normal files.
             try:
                 os.link(temp, target)  # Atomic no-clobber publication on the same volume.
             except FileExistsError:
@@ -289,7 +290,7 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
                 raise HTTPException(400, "Non puoi spostare o copiare una cartella dentro se stessa.")
             if not src.is_file() and not src.is_dir():
                 raise HTTPException(400, "Tipo di file non supportato.")
-            if src.is_dir():
+            if body.mode == "copy" and src.is_dir():
                 for directory, directories, files in os.walk(src, followlinks=False):
                     for name in directories + files:
                         child = Path(directory) / name
@@ -356,7 +357,9 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
                         continue
                     try:
                         data = json.loads(metadata.read_text(encoding="utf-8"))
-                        if (slot / "content").exists():
+                        if (isinstance(data, dict) and isinstance(data.get("id"), str)
+                                and isinstance(data.get("path"), str) and isinstance(data.get("deletedAt"), str)
+                                and (slot / "content").exists()):
                             items.append(data)
                     except (ValueError, OSError):
                         continue
@@ -375,8 +378,10 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
             exists(slot / "content")
             try:
                 data = json.loads((slot / "metadata.json").read_text(encoding="utf-8"))
+                if not isinstance(data.get("path"), str):
+                    raise ValueError
                 dst = resolve(base, data["path"])
-            except (ValueError, KeyError, TypeError):
+            except (ValueError, KeyError, TypeError, AttributeError, OSError):
                 raise HTTPException(409, "Metadati cestino non validi.") from None
             vacant(dst)
             (slot / "content").rename(dst)
