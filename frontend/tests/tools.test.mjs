@@ -54,9 +54,9 @@ const Tools = await compile('../src/components/ArchitectureTools.tsx', [
 ]);
 globalThis.__Tools = Tools;
 const Architecture = await compile('../src/components/Architecture.tsx', [
-  ['import ArchitectureRuntime from "./ArchitectureRuntime";','const ArchitectureRuntime=() => null;'],
-  ['import ArchitectureTools from "./ArchitectureTools";','const ArchitectureTools=globalThis.__Tools;'],
-  ['import ConnectionNotice from "./ConnectionNotice";','const ConnectionNotice=() => null;'],
+  ['import ArchitectureOverview from "./ArchitectureOverview";', 'const ArchitectureOverview = () => null;'],
+  ['import ArchitectureTools from "./ArchitectureTools";', 'const ArchitectureTools = globalThis.__Tools;'],
+  ['import ConnectionNotice from "./ConnectionNotice";', 'const ConnectionNotice = () => null;'],
 ]);
 async function mount(Component, props={}) { let r; await act(async()=>{r=create(React.createElement(Component,props));});return r; }
 async function click(r,label) {await act(async()=>r.root.findAllByType('button').find(b=>b.children.includes(label)).props.onClick());}

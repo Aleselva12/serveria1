@@ -81,8 +81,8 @@ Base configurabile con `VITE_API_BASE_URL`; prefisso `/api/v1`. JSON UTF-8, iden
 | Chat `App.tsx`/`api.ts` | `GET /conversations`, `POST /conversations` | Elenco, nuova conversazione, ID, titolo e aggiornamento. Aggiungere rinomina/eliminazione solo quando decise. |
 | Chat `App.tsx`/`api.ts` | `GET /conversations/{id}/messages`, `POST /conversations/{id}/messages` con `{content,attachmentIds}` | Messaggi ordinati, ID persistenti, ruolo, timestamp, allegati e `runId` per seguire l'esecuzione. Validare ID e dimensioni. |
 | Chat/Attività, *da aggiungere* | `GET /runs/{id}/events` via SSE, o protocollo equivalente definito col backend | Eventi `message.delta`, `message.completed`, `run.started`, `step.started`, `step.completed`, `step.failed`, `approval.requested`, `run.completed`, `run.failed`; ogni evento con `runId`, `eventId`, sequenza e timestamp. Gestire riconnessione, duplicati e risposta finale. Polling `GET /runs/{id}` come fallback. |
-| Architettura `ArchitectureRuntime.tsx`/`api.ts` | `GET /api/v1/architecture/graph` | Implementato: `{version,graphs,delegations,errors}` estratto dai grafi compilati. |
-| Architettura `ArchitectureRuntime.tsx`/`api.ts` | `GET /api/v1/runs`, `GET /api/v1/runs/{id}` | Implementato: tracce tecniche correlate persistenti; timestamp, stato, durata, genitore e tipo di errore. |
+| Architettura `ArchitectureOverview.tsx`/`api.ts` | `GET /api/v1/architecture/overview` | Unico framework generale: interfaccia, API, Cora centrale e agenti specializzati. Componenti di supporto e percorsi diretti separati. |
+| Attività `ArchitectureRuntime.tsx`/`api.ts` | `GET /api/v1/runs`, `GET /api/v1/runs/{id}` | Implementato: tracce tecniche correlate persistenti; timestamp, stato, durata, genitore e tipo di errore. |
 | Attività/Chat `App.tsx`/`api.ts` | `POST /approvals/{id}` con `{decision:"approved"|"rejected"}` | Anteprima comprensibile dell'azione, scadenza, risposta idempotente e nuovo stato. Nessuna esecuzione implicita per apertura pagina. |
 | Programma `App.tsx`/`api.ts` | `GET /workspaces`, `GET /workspaces/{id}/files`, `GET /workspaces/{id}/file?path=...` | Aree autorizzate `cora` e `project`, radici visibili, permessi, albero e file con `revision`; filtrare e normalizzare percorsi sul server. |
 | Programma `App.tsx`/`api.ts` | `PUT /workspaces/{id}/file` con `{path,content,revision}` | Salvataggio solo dove `WRITE`; controllo revisione/conflitti (`409`), audit e risposta con nuova revisione. |
@@ -129,3 +129,14 @@ viene salvata in questa traccia. Un avvio senza evento finale rimane indicato co
 "in corso o interrotta"; un errore gestito da ToolNode può comparire in un'esecuzione completata.
 Il grafo è in sola lettura. SSE, modifica architettura e gestione generale delle approvazioni
 restano lavori distinti; le conferme calendario restano gestite dalla pagina Calendario.
+
+### Panoramica del framework
+
+La pagina Architettura mostra un solo grafo generale con un nodo per agente o
+interfaccia, e collegamenti di richiesta/delega. Le deleghe sono ricavate dai tool
+effettivamente assegnati a Cora; i tool ordinari non sono nodi della mappa.
+La selezione mostra ruolo, disponibilità strutturale, modello configurato e capacità.
+I grafi interni restano disponibili nel backend ma non sono esposti nella panoramica.
+Componenti di supporto, percorsi API senza agenti (calendario, file, libreria, monitoraggio)
+e salvataggio automatico della chat sono mostrati sotto, in gruppi compatti.
+Questi percorsi non sono automazioni autonome pianificate. Le tracce restano in Attività.
