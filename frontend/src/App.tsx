@@ -584,7 +584,7 @@ export default function App() {
                   Apri la mappa <ArrowRight size={16} />
                 </button>
               </div>
-              <ConnectionNotice feature="runs" />
+              <p className="panel-note">Le tracce di esecuzione sono consultabili nella pagina Architettura.</p>
             </section>
           )}
           {page === "memory-management" && (

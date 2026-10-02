@@ -12,7 +12,7 @@ Calendario: viste mese/giorno e CRUD persistente sotto `/api/v1/calendar`; stori
 | Home / Impostazioni | `GET /health` | FastAPI, raggiungibilità Ollama, modello supervisore, statistiche memoria. |
 | Home | `GET /api/v1/server/telemetry`, `GET /api/v1/server/storage` | CPU/RAM/dischi/rete e cronologia reali; GPU e alimentazione solo se rilevabili. |
 | Servizi Home | `GET /api/v1/system/status` | FastAPI, Ollama, Docker/container se accessibili; Immich/Nextcloud/n8n con URL configurato. Raggiungibilità, non readiness degli agenti. |
-| Architettura | `GET /capabilities` | Registro strutturale, capacità e disponibilità moduli; non health runtime degli agenti. |
+| Architettura | `GET /capabilities`, `GET /api/v1/architecture/graph`, `GET /api/v1/runs`, `GET /api/v1/runs/{id}` | Registro strutturale, topologia eseguibile versionata e tracce correlate persistenti. |
 | Nuova chat / sidebar | `GET /conversations`, `GET /conversations/{id}/messages`, `POST /chat` | Storico PostgreSQL caricato all’apertura e alla selezione; aggiornamento manuale e dopo invio. Ultime 500 chat e 2.000 messaggi per chat. Nuove chat salvate al primo messaggio. |
 | Attività | Esito HTTP delle richieste chat nella pagina | Non è un endpoint dei run, né una traccia degli agenti. |
 | AVVIO | Launcher di `serveria1` con frontend integrato o `-FrontendPath` | Avvio locale Windows; nessuna configurazione automatica del NAS. |
@@ -26,7 +26,7 @@ Calendario: viste mese/giorno e CRUD persistente sotto `/api/v1/calendar`; stori
 | --- | --- | --- |
 | Chat | Streaming, polling e ripresa dopo disconnessione | `/runs/{id}/events`, fallback `/runs/{id}`. |
 | Chat | Allegati, upload e associazione alla richiesta | `/files`, `attachmentIds`; la graffetta resta disabilitata. |
-| Architettura | Grafo backend versionato e traccia reale dei passi | `/architecture/graph`, `/agents`, `/runs`; il registro ora è letto da `/capabilities`. |
+| Architettura | Modifica e pubblicazione del grafo | Grafo eseguibile e tracce ora collegati; API di modifica ancora da progettare. |
 | Attività | Lista run, passi, log, errori, anteprime e approvazioni | `/runs`, `/approvals/{id}`; evitare approvazioni implicite. |
 | Programma | Workspace consentiti, albero file, lettura | `/workspaces`, `/workspaces/{id}/files`, `/file?path=...`. |
 | Programma | Scrittura, revisione/conflitti, audit | `PUT /workspaces/{id}/file` con revisione, permessi server. |

@@ -1,22 +1,9 @@
 /** Permanent integration backlog, visible in Settings and next to unavailable controls. */
 export const missingConnections = {
-  graph: {
-    label: "Grafo versionato del backend",
-    detail:
-      "La mappa dispone gli agenti del registro. Topologia, versioni e dipendenze dinamiche devono ancora arrivare dal backend.",
-    endpoints: "GET /api/v1/architecture/graph; GET /api/v1/agents",
-  },
   streaming: {
     label: "Risposta progressiva",
     detail: "Cora restituisce la risposta completa al termine della richiesta.",
     endpoints: "GET /api/v1/runs/{id}/events (SSE)",
-  },
-  runs: {
-    label: "Tracce di esecuzione",
-    detail:
-      "Passaggi, log, errori e conferme devono ancora essere esposti alla UI.",
-    endpoints:
-      "GET /api/v1/runs; GET /api/v1/runs/{id}; POST /api/v1/approvals/{id}",
   },
   code: {
     label: "Editor e progetti",

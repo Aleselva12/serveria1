@@ -124,7 +124,7 @@ def inventory(routes=(), root: Path = ROOT):
         if path in {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/tools/inventory"}:
             continue
         group = ("File server" if "/server/files" in path else "Libreria IA" if "/library/files" in path else
-                 "Calendario" if "calendar" in path else "Memoria" if path.startswith("/memory") else
+                 "Architettura e tracce" if "/architecture/" in path or path.startswith("/api/v1/runs") else "Calendario" if "calendar" in path else "Memoria" if path.startswith("/memory") else
                  "Conversazioni" if path.startswith("/conversations") else "Sistema")
         for method in sorted(getattr(route, "methods", ()) or ()):
             if method in {"HEAD", "OPTIONS"}:
@@ -141,7 +141,6 @@ def inventory(routes=(), root: Path = ROOT):
         ("calendar_update_event", "Calendario", "Proposta di modifica di un evento."),
         ("calendar_delete_event", "Calendario", "Proposta di eliminazione di un evento."),
         ("Automazioni e modifica dei flussi", "Automazioni", "Predisposizione dell’interfaccia; API di validazione e pubblicazione ancora da costruire."),
-        ("Tracce di esecuzione", "Automazioni", "Visualizzazione dei passaggi dei flussi; endpoint runs ed eventi ancora da collegare."),
         ("Editor ed esecuzione del codice", "Programmazione", "Interfaccia predisposta; tool di modifica ed esecuzione non implementati."),
         ("Allegati della chat", "Documenti", "Controllo UI predisposto; caricamento e associazione ai messaggi da implementare."),
         ("Microfono dalla UI", "Audio", "Controllo UI predisposto; acquisizione e invio al backend da implementare."),
