@@ -1,5 +1,7 @@
 import type { BackendHealth, BackendRegistry } from "../types/contracts";
 import ConnectionNotice from "./ConnectionNotice";
+import { useState } from "react";
+import ArchitectureTools from "./ArchitectureTools";
 
 export default function Architecture({
   registry,
@@ -12,6 +14,12 @@ export default function Architecture({
   selectedNode: string;
   onSelect: (id: string) => void;
 }) {
+  const [view, setView] = useState<"architecture" | "tools">("architecture");
+  const navigation = <nav className="file-subnav" aria-label="Sezioni Architettura">
+    <button aria-current={view === "architecture" ? "page" : undefined} aria-selected={view === "architecture"} onClick={() => setView("architecture")}>Architettura</button>
+    <button aria-current={view === "tools" ? "page" : undefined} aria-selected={view === "tools"} onClick={() => setView("tools")}>Tools</button>
+  </nav>;
+  if (view === "tools") return <section className="content-page"><div className="page-heading"><div><div className="eyebrow">OSSERVA IL SISTEMA</div><h1>Architettura</h1></div><span className="pill">Inventario · Sola lettura</span></div>{navigation}<ArchitectureTools /></section>;
   if (!registry)
     return (
       <section className="content-page">
@@ -24,6 +32,7 @@ export default function Architecture({
             </p>
           </div>
         </div>
+        {navigation}
       </section>
     );
   const supervisor = registry.components.find((c) => c.id === "supervisor");
@@ -43,6 +52,7 @@ export default function Architecture({
         </div>
         <span className="pill">Registro reale · Sola lettura</span>
       </div>
+      {navigation}
       <div className="arch-layout">
         <div className="arch-canvas">
           <div className="canvas-label">

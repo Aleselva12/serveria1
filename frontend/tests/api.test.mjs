@@ -32,6 +32,16 @@ const health = {
   agents: ["Audio Agent"],
 };
 
+test("tools inventory rejects invented states and malformed agent assignments", async () => {
+  globalThis.fetch = async url => {
+    assert.equal(url, "/backend/tools/inventory");
+    return jsonResponse({ entries: [{ id: "bad", status: "ready" }], errors: [], scope: "test" });
+  };
+  await assert.rejects(api.toolInventory(), e => e instanceof ApiError && e.kind === "invalid");
+  globalThis.fetch = async () => jsonResponse({ entries: [], errors: [], scope: "No declarations" });
+  assert.deepEqual(await api.toolInventory(), { entries: [], errors: [], scope: "No declarations" });
+});
+
 test("health calls the existing endpoint and preserves Ollama offline state", async () => {
   globalThis.fetch = async (url) => {
     assert.equal(url, "/backend/health");

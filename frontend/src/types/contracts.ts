@@ -1,4 +1,11 @@
 export type AgentStatus = "ready" | "busy" | "offline" | "error" | "unknown";
+export type ToolEntry = {
+  id: string; name: string; description: string; group: string;
+  kind: "tool" | "api" | "planned";
+  status: "connected" | "unconnected" | "planned";
+  agents: string[]; source: string; parameters: string[]; detail: string;
+};
+export type ToolInventory = { entries: ToolEntry[]; errors: string[]; scope: string };
 export type ServiceStatus = {
   id: string;
   label: string;

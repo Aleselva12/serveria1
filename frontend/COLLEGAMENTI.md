@@ -64,4 +64,10 @@ Problema segnalato dall'utente: al momento i file non sembrano visibili nella pa
 - Configurare e verificare anche `CORA_KNOWLEDGE_ROOT` e `CORA_LIBRARY_ORIGINALS_ROOT` sui percorsi reali del server.
 
 Questo punto resta aperto fino alla prova sul server. Non sono richiesti interventi sui percorsi locali per chiuderlo.
+# Architettura — Tools
 
+La pagina Architettura ha due sezioni: Architettura conserva la mappa degli agenti; Tools mostra nodi singoli selezionabili, dettagli ed elenco per funzione con ricerca e filtri. Il catalogo arriva da `GET /tools/inventory` e non contiene dati simulati.
+
+L’inventario ispeziona le dichiarazioni Python e le liste di tool collegate ai grafi, senza caricare modelli o eseguire strumenti. Le API effettivamente registrate da FastAPI sono mostrate separatamente come operazioni backend non direttamente assegnate agli agenti. Le predisposizioni sono marcate come non implementate nella versione osservata. La rilevazione calendario include i moduli `*tools.py` nella radice, nel core e nelle cartelle degli agenti; una lista calendario importata e aggiunta al Supervisor viene risolta dal catalogo.
+
+Gli stati descrivono collegamenti strutturali, non readiness runtime, credenziali o autorizzazioni. Automazioni, editor dei flussi ed esecuzione non vengono attivati da questa pagina. I nodi sono in sola lettura, senza collegamenti fittizi fra strumenti.
