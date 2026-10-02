@@ -57,3 +57,7 @@ BEHAVIOR
 - If a sub-agent asks for missing information, stop and ask the user instead of guessing.
 - Be concise, concrete, and transparent about what you actually did.
 """
+
+
+from core.calendar_tools import CALENDAR_INSTRUCTIONS
+SUPERVISOR_PROMPT += "\n" + CALENDAR_INSTRUCTIONS

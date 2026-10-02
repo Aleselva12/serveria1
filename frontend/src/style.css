@@ -3050,3 +3050,47 @@ select:disabled {
 
 .sidebar-top { min-height: 0; flex: 1; overflow-y: auto; }
 .sidebar-bottom { flex-shrink: 0; padding-top: 12px; }
+
+/* Calendar: shared month/day store and owner-approved agent proposals. */
+.calendar-controls, .calendar-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:12px 0; }
+.calendar-controls > button:not(.solid-button), .calendar-actions > button:not(.solid-button), .calendar-proposal > button, .calendar-switch button, .calendar-error button { border:1px solid #dfe8e1; border-radius:8px; padding:8px 12px; background:white; color:#385847; cursor:pointer; }
+.calendar-switch { display:flex; gap:4px; }
+.calendar-switch .active { background:#e6f5ec; border-color:#14936b; color:#0b7757; }
+.calendar-page button:disabled { opacity:.5; cursor:wait; }
+.calendar-page .calendar-toolbar h2 { font-size:18px; text-align:center; }
+.calendar-page .calendar-day { position:relative; min-height:110px; padding:7px; }
+.calendar-day.is-today { background:#f0f9f4; }
+.calendar-date, .calendar-add { background:transparent; border:0; color:#385847; cursor:pointer; padding:3px; }
+.calendar-date { font-weight:700; }
+.calendar-add { float:right; }
+.calendar-event { display:block; width:100%; border:0; background:#e6f5ec; color:#116748; font-size:11px; border-radius:5px; padding:5px; margin-top:5px; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+.calendar-timeline-scroll { max-height:650px; overflow:auto; border:1px solid #e4eae5; border-radius:8px; }
+.calendar-timeline { position:relative; height:1440px; }
+.calendar-hour { position:absolute; left:0; right:0; height:60px; display:flex; border-top:1px solid #e4eae5; }
+.calendar-hour > span { flex:0 0 62px; padding:6px; color:#718076; font-size:11px; }
+.calendar-hour > button { flex:1; border:0; border-left:1px solid #e4eae5; background:transparent; cursor:pointer; }
+.calendar-hour > button:hover { background:#f0f9f4; }
+.calendar-timed-events { position:absolute; top:0; bottom:0; left:64px; right:4px; pointer-events:none; }
+.calendar-timed-event { position:absolute; pointer-events:auto; border:1px solid #8fcbb2; border-left:3px solid #14936b; background:#e6f5ec; border-radius:6px; padding:3px 6px; text-align:left; overflow:hidden; color:#116748; cursor:pointer; }
+.calendar-timed-event strong, .calendar-timed-event span, .calendar-timed-event small { display:block; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.calendar-all-day { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:12px 0; font-size:12px; }
+.calendar-all-day .calendar-event { width:auto; max-width:250px; margin:0; }
+.calendar-side label { display:block; margin:16px 0; font-size:12px; font-weight:700; }
+.calendar-side textarea, .calendar-access input { width:100%; padding:10px; margin-top:8px; border:1px solid #dfe8e1; border-radius:8px; font:inherit; background:white; }
+.calendar-side .calendar-checkbox { display:flex; gap:8px; align-items:center; }
+.calendar-side .calendar-checkbox input { width:auto; margin:0; }
+.calendar-error { padding:12px; background:#fff0ed; color:#973d2f; border-radius:8px; }
+.calendar-notice { padding:12px; background:#e6f5ec; color:#116748; border-radius:8px; }
+.calendar-access { margin-bottom:14px; color:#64746a; font-size:12px; }
+.calendar-access label { display:block; max-width:340px; margin-top:12px; }
+.calendar-history { font-size:12px; margin-top:20px; }
+.calendar-history > div { padding:8px 0; border-bottom:1px solid #e4eae5; }
+.calendar-history small, .calendar-history span { display:block; margin-top:4px; }
+.calendar-bottom { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px; }
+.calendar-bottom h2 { font-size:18px; }
+.calendar-bottom p { font-size:12px; overflow-wrap:anywhere; }
+.calendar-proposal { padding:12px 0; border-top:1px solid #e4eae5; overflow-wrap:anywhere; }
+.calendar-proposal small { display:block; margin:6px 0; color:#718076; }
+.calendar-page button:focus-visible { outline:2px solid #14936b; outline-offset:2px; }
+@media(max-width:1000px) { .calendar-page .calendar-layout, .calendar-bottom { grid-template-columns:1fr; } }
+@media(max-width:600px) { .calendar-page .calendar-day { min-height:85px; padding:3px; } .calendar-event { font-size:9px; padding:3px; } .calendar-add { display:none; } .calendar-page .calendar-toolbar h2 { font-size:14px; } }

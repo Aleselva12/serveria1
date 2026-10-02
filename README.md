@@ -466,7 +466,7 @@ I collegamenti reali sono `/chat`, `/health` e `/capabilities`: risposta di Cora
 
 La Home legge `/api/v1/server/telemetry` (CPU, RAM, GPU opzionale, dischi, rete, alimentazione e cronologia CPU), `/api/v1/server/storage` e `/api/v1/system/status`. Aggiornamento automatico, errori espliciti e sensori assenti mostrati come sconosciuti. Docker è interrogato in sola lettura se accessibile; gli URL di Immich, Nextcloud e n8n si configurano in `.env`. Dettagli e limiti in `frontend/COLLEGAMENTI.md`.
 
-Le funzioni senza endpoint hanno avvisi permanenti “Collegamento da realizzare” e controlli disabilitati: allegati, calendario personale, editor, streaming, run, conferme, microfono, permessi completi e modifica della mappa. Non vengono visualizzati dati fittizi. Nessun agente calendario è stato aggiunto.
+Le funzioni senza endpoint hanno avvisi permanenti “Collegamento da realizzare” e controlli disabilitati: allegati, editor, streaming, run, conferme, microfono, permessi completi e modifica della mappa. Non vengono visualizzati dati fittizi. Nessun agente calendario è stato aggiunto.
 
 La mappa mostra agenti e capacità del registro reale; “Modulo presente” è disponibilità strutturale, non readiness runtime. I collegamenti della mappa illustrano delega possibile e non tracce eseguite.
 
@@ -644,3 +644,22 @@ serveria1/
 └── email_agent/
 ```
 
+
+
+## Calendario persistente
+
+La pagina Calendario usa PostgreSQL, con viste mese/giorno, orari italiani `Europe/Rome`, eventi sovrapposti, inserimento/modifica manuale, note ed eventi tutto il giorno. Una durata di 30 minuti viene proposta alla creazione. Gli eventi non vengono duplicati nella memoria semantica.
+
+Le tabelle `calendar_events`, `calendar_event_history` e `calendar_proposals` sono create automaticamente dallo schema al primo accesso dopo il riavvio del backend. Nessun nuovo servizio o agente calendario è richiesto.
+
+API sotto `/api/v1/calendar`: `GET/POST /events`, `GET/PATCH/DELETE /events/{id}`, `POST /events/{id}/restore`, `GET /events/{id}/history`, `GET /proposals`, `POST /proposals/{id}/resolve` con `{approve: true|false}`. Lettura eventi con `start`, `end` ISO 8601 comprensivi di offset, massimo 370 giorni; intervallo semiaperto, inclusi eventi che attraversano il periodo. PATCH sostituisce tutti i campi editabili e richiede `version`; DELETE e restore richiedono la versione nella query. I conflitti restituiscono 409: riaprire l'evento prima di intervenire. Eventi tutto il giorno: mezzanotte italiana, fine esclusa; il modulo mostra invece l'ultimo giorno incluso.
+
+Le scritture e i relativi snapshot storici sono atomici. L'eliminazione è recuperabile, non fisica. Lo storico registra attore, data e dati dell'evento. Le proposte approvate attribuiscono la modifica all'agente e registrano separatamente l'approvazione dell'utente.
+
+I cinque tool `calendar_list_events`, `calendar_get_event`, `calendar_create_event`, `calendar_update_event`, `calendar_delete_event` sono collegati al supervisore e agli agenti mail, audio e documenti. L'identità è fissata dal backend. La lettura è automatica; **in questa prima versione tutte le scritture degli agenti, anche su richiesta in chat, producono proposte da approvare/rifiutare nella pagina**. Nessun parametro del tool può dichiarare l'approvazione. Il backend verifica di nuovo permessi e versione quando l'utente approva. Proposte rifiutate o già approvate non possono essere eseguite una seconda volta.
+
+Per accesso remoto configurare `CORA_CALENDAR_TOKEN` nel backend e inserire il token nella sezione Accesso remoto della pagina. Senza token sono consentite solo richieste loopback. Il token resta in memoria durante l'apertura della pagina e non viene salvato nel browser. Non pubblicare il backend direttamente su Internet; l'accesso previsto è tramite Tailscale. La pagina aggiorna i dati al ritorno in primo piano e ogni 30 secondi; le mutazioni non vengono ritentate automaticamente.
+
+Durante il salto primaverile gli orari inesistenti sono rifiutati. Per il nuovo inserimento nell'ora ripetuta autunnale viene usata la prima occorrenza; l'offset originale degli eventi esistenti viene conservato se il relativo orario non cambia. Ricorrenze, notifiche, sincronizzazione esterna e trascinamento non sono ancora implementati.
+
+Verifica calendario: `python -m unittest discover -s tests -p test_calendar.py -v`. I test CRUD/approvazioni richiedono `CORA_CALENDAR_TEST_DATABASE_URL` verso un database PostgreSQL **di test dedicato e sacrificabile**: svuotano esclusivamente le tre tabelle calendario. Non puntare questa variabile al database operativo. Nell'ambiente di sviluppo i sei test SQL sono stati eseguiti su PostgreSQL embedded PGlite attraverso il protocollo PostgreSQL; resta da verificare l'installazione nel database dell'utente e l'esecuzione reale dei tool con il modello Ollama.

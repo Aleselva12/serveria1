@@ -361,3 +361,7 @@ LOCAL_RESEARCH_TOOLS = [
     create_word_document,
     append_word_document,
 ]
+
+
+from core.calendar_tools import calendar_tools_for
+LOCAL_RESEARCH_TOOLS += calendar_tools_for("local_research_agent")

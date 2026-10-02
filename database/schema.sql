@@ -134,3 +134,44 @@ CREATE TABLE IF NOT EXISTS memory_sources (
 
 CREATE INDEX IF NOT EXISTS idx_memory_sources_memory
     ON memory_sources(memory_id, created_at DESC);
+
+-- Calendar is authoritative operational data, independent of semantic memory.
+CREATE TABLE IF NOT EXISTS calendar_events (
+    id UUID PRIMARY KEY,
+    title TEXT NOT NULL CHECK (length(trim(title)) BETWEEN 1 AND 200),
+    start_at TIMESTAMPTZ NOT NULL,
+    end_at TIMESTAMPTZ NOT NULL CHECK (end_at > start_at),
+    all_day BOOLEAN NOT NULL DEFAULT FALSE,
+    notes TEXT NOT NULL DEFAULT '',
+    created_by TEXT NOT NULL,
+    updated_by TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    version INTEGER NOT NULL DEFAULT 1,
+    deleted_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_calendar_interval ON calendar_events(start_at, end_at);
+CREATE TABLE IF NOT EXISTS calendar_event_history (
+    id UUID PRIMARY KEY,
+    event_id UUID NOT NULL REFERENCES calendar_events(id),
+    action TEXT NOT NULL CHECK (action IN ('create','update','delete','restore')),
+    actor TEXT NOT NULL,
+    changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    snapshot JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_calendar_history ON calendar_event_history(event_id, changed_at);
+CREATE TABLE IF NOT EXISTS calendar_proposals (
+    id UUID PRIMARY KEY,
+    actor TEXT NOT NULL,
+    action TEXT NOT NULL CHECK (action IN ('create','update','delete')),
+    event_id UUID REFERENCES calendar_events(id),
+    expected_version INTEGER,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    previous JSONB NOT NULL DEFAULT '{}'::jsonb,
+    reason TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ,
+    resolved_by TEXT,
+    CHECK (action = 'create' OR (event_id IS NOT NULL AND expected_version IS NOT NULL))
+);
