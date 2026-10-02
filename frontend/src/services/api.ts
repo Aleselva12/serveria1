@@ -1,4 +1,5 @@
 import type {
+  ToolInventory,
   SavedConversation,
   SavedMessage,
   BackendChatResponse,
@@ -103,6 +104,19 @@ function metricValid(metric: ServerTelemetry["cpu"]) {
 const nonnegative = (value: number) => Number.isFinite(value) && value >= 0;
 
 export const api = {
+  async toolInventory(): Promise<ToolInventory> {
+    const data = await request<ToolInventory>("/tools/inventory");
+    if (!data || !Array.isArray(data.entries) || !Array.isArray(data.errors) ||
+        !data.errors.every(e => typeof e === "string") || typeof data.scope !== "string" ||
+        !data.entries.every(e => e && typeof e.id === "string" && typeof e.name === "string" &&
+          typeof e.description === "string" && typeof e.group === "string" && typeof e.source === "string" &&
+          typeof e.detail === "string" && ["tool", "api", "planned"].includes(e.kind) &&
+          ["connected", "unconnected", "planned"].includes(e.status) &&
+          Array.isArray(e.agents) && e.agents.every(a => typeof a === "string") &&
+          Array.isArray(e.parameters) && e.parameters.every(p => typeof p === "string")))
+      throw new ApiError("Inventario tools non valido.", "invalid");
+    return data;
+  },
   async conversations(): Promise<SavedConversation[]> {
     const data = await request<SavedConversation[]>("/conversations?limit=500");
     if (!Array.isArray(data) || !data.every(c => c &&
@@ -290,4 +304,3 @@ export const api = {
     return data;
   },
 };
-

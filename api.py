@@ -22,6 +22,7 @@ from core.server_files import router as files_router
 from core.ia_library import router as library_router
 from core.registry import get_agents, get_registry
 from graph import graph
+from core.tool_inventory import inventory
 
 
 load_dotenv()
@@ -102,6 +103,11 @@ def health():
             "messages": 0,
         },
     }
+
+
+@app.get("/tools/inventory")
+def tools_inventory():
+    return inventory(app.routes)
 
 
 @app.get("/capabilities")
