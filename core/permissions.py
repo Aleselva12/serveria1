@@ -3,6 +3,9 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import asdict, dataclass
 from enum import Enum, IntEnum
+from dataclasses import replace
+import time
+import threading
 
 
 class PermissionLevel(IntEnum):
@@ -278,7 +281,8 @@ def get_permission_rule(actor: str, action: str) -> ActionPermission | None:
 
     for rule in RULES:
         if rule.actor == normalized_actor and rule.action == normalized_action:
-            return rule
+            policy = policy_overrides().get((rule.actor, rule.action))
+            return replace(rule, policy=ApprovalPolicy(policy)) if policy else rule
     return None
 
 
@@ -326,8 +330,15 @@ def require_permission(
     user_approved: bool = False,
 ) -> PermissionDecision:
     """Return the decision or raise PermissionError when the action cannot run."""
-    decision = check_permission(actor, action, user_approved=user_approved)
+    from core.governance import invocation, approved_action, ApprovalRequired
+    from core.runtime import checkpoint
+    checkpoint()
+    call, grant = invocation.get(), approved_action.get()
+    trusted = bool(call and grant and grant[0] == actor and (grant[1] == action if isinstance(grant[1], str) else action in grant[1]) and grant[2:] == (call["tool_id"], call["payload"]))
+    decision = check_permission(actor, action, user_approved=user_approved or trusted)
     if not decision.allowed:
+        if decision.requires_user_confirmation and call:
+            raise ApprovalRequired(actor, action)
         raise PermissionError(decision.reason)
     return decision
 
@@ -335,7 +346,7 @@ def require_permission(
 def permission_manifest(actor: str = "") -> list[dict]:
     normalized = actor.strip().lower()
     selected = [rule for rule in RULES if not normalized or rule.actor == normalized]
-    return [rule.to_dict() for rule in selected]
+    return [get_permission_rule(rule.actor, rule.action).to_dict() for rule in selected]
 
 
 def validate_permission_configuration() -> dict:
@@ -364,3 +375,35 @@ def validate_permission_configuration() -> dict:
         "duplicates": duplicates,
         "missing": missing,
     }
+
+
+_policy_cache = {}
+_policy_time = 0
+_policy_lock = threading.Lock()
+
+
+def policy_overrides():
+    global _policy_cache, _policy_time
+    from core.database import database_configured, db_connection
+    if not database_configured(): return {}
+    with _policy_lock:
+        if time.monotonic() - _policy_time > 2:
+            with db_connection() as conn:
+                rows = conn.execute("SELECT actor,action,policy FROM tool_policies").fetchall()
+            _policy_cache = {(r["actor"],r["action"]):r["policy"] for r in rows}
+            _policy_time = time.monotonic()
+        return dict(_policy_cache)
+
+
+def set_policy(actor, action, policy):
+    global _policy_time
+    from core.database import db_connection
+    base = next((r for r in RULES if r.actor == actor and r.action == action), None)
+    if not base: raise KeyError("Capability sconosciuta.")
+    # No execution path exists for these capabilities. Keep them blocked.
+    if base.policy is ApprovalPolicy.BLOCKED and policy != "blocked":
+        raise ValueError("Capability bloccata: richiede prima un'implementazione verificata.")
+    value = ApprovalPolicy(policy).value
+    with db_connection() as conn:
+        conn.execute("INSERT INTO tool_policies (actor,action,policy) VALUES (%s,%s,%s) ON CONFLICT(actor,action) DO UPDATE SET policy=EXCLUDED.policy,updated_at=NOW()", (actor,action,value))
+    with _policy_lock: _policy_time = 0

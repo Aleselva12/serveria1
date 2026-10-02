@@ -1,0 +1,156 @@
+"""Requires a disposable pgvector database, never use the owner's real database."""
+import json
+import os
+import unittest
+from unittest.mock import patch
+from uuid import uuid4
+from datetime import datetime, timezone, timedelta
+from fastapi.testclient import TestClient
+from core.database import db_connection
+from core.auth import provision
+from core.governance import agent_tool, resolve
+from core.permissions import require_permission, set_policy
+from core.runtime import Runtime
+
+@unittest.skipUnless(os.getenv('CORA_RUNTIME_TEST_DATABASE_URL'), 'Requires disposable PostgreSQL+pgvector')
+class RuntimePostgresTests(unittest.TestCase):
+    def setUp(self):
+        import api
+        self.runtime = Runtime()
+        self.patch = patch.object(api,'runtime',self.runtime);self.patch.start()
+        with db_connection() as c:
+            c.execute('TRUNCATE app_sessions,app_users,action_approvals,tool_policies CASCADE')
+        import core.permissions as permissions
+        permissions._policy_time=0
+        provision('Ale','a-long-local-password')
+        self.client = TestClient(api.app,headers={'X-Cora-Client':'ui'})
+        self.assertEqual(self.client.post('/auth/login',json={'username':'Ale','password':'a-long-local-password'}).status_code,200)
+    def tearDown(self):
+        self.client.close();self.runtime.shutdown();self.patch.stop()
+        from core.database import close_pool
+        close_pool()
+
+    def test_login_logout_revocation_and_password_not_in_session(self):
+        self.assertTrue(self.client.get('/auth/status').json()['authenticated'])
+        with db_connection() as c:
+            row=c.execute('SELECT * FROM app_sessions').fetchone()
+        self.assertEqual(len(row['token_hash']),64)
+        self.assertNotEqual(row['token_hash'],self.client.cookies.get('cora_session'))
+        self.assertEqual(self.client.post('/auth/logout?all_sessions=true').status_code,200)
+        self.assertEqual(self.client.get('/conversations').status_code,401)
+
+    def test_expired_session_cannot_read_memory(self):
+        with db_connection() as c: c.execute("UPDATE app_sessions SET expires_at=NOW()-INTERVAL '1 second'")
+        self.assertEqual(self.client.get('/memory').status_code,401)
+
+    def test_approval_applies_exact_action_once_and_rechecks_policy(self):
+        effects=[]
+        @agent_tool('supervisor')
+        def write_approval_test(value:str):
+            """Write a test effect behind the actual permission engine."""
+            require_permission('supervisor','remember_memory');effects.append(value);return {'saved':value}
+        set_policy('supervisor','remember_memory','confirm')
+        proposal=json.loads(write_approval_test.invoke({'value':'specific'}))
+        self.assertEqual(effects,[])
+        result=resolve(proposal['approval_id'],True,'Ale')
+        self.assertEqual(result['status'],'approved');self.assertEqual(effects,['specific'])
+        with self.assertRaises(ValueError):resolve(proposal['approval_id'],True,'Ale')
+        second=json.loads(write_approval_test.invoke({'value':'second'}))
+        set_policy('supervisor','remember_memory','blocked')
+        with self.assertRaises(RuntimeError):resolve(second['approval_id'],True,'Ale')
+        self.assertEqual(effects,['specific'])
+        with db_connection() as c:
+            row=c.execute('SELECT status FROM action_approvals WHERE id=%s',(second['approval_id'],)).fetchone()
+        self.assertEqual(row['status'],'failed')
+
+    def test_multi_permission_tool_has_one_exact_bundle_confirmation(self):
+        effects=[]
+        @agent_tool('structure_agent')
+        def write_multi_test(value:str):
+            """A composite capability requires both permissions before its effect."""
+            require_permission('structure_agent','create_plan')
+            require_permission('structure_agent','save_plan')
+            effects.append(value)
+            return 'ok'
+        set_policy('structure_agent','create_plan','confirm')
+        set_policy('structure_agent','save_plan','confirm')
+        proposal=json.loads(write_multi_test.invoke({'value':'one'}))
+        with db_connection() as c: row=c.execute('SELECT actions FROM action_approvals WHERE id=%s',(proposal['approval_id'],)).fetchone()
+        self.assertEqual(set(row['actions']),{'create_plan','save_plan'})
+        self.assertEqual(effects,[])
+        self.assertEqual(resolve(proposal['approval_id'],True,'Ale')['status'],'approved')
+        self.assertEqual(effects,['one'])
+
+    def test_expired_approval_and_rejection_never_execute(self):
+        effects=[]
+        @agent_tool('supervisor')
+        def write_expiry_test(value:str):
+            """Test expiry before an authorized effect."""
+            require_permission('supervisor','remember_memory');effects.append(value);return 'ok'
+        set_policy('supervisor','remember_memory','confirm')
+        a=json.loads(write_expiry_test.invoke({'value':'expired'}))['approval_id']
+        with db_connection() as c:c.execute("UPDATE action_approvals SET expires_at=NOW()-INTERVAL '1 second' WHERE id=%s",(a,))
+        with self.assertRaises(ValueError):resolve(a,True,'Ale')
+        b=json.loads(write_expiry_test.invoke({'value':'rejected'}))['approval_id']
+        self.assertEqual(resolve(b,False,'Ale')['status'],'rejected');self.assertEqual(effects,[])
+
+    def test_chat_stream_persists_and_returns_the_canonical_result(self):
+        import api
+        from langchain_core.messages import AIMessage
+        class FakeGraph:
+            def stream(self,*args,**kwargs):
+                yield 'messages',(AIMessage(content='Ciao'),{'langgraph_node':'agent','langgraph_step':1})
+                yield 'values',{'messages':[AIMessage(content='Ciao') ]}
+        cid=str(uuid4())
+        with patch.object(api,'graph',FakeGraph()):
+            created=self.client.post('/api/v1/chat/runs',json={'message':'hello','thread_id':cid})
+            self.assertEqual(created.status_code,202)
+            run=self.runtime.get(created.json()['id']);self.assertTrue(run.done.wait(5))
+        self.assertEqual(run.status,'completed');self.assertEqual(run.result['response'],'Ciao')
+        # Runtime endpoints share the same global instance in real production.
+        with patch('core.runtime_api.runtime',self.runtime):
+            streamed=self.client.get('/api/v1/runtime/runs/'+run.id+'/events')
+        self.assertIn('chat.delta',streamed.text);self.assertIn('event: result',streamed.text)
+        rows=self.client.get('/conversations/'+cid+'/messages').json()
+        self.assertEqual([r['content'] for r in rows],['hello','Ciao'])
+        with db_connection() as c:
+            rows=c.execute('SELECT embedding,embedding_model FROM messages WHERE conversation_id=%s',(cid,)).fetchall()
+        self.assertTrue(all(r['embedding'] is None and r['embedding_model'] is None for r in rows))
+
+    def test_summary_cache_covers_old_history_and_is_not_semantic_memory(self):
+        from core.context_budget import prepare_context
+        from langchain_core.messages import AIMessage
+        cid=uuid4()
+        with db_connection() as c:
+            c.execute('INSERT INTO conversations (id) VALUES (%s)',(cid,))
+            for i in range(12):
+                c.execute('INSERT INTO messages (id,conversation_id,role,content,created_at) VALUES (%s,%s,%s,%s,%s)',(uuid4(),cid,'user',str(i)+'x'*4000,datetime.now(timezone.utc)+timedelta(seconds=i)))
+            count=c.execute('SELECT count(*) AS n FROM memories').fetchone()['n']
+        class Summarizer:
+            def invoke(self,*args,**kwargs):return AIMessage(content='Derived summary')
+        with patch('core.models.get_chat_model',return_value=Summarizer()) as model:
+            context=prepare_context(str(cid));self.assertEqual(context[0]['name'],'conversation_summary');self.assertEqual(context[-1]['content'],'11'+'x'*4000)
+            self.assertTrue(model.called)
+        with patch('core.models.get_chat_model') as model:
+            repeated=prepare_context(str(cid));self.assertEqual(repeated,context);model.assert_not_called()
+        with db_connection() as c:self.assertEqual(c.execute('SELECT count(*) AS n FROM memories').fetchone()['n'],count)
+
+    def test_transaction_rolls_back_and_connection_is_reused(self):
+        try:
+            with db_connection() as c:
+                c.execute("INSERT INTO tool_policies (actor,action,policy) VALUES ('test','test','auto')")
+                raise ValueError('rollback')
+        except ValueError:pass
+        with db_connection() as c:
+            self.assertIsNone(c.execute("SELECT * FROM tool_policies WHERE actor='test'").fetchone())
+
+    def test_tool_reported_error_is_not_approved_success(self):
+        @agent_tool('supervisor')
+        def test_report_error(value:str):
+            """A tool may return a structured error instead of raising."""
+            require_permission('supervisor','remember_memory');return json.dumps({'status':'error','error':'failed'})
+        set_policy('supervisor','remember_memory','confirm')
+        a=json.loads(test_report_error.invoke({'value':'test'}))['approval_id']
+        with self.assertRaises(RuntimeError):resolve(a,True,'Ale')
+        with db_connection() as c:row=c.execute('SELECT status,result FROM action_approvals WHERE id=%s',(a,)).fetchone()
+        self.assertEqual(row['status'],'failed');self.assertIn('error',row['result'])

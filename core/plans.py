@@ -11,7 +11,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 from core.orchestration import DEFAULT_PLAN_OWNER, resolve_plan_owner
-from core.permissions import check_permission
+from core.permissions import check_permission, require_permission
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -42,9 +42,7 @@ def _safe_slug(value: str, fallback: str) -> str:
 
 
 def _require_permission(action: str) -> None:
-    decision = check_permission("structure_agent", action)
-    if not decision.allowed:
-        raise PermissionError(decision.reason)
+    require_permission("structure_agent", action)
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:

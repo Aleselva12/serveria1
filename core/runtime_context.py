@@ -19,10 +19,14 @@ _deadline: ContextVar[float | None] = ContextVar("cora_deadline", default=None)
 
 
 def current_runtime() -> tuple[str, str]:
-    return _run_id.get(), _thread_id.get()
+    from core.runtime import current_run
+    run = current_run.get()
+    return _run_id.get() or (run.id if run else ""), _thread_id.get() or (run.thread_id if run else "")
 
 
 def ensure_runtime_active() -> None:
+    from core.runtime import checkpoint
+    checkpoint()
     deadline = _deadline.get()
     if deadline is not None and time.monotonic() >= deadline:
         raise RunTimedOut("Il tempo massimo del run è scaduto.")

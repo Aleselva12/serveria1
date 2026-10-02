@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./transport";
 import { apiBaseUrl, ApiError } from "./api";
 import type {
   FileArea,
@@ -31,7 +32,7 @@ async function fetchFile(
     if (token) headers.set("Authorization", "Bearer " + token);
     if (typeof init.body === "string")
       headers.set("Content-Type", "application/json");
-    const response = await fetch(apiBaseUrl + prefix(area) + route, {
+    const response = await authenticatedFetch(apiBaseUrl + prefix(area) + route, {
       ...init,
       headers,
       signal: controller.signal,

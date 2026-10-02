@@ -1,142 +1,15 @@
-# Cora Frontend
+# Frontend Cora
 
-Interfaccia React + TypeScript + Vite basata sul design Figma, collegata al backend di Cora in `serveria1`. Sostituisce la precedente interfaccia. Le schermate mantengono lo stile e il layout della nuova repository; la mappa degli agenti resta in sola lettura.
+Interfaccia React/TypeScript/Vite di `serveria1`, nella stessa repository del backend. La vecchia repository frontend è archiviata. Installazione: `npm ci`; sviluppo: `npm run dev`; verifica: `npm test` e `npm run build`.
 
-## Cosa funziona adesso
+Il proxy Vite inoltra `/backend/*` a `http://127.0.0.1:8000`. `CORA_API_TARGET` cambia la destinazione backend; `VITE_API_BASE_URL` cambia la base HTTP del browser. Per sessioni remote preferire UI e API sullo stesso sito; configurare l'origine nel backend. Non inserire chiavi o password in variabili Vite.
 
-- Chat reale: `POST /chat`, con `message` e `thread_id`, risposta completa al termine, attesa visibile, gestione errori e blocco degli invii duplicati.
-- Storico PostgreSQL nella sidebar, recuperato anche dopo riavvio. Selezione con caricamento dei messaggi e prosecuzione dello stesso thread. Le nuove chat vengono salvate al primo messaggio; pulsante di aggiornamento e errori espliciti. Visualizzazione delle ultime 500 chat e fino a 2.000 messaggi per chat; il backend usa gli ultimi 40 messaggi come contesto per impostazione predefinita.
-- Stato FastAPI e raggiungibilità Ollama: `GET /health`, controllo ogni 15 secondi e pulsante di aggiornamento.
-- Home: telemetria reale ogni 5 secondi, cronologia CPU e stato servizi ogni 15 secondi. Sensori GPU/alimentazione opzionali; vedere COLLEGAMENTI.md per configurazione e limiti.
-- Modello del supervisore e conteggio memorie, quando restituiti da `/health`.
-- Architettura: agenti e capacità letti da `GET /capabilities`. Le linee rappresentano la delega possibile del supervisore, non tracce runtime o un grafo versionato ricevuto dal server. “Modulo presente” indica disponibilità strutturale, non readiness operativa.
-- Attività: esito delle richieste chat inviate da questa pagina nella sessione corrente. Le tracce interne degli agenti sono da collegare.
+Il login personale riusa un cookie HttpOnly di sette giorni. `services/transport.ts` è il confine condiviso per cookie, header delle scritture e scadenza della sessione. `AuthGate` richiede il login, oppure consente la sola visualizzazione offline quando il backend non è raggiungibile. L'account iniziale si crea sul PC con `python -m core.auth`, come descritto nel README principale.
 
-## Collegamenti ancora mancanti
+Pagine collegate: Home (sensori e servizi), Chat (conversazioni, streaming e annullamento), File server/Libreria IA, Architettura (agenti e framework), Tools (catalogo e bozze grafiche), Calendario (mese/giorno, scritture manuali e proposte), Attività (runtime, approvazioni, policy e tracce), Impostazioni (contesto permanente e logout), Gestione Memoria. Programma rimane una predisposizione grafica: agente programmatore non implementato.
 
-Ogni parte non esposta dal backend ha un avviso permanente **“Collegamento da realizzare”**, con pulsanti disabilitati. Backend offline, errore HTTP e funzione assente sono stati distinti. Nessun valore demo, file inventato, evento locale o risposta predefinita viene presentato come dato del server.
+`services/runtimeApi.ts` crea il run prima di aprire SSE, separa testo provvisorio da risultato persistito e non ritenta automaticamente una scrittura dopo un errore di connessione. Un'interruzione del collegamento non prova che il run sia terminato: consultarne l'esito in Attività. Le vecchie API `/chat` restano per compatibilità.
 
-L’elenco completo è in [COLLEGAMENTI.md](COLLEGAMENTI.md), nelle Impostazioni dell’app e in `src/services/connections.ts`. Include streaming, allegati, file del NAS, editor, tracce, conferme, microfono, permessi e modifica della mappa. **Non è stato creato un agente calendario.**
+Le proposte generiche e calendario sono visibili nel pannello comune. La conferma autorizza solo i parametri mostrati; gli esiti generici sono conservati. Le impostazioni di policy si applicano agli agenti, non alle modifiche manuali del proprietario.
 
-## Avvio completo consigliato
-
-Scaricare il branch **main** aggiornato di `Aleselva12/serveria1`: contiene questa interfaccia nella cartella `frontend/`. Estrarre tutto e fare doppio clic su **AVVIO.cmd nella radice di serveria1**. Il launcher controlla/avvia backend, frontend e Ollama come nella configurazione esistente. Al primo avvio servono Python, Node.js/npm, Internet per le dipendenze e il modello locale configurato. Chiudere le vecchie finestre Cora prima del primo avvio aggiornato, se occupano le stesse porte.
-
-Questa repository separata può essere usata anche accanto al backend:
-
-```text
-cartella-di-lavoro/
-  serveria1/    # branch main aggiornato
-  frontend/    # questa repository
-```
-
-`AVVIO.cmd` qui cerca il launcher aggiornato in `../serveria1` e gli passa questa cartella come `FrontendPath`. Si può indicare un altro checkout con la variabile Windows `CORA_BACKEND_PATH`. Se il backend non è presente, avvia solo Vite: l’app segnala il backend offline finché FastAPI non viene avviato o configurato come servizio remoto.
-
-## Configurazione del collegamento
-
-Senza configurazione aggiuntiva, Vite serve l’app su `http://127.0.0.1:5173` e inoltra `/backend/*` a FastAPI su `http://127.0.0.1:8000`, rimuovendo il prefisso. Le API esistenti **non** usano `/api/v1`.
-
-Per usare FastAPI su un altro PC o sul NAS, copiare `.env.example` in `.env.local`, cambiare `CORA_API_TARGET` con l’indirizzo raggiungibile e riavviare Vite:
-
-```dotenv
-VITE_API_BASE_URL=/backend
-CORA_API_TARGET=http://INDIRIZZO_DEL_SERVER:8000
-```
-
-FastAPI deve essere in ascolto sull’interfaccia di rete corretta. Questo modifica il collegamento della UI, non installa o configura automaticamente il server fisico.
-
-Per chiamare FastAPI direttamente si può impostare `VITE_API_BASE_URL` all’URL dell’API; in quel caso configurare `CORA_UI_ORIGINS` nel `.env` backend. Nessun segreto nelle variabili `VITE_`. L’integrazione mantiene il perimetro locale esistente: non aggiunge autenticazione né pubblicazione su Internet.
-
-```bash
-npm ci --include=dev
-npm run dev
-npm run build
-npm test
-```
-
-`npm run build` verifica TypeScript e produce `dist/`. `npm run preview` usa lo stesso proxy per la verifica locale. Per servire `dist/` in produzione occorre configurare un reverse proxy `/backend`, oppure un URL API e CORS appropriati: il proxy Vite non viene incluso nei file statici.
-
-## File principali
-
-- `src/services/api.ts`: unico confine HTTP, per `/health`, `/capabilities`, `/chat`; valida payload e mostra errori espliciti.
-- `src/services/useBackend.ts`: controlli periodici indipendenti per stato e registro, senza riutilizzare dati scaduti dopo un errore.
-- `src/services/connections.ts`: promemoria centralizzati dei collegamenti mancanti.
-- `src/components/ConnectionNotice.tsx`: avviso permanente uniforme.
-- `src/components/Architecture.tsx`: visualizzazione del registro reale, senza tracce inventate.
-- `src/App.tsx`, `Home.tsx`, `FileManager.tsx`: pagine e controlli della UI.
-- `vite.config.ts`: proxy configurabile verso FastAPI.
-
-La matrice seguente resta il **contratto futuro proposto**: i suoi endpoint non sono attivati automaticamente. Le tre API realmente collegate sono quelle elencate sopra.
-
-## Contratto HTTP proposto, completo per la UI attuale
-
-Base configurabile con `VITE_API_BASE_URL`; prefisso `/api/v1`. JSON UTF-8, identificativi stabili, timestamp ISO 8601 con fuso, paginazione per liste estese, errori strutturati `{code,message,requestId,details?}`. Le URL e i payload vanno concordati con FastAPI prima dell'attivazione. `src/services/api.ts` contiene solo le tre API reali: tutti i contratti futuri di questa tabella richiedono endpoint backend e nuovi metodi nell’adapter.
-
-| Area e file frontend | Richiesta/evento previsto | Risposta o effetto richiesto |
-| --- | --- | --- |
-| Home `components/Home.tsx`/`api.ts` | `GET /api/v1/server/telemetry`, `GET /api/v1/server/storage` | CPU/RAM/GPU opzionale, temperature disponibili, dischi con byte usati/totali, rete con rate in bit/s, alimentazione/UPS opzionale, cronologia CPU, `sampledAt`; valori null o stale devono apparire come sconosciuti, mai come sani. Non usare nomi hardware del Figma come dati reali. |
-| Stato `App.tsx`/`api.ts` | `GET /api/v1/system/status` | Stato e ultimo controllo di FastAPI, Ollama, supervisor e servizi disponibili; distinguere offline, errore, occupato. |
-| Impostazioni `App.tsx`/`api.ts` | `GET /system/config` | Modello effettivo, capability abilitate, configurazione pubblica; mai segreti, prompt riservati o credenziali. |
-| Impostazioni/Programma, *da aggiungere* | `GET /permissions` | Capability per utente e area di lavoro: `OBSERVE`, `READ`, `DRAFT`, `WRITE`, `EXECUTE`, `ADMIN`; policy `AUTO`, `CONFIRM`, `BLOCKED`, radici consentite. L'interfaccia le rappresenta; il server le applica. |
-| Chat `App.tsx`/`api.ts` | `GET /conversations`, `POST /conversations` | Elenco, nuova conversazione, ID, titolo e aggiornamento. Aggiungere rinomina/eliminazione solo quando decise. |
-| Chat `App.tsx`/`api.ts` | `GET /conversations/{id}/messages`, `POST /conversations/{id}/messages` con `{content,attachmentIds}` | Messaggi ordinati, ID persistenti, ruolo, timestamp, allegati e `runId` per seguire l'esecuzione. Validare ID e dimensioni. |
-| Chat/Attività, *da aggiungere* | `GET /runs/{id}/events` via SSE, o protocollo equivalente definito col backend | Eventi `message.delta`, `message.completed`, `run.started`, `step.started`, `step.completed`, `step.failed`, `approval.requested`, `run.completed`, `run.failed`; ogni evento con `runId`, `eventId`, sequenza e timestamp. Gestire riconnessione, duplicati e risposta finale. Polling `GET /runs/{id}` come fallback. |
-| Architettura `ArchitectureOverview.tsx`/`api.ts` | `GET /api/v1/architecture/overview` | Unico framework generale: interfaccia, API, Cora centrale e agenti specializzati. Componenti di supporto e percorsi diretti separati. |
-| Attività `ArchitectureRuntime.tsx`/`api.ts` | `GET /api/v1/runs`, `GET /api/v1/runs/{id}` | Implementato: tracce tecniche correlate persistenti; timestamp, stato, durata, genitore e tipo di errore. |
-| Attività/Chat `App.tsx`/`api.ts` | `POST /approvals/{id}` con `{decision:"approved"|"rejected"}` | Anteprima comprensibile dell'azione, scadenza, risposta idempotente e nuovo stato. Nessuna esecuzione implicita per apertura pagina. |
-| Programma `App.tsx`/`api.ts` | `GET /workspaces`, `GET /workspaces/{id}/files`, `GET /workspaces/{id}/file?path=...` | Aree autorizzate `cora` e `project`, radici visibili, permessi, albero e file con `revision`; filtrare e normalizzare percorsi sul server. |
-| Programma `App.tsx`/`api.ts` | `PUT /workspaces/{id}/file` con `{path,content,revision}` | Salvataggio solo dove `WRITE`; controllo revisione/conflitti (`409`), audit e risposta con nuova revisione. |
-| Programma, *da aggiungere* | `POST /workspaces/{id}/executions` con comando/target validato; `GET /executions/{id}` + eventi/output | Solo dove `EXECUTE`, su comandi allowlist o sandbox; timeout, cancellazione, stdout/stderr, exit code, limiti e conferma quando prevista. Non accettare shell arbitraria tramite UI. |
-| Calendario `Calendar.tsx`/`calendarApi.ts` | `/api/v1/calendar/events`, `/history`, `/restore`, `/proposals` | PostgreSQL, mese/giorno, versioni e proposte degli agenti con approvazione utente. |
-| File `components/FileManager.tsx`/`api.ts` | `GET /server/files/tree`, `GET /server/files/folders/{id}/children`, `GET /server/storage` | ID opachi, parent, nome, tipo, dimensione, modifica, capacità per elemento, utilizzo disco; navigazione e ricerca con paginazione per grandi directory. Non esporre percorsi assoluti o file fuori dalle radici autorizzate. |
-| File `components/FileManager.tsx`/`api.ts` | `POST /files` multipart con folderId, `GET /files/{id}/download`, `DELETE /server/files/{id}`, `POST /server/files/{id}/shares` | Upload nella cartella autorizzata, progresso e limiti, download autenticato, conferma e cestino/versione per eliminazione, condivisione solo se autorizzata. Le risposte devono aggiornare elenco e spazio usato. Distinguere NAS da allegati chat/artefatti Cora. |
-| File, *da aggiungere* | `GET /files/{id}/preview`, `GET /files/{id}/processing` | Anteprima sicura per tipi supportati e stato del processo; risultati generati collegati a conversazione e run. |
-| Audio/microfono, *fase futura* | Permesso browser + upload audio/trascrizione da definire | Acquisizione con consenso esplicito, stato registrazione, upload, testo, errori e retention. Il pulsante è disabilitato fino al collegamento. |
-| Architettura modificabile, *fase futura* | Endpoint separati con versioni, validazione, simulazione e pubblicazione | Bozze del grafo/automazioni, controllo cicli e capability, diff, conferma, audit e rollback. La mappa iniziale è sola lettura. |
-| AVVIO completo, *collegato localmente* | `/health` e marker HTML del nuovo frontend | Il launcher `serveria1/AVVIO.cmd` avvia i servizi locali. La configurazione automatica di un server remoto resta da definire. |
-
-### Integrazioni trasversali indispensabili
-
-1. **Autenticazione e sessione:** decidere il modello locale/remoto prima di abilitare dati reali. `api.ts` prevede `credentials: 'include'`; se si usano cookie, servono attributi corretti, protezione CSRF per mutazioni, CORS con origini esplicite e HTTPS per accesso remoto. Non inserire token permanenti in `localStorage` o nel bundle Vite.
-2. **Permessi reali:** `Programma` offre Cora e progetti separati, ma il backend deve imporre radici autorizzate, operazioni per workspace e percorso, isolamento da symlink/path traversal, revoche, conferme e audit. Disabilitare pulsanti nella UI è solo una comodità visiva. Gli agenti non ottengono accesso ai file perché la pagina Programma può aprirli.
-3. **Sincronizzazione degli stati:** invio chat → `runId` → eventi o polling → risposta e passi → eventuale conferma → risultato/file. Gli stati devono sopravvivere a refresh, più tab, timeout e riconnessione. Errori e operazioni in sospeso devono essere distinti da successi.
-4. **Identità degli artefatti:** ogni file generato deve dichiarare `sourceRunId`, `conversationId`, MIME, dimensione e diritti di accesso. Ogni evento attività deve puntare a un run; ogni passo al nodo del grafo con `nodeId` stabile.
-5. **Calendario:** CRUD manuale, storico e recupero. I tool degli agenti leggono gli eventi e propongono scritture; tutte le proposte richiedono approvazione dalla pagina.
-6. **Contratto evolutivo:** prefisso versione API, schema OpenAPI da FastAPI, tipi TS generati o verificati contro lo schema, codici di errore, limiti e test di contratto. I nomi sopra sono proposti: aggiornare questa matrice e `services/api.ts` quando il backend concorda lo schema.
-7. **Configurazione:** host/porta tramite `.env`, nessun percorso locale hardcoded, nessun segreto nelle variabili `VITE_` (finiscono nel client). In produzione il frontend può essere servito dallo stesso origin o tramite reverse proxy; documentare origin, CORS e base path.
-8. **Dati e privacy:** cancellazione, retention, limiti degli upload, sanitizzazione delle anteprime e resa sicura di testo/Markdown/codice. Il frontend non deve eseguire contenuti restituiti dagli agenti.
-
-
-## Direzione del progetto
-
-Il backend resta la fonte dei dati e dei permessi. I prossimi collegamenti si aggiungono uno alla volta, rimuovendo l’avviso corrispondente solo dopo una verifica completa. La console mantiene la struttura modulare e locale di Cora.
-
-
-### Grafo eseguibile e tracce nella pagina Architettura
-
-`GET /api/v1/architecture/graph` estrae nodi e archi dai cinque LangGraph compilati,
-con hash della topologia e deleghe derivate dagli strumenti del supervisore.
-La disponibilità del grafo non certifica credenziali o operatività dell'agente.
-La pagina mostra separatamente i flussi interni, le deleghe disponibili e il registro dei componenti.
-
-`GET /api/v1/runs?limit=50` e `GET /api/v1/runs/{id}` espongono le tracce delle nuove
-esecuzioni del grafo chat. I callback LangChain seguono anche le deleghe annidate:
-nodi, modelli e strumenti hanno ID, genitore, timestamp, stato, durata e tipo di errore.
-Il frontend aggiorna ogni dieci secondi e consente la scelta dell'esecuzione.
-Le tracce tecniche sono persistite in `CORA_LOG_ROOT/executions.jsonl`, indipendentemente
-dai log preesistenti: nessuna ricostruzione retroattiva, prompt, argomento tool o risposta
-viene salvata in questa traccia. Un avvio senza evento finale rimane indicato come
-"in corso o interrotta"; un errore gestito da ToolNode può comparire in un'esecuzione completata.
-Il grafo è in sola lettura. SSE, modifica architettura e gestione generale delle approvazioni
-restano lavori distinti; le conferme calendario restano gestite dalla pagina Calendario.
-
-### Panoramica del framework
-
-La pagina Architettura mostra un solo grafo generale con un nodo per agente o
-interfaccia, e collegamenti di richiesta/delega. Le deleghe sono ricavate dai tool
-effettivamente assegnati a Cora; i tool ordinari non sono nodi della mappa.
-La selezione mostra ruolo, disponibilità strutturale, modello configurato e capacità.
-I grafi interni restano disponibili nel backend ma non sono esposti nella panoramica.
-Componenti di supporto, percorsi API senza agenti (calendario, file, libreria, monitoraggio)
-e salvataggio automatico della chat sono mostrati sotto, in gruppi compatti.
-Questi percorsi non sono automazioni autonome pianificate. Le tracce restano in Attività.
+Contratti TypeScript in `src/types/contracts.ts`; dettaglio integrazioni in `COLLEGAMENTI.md`. La descrizione autorevole dell'intero sistema è il README nella radice.

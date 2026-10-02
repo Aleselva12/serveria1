@@ -18,12 +18,17 @@ ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
 
 MODULES = [
+    "core.auth",
+    "core.runtime",
+    "core.protocol",
+    "core.event_bus",
+    "core.governance",
+    "core.context_budget",
     "core.capabilities",
     "core.registry",
     "core.logging",
     "core.memory",
     "core.permissions",
-    "core.protocol",
     "core.component_bus",
     "core.access",
     "core.approvals",
@@ -97,16 +102,15 @@ def check_configuration() -> None:
 
     optional = {
         "CORA_OWNER_TOKEN": "accesso proprietario remoto",
-        "CORA_DB_POOL_MIN": "pool PostgreSQL minimo",
-        "CORA_DB_POOL_MAX": "pool PostgreSQL massimo",
-        "CORA_CHAT_EMBED_MESSAGES": "embedding opzionale dei messaggi chat",
+        "CORA_DB_POOL_SIZE": "pool PostgreSQL massimo",
+        "CORA_DB_POOL_TIMEOUT": "attesa pool PostgreSQL",
         "CORA_KNOWLEDGE_ROOT": "Local Research Agent",
         "CORA_AUDIO_ROOT": "Audio Agent",
         "CORA_DIARIZATION_MODEL": "diarizzazione audio",
         "CORA_GMAIL_CREDENTIALS_PATH": "Gmail",
         "CORA_QUOTE_ROOT": "preventivi PDF",
         "CORA_LOG_ROOT": "logging strutturato",
-        "CORA_MEMORY_DB": "memoria persistente",
+        "CORA_DATABASE_URL": "PostgreSQL + pgvector",
         "CORA_STRUCTURE_WORKSPACE": "workspace Structure Agent",
     }
 

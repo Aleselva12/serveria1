@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./transport";
 import type {
   ArchitectureGraph,
   ArchitectureOverview,
@@ -37,7 +38,7 @@ async function request<T>(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(apiBaseUrl + path, {
+    const response = await authenticatedFetch(apiBaseUrl + path, {
       ...init,
       signal: controller.signal,
       headers: {

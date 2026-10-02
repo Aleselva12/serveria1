@@ -4,6 +4,7 @@ from langchain_core.messages import SystemMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
+from core.context_budget import fit_messages
 from core.models import get_chat_model
 from core.prompt_context import with_permanent_context
 from core.runtime_context import ensure_runtime_active
@@ -26,7 +27,7 @@ def prepare_prompt(state: AgentState):
 def call_llm(state: AgentState):
     ensure_runtime_active()
     messages = [SystemMessage(content=state["system_prompt"])] + list(state["messages"])
-    response = model_with_tools.invoke(messages)
+    response = model_with_tools.invoke(fit_messages(messages, tools=STRUCTURE_TOOLS))
     return {"messages": [response]}
 
 

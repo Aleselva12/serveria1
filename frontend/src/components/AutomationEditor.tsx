@@ -16,7 +16,7 @@ export default function AutomationEditor({ entries }: { entries: ToolEntry[] }) 
   const [draft, setDraft] = useState<AutomationDraft>(initialDraft);
   const [selectedId, setSelectedId] = useState("");
   const [pending, setPending] = useState<{ source: string; label: string } | null>(null);
-  const [token, setToken] = useState("");
+  const token = "";
   const [summaries, setSummaries] = useState<DraftSummary[]>([]);
   const [draftId, setDraftId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -109,8 +109,8 @@ export default function AutomationEditor({ entries }: { entries: ToolEntry[] }) 
         <p>{selected.kind === "condition" ? "Usa le due porte di uscita per i rami sì e no. La regola verrà interpretata quando sarà implementato l’esecutore." : "Questa configurazione viene conservata nella bozza; non viene eseguita."}</p>
         <button className="text-button" disabled={busy} onClick={() => { update(d => ({ ...d, nodes: d.nodes.filter(n => n.id !== selectedId), edges: d.edges.filter(e => e.source !== selectedId && e.target !== selectedId) })); setSelectedId(""); setConfigError(""); setPending(null); }}>Rimuovi passaggio</button>
       </> : <p>Seleziona un nodo nel flusso per configurarlo.</p>}</aside></div>
-    <details className="draft-access"><summary>Bozze salvate e accesso al server</summary><p>Da remoto si usa il token proprietario CORA_FILES_TOKEN, mantenuto solo in memoria durante questa pagina.</p>
-      <label>Token proprietario<input aria-label="Token bozze" type="password" value={token} autoComplete="off" onChange={e => setToken(e.target.value)} /></label>
+    <details className="draft-access"><summary>Bozze salvate e accesso al server</summary><p>Accesso attraverso la sessione personale di Cora.</p>
+
       <div className="draft-toolbar"><button className="file-tool" disabled={busy} onClick={() => void refresh()}><RefreshCw size={14} />Aggiorna bozze</button>
         <select aria-label="Bozza da aprire" value={draftId} onChange={e => setDraftId(e.target.value)}><option value="">Seleziona una bozza…</option>{summaries.map(s => <option key={s.id} value={s.id}>{s.title} · v{s.version}</option>)}</select>
         <button className="file-tool" disabled={busy || !draftId} onClick={() => void load()}>Apri bozza</button></div></details>

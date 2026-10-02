@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./transport";
 import { apiBaseUrl, ApiError } from "./api";
 import type { AutomationDraft, DraftSummary, ToolDefinition, ToolFlow } from "../types/contracts";
 
@@ -18,7 +19,7 @@ async function request(path: string, token = "", init: RequestInit = {}) {
     headers.set("Accept", "application/json");
     if (token) headers.set("Authorization", "Bearer " + token);
     if (init.body) headers.set("Content-Type", "application/json");
-    const response = await fetch(apiBaseUrl + path, { ...init, headers, signal: controller.signal });
+    const response = await authenticatedFetch(apiBaseUrl + path, { ...init, headers, signal: controller.signal });
     if (!response.ok) {
       let detail = response.status === 401 || response.status === 403
         ? "Accesso alle bozze negato. Inserisci il token proprietario configurato in CORA_FILES_TOKEN."

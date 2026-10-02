@@ -1,15 +1,19 @@
 import os
 import uuid
 import time
+import asyncio
 from urllib.error import URLError
 from urllib.request import urlopen
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from core.auth import AuthMiddleware, router as auth_router
+from core.database import close_pool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from core.chat_store import conversation_stats, ensure_conversation, get_messages, list_conversations, recent_context, refresh_transcript, save_message
+from core.chat_store import conversation_stats, ensure_conversation, get_messages, list_conversations, recent_context, save_message, refresh_transcript
 from core.database import database_status
 from core.episodes import create_episode, list_episodes
 from core.logging import logged_operation
@@ -28,10 +32,13 @@ from core.tool_definitions import definition
 from core.automation_api import router as automation_router
 from core.architecture_api import router as architecture_router, architecture_graph
 from core.execution_traces import ExecutionTrace
-from core.permissions_api import router as permissions_router
+from core.context_budget import prepare_context
+from core.runtime import runtime, RunStopped, checkpoint
 from core.runtime_api import router as runtime_router
-from core.run_lifecycle import RunCancelled, create_run, transition_run
-from core.runtime_context import RunTimedOut, bind_runtime
+from core.permissions_api import router as permissions_router
+from concurrent.futures import ThreadPoolExecutor
+from core.event_bus import bus
+from fastapi import HTTPException, Request
 
 
 load_dotenv()
@@ -39,19 +46,34 @@ load_dotenv()
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gpt-oss:20b")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11435").rstrip("/")
 
+@asynccontextmanager
+async def lifespan(app):
+    from core import background_embeddings
+    from core.runtime import recover_interrupted
+    recover_interrupted()
+    background_embeddings.start()
+    yield
+    runtime.shutdown()
+    background_embeddings.stop()
+    close_pool()
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Cora API",
     version="0.1.0",
 )
 
+app.add_middleware(AuthMiddleware)
+app.include_router(auth_router)
+app.include_router(runtime_router)
+app.include_router(permissions_router)
 app.include_router(monitoring_router)
 app.include_router(files_router)
 app.include_router(library_router)
 app.include_router(calendar_router)
 app.include_router(architecture_router)
 app.include_router(automation_router)
-app.include_router(permissions_router)
-app.include_router(runtime_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -65,8 +87,8 @@ app.add_middleware(
 
 
 class ChatRequest(BaseModel):
-    message: str
-    thread_id: str | None = None
+    message: str = Field(min_length=1, max_length=24000)
+    thread_id: uuid.UUID | None = None
 
 
 class ChatResponse(BaseModel):
@@ -105,14 +127,15 @@ def _ollama_online() -> bool:
 
 @app.get("/health")
 def health():
+    database = database_status()
     return {
         "status": "ok",
         "ollama_online": _ollama_online(),
         "model": get_model_name("supervisor"),
         "agents": [agent["name"] for agent in get_agents()],
         "memory": memory_stats(),
-        "database": database_status(),
-        "chat": conversation_stats() if database_status().get("reachable") else {
+        "database": database,
+        "chat": conversation_stats() if database.get("reachable") else {
             "conversations": 0,
             "messages": 0,
         },
@@ -214,36 +237,26 @@ def remove_memory(memory_id: str):
     return {"deleted": delete_memory(memory_id)}
 
 
-@app.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest, background_tasks: BackgroundTasks):
+def execute_chat(request: ChatRequest, run):
     message = request.message.strip()
     if not message:
         return ChatResponse(
             response="Scrivi un messaggio per iniziare.",
-            thread_id=request.thread_id or str(uuid.uuid4()),
-            run_id=None,
+            thread_id=run.thread_id,
         )
 
-    thread_id = request.thread_id or str(uuid.uuid4())
+    thread_id = str(request.thread_id) if request.thread_id else run.thread_id
     ensure_conversation(thread_id)
+    phase = time.perf_counter()
     user_message = save_message(
         conversation_id=thread_id,
         role="user",
         content=message,
         agent_id="user",
-        metadata={"source": "chat_api"},
+        metadata={"source": "chat_api", "run_id": run.id},
         refresh_transcript_now=False,
     )
-
-    run = create_run(
-        thread_id=thread_id,
-        kind="chat",
-        target="supervisor",
-        metadata={"user_message_id": str(user_message["id"])},
-    )
-    run_id = str(run["id"])
-    transition_run(run_id, "running")
-
+    run.timings["user_save_ms"] = round((time.perf_counter()-phase)*1000,2)
     set_working_memory(
         agent_id="supervisor",
         thread_id=thread_id,
@@ -251,7 +264,6 @@ def chat(request: ChatRequest, background_tasks: BackgroundTasks):
             "status": "running",
             "current_request": message,
             "last_user_message_id": str(user_message["id"]),
-            "run_id": run_id,
         },
     )
 
@@ -262,54 +274,31 @@ def chat(request: ChatRequest, background_tasks: BackgroundTasks):
         data={
             "message_chars": len(message),
             "user_message_id": str(user_message["id"]),
-            "run_id": run_id,
         },
     ) as operation:
-        trace = ExecutionTrace(thread_id, architecture_graph()["version"], run_id=run_id)
-        trace_started = time.perf_counter()
-        trace.event("run", "running", name="Grafo chat Cora")
-        try:
-            with bind_runtime(run_id, thread_id):
-                result = graph.invoke(
-                    {"messages": recent_context(thread_id)},
-                    config={"callbacks": [trace]},
-                )
-        except Exception as error:
-            trace.event(
-                "run",
-                "error",
-                name="Grafo chat Cora",
-                duration_ms=round((time.perf_counter() - trace_started) * 1000, 2),
-                error_type=type(error).__name__,
-            )
-            terminal_status = (
-                "cancelled" if isinstance(error, RunCancelled)
-                else "timed_out" if isinstance(error, RunTimedOut)
-                else "failed"
-            )
-            try:
-                transition_run(run_id, terminal_status, error_type=type(error).__name__)
-                set_working_memory(
-                    agent_id="supervisor",
-                    thread_id=thread_id,
-                    state={
-                        "status": "error",
-                        "current_request": message,
-                        "error": str(error)[:1200],
-                        "run_id": run_id,
-                    },
-                )
-            except Exception:
-                pass
-            raise
-        else:
-            trace.event(
-                "run",
-                "completed",
-                name="Grafo chat Cora",
-                duration_ms=round((time.perf_counter() - trace_started) * 1000, 2),
-            )
-
+        trace = ExecutionTrace(thread_id, run.graph_version)
+        phase = time.perf_counter()
+        context = prepare_context(thread_id, callbacks=[trace])
+        run.timings["context_ms"] = round((time.perf_counter()-phase)*1000,2)
+        result = None
+        model_span = None
+        for mode, chunk in graph.stream({"messages": context}, config={"callbacks": [trace], "recursion_limit": 50}, stream_mode=["messages", "values"]):
+            checkpoint()
+            if mode == "values": result = chunk
+            elif mode == "messages":
+                token, metadata = chunk
+                if metadata.get("langgraph_node") == "agent" and metadata.get("cora_role", "supervisor") == "supervisor":
+                    span = metadata.get("langgraph_step")
+                    if span != model_span:
+                        model_span = span
+                        run.output = ""
+                        bus.publish("chat.reset", "supervisor", run_id=run.id, thread_id=thread_id)
+                    if isinstance(token.content, str) and token.content:
+                        run.output += token.content
+                        bus.publish("chat.delta", "supervisor", run_id=run.id, thread_id=thread_id, payload={"text": token.content})
+        checkpoint()
+        if not result: raise RuntimeError("Grafo senza risultato.")
+        phase = time.perf_counter()
         response = str(result["messages"][-1].content)
         assistant_message = save_message(
             conversation_id=thread_id,
@@ -318,7 +307,7 @@ def chat(request: ChatRequest, background_tasks: BackgroundTasks):
             agent_id="supervisor",
             model_id=get_model_name("supervisor"),
             parent_message_id=str(user_message["id"]),
-            metadata={"source": "chat_api", "run_id": run_id},
+            metadata={"source": "chat_api", "run_id": run.id},
             refresh_transcript_now=False,
         )
         set_working_memory(
@@ -330,39 +319,57 @@ def chat(request: ChatRequest, background_tasks: BackgroundTasks):
                 "last_response": response[:1200],
                 "last_user_message_id": str(user_message["id"]),
                 "last_assistant_message_id": str(assistant_message["id"]),
-                "run_id": run_id,
             },
             ttl_minutes=120,
         )
-        # Secondary persistence happens after the HTTP response. The authoritative
-        # chat messages and run state are already committed at this point.
-        background_tasks.add_task(refresh_transcript, thread_id)
-        background_tasks.add_task(
-            create_episode,
-            title=message.replace("\n", " ")[:80] or "Turno chat",
-            summary="Richiesta: " + message[:240] + "\nRisultato: " + response[:420],
-            conversation_id=thread_id,
-            episode_type="conversation_turn",
-            agent_id="supervisor",
-            metadata={
-                "user_message_id": str(user_message["id"]),
-                "assistant_message_id": str(assistant_message["id"]),
-                "run_id": run_id,
-            },
-        )
-        transition_run(
-            run_id,
-            "completed",
-            metadata={"assistant_message_id": str(assistant_message["id"])},
-        )
+        # Derived transcripts/episodes do not delay the persisted chat result.
+        postprocess.submit(_postprocess_turn, thread_id, message, response, str(user_message["id"]), str(assistant_message["id"]))
+        run.timings["result_save_ms"] = round((time.perf_counter()-phase)*1000,2)
         operation["result"] = {
             "response_chars": len(response),
             "assistant_message_id": str(assistant_message["id"]),
-            "run_id": run_id,
         }
 
     return ChatResponse(
         response=response,
         thread_id=thread_id,
-        run_id=run_id,
+        run_id=run.id,
     )
+
+
+def submit_chat(request):
+    thread_id = str(request.thread_id) if request.thread_id else str(uuid.uuid4())
+    try:
+        return runtime.submit(thread_id, lambda run: execute_chat(request, run).model_dump(), graph_version=architecture_graph()["version"])
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from error
+
+
+@app.post("/api/v1/chat/runs", status_code=202)
+def start_chat(request: ChatRequest):
+    return submit_chat(request).snapshot()
+
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest, http_request: Request):
+    run = submit_chat(request)
+    while not run.done.is_set():
+        if await http_request.is_disconnected(): run.stop()
+        await asyncio.sleep(.1)
+    if run.status in {"completed", "awaiting_approval"}: return run.result
+    raise HTTPException(408 if run.status in {"cancelled", "timed_out"} else 500,
+                        "Esecuzione " + run.status + ". Consulta Attività.")
+
+
+postprocess = ThreadPoolExecutor(max_workers=1,thread_name_prefix="cora-postprocess")
+
+
+def _postprocess_turn(thread_id,message,response,user_id,assistant_id):
+    try:
+        refresh_transcript(thread_id)
+        create_episode(title=message.replace("\n", " ")[:80] or "Turno chat",
+            summary="Richiesta: " + message[:240] + "\nRisultato: " + response[:420],
+            conversation_id=thread_id,episode_type="conversation_turn",agent_id="supervisor",
+            metadata={"user_message_id":user_id,"assistant_message_id":assistant_id})
+    except Exception:
+        pass  # Primary messages remain authoritative; derived copies can be rebuilt.

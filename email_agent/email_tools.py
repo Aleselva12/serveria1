@@ -4,7 +4,7 @@ from datetime import date
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from langchain_core.tools import tool
+from core.governance import agent_tool
 
 from core.permissions import require_permission
 from reportlab.lib import colors
@@ -44,7 +44,7 @@ def _require_permission(action: str) -> None:
     require_permission("email_quotes_agent", action)
 
 
-@tool
+@agent_tool("email_quotes_agent")
 def search_email_archive(query: str, max_results: int = 30) -> str:
     """
     Cerca nell'archivio Gmail usando la sintassi di ricerca Gmail.
@@ -63,7 +63,7 @@ def search_email_archive(query: str, max_results: int = 30) -> str:
         return _json({"status": "error", "error": str(error)})
 
 
-@tool
+@agent_tool("email_quotes_agent")
 def get_email_by_id(message_id: str) -> str:
     """
     Recupera una singola email usando il suo message ID Gmail esatto.
@@ -80,7 +80,7 @@ def get_email_by_id(message_id: str) -> str:
         return _json({"status": "error", "error": str(error)})
 
 
-@tool
+@agent_tool("email_quotes_agent")
 def get_daily_emails(day_iso: str = "") -> str:
     """
     Recupera le email di un giorno specifico nel formato YYYY-MM-DD.
@@ -100,7 +100,7 @@ def get_daily_emails(day_iso: str = "") -> str:
         return _json({"status": "error", "error": str(error)})
 
 
-@tool
+@agent_tool("email_quotes_agent")
 def save_email_draft(to_email: str, subject: str, body: str) -> str:
     """
     Salva una bozza Gmail. Non invia mai la mail.
@@ -118,7 +118,7 @@ def save_email_draft(to_email: str, subject: str, body: str) -> str:
         return _json({"status": "error", "error": str(error)})
 
 
-@tool
+@agent_tool("email_quotes_agent")
 def generate_quote_pdf(
     customer_name: str,
     items_json: str,

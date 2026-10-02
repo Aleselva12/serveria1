@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
-from langchain_core.tools import tool
+from core.governance import agent_tool
 
 from core.permissions import require_permission
 
@@ -163,7 +163,7 @@ def _speaker_for_segment(
     return best_speaker
 
 
-@tool
+@agent_tool("audio_agent")
 def list_audio_files(
     directory: str = ".",
     recursive: bool = True,
@@ -213,7 +213,7 @@ def list_audio_files(
         }, ensure_ascii=False)
 
 
-@tool
+@agent_tool("audio_agent")
 def transcribe_audio_file(
     relative_path: str,
     language: str = "it",
@@ -333,7 +333,7 @@ def transcribe_audio_file(
         }, ensure_ascii=False)
 
 
-@tool
+@agent_tool("audio_agent")
 def save_transcript(
     source_audio_path: str,
     transcript: str,

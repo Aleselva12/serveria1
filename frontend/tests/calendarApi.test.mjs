@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { readFile } from "node:fs/promises";
 import ts from "typescript";
+const transportSource = await readFile(new URL("../src/services/transport.ts", import.meta.url), "utf8");
+const transportUrl = "data:text/javascript;base64," + Buffer.from(ts.transpileModule(transportSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText).toString("base64");
 const source = (
   await readFile(
     new URL("../src/services/calendarApi.ts", import.meta.url),
@@ -11,7 +13,7 @@ const source = (
   'import { apiBaseUrl } from "./api";',
   'const apiBaseUrl="/backend";',
 );
-const compiled = ts.transpileModule(source, {
+const compiled = ts.transpileModule(source.replaceAll('"./transport"', JSON.stringify(transportUrl)), {
   compilerOptions: {
     target: ts.ScriptTarget.ES2022,
     module: ts.ModuleKind.ES2022,
@@ -40,7 +42,7 @@ const json = (value, status = 200) =>
   });
 test("calendar sends token only as header and encodes range offsets", async () => {
   globalThis.fetch = async (url, init) => {
-    assert.equal(init.headers.Authorization, "Bearer secret");
+    assert.equal(new Headers(init.headers).get("Authorization"), "Bearer secret");
     assert.ok(!url.includes("secret"));
     assert.ok(url.includes("%2B02%3A00"));
     return json([event]);

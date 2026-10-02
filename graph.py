@@ -5,6 +5,7 @@ from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.prebuilt import ToolNode
 
 from core.memory import search_memories
+from core.context_budget import fit_messages
 from core.models import get_chat_model
 from core.prompt_context import with_permanent_context
 from core.runtime_context import ensure_runtime_active
@@ -112,7 +113,7 @@ def call_model(state: CoraState):
         SystemMessage(content=state["system_prompt"])
     ] + list(state["messages"])
 
-    response = model_with_tools.invoke(messages_for_llm)
+    response = model_with_tools.invoke(fit_messages(messages_for_llm, tools=supervisor_tools))
     return {"messages": [_bounded_tool_calls(response)]}
 
 
@@ -137,7 +138,7 @@ def after_tools(state: CoraState):
         calls = getattr(message, "tool_calls", None)
         if calls:
             names = {_tool_name(call) for call in calls}
-            if names & TERMINAL_DELEGATION_TOOLS and not tool_failed:
+            if len(calls) == 1 and names <= TERMINAL_DELEGATION_TOOLS and not tool_failed:
                 return END
             break
     return "agent"

@@ -221,3 +221,36 @@ CREATE INDEX IF NOT EXISTS idx_runtime_runs_thread
     ON runtime_runs(thread_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_runtime_runs_status
     ON runtime_runs(status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS app_users (
+ id UUID PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS app_sessions (
+ token_hash TEXT PRIMARY KEY, user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+ expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON app_sessions(expires_at);
+CREATE TABLE IF NOT EXISTS tool_policies (
+ actor TEXT NOT NULL, action TEXT NOT NULL, policy TEXT NOT NULL CHECK(policy IN ('auto','confirm','blocked')),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(actor,action)
+);
+CREATE TABLE IF NOT EXISTS action_approvals (
+ id UUID PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, tool_id TEXT NOT NULL,
+ payload JSONB NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+ created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW()+INTERVAL '24 hours',
+ resolved_at TIMESTAMPTZ, resolved_by TEXT, error_type TEXT
+);
+CREATE TABLE IF NOT EXISTS conversation_summaries (
+ conversation_id UUID PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+ through_message_id UUID NOT NULL, content TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE action_approvals ADD COLUMN IF NOT EXISTS result JSONB;
+
+ALTER TABLE action_approvals ADD COLUMN IF NOT EXISTS actions JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+ALTER TABLE action_approvals ADD COLUMN IF NOT EXISTS tool_revision TEXT;
+
+ALTER TABLE runtime_runs DROP CONSTRAINT IF EXISTS runtime_runs_status_check;
+ALTER TABLE runtime_runs ADD CONSTRAINT runtime_runs_status_check CHECK
+(status IN ('queued','running','waiting_approval','awaiting_approval','cancelling','completed','failed','cancelled','timed_out','interrupted'));

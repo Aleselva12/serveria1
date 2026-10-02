@@ -6,7 +6,6 @@ import {
   FileText,
   Folder,
   Grid2X2,
-  KeyRound,
   List,
   Pencil,
   RefreshCw,
@@ -1019,20 +1018,12 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
 
 export default function FileManager() {
   const [area, setArea] = useState<FileArea>("server");
-  const [token, setToken] = useState("");
-  const [tokenDraft, setTokenDraft] = useState("");
-  const [showToken, setShowToken] = useState(false);
+  const token = "";
   return (
     <section className="file-manager">
       <div className="file-page-heading">
         <h1>File</h1>
-        <button
-          className="file-tool"
-          aria-expanded={showToken}
-          onClick={() => setShowToken(!showToken)}
-        >
-          <KeyRound size={15} /> Accesso ai file
-        </button>
+
       </div>
       <div className="file-subnav" role="tablist" aria-label="Sezioni File">
         <button
@@ -1054,42 +1045,7 @@ export default function FileManager() {
           Libreria IA
         </button>
       </div>
-      {showToken && (
-        <form
-          className="file-access"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setToken(tokenDraft.trim());
-            setShowToken(false);
-          }}
-        >
-          <label>
-            Token di accesso
-            <input
-              type="password"
-              autoComplete="off"
-              value={tokenDraft}
-              onChange={(e) => setTokenDraft(e.target.value)}
-              placeholder="Token configurato sul server"
-            />
-          </label>
-          <button className="file-tool">Applica</button>
-          <button
-            type="button"
-            className="file-tool"
-            onClick={() => {
-              setToken("");
-              setTokenDraft("");
-            }}
-          >
-            Rimuovi
-          </button>
-          <small>
-            Rimane solo in memoria fino alla chiusura o al ricaricamento della
-            pagina.
-          </small>
-        </form>
-      )}
+
       <div
         id="file-panel"
         role="tabpanel"
