@@ -1,13 +1,18 @@
 import json
 import uuid
+from collections.abc import Callable
 
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 
+from core.component_bus import component_bus
 from core.logging import logged_operation, tail_events
 from core.memory import delete_memory, save_memory, search_memories
 from core.permissions import require_permission
+from core.protocol import TaskEnvelope
 from core.registry import registry_json
+from core.run_lifecycle import create_run, transition_run
+from core.runtime_context import bind_runtime, current_runtime
 from core.working_memory import set_working_memory
 from local_tools import (
     calculator_tool as _calculator_tool,
@@ -78,10 +83,7 @@ def recent_system_events_tool(
     event_type: str = "",
     component: str = "",
 ) -> str:
-    """
-    Legge gli eventi strutturati più recenti del sistema Cora.
-    È uno strumento di osservazione: non modifica log o memoria.
-    """
+    """Legge gli eventi strutturati più recenti del sistema Cora."""
     _require_supervisor_permission("inspect_events")
     events = tail_events(
         limit=max(1, min(limit, 100)),
@@ -100,11 +102,7 @@ def remember_tool(
     expires_at: str = "",
     reason: str = "",
 ) -> str:
-    """
-    Salva o aggiorna una memoria semantica persistente.
-    Usare per informazioni esplicite, stabili e chiaramente utili tra sessioni.
-    Non salvare deduzioni, dettagli transitori o contenuti di scarso valore futuro.
-    """
+    """Salva o aggiorna una memoria semantica persistente."""
     _require_supervisor_permission("remember_memory")
     result = save_memory(
         memory_type=memory_type,
@@ -124,10 +122,7 @@ def recall_memory_tool(
     memory_type: str = "",
     limit: int = 10,
 ) -> str:
-    """
-    Cerca nella memoria persistente locale di Cora.
-    Usa ricerca ibrida lessicale + pgvector su chiave e contenuto.
-    """
+    """Cerca nella memoria persistente locale di Cora."""
     _require_supervisor_permission("recall_memory")
     results = search_memories(
         query=query,
@@ -139,10 +134,7 @@ def recall_memory_tool(
 
 @tool
 def forget_memory_tool(memory_id: str) -> str:
-    """
-    Elimina una singola memoria persistente per ID.
-    Usare solo quando l'utente chiede esplicitamente di cancellarla.
-    """
+    """Elimina una singola memoria persistente per ID su richiesta esplicita."""
     _require_supervisor_permission("forget_memory")
     deleted = delete_memory(memory_id)
     return json.dumps(
@@ -152,205 +144,162 @@ def forget_memory_tool(memory_id: str) -> str:
     )
 
 
-@tool
-def structure_agent_tool(query: str, thread_id: str = "") -> str:
-    """
-    Usa lo Structure Agent per planning, evaluation, control e management.
-    Può salvare soltanto gli artefatti consentiti nel proprio workspace.
-    """
-    _require_supervisor_permission("delegate_structure")
-    from structure_agent.structure_graph import graph as structure_app
+def _delegate_agent(
+    *,
+    target: str,
+    capability: str,
+    query: str,
+    thread_id: str,
+    graph_loader: Callable[[], object],
+):
+    parent_run_id, parent_thread_id = current_runtime()
+    effective_thread_id = thread_id or parent_thread_id or f"{target}_{uuid.uuid4()}"
 
-    effective_thread_id = thread_id or f"structure_{uuid.uuid4()}"
-    config = {"configurable": {"thread_id": effective_thread_id}}
-    state = {"messages": [HumanMessage(content=query)]}
+    child = create_run(
+        thread_id=effective_thread_id,
+        kind="component",
+        target=target,
+        parent_run_id=parent_run_id or None,
+        metadata={"capability": capability, "source": "supervisor"},
+    )
+    child_run_id = str(child["id"])
+    transition_run(child_run_id, "running")
+
+    envelope = TaskEnvelope(
+        run_id=child_run_id,
+        thread_id=effective_thread_id,
+        source="supervisor",
+        target=target,
+        capability=capability,
+        payload={"query": query},
+        context_refs=[parent_run_id] if parent_run_id else [],
+    )
 
     set_working_memory(
-        agent_id="structure_agent",
+        agent_id=target,
         thread_id=effective_thread_id,
-        state={"status": "running", "current_request": query},
+        state={
+            "status": "running",
+            "current_request": query,
+            "run_id": child_run_id,
+        },
     )
+
+    def handler(task: TaskEnvelope) -> str:
+        app = graph_loader()
+        state = {"messages": [HumanMessage(content=str(task.payload["query"]))]}
+        with bind_runtime(task.run_id, task.thread_id):
+            result = app.invoke(state)
+        return str(result["messages"][-1].content)
+
     try:
         with logged_operation(
             "agent_delegation",
-            component="structure_agent",
+            component=target,
             thread_id=effective_thread_id,
-            data={"query_chars": len(query)},
+            data={"query_chars": len(query), "run_id": child_run_id},
         ):
-            result = structure_app.invoke(state, config=config)
-        output = result["messages"][-1].content
+            result = component_bus.dispatch(envelope, handler)
+        transition_run(child_run_id, "completed")
         set_working_memory(
-            agent_id="structure_agent",
+            agent_id=target,
             thread_id=effective_thread_id,
             state={
                 "status": "completed",
                 "current_request": query,
-                "last_response": str(output)[:1200],
+                "last_response": result.content[:1200],
+                "run_id": child_run_id,
             },
         )
-        return output
+        return result.content
     except Exception as error:
+        try:
+            transition_run(child_run_id, "failed", error_type=type(error).__name__)
+        except Exception:
+            pass
         set_working_memory(
-            agent_id="structure_agent",
+            agent_id=target,
             thread_id=effective_thread_id,
             state={
                 "status": "error",
                 "current_request": query,
                 "error": str(error)[:1200],
+                "run_id": child_run_id,
             },
         )
         raise
+
+
+@tool
+def structure_agent_tool(query: str, thread_id: str = "") -> str:
+    """Delega planning, evaluation, control e management allo Structure Agent."""
+    _require_supervisor_permission("delegate_structure")
+
+    def load():
+        from structure_agent.structure_graph import graph
+        return graph
+
+    return _delegate_agent(
+        target="structure_agent",
+        capability="structure",
+        query=query,
+        thread_id=thread_id,
+        graph_loader=load,
+    )
 
 
 @tool
 def search_agent_tool(query: str, thread_id: str = "") -> str:
-    """
-    Usa il Local Research Agent per trovare, leggere, confrontare e analizzare
-    informazioni contenute nei documenti locali autorizzati. Non usa Internet.
-    """
+    """Delega ricerca e analisi dei documenti locali al Local Research Agent."""
     _require_supervisor_permission("delegate_research")
-    from search_agent.search_graph import create_search_graph
 
-    search_app = create_search_graph()
-    effective_thread_id = thread_id or f"search_{uuid.uuid4()}"
-    config = {"configurable": {"thread_id": effective_thread_id}}
-    state = {"messages": [HumanMessage(content=query)]}
+    def load():
+        from search_agent.search_graph import graph
+        return graph
 
-    set_working_memory(
-        agent_id="local_research_agent",
-        thread_id=effective_thread_id,
-        state={"status": "running", "current_request": query},
+    return _delegate_agent(
+        target="local_research_agent",
+        capability="document_research",
+        query=query,
+        thread_id=thread_id,
+        graph_loader=load,
     )
-    try:
-        with logged_operation(
-            "agent_delegation",
-            component="local_research_agent",
-            thread_id=effective_thread_id,
-            data={"query_chars": len(query)},
-        ):
-            result = search_app.invoke(state, config=config)
-        output = result["messages"][-1].content
-        set_working_memory(
-            agent_id="local_research_agent",
-            thread_id=effective_thread_id,
-            state={
-                "status": "completed",
-                "current_request": query,
-                "last_response": str(output)[:1200],
-            },
-        )
-        return output
-    except Exception as error:
-        set_working_memory(
-            agent_id="local_research_agent",
-            thread_id=effective_thread_id,
-            state={
-                "status": "error",
-                "current_request": query,
-                "error": str(error)[:1200],
-            },
-        )
-        raise
 
 
 @tool
 def audio_agent_tool(query: str, thread_id: str = "") -> str:
-    """
-    Usa l'Audio Agent per trovare e trascrivere file audio locali e,
-    quando richiesto, riassumere o analizzare la trascrizione.
-    """
+    """Delega trascrizione e analisi audio all'Audio Agent."""
     _require_supervisor_permission("delegate_audio")
-    from audio_agent.audio_graph import graph as audio_app
 
-    effective_thread_id = thread_id or f"audio_{uuid.uuid4()}"
-    config = {"configurable": {"thread_id": effective_thread_id}}
-    state = {"messages": [HumanMessage(content=query)]}
+    def load():
+        from audio_agent.audio_graph import graph
+        return graph
 
-    set_working_memory(
-        agent_id="audio_agent",
-        thread_id=effective_thread_id,
-        state={"status": "running", "current_request": query},
+    return _delegate_agent(
+        target="audio_agent",
+        capability="audio",
+        query=query,
+        thread_id=thread_id,
+        graph_loader=load,
     )
-    try:
-        with logged_operation(
-            "agent_delegation",
-            component="audio_agent",
-            thread_id=effective_thread_id,
-            data={"query_chars": len(query)},
-        ):
-            result = audio_app.invoke(state, config=config)
-        output = result["messages"][-1].content
-        set_working_memory(
-            agent_id="audio_agent",
-            thread_id=effective_thread_id,
-            state={
-                "status": "completed",
-                "current_request": query,
-                "last_response": str(output)[:1200],
-            },
-        )
-        return output
-    except Exception as error:
-        set_working_memory(
-            agent_id="audio_agent",
-            thread_id=effective_thread_id,
-            state={
-                "status": "error",
-                "current_request": query,
-                "error": str(error)[:1200],
-            },
-        )
-        raise
 
 
 @tool
 def email_agent_tool(query: str, thread_id: str = "") -> str:
-    """
-    Usa l'Email & Quotes Agent per cercare nell'archivio mail, riassumere
-    la posta di una giornata, preparare bozze e generare preventivi PDF.
-    """
+    """Delega ricerca mail, bozze e preventivi all'Email & Quotes Agent."""
     _require_supervisor_permission("delegate_email")
-    from email_agent.email_graph import graph as email_app
 
-    effective_thread_id = thread_id or f"email_{uuid.uuid4()}"
-    config = {"configurable": {"thread_id": effective_thread_id}}
-    state = {"messages": [HumanMessage(content=query)]}
+    def load():
+        from email_agent.email_graph import graph
+        return graph
 
-    set_working_memory(
-        agent_id="email_quotes_agent",
-        thread_id=effective_thread_id,
-        state={"status": "running", "current_request": query},
+    return _delegate_agent(
+        target="email_quotes_agent",
+        capability="email_quotes",
+        query=query,
+        thread_id=thread_id,
+        graph_loader=load,
     )
-    try:
-        with logged_operation(
-            "agent_delegation",
-            component="email_quotes_agent",
-            thread_id=effective_thread_id,
-            data={"query_chars": len(query)},
-        ):
-            result = email_app.invoke(state, config=config)
-        output = result["messages"][-1].content
-        set_working_memory(
-            agent_id="email_quotes_agent",
-            thread_id=effective_thread_id,
-            state={
-                "status": "completed",
-                "current_request": query,
-                "last_response": str(output)[:1200],
-            },
-        )
-        return output
-    except Exception as error:
-        set_working_memory(
-            agent_id="email_quotes_agent",
-            thread_id=effective_thread_id,
-            state={
-                "status": "error",
-                "current_request": query,
-                "error": str(error)[:1200],
-            },
-        )
-        raise
 
 
 supervisor_tools = [

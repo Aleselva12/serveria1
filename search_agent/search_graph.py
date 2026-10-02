@@ -1,9 +1,7 @@
-import operator
-from typing import Annotated, Sequence, TypedDict
+from __future__ import annotations
 
-from langchain_core.messages import BaseMessage, SystemMessage
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, StateGraph
+from langchain_core.messages import SystemMessage
+from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from core.models import get_chat_model
@@ -12,18 +10,21 @@ from search_agent.search_prompt import SEARCH_AGENT_PROMPT
 from search_agent.search_tools import LOCAL_RESEARCH_TOOLS
 
 
-class AgentState(TypedDict):
-    messages: Annotated[Sequence[BaseMessage], operator.add]
+class AgentState(MessagesState):
+    system_prompt: str
+
+
+llm = get_chat_model("research", temperature=0.0)
+model_with_tools = llm.bind_tools(LOCAL_RESEARCH_TOOLS)
+
+
+def prepare_prompt(state: AgentState):
+    return {"system_prompt": with_permanent_context(SEARCH_AGENT_PROMPT)}
 
 
 def call_llm(state: AgentState):
-    messages = state["messages"]
-
-    if not messages or not isinstance(messages[0], SystemMessage):
-        messages = [SystemMessage(content=with_permanent_context(SEARCH_AGENT_PROMPT))] + list(messages)
-
-    llm = get_chat_model("research", temperature=0.0)
-    response = llm.bind_tools(LOCAL_RESEARCH_TOOLS).invoke(messages)
+    messages = [SystemMessage(content=state["system_prompt"])] + list(state["messages"])
+    response = model_with_tools.invoke(messages)
     return {"messages": [response]}
 
 
@@ -36,18 +37,22 @@ def should_continue(state: AgentState):
 
 def create_search_graph():
     workflow = StateGraph(AgentState)
+    workflow.add_node("prepare", prepare_prompt)
     workflow.add_node("call_llm", call_llm)
     workflow.add_node("tools", ToolNode(LOCAL_RESEARCH_TOOLS))
-    workflow.set_entry_point("call_llm")
+    workflow.add_edge(START, "prepare")
+    workflow.add_edge("prepare", "call_llm")
     workflow.add_conditional_edges(
         "call_llm",
         should_continue,
         {"tools": "tools", END: END},
     )
     workflow.add_edge("tools", "call_llm")
-    return workflow.compile(checkpointer=MemorySaver())
+    return workflow.compile()
+
+
+graph = create_search_graph()
 
 
 if __name__ == "__main__":
-    app = create_search_graph()
     print("Local Research Agent graph ready.")

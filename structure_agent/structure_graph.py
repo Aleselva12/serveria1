@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-import operator
-from typing import Annotated, Sequence, TypedDict
-
-from langchain_core.messages import BaseMessage, SystemMessage
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, StateGraph
+from langchain_core.messages import SystemMessage
+from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from core.models import get_chat_model
@@ -14,17 +10,21 @@ from structure_agent.structure_prompt import STRUCTURE_AGENT_PROMPT
 from structure_agent.structure_tools import STRUCTURE_TOOLS
 
 
-class AgentState(TypedDict):
-    messages: Annotated[Sequence[BaseMessage], operator.add]
+class AgentState(MessagesState):
+    system_prompt: str
+
+
+llm = get_chat_model("structure", temperature=0.0)
+model_with_tools = llm.bind_tools(STRUCTURE_TOOLS)
+
+
+def prepare_prompt(state: AgentState):
+    return {"system_prompt": with_permanent_context(STRUCTURE_AGENT_PROMPT)}
 
 
 def call_llm(state: AgentState):
-    messages = list(state["messages"])
-    if not messages or not isinstance(messages[0], SystemMessage):
-        messages = [SystemMessage(content=with_permanent_context(STRUCTURE_AGENT_PROMPT))] + messages
-
-    llm = get_chat_model("structure", temperature=0.0)
-    response = llm.bind_tools(STRUCTURE_TOOLS).invoke(messages)
+    messages = [SystemMessage(content=state["system_prompt"])] + list(state["messages"])
+    response = model_with_tools.invoke(messages)
     return {"messages": [response]}
 
 
@@ -37,16 +37,18 @@ def should_continue(state: AgentState):
 
 def create_structure_graph():
     workflow = StateGraph(AgentState)
+    workflow.add_node("prepare", prepare_prompt)
     workflow.add_node("call_llm", call_llm)
     workflow.add_node("tools", ToolNode(STRUCTURE_TOOLS))
-    workflow.set_entry_point("call_llm")
+    workflow.add_edge(START, "prepare")
+    workflow.add_edge("prepare", "call_llm")
     workflow.add_conditional_edges(
         "call_llm",
         should_continue,
         {"tools": "tools", END: END},
     )
     workflow.add_edge("tools", "call_llm")
-    return workflow.compile(checkpointer=MemorySaver())
+    return workflow.compile()
 
 
 graph = create_structure_graph()
