@@ -33,3 +33,5 @@ does not erase source text. SQLite is not used.
 Test URLs must point to a disposable database: the integration tests truncate tables.
 For a PostgreSQL-protocol emulator that does not support prepared statements, set
 `CORA_DB_PREPARE_THRESHOLD=none`; ordinary PostgreSQL defaults to threshold 5.
+
+Le sintesi incrementali usano `conversation_summaries.through_message_id`; `context_jobs` conserva le conversazioni da preparare durante l’inattività. Sono dati derivati: i messaggi originali restano la fonte.

@@ -49,6 +49,33 @@ def provision(username, password):
         conn.commit()
 
 
+def setup_if_needed():
+    """Host-only setup: check the DB before asking for credentials."""
+    with db_connection() as conn:
+        if conn.execute("SELECT id FROM app_users LIMIT 1").fetchone():
+            print("Account proprietario gia configurato.")
+            return
+    print("Primo avvio: crea l'account proprietario di Cora.")
+    interactive_provision()
+
+
+def interactive_provision():
+    username = input("Nome proprietario: ").strip()
+    if not username or len(username) > 100:
+        raise ValueError("Nome non valido.")
+    while True:
+        password = getpass("Password (almeno 12 caratteri): ")
+        if len(password) < 12:
+            print("La password deve avere almeno 12 caratteri. Riprova.")
+            continue
+        if password != getpass("Ripeti password: "):
+            print("Password diverse. Riprova.")
+            continue
+        provision(username, password)
+        print("Proprietario configurato. Le sessioni precedenti sono revocate.")
+        return
+
+
 def session_user(token):
     if not token:
         return None
@@ -143,11 +170,12 @@ def logout(request: Request, response: Response, all_sessions: bool = False):
 
 
 if __name__ == "__main__":
-    username = input("Nome proprietario: ").strip()
-    if not username or len(username) > 100:
-        raise ValueError("Nome non valido.")
-    password = getpass("Password (almeno 12 caratteri): ")
-    if password != getpass("Ripeti password: "):
-        raise ValueError("Password diverse.")
-    provision(username, password)
-    print("Proprietario configurato. Le sessioni precedenti sono revocate.")
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ensure-owner", action="store_true")
+    args = parser.parse_args()
+    try:
+        setup_if_needed() if args.ensure_owner else interactive_provision()
+    except Exception as error:
+        print("Configurazione non riuscita:", error)
+        raise SystemExit(1)

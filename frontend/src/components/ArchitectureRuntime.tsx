@@ -3,6 +3,31 @@ import { api } from "../services/api";
 import type { ArchitectureGraph, ExecutionRun } from "../types/contracts";
 import "./architecture-runtime.css";
 
+export function performanceRows(metrics: Record<string, unknown>, duration: number | null) {
+  const rows: [string,string][] = [];
+  const ms = (label:string, value:unknown) => { if (typeof value === "number" && Number.isFinite(value) && value >= 0) rows.push([label, (value/1000).toLocaleString("it-IT",{maximumFractionDigits:2}) + " s"]); };
+  ms("Tempo totale",duration);
+  ms("Attesa in coda",metrics.queue_ms);
+  ms("Primo testo visibile",metrics.first_token_ms);
+  ms("Preparazione contesto",metrics.context_ms);
+  ms("Preparazione prompt",metrics.prompt_ms);
+  ms("Ricerca memoria",metrics.memory_ms);
+  ms("Chiamate ai modelli",metrics.model_ms);
+  ms("Esecuzione tool",metrics.tool_ms);
+  ms("Salvataggio risposta",metrics.result_save_ms);
+  const models = Array.isArray(metrics.models) ? metrics.models.filter((m):m is Record<string,unknown> => Boolean(m) && typeof m === "object") : [];
+  const sum = (key:string) => models.reduce((total,m) => total + (typeof m[key] === "number" && Number.isFinite(m[key]) && m[key] >= 0 ? m[key] : 0),0);
+  if (models.length) {
+    rows.push(["Chiamate modello",String(models.length)]);
+    if (models.some(m=>typeof m.load_duration === "number")) ms("Caricamento modelli",sum("load_duration")/1e6);
+    if (models.some(m=>typeof m.prompt_eval_count === "number")) rows.push(["Token input elaborati",String(sum("prompt_eval_count"))]);
+    if (models.some(m=>typeof m.eval_count === "number")) rows.push(["Token generati",String(sum("eval_count"))]);
+    const seconds = sum("eval_duration")/1e9;
+    if (seconds > 0) rows.push(["Velocità di generazione",(sum("eval_count")/seconds).toLocaleString("it-IT",{maximumFractionDigits:1}) + " token/s"]);
+  }
+  return rows;
+}
+
 export default function ArchitectureRuntime({
   showGraph = true,
   showTraces = true,
@@ -28,7 +53,7 @@ export default function ArchitectureRuntime({
     ]);
     setLoading(false);
   }
-  useEffect(() => { let active = true; const update = () => { if (active) void refresh(); }; update(); const timer = setInterval(update, 10000); return () => { active = false; clearInterval(timer); }; }, [showGraph, showTraces]);
+  useEffect(() => { let active = true; const update = () => { if (active && (typeof document === "undefined" || !document.hidden)) void refresh(); }; update(); const timer = setInterval(update, 10000); return () => { active = false; clearInterval(timer); }; }, [showGraph, showTraces]);
   const run = runs.find(r => r.id === selected) || runs[0];
   return <div className="runtime-architecture">
     {showGraph && <>
@@ -53,7 +78,7 @@ export default function ArchitectureRuntime({
       {runError && <p role="alert">{runError}</p>}
       {!loading && !runError && !runs.length && <p>Nessuna esecuzione registrata. Invia un messaggio a Cora per generare la prima traccia.</p>}
       {runs.length > 0 && <><label>Esecuzione <select value={run?.id || ""} onChange={e => setSelected(e.target.value)}>{runs.map(r => <option value={r.id} key={r.id}>{new Date(r.started_at).toLocaleString("it-IT")} · {r.status} · {r.id.slice(0, 8)}</option>)}</select></label>
-      {run && <><p>Chat: <code>{run.thread_id}</code> · Grafo: <code>{run.graph_version}</code> · Errori registrati: {run.error_count}</p>{run.note && <p>{run.note}</p>}{run.metrics && <details><summary>Profilazione prestazioni</summary><pre>{JSON.stringify(run.metrics,null,2)}</pre></details>}<div className="trace-table"><table><thead><tr><th>Ora</th><th>Passaggio</th><th>Stato</th><th>Durata</th><th>Relazione</th></tr></thead><tbody>{run.events.map((e, i) => <tr key={i}><td>{new Date(e.timestamp).toLocaleTimeString("it-IT")}</td><td>{e.kind} · {e.name}</td><td>{e.status}{e.error_type && ` · ${e.error_type}`}</td><td>{e.duration_ms === null ? "—" : `${e.duration_ms} ms`}</td><td title={e.parent_id || ""}>{e.span_id?.slice(0, 8) || "richiesta"}{e.parent_id && ` ← ${e.parent_id.slice(0, 8)}`}</td></tr>)}</tbody></table></div></>}
+      {run && <><p>Chat: <code>{run.thread_id}</code> · Grafo: <code>{run.graph_version}</code> · Errori registrati: {run.error_count}</p>{run.note && <p>{run.note}</p>}{run.metrics && <details><summary>Profilazione prestazioni</summary><table><tbody>{performanceRows(run.metrics,run.duration_ms).map(([label,value])=><tr key={label}><th>{label}</th><td>{value}</td></tr>)}</tbody></table><p>Le durate di contesto, modelli e tool possono sovrapporsi: non vanno sommate. Il primo testo può essere provvisorio.</p><details><summary>Dati tecnici</summary><pre>{JSON.stringify(run.metrics,null,2)}</pre></details></details>}<div className="trace-table"><table><thead><tr><th>Ora</th><th>Passaggio</th><th>Stato</th><th>Durata</th><th>Relazione</th></tr></thead><tbody>{run.events.map((e, i) => <tr key={i}><td>{new Date(e.timestamp).toLocaleTimeString("it-IT")}</td><td>{e.kind} · {e.name}</td><td>{e.status}{e.error_type && ` · ${e.error_type}`}</td><td>{e.duration_ms === null ? "—" : `${e.duration_ms} ms`}</td><td title={e.parent_id || ""}>{e.span_id?.slice(0, 8) || "richiesta"}{e.parent_id && ` ← ${e.parent_id.slice(0, 8)}`}</td></tr>)}</tbody></table></div></>}
       </>}
     </div>}
   </div>;

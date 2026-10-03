@@ -32,12 +32,11 @@ from core.tool_definitions import definition
 from core.automation_api import router as automation_router
 from core.architecture_api import router as architecture_router, architecture_graph
 from core.execution_traces import ExecutionTrace
-from core.context_budget import prepare_context
-from core.runtime import runtime, RunStopped, checkpoint
+from core.context_budget import prepare_context, schedule_summary
+from core.runtime import runtime, RunStopped, checkpoint, publish_text
 from core.runtime_api import router as runtime_router
 from core.permissions_api import router as permissions_router
 from concurrent.futures import ThreadPoolExecutor
-from core.event_bus import bus
 from fastapi import HTTPException, Request
 
 
@@ -281,21 +280,15 @@ def execute_chat(request: ChatRequest, run):
         context = prepare_context(thread_id, callbacks=[trace])
         run.timings["context_ms"] = round((time.perf_counter()-phase)*1000,2)
         result = None
-        model_span = None
         for mode, chunk in graph.stream({"messages": context}, config={"callbacks": [trace], "recursion_limit": 50}, stream_mode=["messages", "values"]):
             checkpoint()
             if mode == "values": result = chunk
             elif mode == "messages":
                 token, metadata = chunk
-                if metadata.get("langgraph_node") == "agent" and metadata.get("cora_role", "supervisor") == "supervisor":
-                    span = metadata.get("langgraph_step")
-                    if span != model_span:
-                        model_span = span
-                        run.output = ""
-                        bus.publish("chat.reset", "supervisor", run_id=run.id, thread_id=thread_id)
-                    if isinstance(token.content, str) and token.content:
-                        run.output += token.content
-                        bus.publish("chat.delta", "supervisor", run_id=run.id, thread_id=thread_id, payload={"text": token.content})
+                if metadata.get("langgraph_node") == "agent":
+                    role = metadata.get("cora_role", "supervisor")
+                    span = ("root", role, token.id, metadata.get("langgraph_step"))
+                    publish_text(run, role, span, token.content)
         checkpoint()
         if not result: raise RuntimeError("Grafo senza risultato.")
         phase = time.perf_counter()
@@ -366,6 +359,7 @@ postprocess = ThreadPoolExecutor(max_workers=1,thread_name_prefix="cora-postproc
 
 def _postprocess_turn(thread_id,message,response,user_id,assistant_id):
     try:
+        schedule_summary(thread_id)
         refresh_transcript(thread_id)
         create_episode(title=message.replace("\n", " ")[:80] or "Turno chat",
             summary="Richiesta: " + message[:240] + "\nRisultato: " + response[:420],

@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+import {readFile} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+import ts from 'typescript';
+import React from 'react';
+import {create,act} from 'react-test-renderer';
+const require=createRequire(import.meta.url);
+globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+let reads=0,resolveLoad,resolveSave,state;
+globalThis.__contextApi={systemContext:()=>{reads++;return new Promise(r=>resolveLoad=r);},saveSystemContext:()=>new Promise(r=>resolveSave=r)};
+const s=await readFile(new URL('../src/services/usePermanentContext.ts',import.meta.url),'utf8');
+const compiled=ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace('from "react"','from '+JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace('import { api } from "./api";','const api=globalThis.__contextApi;');
+const {usePermanentContext}=await import('data:text/javascript;base64,'+Buffer.from(compiled).toString('base64'));
+function View({connected=true}){state=usePermanentContext(connected);return null;}
+const saved=content=>({content,updated_at:'now',version:1});
+test('late load, health refresh and reconnect preserve unsaved edits',async()=>{
+ reads=0;let r;await act(async()=>{r=create(React.createElement(View));});
+ await act(async()=>state.edit('my draft'));
+ await act(async()=>resolveLoad(saved('server')));
+ assert.equal(state.content,'my draft');
+ await act(async()=>r.update(React.createElement(View)));
+ assert.equal(reads,1);
+ await act(async()=>r.update(React.createElement(View,{connected:false})));
+ await act(async()=>r.update(React.createElement(View,{connected:true})));
+ await act(async()=>resolveLoad(saved('server')));
+ assert.equal(state.content,'my draft');await act(async()=>r.unmount());
+});
+test('edits made while saving are preserved and an unchanged save accepts normalization',async()=>{
+ let r;await act(async()=>{r=create(React.createElement(View));});
+ await act(async()=>resolveLoad(saved('initial')));
+ let pending;await act(async()=>{state.edit('first');pending=state.save();});
+ await act(async()=>state.edit('second'));
+ await act(async()=>{resolveSave(saved('first'));await pending;});
+ assert.equal(state.content,'second');
+ await act(async()=>{pending=state.save();});
+ await act(async()=>{resolveSave(saved('normalized'));await pending;});
+ assert.equal(state.content,'normalized');await act(async()=>r.unmount());
+});

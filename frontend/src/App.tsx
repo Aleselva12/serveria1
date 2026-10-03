@@ -1,3 +1,4 @@
+import { usePermanentContext } from "./services/usePermanentContext";
 import { streamChat, runtimeRequest } from "./services/runtimeApi";
 import { authenticatedFetch } from "./services/transport";
 import RuntimePanel from "./components/RuntimePanel";
@@ -24,7 +25,7 @@ import Architecture from "./components/Architecture";
 import ArchitectureRuntime from "./components/ArchitectureRuntime";
 import ConnectionNotice from "./components/ConnectionNotice";
 import MemoryManagement from "./components/MemoryManagement";
-import { api, apiBaseUrl } from "./services/api";
+import { apiBaseUrl } from "./services/api";
 import { useBackend } from "./services/useBackend";
 import { useConversations } from "./services/useConversations";
 
@@ -80,59 +81,14 @@ export default function App() {
   const messagesEnd = useRef<HTMLDivElement>(null);
   const [activity, setActivity] = useState<RequestActivity[]>([]);
   const [selectedNode, setSelectedNode] = useState("supervisor");
-  const [permanentContext, setPermanentContext] = useState("");
-  const [contextUpdatedAt, setContextUpdatedAt] = useState<string | null>(null);
-  const [contextVersion, setContextVersion] = useState<number | null>(null);
-  const [contextSaving, setContextSaving] = useState(false);
-  const [contextError, setContextError] = useState("");
   const backend = useBackend();
+  const { content: permanentContext, updatedAt: contextUpdatedAt, version: contextVersion, saving: contextSaving, error: contextError, edit: setPermanentContext, save: savePermanentContext } = usePermanentContext(Boolean(backend.health));
   const history = useConversations(Boolean(backend.health), sending);
   const { chats, setChats, currentChat } = history;
   useEffect(() => {
     if (page === "chat" && !history.messagesLoading)
       messagesEnd.current?.scrollIntoView({ block: "end" });
   }, [page, currentChat.id, currentChat.messages.length, history.messagesLoading, sending]);
-
-  useEffect(() => {
-    if (!backend.health) return;
-    let cancelled = false;
-    void api
-      .systemContext()
-      .then((context) => {
-        if (cancelled) return;
-        setPermanentContext(context.content);
-        setContextUpdatedAt(context.updated_at);
-        setContextVersion(context.version);
-        setContextError("");
-      })
-      .catch((error) => {
-        if (!cancelled)
-          setContextError(
-            error instanceof Error ? error.message : "Contesto non disponibile.",
-          );
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [backend.health]);
-
-  async function savePermanentContext() {
-    if (contextSaving) return;
-    setContextSaving(true);
-    setContextError("");
-    try {
-      const saved = await api.saveSystemContext(permanentContext);
-      setPermanentContext(saved.content);
-      setContextUpdatedAt(saved.updated_at);
-      setContextVersion(saved.version);
-    } catch (error) {
-      setContextError(
-        error instanceof Error ? error.message : "Salvataggio non riuscito.",
-      );
-    } finally {
-      setContextSaving(false);
-    }
-  }
 
   const statusLabel = backend.health
     ? "Backend collegato"
@@ -408,7 +364,7 @@ export default function App() {
                     </div>
                   </div>
                 ))}
-                {sending && <div className="message assistant"><div className="message-body"><p>{liveText || (runState === "queued" ? "In coda…" : runState === "cancelling" ? "Annullamento in corso…" : "Cora sta lavorando…")}</p>{activeRun && <button className="text-button" disabled={runState === "cancelling"} onClick={() => void runtimeRequest("/runtime/runs/" + activeRun + "/cancel", { method: "POST" }).then(() => setRunState("cancelling")).catch(e => setChatError(e.message))}>Annulla esecuzione</button>}</div></div>}
+                {sending && <div className="message assistant"><div className="message-body"><p>{liveText || (runState === "queued" ? "In coda…" : runState === "cancelling" ? "Annullamento in corso…" : runState.startsWith("Agente:") ? runState : "Cora sta lavorando…")}</p>{activeRun && <button className="text-button" disabled={runState === "cancelling"} onClick={() => void runtimeRequest("/runtime/runs/" + activeRun + "/cancel", { method: "POST" }).then(() => setRunState("cancelling")).catch(e => setChatError(e.message))}>Annulla esecuzione</button>}</div></div>}
                 <div ref={messagesEnd} />
               </div>
               <div className="chat-bottom">

@@ -254,3 +254,9 @@ ALTER TABLE action_approvals ADD COLUMN IF NOT EXISTS tool_revision TEXT;
 ALTER TABLE runtime_runs DROP CONSTRAINT IF EXISTS runtime_runs_status_check;
 ALTER TABLE runtime_runs ADD CONSTRAINT runtime_runs_status_check CHECK
 (status IN ('queued','running','waiting_approval','awaiting_approval','cancelling','completed','failed','cancelled','timed_out','interrupted'));
+
+-- Derived context work survives restarts and yields to foreground model runs.
+CREATE TABLE IF NOT EXISTS context_jobs (
+    conversation_id UUID PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

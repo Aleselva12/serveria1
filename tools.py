@@ -13,7 +13,7 @@ from core.protocol import TaskEnvelope
 from core.registry import registry_json
 from core.run_lifecycle import RunCancelled, create_run, transition_run
 from core.runtime_context import RunTimedOut, bind_runtime, current_runtime
-from core.runtime import RunStopped
+from core.runtime import RunStopped, checkpoint, publish_text
 from core.working_memory import set_working_memory
 from local_tools import (
     calculator_tool as _calculator_tool,
@@ -204,7 +204,17 @@ def _delegate_agent(
         app = graph_loader()
         state = {"messages": [HumanMessage(content=str(task.payload["query"]))]}
         with bind_runtime(task.run_id, task.thread_id):
-            result = app.invoke(state)
+            result = None
+            for mode, chunk in app.stream(state, stream_mode=["messages", "values"]):
+                checkpoint()
+                if mode == "values": result = chunk
+                elif mode == "messages" and parent_runtime:
+                    message, metadata = chunk
+                    if metadata.get("langgraph_node") == "call_llm":
+                        role = metadata.get("cora_role", target)
+                        span = (task.run_id, role, message.id, metadata.get("langgraph_step"))
+                        publish_text(parent_runtime, role, span, message.content)
+            if not result: raise RuntimeError("Grafo delegato senza risultato.")
         return str(result["messages"][-1].content)
 
     try:
