@@ -8,6 +8,7 @@ from langgraph.prebuilt import ToolNode
 
 from core.memory import search_memories
 from core.context_budget import fit_messages
+from core.governance import bind_capabilities, tool_contract
 from core.models import get_chat_model
 from core.prompt_context import with_permanent_context
 from core.runtime_context import ensure_runtime_active
@@ -22,27 +23,10 @@ class CoraState(MessagesState):
 
 
 llm = get_chat_model("supervisor", temperature=0.0)
-model_with_tools = llm.bind_tools(supervisor_tools)
+model_with_tools = llm.bind_tools(bind_capabilities('supervisor', supervisor_tools))
 
-PARALLEL_READ_TOOLS = {
-    "calculator_tool",
-    "system_status_tool",
-    "list_project_files",
-    "read_project_file",
-    "structure_registry_tool",
-    "recent_system_events_tool",
-    "recall_memory_tool",
-    "calendar_list_events",
-    "calendar_get_event",
-}
-TERMINAL_DELEGATION_TOOLS = {
-    "calculator_tool",
-    "system_status_tool",
-    "structure_agent_tool",
-    "search_agent_tool",
-    "audio_agent_tool",
-    "email_agent_tool",
-}
+PARALLEL_READ_TOOLS = {t.name for t in supervisor_tools if tool_contract(t).effect in {"read","compute"} and tool_contract(t).retry == "safe"}
+TERMINAL_DELEGATION_TOOLS = {t.name for t in supervisor_tools if tool_contract(t).response_mode == "final"}
 
 
 def _latest_user_text(messages) -> str:
@@ -153,7 +137,7 @@ def after_tools(state: CoraState):
     return "agent"
 
 
-tool_node = ToolNode(supervisor_tools)
+tool_node = ToolNode(supervisor_tools, handle_tool_errors=True)
 
 workflow = StateGraph(CoraState)
 workflow.add_node("prepare", prepare_turn)

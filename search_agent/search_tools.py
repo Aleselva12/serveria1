@@ -129,7 +129,7 @@ def _read_document(path: Path) -> str:
     return text
 
 
-@agent_tool("local_research_agent")
+@agent_tool('local_research_agent', capability='list_local_documents', actions=('list_documents',), effect='read', retry='safe')
 def list_local_documents(
     directory: str = ".",
     extension: str = "",
@@ -164,10 +164,10 @@ def list_local_documents(
             "documents": results,
         }, ensure_ascii=False, indent=2)
     except Exception as error:
-        return f"Errore durante l'elenco dei documenti: {error}"
+        return json.dumps({"status":"error","error":f"Errore durante l'elenco dei documenti: {error}"}, ensure_ascii=False)
 
 
-@agent_tool("local_research_agent")
+@agent_tool('local_research_agent', capability='read_local_document', actions=('read_document',), effect='read', retry='safe')
 def read_local_document(relative_path: str) -> str:
     """Legge file testuali, Word .docx e PDF autorizzati."""
     try:
@@ -175,13 +175,10 @@ def read_local_document(relative_path: str) -> str:
         path = _safe_path(relative_path)
 
         if not path.exists() or not path.is_file():
-            return "Il documento richiesto non esiste."
+            return json.dumps({"status":"error","error":"Il documento richiesto non esiste."}, ensure_ascii=False)
 
         if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-            return (
-                "Formato non supportato. Formati disponibili: "
-                + ", ".join(sorted(SUPPORTED_EXTENSIONS))
-            )
+            return json.dumps({"status":"error","error":"Formato non supportato. Formati disponibili: " + ", ".join(sorted(SUPPORTED_EXTENSIONS))},ensure_ascii=False)
 
         text = _read_document(path)
         return (
@@ -190,10 +187,10 @@ def read_local_document(relative_path: str) -> str:
             f"--- DOCUMENT CONTENT ---\n{text}"
         )
     except Exception as error:
-        return f"Errore durante la lettura del documento: {error}"
+        return json.dumps({"status":"error","error":f"Errore durante la lettura del documento: {error}"}, ensure_ascii=False)
 
 
-@agent_tool("local_research_agent")
+@agent_tool('local_research_agent', capability='search_local_documents', actions=('search_documents',), effect='read', retry='safe')
 def search_local_documents(
     query: str,
     directory: str = ".",
@@ -207,7 +204,7 @@ def search_local_documents(
         _require_permission("search_documents")
         terms = [term.casefold() for term in query.split() if len(term.strip()) >= 2]
         if not terms:
-            return "La query non contiene termini utili."
+            return json.dumps({"status":"error","error":"La query non contiene termini utili."}, ensure_ascii=False)
 
         matches = []
         for path in _iter_documents(directory, recursive=True):
@@ -244,10 +241,10 @@ def search_local_documents(
             "results": matches,
         }, ensure_ascii=False, indent=2)
     except Exception as error:
-        return f"Errore durante la ricerca locale: {error}"
+        return json.dumps({"status":"error","error":f"Errore durante la ricerca locale: {error}"}, ensure_ascii=False)
 
 
-@agent_tool("local_research_agent")
+@agent_tool('local_research_agent', capability='create_word_document', actions=(), effect='write', retry='never', conditional_actions=('create_word_document', 'overwrite_word_document'))
 def create_word_document(
     title: str,
     content: str,
@@ -299,7 +296,7 @@ def create_word_document(
         }, ensure_ascii=False)
 
 
-@agent_tool("local_research_agent")
+@agent_tool('local_research_agent', capability='append_word_document', actions=('append_word_document',), effect='write', retry='never')
 def append_word_document(
     relative_path: str,
     content: str,

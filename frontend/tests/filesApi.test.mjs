@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { readFile } from "node:fs/promises";
 import ts from "typescript";
+const contractSource = await readFile(new URL("../src/services/capabilityContracts.ts", import.meta.url), "utf8");
+const contractUrl = "data:text/javascript;base64," + Buffer.from(ts.transpileModule(contractSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText).toString("base64");
 const transportSource = await readFile(new URL("../src/services/transport.ts", import.meta.url), "utf8");
 const transportUrl = "data:text/javascript;base64," + Buffer.from(ts.transpileModule(transportSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText).toString("base64");
 const compile = (s) =>
-  ts.transpileModule(s.replaceAll('"./transport"', JSON.stringify(transportUrl)), {
+  ts.transpileModule(s.replaceAll('"./transport"', JSON.stringify(transportUrl)).replaceAll('"./capabilityContracts"', JSON.stringify(contractUrl)), {
     compilerOptions: {
       target: ts.ScriptTarget.ES2022,
       module: ts.ModuleKind.ES2022,

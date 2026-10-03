@@ -22,6 +22,9 @@ async function compile(file, replacements = []) {
 }
 const entry = (id, status, group) => ({ id, name: id, status, group, kind: status === 'planned' ? 'planned' : 'tool', description: id + ' description', agents: status === 'connected' ? ['Cora'] : [], source: 'test', parameters: ['value'], detail: 'structural' });
 const fixture = { entries: [entry('calculator', 'connected', 'Sistema'), entry('upload', 'unconnected', 'File'), entry('calendar', 'planned', 'Calendario')], errors: [], scope: 'Test inventory' };
+fixture.entries[0].capabilities = [{id:'supervisor.calculator',version:3,actor:'supervisor',effect:'compute',retry:'safe',approval:'generic',connected:true,
+  required_actions:['calculate'],conditional_actions:['inspect_runtime'],permissions:[{action:'calculate',policy:'auto'},{action:'inspect_runtime',policy:'blocked'}],
+  input_schema:{type:'object'},output_schema:{type:'object'},native_output_schema:{type:'string'},contract_digest:'digest',implementation_revision:'revision'}];
 const definition = id => ({
   entry: fixture.entries.find(e => e.id === id), parameters: [{name:'value',type:'str',required:true,default:null}],
   output_type: 'str', operations: ['calculate'], checks: [], conditions: [], note: 'Static summary',
@@ -136,5 +139,13 @@ test('invalid JSON prevents saving and removing a node removes its connections',
   await act(async()=>r.root.findByProps({'aria-label':'Collega in ingresso: Scegli un tool'}).props.onClick());
   await click(r,'Rimuovi passaggio');
   assert.equal(r.root.findAllByProps({className:'flow-connections'}).length,0);
+  await unmount(r);
+});
+
+test('catalog shows versioned execution contracts and conditional permissions without execution buttons',async()=>{
+  const r=await mount(Tools);await choose(r,0);
+  const text=JSON.stringify(r.toJSON());
+  for(const value of ['Contratti eseguibili','supervisor.calculator','versione ','Solo nel ramo che lo richiede','nessun ritentativo automatico']) assert.ok(text.includes(value),value);
+  assert.equal(r.root.findAllByType('button').filter(b=>b.children.includes('Esegui')).length,0);
   await unmount(r);
 });

@@ -163,7 +163,7 @@ def _speaker_for_segment(
     return best_speaker
 
 
-@agent_tool("audio_agent")
+@agent_tool('audio_agent', capability='list_audio_files', actions=('list_audio',), effect='read', retry='safe')
 def list_audio_files(
     directory: str = ".",
     recursive: bool = True,
@@ -174,7 +174,7 @@ def list_audio_files(
         base = _safe_path(directory)
 
         if not base.exists() or not base.is_dir():
-            return "La cartella audio richiesta non esiste."
+            return json.dumps({"status":"error","error":"La cartella audio richiesta non esiste."}, ensure_ascii=False)
 
         iterator = base.rglob("*") if recursive else base.glob("*")
         results = []
@@ -213,7 +213,7 @@ def list_audio_files(
         }, ensure_ascii=False)
 
 
-@agent_tool("audio_agent")
+@agent_tool('audio_agent', capability='transcribe_audio_file', actions=('transcribe_audio',), effect='compute', retry='safe')
 def transcribe_audio_file(
     relative_path: str,
     language: str = "it",
@@ -333,7 +333,7 @@ def transcribe_audio_file(
         }, ensure_ascii=False)
 
 
-@agent_tool("audio_agent")
+@agent_tool('audio_agent', capability='save_transcript', actions=('save_transcript',), effect='write', retry='never')
 def save_transcript(
     source_audio_path: str,
     transcript: str,

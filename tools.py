@@ -27,14 +27,14 @@ def _require_supervisor_permission(action: str) -> None:
     require_permission("supervisor", action)
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='calculator_tool', actions=('calculate',), effect='compute', retry='safe', response_mode='final')
 def calculator_tool(expression: str) -> str:
     """Esegue aritmetica di base dopo il controllo permessi del Supervisor."""
     _require_supervisor_permission("calculate")
     return _calculator_tool.invoke({"expression": expression})
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='system_status_tool', actions=('inspect_runtime',), effect='read', retry='safe', response_mode='final')
 def system_status_tool() -> str:
     """Legge CPU, RAM e disco dopo il controllo permessi del Supervisor."""
     _require_supervisor_permission("inspect_runtime")
@@ -52,7 +52,7 @@ def system_status_tool() -> str:
     )
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='list_project_files', actions=('list_project_files',), effect='read', retry='safe')
 def list_project_files(
     directory: str = ".",
     extension: str = "",
@@ -67,14 +67,14 @@ def list_project_files(
     })
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='read_project_file', actions=('read_project_file',), effect='read', retry='safe')
 def read_project_file(relative_path: str) -> str:
     """Legge un file autorizzato del progetto dopo il controllo permessi."""
     _require_supervisor_permission("read_project_file")
     return _read_project_file.invoke({"relative_path": relative_path})
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='structure_registry_tool', actions=('inspect_structure',), effect='read', retry='safe')
 def structure_registry_tool(kind: str = "") -> str:
     """
     Restituisce il registro centrale dei componenti di Cora, con capacità e
@@ -89,7 +89,7 @@ def structure_registry_tool(kind: str = "") -> str:
     return registry_json(kind=normalized)
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='recent_system_events_tool', actions=('inspect_events',), effect='read', retry='safe')
 def recent_system_events_tool(
     limit: int = 20,
     event_type: str = "",
@@ -105,7 +105,7 @@ def recent_system_events_tool(
     return json.dumps(events, ensure_ascii=False, indent=2)
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='remember_tool', actions=('remember_memory',), effect='write', retry='never')
 def remember_tool(
     memory_type: str,
     key: str,
@@ -128,7 +128,7 @@ def remember_tool(
     return json.dumps(result, ensure_ascii=False, indent=2)
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='recall_memory_tool', actions=('recall_memory',), effect='read', retry='safe')
 def recall_memory_tool(
     query: str = "",
     memory_type: str = "",
@@ -144,7 +144,7 @@ def recall_memory_tool(
     return json.dumps(results, ensure_ascii=False, indent=2)
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='forget_memory_tool', actions=('forget_memory',), effect='write', retry='never')
 def forget_memory_tool(memory_id: str) -> str:
     """Elimina una singola memoria persistente per ID su richiesta esplicita."""
     _require_supervisor_permission("forget_memory")
@@ -260,7 +260,7 @@ def _delegate_agent(
         raise
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='structure_agent_tool', actions=('delegate_structure',), effect='delegate', retry='never', response_mode='final')
 def structure_agent_tool(query: str, thread_id: str = "") -> str:
     """Delega planning, evaluation, control e management allo Structure Agent."""
     _require_supervisor_permission("delegate_structure")
@@ -278,7 +278,7 @@ def structure_agent_tool(query: str, thread_id: str = "") -> str:
     )
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='search_agent_tool', actions=('delegate_research',), effect='delegate', retry='never', response_mode='final')
 def search_agent_tool(query: str, thread_id: str = "") -> str:
     """Delega ricerca e analisi dei documenti locali al Local Research Agent."""
     _require_supervisor_permission("delegate_research")
@@ -296,7 +296,7 @@ def search_agent_tool(query: str, thread_id: str = "") -> str:
     )
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='audio_agent_tool', actions=('delegate_audio',), effect='delegate', retry='never', response_mode='final')
 def audio_agent_tool(query: str, thread_id: str = "") -> str:
     """Delega trascrizione e analisi audio all'Audio Agent."""
     _require_supervisor_permission("delegate_audio")
@@ -314,7 +314,7 @@ def audio_agent_tool(query: str, thread_id: str = "") -> str:
     )
 
 
-@agent_tool("supervisor")
+@agent_tool('supervisor', capability='email_agent_tool', actions=('delegate_email',), effect='delegate', retry='never', response_mode='final')
 def email_agent_tool(query: str, thread_id: str = "") -> str:
     """Delega ricerca mail, bozze e preventivi all'Email & Quotes Agent."""
     _require_supervisor_permission("delegate_email")

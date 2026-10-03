@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("tool_inventory", Path(__file__).resolve().parents[1] / "core/tool_inventory.py")
 module = importlib.util.module_from_spec(spec)
@@ -22,6 +23,25 @@ class InventoryTest(unittest.TestCase):
         self.assertEqual(upload["status"], "unconnected")
         self.assertEqual(upload["group"], "File server")
         self.assertEqual(upload["agents"], [])
+
+    def test_executable_catalog_uses_registry_not_source_inference(self):
+        from core.governance import capability_registry, find_capability
+        registry = capability_registry()
+        self.assertTrue(registry['validation']['valid'])
+        with patch.object(module, '_parse', side_effect=AssertionError('No AST authority')):
+            catalog = module.inventory()
+        declared = {c['id']:c for e in catalog['entries'] for c in e.get('capabilities',[])}
+        production = {c['id']:c for c in registry['tools'] if c['id'] in declared}
+        self.assertGreaterEqual(len(production),60)
+        self.assertEqual(declared,{k:{key:value for key,value in c.items() if key not in {'actions','revision'}} for k,c in production.items()})
+        calendar = next(e for e in catalog['entries'] if e['name']=='calendar_create_event')
+        self.assertEqual(len(calendar['capabilities']),4)
+        for c in calendar['capabilities']:
+            self.assertTrue(c['connected'])
+            _, executable = find_capability(c['id'])
+            self.assertEqual(c['input_schema'], executable['input_model'].model_json_schema())
+            self.assertNotIn('actor',c['input_schema']['properties'])
+            self.assertNotIn('user_approved',c['input_schema']['properties'])
 
     def test_missing_source_is_reported_not_marked_implemented(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -45,7 +45,7 @@ class RuntimePostgresTests(unittest.TestCase):
 
     def test_approval_applies_exact_action_once_and_rechecks_policy(self):
         effects=[]
-        @agent_tool('supervisor')
+        @agent_tool('supervisor', actions=('remember_memory',), effect="write", retry="never")
         def write_approval_test(value:str):
             """Write a test effect behind the actual permission engine."""
             require_permission('supervisor','remember_memory');effects.append(value);return {'saved':value}
@@ -65,7 +65,7 @@ class RuntimePostgresTests(unittest.TestCase):
 
     def test_multi_permission_tool_has_one_exact_bundle_confirmation(self):
         effects=[]
-        @agent_tool('structure_agent')
+        @agent_tool('structure_agent', actions=('create_plan', 'save_plan'), effect="write", retry="never")
         def write_multi_test(value:str):
             """A composite capability requires both permissions before its effect."""
             require_permission('structure_agent','create_plan')
@@ -81,9 +81,38 @@ class RuntimePostgresTests(unittest.TestCase):
         self.assertEqual(resolve(proposal['approval_id'],True,'Ale')['status'],'approved')
         self.assertEqual(effects,['one'])
 
+    def test_contract_pinning_defaults_and_legacy_proposals(self):
+        effects = []
+        @agent_tool('supervisor', actions=('remember_memory',), effect='write', retry='never')
+        def pinned_approval_test(value: str = 'default') -> str:
+            """Pin the confirmed contract and normalized input before effects."""
+            effects.append(value)
+            return 'ok'
+        set_policy('supervisor','remember_memory','confirm')
+        proposal = json.loads(pinned_approval_test.invoke({}))
+        with db_connection() as c:
+            row = c.execute('SELECT * FROM action_approvals WHERE id=%s',(proposal['approval_id'],)).fetchone()
+        self.assertEqual(row['payload'], {'value':'default'})
+        self.assertEqual(row['capability_id'], 'supervisor.pinned_approval_test')
+        self.assertEqual(row['contract_version'], 1)
+        self.assertEqual(len(row['contract_digest']), 64)
+        self.assertEqual(resolve(proposal['approval_id'],True,'Ale')['status'], 'approved')
+        self.assertEqual(effects, ['default'])
+        for assignment in ["contract_digest='changed'", "contract_version=2", "capability_id=NULL,contract_version=NULL,contract_digest=NULL"]:
+            with self.subTest(assignment=assignment):
+                id = json.loads(pinned_approval_test.invoke({}))['approval_id']
+                with db_connection() as c:
+                    c.execute('UPDATE action_approvals SET '+assignment+' WHERE id=%s',(id,))
+                with self.assertRaises(RuntimeError): resolve(id,True,'Ale')
+                self.assertEqual(effects, ['default'])
+        id = json.loads(pinned_approval_test.invoke({}))['approval_id']
+        with db_connection() as c:
+            c.execute('UPDATE action_approvals SET contract_version=NULL WHERE id=%s',(id,))
+        self.assertEqual(resolve(id,False,'Ale')['status'], 'rejected')
+
     def test_expired_approval_and_rejection_never_execute(self):
         effects=[]
-        @agent_tool('supervisor')
+        @agent_tool('supervisor', actions=('remember_memory',), effect="write", retry="never")
         def write_expiry_test(value:str):
             """Test expiry before an authorized effect."""
             require_permission('supervisor','remember_memory');effects.append(value);return 'ok'
@@ -145,7 +174,7 @@ class RuntimePostgresTests(unittest.TestCase):
             self.assertIsNone(c.execute("SELECT * FROM tool_policies WHERE actor='test'").fetchone())
 
     def test_tool_reported_error_is_not_approved_success(self):
-        @agent_tool('supervisor')
+        @agent_tool('supervisor', actions=('remember_memory',), effect="write", retry="never")
         def test_report_error(value:str):
             """A tool may return a structured error instead of raising."""
             require_permission('supervisor','remember_memory');return json.dumps({'status':'error','error':'failed'})

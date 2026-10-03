@@ -25,6 +25,7 @@ MODULES = [
     "core.governance",
     "core.context_budget",
     "core.capabilities",
+    "core.capability_contracts",
     "core.registry",
     "core.logging",
     "core.memory",

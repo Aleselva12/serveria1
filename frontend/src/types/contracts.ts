@@ -1,9 +1,18 @@
+export type CapabilityContract = {
+  id:string; version:number; actor:string; name:string; effect:"read"|"compute"|"write"|"delegate";
+  retry:"safe"|"never"; approval:"generic"|"calendar"; connected:boolean;
+  required_actions:string[]; conditional_actions:string[];
+  input_schema:Record<string,unknown>; native_output_schema:Record<string,unknown>; output_schema:Record<string,unknown>;
+  contract_digest:string; implementation_revision:string;
+  permissions:{action:string;policy:string;scope:string}[];
+};
 export type AgentStatus = "ready" | "busy" | "offline" | "error" | "unknown";
 export type ToolEntry = {
   id: string; name: string; description: string; group: string;
   kind: "tool" | "api" | "planned";
   status: "connected" | "unconnected" | "planned";
   agents: string[]; source: string; parameters: string[]; detail: string;
+  capabilities?: CapabilityContract[];
 };
 export type ToolInventory = { entries: ToolEntry[]; errors: string[]; scope: string };
 export type FlowNode = {
