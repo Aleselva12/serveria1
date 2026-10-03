@@ -44,7 +44,7 @@ def _require_permission(action: str) -> None:
     require_permission("email_quotes_agent", action)
 
 
-@agent_tool("email_quotes_agent")
+@agent_tool('email_quotes_agent', capability='search_email_archive', actions=('search_email',), effect='read', retry='safe')
 def search_email_archive(query: str, max_results: int = 30) -> str:
     """
     Cerca nell'archivio Gmail usando la sintassi di ricerca Gmail.
@@ -63,7 +63,7 @@ def search_email_archive(query: str, max_results: int = 30) -> str:
         return _json({"status": "error", "error": str(error)})
 
 
-@agent_tool("email_quotes_agent")
+@agent_tool('email_quotes_agent', capability='get_email_by_id', actions=('read_email',), effect='read', retry='safe')
 def get_email_by_id(message_id: str) -> str:
     """
     Recupera una singola email usando il suo message ID Gmail esatto.
@@ -80,7 +80,7 @@ def get_email_by_id(message_id: str) -> str:
         return _json({"status": "error", "error": str(error)})
 
 
-@agent_tool("email_quotes_agent")
+@agent_tool('email_quotes_agent', capability='get_daily_emails', actions=('read_daily_email',), effect='read', retry='safe')
 def get_daily_emails(day_iso: str = "") -> str:
     """
     Recupera le email di un giorno specifico nel formato YYYY-MM-DD.
@@ -100,7 +100,7 @@ def get_daily_emails(day_iso: str = "") -> str:
         return _json({"status": "error", "error": str(error)})
 
 
-@agent_tool("email_quotes_agent")
+@agent_tool('email_quotes_agent', capability='save_email_draft', actions=('save_email_draft',), effect='write', retry='never')
 def save_email_draft(to_email: str, subject: str, body: str) -> str:
     """
     Salva una bozza Gmail. Non invia mai la mail.
@@ -118,7 +118,7 @@ def save_email_draft(to_email: str, subject: str, body: str) -> str:
         return _json({"status": "error", "error": str(error)})
 
 
-@agent_tool("email_quotes_agent")
+@agent_tool('email_quotes_agent', capability='generate_quote_pdf', actions=('generate_quote_pdf',), effect='write', retry='never')
 def generate_quote_pdf(
     customer_name: str,
     items_json: str,

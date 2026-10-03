@@ -1,3 +1,4 @@
+import { contractsValid } from "./capabilityContracts";
 import { authenticatedFetch } from "./transport";
 import { apiBaseUrl, ApiError } from "./api";
 import type { AutomationDraft, DraftSummary, ToolDefinition, ToolFlow } from "../types/contracts";
@@ -38,7 +39,7 @@ async function request(path: string, token = "", init: RequestInit = {}) {
 export const toolsApi = {
   async definition(id: string): Promise<ToolDefinition> {
     const d = await request("/tools/definition?tool_id=" + encodeURIComponent(id));
-    if (!d || d.entry?.id !== id || !Array.isArray(d.parameters) || !flowValid(d.flow) ||
+    if (!d || d.entry?.id !== id || !contractsValid(d.entry.capabilities) || !Array.isArray(d.parameters) || !flowValid(d.flow) ||
         typeof d.note !== "string" || typeof d.output_type !== "string" ||
         ![d.operations, d.checks, d.conditions].every(a => Array.isArray(a) && a.every(x => typeof x === "string")) ||
         !d.parameters.every((p: ToolDefinition["parameters"][number]) => p && typeof p.name === "string" && typeof p.type === "string" && typeof p.required === "boolean" && (p.default === null || typeof p.default === "string")))

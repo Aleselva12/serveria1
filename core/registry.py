@@ -13,6 +13,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 COMPONENTS: tuple[ComponentDefinition, ...] = (
+    ComponentDefinition(id="capability_execution", name="Capability Contracts", kind="core", module="core.governance",
+        description="Registry eseguibile con contratti versionati, schemi stretti e confine unico di esecuzione.",
+        capabilities=(Capability("execute_capability", "Valida input, permessi e risultato prima di restituire un esito comune."),
+                      Capability("capability_registry", "Espone i contratti effettivi usati dagli agenti e dal catalogo Tools."))),
     ComponentDefinition(id="app_auth", name="Accesso personale", kind="core", module="core.auth",
         description="Login del proprietario, sessioni revocabili di sette giorni e protezione globale API.",
         capabilities=(Capability("owner_login", "Autentica il proprietario prima di accedere alle API."),)),

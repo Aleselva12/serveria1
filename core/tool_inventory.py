@@ -76,10 +76,38 @@ def flatten_routes(routes):
             yield route
 
 
+def executable_entries():
+    from core.governance import load_capabilities, executables, capability_manifest
+    load_capabilities()
+    owners = {source[:-3].replace("/","."):(owner,group) for source,_,_,owner,group in SOURCES}
+    actor_owners = {e["actor"]:owners.get(e["fn"].__module__,("", ""))[0] for e in executables.values() if e["fn"].__module__ in owners}
+    entries = {}
+    for e in executables.values():
+        fn, contract = e["fn"], e["contract"]
+        if fn.__module__ not in owners and fn.__module__ != "core.calendar_tools": continue
+        source = fn.__module__.replace(".","/")+".py"
+        ident = source+":"+fn.__name__
+        group = owners.get(fn.__module__,("","Calendario"))[1]
+        if fn.__module__ == "tools":
+            group = "Deleghe agli agenti" if contract.effect == "delegate" else "Memoria" if "memory" in fn.__name__ or fn.__name__ == "remember_tool" else "Sistema"
+        entry = entries.setdefault(ident,dict(id=ident,name=contract.name,description=" ".join(contract.description.split()),
+            group=group,kind="tool",status="unconnected",agents=[],source=source,
+            parameters=list(contract.input_schema.get("properties",{})),capabilities=[],
+            detail="Contratto eseguibile del registry. Collegamento strutturale; credenziali e risorse vanno verificate separatamente."))
+        entry["capabilities"].append(capability_manifest(e))
+        if e["connected"]:
+            entry["status"] = "connected"
+            owner = actor_owners.get(contract.actor,contract.actor)
+            if owner not in entry["agents"]: entry["agents"].append(owner)
+    return list(entries.values())
+
+
 def inventory(routes=(), root: Path = ROOT):
     routes = list(flatten_routes(routes))
     entries, errors = [], []
-    for source, graph, list_name, owner, group in SOURCES:
+    if root == ROOT:
+        entries.extend(executable_entries())
+    for source, graph, list_name, owner, group in (SOURCES if root != ROOT else ()):
         try:
             tree = _parse(root / source)
             bound = _binding(tree, list_name, root)
@@ -105,7 +133,7 @@ def inventory(routes=(), root: Path = ROOT):
     # prove attachment through the actual graph imports/list references.
     known = {s[0] for s in SOURCES} | {"local_tools.py"}
     candidates = set(root.glob("*tools.py")) | set((root / "core").glob("*tools.py")) | set(root.glob("*_agent/*tools.py"))
-    for path in sorted(candidates):
+    for path in sorted(candidates) if root != ROOT else ():
         relative = path.relative_to(root).as_posix()
         if relative in known or any(p in {".venv", "node_modules", ".git"} for p in path.parts):
             continue
@@ -164,4 +192,4 @@ def inventory(routes=(), root: Path = ROOT):
             entries.append(dict(id=f"planned:{name}", name=name, description=description,
                 group=group, kind="planned", status="planned", agents=[], source="Predisposizione / lavoro in corso",
                 parameters=[], detail="Non utilizzabile nella versione di codice osservata. Non è una funzione operativa."))
-    return {"entries": entries, "errors": errors, "scope": "Inventario strutturale del codice e delle API registrate; nessuna operazione eseguita."}
+    return {"entries": entries, "errors": errors, "scope": "Capability dal registry eseguibile, API registrate e predisposizioni separate; nessuna operazione eseguita."}

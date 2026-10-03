@@ -82,7 +82,7 @@ class RuntimeTests(unittest.TestCase):
 
     def test_confirm_cannot_be_satisfied_by_a_different_payload(self):
         writes=[]
-        @agent_tool('supervisor')
+        @agent_tool('supervisor', actions=('remember_memory',), effect="write", retry="never")
         def write_test(content:str):
             """Test side effect guarded by exact approval binding."""
             require_permission('supervisor','remember_memory')

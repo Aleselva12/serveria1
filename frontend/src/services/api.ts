@@ -1,3 +1,4 @@
+import { contractsValid } from "./capabilityContracts";
 import { authenticatedFetch } from "./transport";
 import type {
   ArchitectureGraph,
@@ -135,7 +136,7 @@ export const api = {
         !data.errors.every(e => typeof e === "string") || typeof data.scope !== "string" ||
         !data.entries.every(e => e && typeof e.id === "string" && typeof e.name === "string" &&
           typeof e.description === "string" && typeof e.group === "string" && typeof e.source === "string" &&
-          typeof e.detail === "string" && ["tool", "api", "planned"].includes(e.kind) &&
+          typeof e.detail === "string" && contractsValid(e.capabilities) && ["tool", "api", "planned"].includes(e.kind) &&
           ["connected", "unconnected", "planned"].includes(e.status) &&
           Array.isArray(e.agents) && e.agents.every(a => typeof a === "string") &&
           Array.isArray(e.parameters) && e.parameters.every(p => typeof p === "string")))

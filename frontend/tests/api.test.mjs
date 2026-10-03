@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { readFile } from "node:fs/promises";
 import ts from "typescript";
+const contractSource = await readFile(new URL("../src/services/capabilityContracts.ts", import.meta.url), "utf8");
+const contractUrl = "data:text/javascript;base64," + Buffer.from(ts.transpileModule(contractSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText).toString("base64");
 const transportSource = await readFile(new URL("../src/services/transport.ts", import.meta.url), "utf8");
 const transportUrl = "data:text/javascript;base64," + Buffer.from(ts.transpileModule(transportSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText).toString("base64");
 
@@ -9,7 +11,7 @@ const transportUrl = "data:text/javascript;base64," + Buffer.from(ts.transpileMo
 const source = (
   await readFile(new URL("../src/services/api.ts", import.meta.url), "utf8")
 ).replace("import.meta.env.VITE_API_BASE_URL", "undefined");
-const compiled = ts.transpileModule(source.replaceAll('"./transport"', JSON.stringify(transportUrl)), {
+const compiled = ts.transpileModule(source.replaceAll('"./transport"', JSON.stringify(transportUrl)).replaceAll('"./capabilityContracts"', JSON.stringify(contractUrl)), {
   compilerOptions: {
     target: ts.ScriptTarget.ES2022,
     module: ts.ModuleKind.ES2022,
@@ -209,4 +211,10 @@ test("history rejects malformed rows and messages from a different conversation"
   await assert.rejects(api.conversations(), e => e instanceof ApiError && e.kind === "invalid");
   globalThis.fetch = async () => jsonResponse([{ id: "m", conversation_id: "other", role: "user", content: "Wrong chat", created_at: "2026-10-02T12:00:00Z" }]);
   await assert.rejects(api.conversationMessages("selected"), e => e instanceof ApiError && e.kind === "invalid");
+});
+
+test("malformed executable contracts are rejected before the catalog renders", async () => {
+  const entry = { id:"test",name:"test",description:"",group:"test",source:"test",detail:"",kind:"tool",status:"connected",agents:["Cora"],parameters:[],capabilities:[{id:"bad",version:0}] };
+  globalThis.fetch = async () => jsonResponse({entries:[entry],errors:[],scope:"test"});
+  await assert.rejects(api.toolInventory(), e => e.kind === "invalid");
 });

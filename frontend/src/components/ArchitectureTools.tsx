@@ -71,6 +71,14 @@ export default function ArchitectureTools() {
           </div></aside>
       </div>
       {definition && <><p className="tools-scope">{definition.note}</p>
+        {definition.entry.capabilities?.length ? <section className="section-card"><h3>Contratti eseguibili</h3><p>Gli stessi contratti sono usati dagli agenti e dal servizio di esecuzione. Il diagramma illustra il funzionamento; le automazioni restano bozze separate.</p>
+          {definition.entry.capabilities.map(c=><article key={c.id} className="capability-contract"><h4>{c.actor} · versione {c.version}</h4><p><code>{c.id}</code></p>
+            <dl><dt>Operazione</dt><dd>{{read:"Lettura",compute:"Calcolo",write:"Scrittura",delegate:"Delega"}[c.effect]}</dd><dt>Ripetizione</dt><dd>{c.retry === "safe" ? "Dichiarata sicura · nessun ritentativo automatico" : "Non ripetere automaticamente"}</dd><dt>Approvazione</dt><dd>{c.approval === "calendar" ? "Transazione calendario" : "Azione e parametri esatti"}</dd></dl>
+            <table><thead><tr><th>Permesso</th><th>Quando</th><th>Policy</th></tr></thead><tbody>{c.permissions.map(p=><tr key={p.action}><td>{p.action}</td><td>{c.conditional_actions.includes(p.action) ? "Solo nel ramo che lo richiede" : "Prima dell’esecuzione"}</td><td>{p.policy === "auto" ? "Automatico" : p.policy === "confirm" ? "Conferma" : "Bloccato"}</td></tr>)}</tbody></table>
+            <details><summary>Schemi input, risultato e revisione</summary><pre>{JSON.stringify({input:c.input_schema,result:c.output_schema,native_output:c.native_output_schema,contract_digest:c.contract_digest,implementation_revision:c.implementation_revision},null,2)}</pre></details>
+          </article>)}
+        </section> : null}
+
         <div className="tool-signature"><h3>Ingressi e parametri</h3>{definition.parameters.length ? <div className="tool-parameter-table"><table><thead><tr><th>Parametro</th><th>Tipo</th><th>Obbligatorio</th><th>Valore iniziale</th></tr></thead><tbody>
           {definition.parameters.map(p => <tr key={p.name}><td>{p.name}</td><td>{p.type}</td><td>{p.required ? "Sì" : "No"}</td><td>{p.default ?? "—"}</td></tr>)}
         </tbody></table></div> : <p>Nessun parametro dichiarato.</p>}</div>

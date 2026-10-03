@@ -5,6 +5,7 @@ from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from core.context_budget import fit_messages
+from core.governance import bind_capabilities
 from core.models import get_chat_model
 from core.prompt_context import with_permanent_context
 from core.runtime_context import ensure_runtime_active
@@ -17,7 +18,7 @@ class AgentState(MessagesState):
 
 
 llm = get_chat_model("research", temperature=0.0)
-model_with_tools = llm.bind_tools(LOCAL_RESEARCH_TOOLS)
+model_with_tools = llm.bind_tools(bind_capabilities('local_research_agent', LOCAL_RESEARCH_TOOLS))
 
 
 def prepare_prompt(state: AgentState):
@@ -43,7 +44,7 @@ def create_search_graph():
     workflow = StateGraph(AgentState)
     workflow.add_node("prepare", prepare_prompt)
     workflow.add_node("call_llm", call_llm)
-    workflow.add_node("tools", ToolNode(LOCAL_RESEARCH_TOOLS))
+    workflow.add_node("tools", ToolNode(LOCAL_RESEARCH_TOOLS, handle_tool_errors=True))
     workflow.add_edge(START, "prepare")
     workflow.add_edge("prepare", "call_llm")
     workflow.add_conditional_edges(

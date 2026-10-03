@@ -67,6 +67,14 @@ def _flow(entry, fn):
     return dict(nodes=nodes, edges=edges), operations, permission, conditions
 
 
+def contract_parameters(contract):
+    schema = contract["input_schema"]
+    types = {"string":"str","integer":"int","boolean":"bool","number":"float","array":"list","object":"dict"}
+    return [dict(name=name,type=types.get(spec.get("type")," | ".join(types.get(s.get("type"),s.get("type","Any")) for s in spec.get("anyOf",[])) or "Any"),
+        required=name in schema.get("required",[]),default=repr(spec["default"]) if "default" in spec else None)
+        for name,spec in schema.get("properties",{}).items()]
+
+
 def definition(tool_id, routes=(), root: Path = ROOT):
     from core.tool_inventory import flatten_routes
     routes = list(flatten_routes(routes))
@@ -91,6 +99,16 @@ def definition(tool_id, routes=(), root: Path = ROOT):
                     flow=dict(nodes=[dict(id="step-0", kind="tool", label=entry["name"], detail=entry["description"], x=100, y=160, config={})], edges=[]),
                     note="Predisposizione senza implementazione." if entry["kind"] == "planned" else "Dettagli del codice non disponibili per questa operazione.")
     flow, operations, checks, conditions = _flow(entry, fn)
-    return dict(entry=entry, parameters=_signature(fn), output_type=ast.unparse(fn.returns) if fn.returns else "Non dichiarato",
+    capabilities = entry.get("capabilities",[])
+    if capabilities:
+        declared = sorted({a for c in capabilities for a in c["required_actions"]+c["conditional_actions"]})
+        checks = declared
+        if not any(n["kind"] == "condition" for n in flow["nodes"]):
+            for node in flow["nodes"][1:]: node["x"] += 280
+            flow["nodes"].insert(1,dict(id="contract-check",kind="condition",label="Contratto e permessi",detail=", ".join(declared),x=330,y=160,config={}))
+            first = flow["edges"][0]
+            source = first["source"];first["source"]="contract-check"
+            flow["edges"].insert(0,dict(id="contract-edge",source=source,target="contract-check",label="validazione"))
+    return dict(entry=entry, parameters=contract_parameters(capabilities[0]) if capabilities else _signature(fn), output_type=({"string":"str","object":"dict","array":"list","integer":"int","boolean":"bool"}.get(capabilities[0]["native_output_schema"].get("type"),"Any") if capabilities else ast.unparse(fn.returns) if fn.returns else "Non dichiarato"),
                 operations=operations, checks=checks, conditions=conditions, flow=flow,
-                note="Schema sintetico letto dal codice: raggruppa controlli, operazione e risultato. I rami interni e i cicli non sono rappresentati integralmente; non è una traccia di esecuzione.")
+                note="Ingressi e permessi provengono dal contratto eseguibile. Il diagramma è una sintesi illustrativa del codice: raggruppa controlli, operazione e risultato. I rami interni e i cicli non sono rappresentati integralmente; non è una traccia di esecuzione.")

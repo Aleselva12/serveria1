@@ -1,4 +1,4 @@
-﻿import ast
+import ast
 import json
 import operator
 from pathlib import Path
@@ -82,20 +82,18 @@ def _calculate(node):
 @tool
 def calculator_tool(expression: str) -> str:
     """Calcola in sicurezza un'espressione con +, -, *, /, // e %."""
-    print(f"[TOOL] calculator_tool: {expression}")
 
     try:
         tree = ast.parse(expression, mode="eval")
         result = _calculate(tree)
         return str(result)
     except Exception as error:
-        return f"Errore nel calcolo: {error}"
+        return json.dumps({"status":"error","error":f"Errore nel calcolo: {error}"}, ensure_ascii=False)
 
 
 @tool
 def system_status_tool() -> str:
     """Restituisce utilizzo reale di CPU, RAM e disco del computer."""
-    print("[TOOL] system_status_tool")
 
     memory = psutil.virtual_memory()
     disk = psutil.disk_usage(str(PROJECT_ROOT.anchor))
@@ -122,16 +120,12 @@ def list_project_files(
     recursive: bool = True,
 ) -> str:
     """Elenca file reali esclusivamente dentro il progetto Cora."""
-    print(
-        f"[TOOL] list_project_files: "
-        f"directory={directory}, extension={extension}, recursive={recursive}"
-    )
 
     try:
         base = _safe_path(directory)
 
         if not base.exists() or not base.is_dir():
-            return "La cartella richiesta non esiste."
+            return json.dumps({"status":"error","error":"La cartella richiesta non esiste."}, ensure_ascii=False)
 
         iterator = base.rglob("*") if recursive else base.glob("*")
         results = []
@@ -164,27 +158,26 @@ def list_project_files(
         return "\n".join(sorted(results))
 
     except Exception as error:
-        return f"Errore durante l'elenco dei file: {error}"
+        return json.dumps({"status":"error","error":f"Errore durante l'elenco dei file: {error}"}, ensure_ascii=False)
 
 
 @tool
 def read_project_file(relative_path: str) -> str:
     """Legge un file di testo esclusivamente dentro il progetto Cora."""
-    print(f"[TOOL] read_project_file: {relative_path}")
 
     try:
         path = _safe_path(relative_path)
 
         if not path.exists() or not path.is_file():
-            return "Il file richiesto non esiste."
+            return json.dumps({"status":"error","error":"Il file richiesto non esiste."}, ensure_ascii=False)
 
         if path.suffix.lower() not in TEXT_EXTENSIONS:
-            return "Questo tipo di file non è autorizzato."
+            return json.dumps({"status":"error","error":"Questo tipo di file non è autorizzato."}, ensure_ascii=False)
 
         if path.stat().st_size > 100_000:
-            return "Il file supera il limite di 100 KB."
+            return json.dumps({"status":"error","error":"Il file supera il limite di 100 KB."}, ensure_ascii=False)
 
         return path.read_text(encoding="utf-8", errors="replace")
 
     except Exception as error:
-        return f"Errore durante la lettura: {error}"
+        return json.dumps({"status":"error","error":f"Errore durante la lettura: {error}"}, ensure_ascii=False)

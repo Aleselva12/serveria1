@@ -334,6 +334,11 @@ def require_permission(
     from core.runtime import checkpoint
     checkpoint()
     call, grant = invocation.get(), approved_action.get()
+    if call:
+        if call['actor'] != actor or action not in call['actions']:
+            raise PermissionError('Permesso non dichiarato nel contratto della capability.')
+        # A tool cannot grant approval to itself, even through a helper.
+        user_approved = False
     trusted = bool(call and grant and grant[0] == actor and (grant[1] == action if isinstance(grant[1], str) else action in grant[1]) and grant[2:] == (call["tool_id"], call["payload"]))
     decision = check_permission(actor, action, user_approved=user_approved or trusted)
     if not decision.allowed:

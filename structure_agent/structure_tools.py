@@ -26,7 +26,7 @@ def _require_permission(action: str) -> None:
     require_permission("structure_agent", action)
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_components', actions=('inspect_structure',), effect='read', retry='safe')
 def structure_components(kind: str = "") -> str:
     """
     Restituisce il registro centrale dei componenti di Cora.
@@ -36,18 +36,18 @@ def structure_components(kind: str = "") -> str:
     normalized = kind.strip().lower() or None
     allowed = {None, "core", "agent", "tool", "interface"}
     if normalized not in allowed:
-        return "Tipo non valido. Usa: core, agent, tool, interface oppure lascia vuoto."
+        return json.dumps({"status":"error","error":"Tipo non valido. Usa: core, agent, tool, interface oppure lascia vuoto."}, ensure_ascii=False)
     return json.dumps(get_registry(kind=normalized), ensure_ascii=False, indent=2)
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_memory_status', actions=('inspect_memory_status',), effect='read', retry='safe')
 def structure_memory_status() -> str:
     """Restituisce solo statistiche tecniche della memoria persistente."""
     _require_permission("inspect_memory_status")
     return json.dumps(memory_stats(), ensure_ascii=False, indent=2)
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_recent_events', actions=('inspect_events',), effect='read', retry='safe')
 def structure_recent_events(
     limit: int = 30,
     event_type: str = "",
@@ -63,7 +63,7 @@ def structure_recent_events(
     return json.dumps(events, ensure_ascii=False, indent=2)
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_control_snapshot', actions=('inspect_events', 'inspect_memory_status', 'inspect_runtime', 'inspect_structure'), effect='read', retry='safe')
 def structure_control_snapshot(event_limit: int = 20) -> str:
     """
     Restituisce una fotografia tecnica sintetica utile a control e management:
@@ -83,14 +83,14 @@ def structure_control_snapshot(event_limit: int = 20) -> str:
     return json.dumps(snapshot, ensure_ascii=False, indent=2)
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_system_status', actions=('inspect_runtime',), effect='read', retry='safe')
 def structure_system_status() -> str:
     """Legge CPU, RAM e disco passando dal permission engine."""
     _require_permission("inspect_runtime")
     return system_status_tool.invoke({})
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_list_project_files', actions=('list_project_files',), effect='read', retry='safe')
 def structure_list_project_files(
     directory: str = ".",
     extension: str = "",
@@ -107,28 +107,28 @@ def structure_list_project_files(
     )
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_read_project_file', actions=('read_project_file',), effect='read', retry='safe')
 def structure_read_project_file(relative_path: str) -> str:
     """Legge un file autorizzato del progetto passando dal permission engine."""
     _require_permission("read_project_file")
     return read_project_file.invoke({"relative_path": relative_path})
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_owner_status', actions=('inspect_owner',), effect='read', retry='safe')
 def structure_owner_status() -> str:
     """Mostra come viene risolta attualmente la ownership dei piani."""
     _require_permission("inspect_owner")
     return json.dumps(resolve_plan_owner().to_dict(), ensure_ascii=False, indent=2)
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_permission_manifest', actions=('inspect_permissions',), effect='read', retry='safe')
 def structure_permission_manifest() -> str:
     """Mostra le regole di permesso correnti dello Structure Agent."""
     _require_permission("inspect_permissions")
     return json.dumps(permission_manifest("structure_agent"), ensure_ascii=False, indent=2)
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_save_plan', actions=('create_plan', 'save_plan'), effect='write', retry='never')
 def structure_save_plan(
     objective: str,
     tasks: list[dict],
@@ -159,7 +159,7 @@ def structure_save_plan(
     )
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_save_evaluation', actions=('create_evaluation', 'save_evaluation'), effect='write', retry='never')
 def structure_save_evaluation(
     target: str,
     criteria: list[str],
@@ -191,7 +191,7 @@ def structure_save_evaluation(
     )
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_save_management', actions=('create_management', 'save_management'), effect='write', retry='never')
 def structure_save_management(
     title: str,
     summary: str,
@@ -217,13 +217,13 @@ def structure_save_management(
     )
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_list_artifacts', actions=('read_structure_workspace',), effect='read', retry='safe')
 def structure_list_artifacts(artifact_type: str = "") -> str:
     """Elenca plan, evaluation e management artifact salvati."""
     return json.dumps(list_artifacts(artifact_type), ensure_ascii=False, indent=2)
 
 
-@agent_tool("structure_agent")
+@agent_tool('structure_agent', capability='structure_read_artifact', actions=('read_structure_workspace',), effect='read', retry='safe')
 def structure_read_artifact(relative_path: str) -> str:
     """Legge un artefatto JSON dal workspace Structure."""
     return json.dumps(read_artifact(relative_path), ensure_ascii=False, indent=2)

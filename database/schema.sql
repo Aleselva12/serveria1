@@ -260,3 +260,8 @@ CREATE TABLE IF NOT EXISTS context_jobs (
     conversation_id UUID PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Exact approval pins the executable contract; legacy rows remain non-executable.
+ALTER TABLE action_approvals ADD COLUMN IF NOT EXISTS capability_id TEXT;
+ALTER TABLE action_approvals ADD COLUMN IF NOT EXISTS contract_version INTEGER;
+ALTER TABLE action_approvals ADD COLUMN IF NOT EXISTS contract_digest TEXT;

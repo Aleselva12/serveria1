@@ -2,13 +2,15 @@ import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
+const contractSource = await readFile(new URL("../src/services/capabilityContracts.ts", import.meta.url), "utf8");
+const contractUrl = "data:text/javascript;base64," + Buffer.from(ts.transpileModule(contractSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText).toString("base64");
 const transportSource = await readFile(new URL("../src/services/transport.ts", import.meta.url), "utf8");
 const transportUrl = "data:text/javascript;base64," + Buffer.from(ts.transpileModule(transportSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText).toString("base64");
 
 class ApiError extends Error { constructor(message, kind, status) { super(message); this.kind=kind; this.status=status; } }
 globalThis.__toolsApiError=ApiError;
 const source = (await readFile(new URL('../src/services/toolsApi.ts',import.meta.url),'utf8')).replace('import { apiBaseUrl, ApiError } from "./api";', 'const apiBaseUrl="/backend";const ApiError=globalThis.__toolsApiError;');
-const compiled=ts.transpileModule(source.replaceAll('"./transport"', JSON.stringify(transportUrl)),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const compiled=ts.transpileModule(source.replaceAll('"./transport"', JSON.stringify(transportUrl)).replaceAll('"./capabilityContracts"', JSON.stringify(contractUrl)),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const {toolsApi}=await import('data:text/javascript;base64,'+Buffer.from(compiled).toString('base64'));
 const original=globalThis.fetch;
 afterEach(()=>globalThis.fetch=original);

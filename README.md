@@ -61,6 +61,20 @@ Le richieste del precedente prototipo non legate a un tool restano nel database 
 
 Il calendario conserva il proprio flusso transazionale e il controllo di versione; le sue proposte sono visibili anche nel pannello comune. Con policy `auto` i tool calendario possono applicare l'azione direttamente, con `confirm` producono proposte, con `blocked` negano l'azione. Il salvataggio manuale dell'utente non passa dalla policy di un agente.
 
+## Contratti ed esecuzione delle capability
+
+`core/capability_contracts.py` definisce il contratto eseguibile: ID stabile `attore.capability`, versione intera, schemi input/output, permessi obbligatori e condizionali, effetto (`read`, `compute`, `write`, `delegate`), ripetibilità e percorso di approvazione. Le dichiarazioni sono esplicite nei decoratori `agent_tool`; non vengono dedotte dal codice con AST. `bind_capabilities` registra gli oggetti effettivamente collegati ai grafi e verifica l’attore.
+
+Tutti gli adapter degli agenti e le conferme generiche chiamano `execute_capability`: valida input stretti, rifiuta campi sconosciuti, normalizza i valori iniziali, controlla i permessi obbligatori prima degli effetti, esegue il tool e valida il risultato. Il tool può controllare solo azioni dichiarate per il proprio attore; non può concedersi conferma con `user_approved=True`. I permessi condizionali vanno controllati nel ramo che li richiede, prima del relativo effetto. Questo confine disciplina codice applicativo fidato; non è una sandbox per Python ostile.
+
+Il risultato comune contiene `capability_id`, `contract_version`, `status` (`ok`, `pending`, `error`), `value`, descrittore di errore e ID di approvazione. Gli adapter LangChain preservano il risultato nativo per compatibilità con i prompt esistenti. Gli output di dominio sono ancora stringhe/dizionari/liste con lo schema del tipo dichiarato: i singoli payload di dominio non sono tutti modellati campo per campo. Errori strutturati vengono riconosciuti; un risultato `pending` deve avere un ID di proposta. Le eccezioni degli adapter diventano messaggi di errore nei grafi, mentre la cancellazione cooperativa continua a propagarsi.
+
+Le nuove proposte generiche fissano ID, versione, digest del contratto, revisione dell’implementazione e input normalizzato. La revisione comprende il modulo del tool e `core/governance.py`, non tutte le dipendenze transitive o la configurazione esterna. Una modifica delle dipendenze che cambia il significato dell’azione richiede anche una modifica esplicita del contratto/versione. Proposte precedenti senza riferimenti al contratto restano consultabili e rifiutabili, ma richiedono una nuova proposta per essere eseguite. Il calendario mantiene il proprio protocollo transazionale.
+
+`GET /api/v1/runtime/registry` espone il registry v2. Il catalogo Tools usa gli stessi contratti e collegamenti; API HTTP e predisposizioni sono voci separate. Il diagramma resta illustrativo e le automazioni restano bozze. Non è introdotto un endpoint pubblico di esecuzione manuale. `retry="safe"` dichiara la ripetibilità di letture/calcoli: non attiva retry automatici; scritture e deleghe usano `never`.
+
+Per aggiungere una capability: scegliere un ID stabile, dichiarare azioni/effetto/ripetibilità, annotare input e output, registrare le regole di permesso e collegare l’adapter al grafo con `bind_capabilities`. Una modifica incompatibile di input, output, permessi o significato dell’effetto richiede l’incremento della versione; il digest rileva comunque ogni modifica del contratto per le conferme pendenti. Evitare di rinominare un ID esistente per un semplice spostamento di modulo.
+
 ## Protocollo componenti e bus
 
 `core/protocol.py` definisce envelope v1 per richieste/eventi: ID, sorgente, destinazione/capability per richieste, run, thread, correlazione, timestamp/deadline e payload. Il bus di `core/event_bus.py` è in-process, con buffer limitato, sequenza e replay; lifecycle, tool e streaming lo usano. Non aggiunge Redis o round-trip di rete ai turni del modello.
