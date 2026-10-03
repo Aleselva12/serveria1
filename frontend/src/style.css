@@ -3124,3 +3124,108 @@ select:disabled {
 .runtime-panel article { padding:20px; }
 .runtime-panel pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:220px; overflow:auto; }
 .runtime-panel select { max-width:100%; }
+
+
+/* Programma: editor + dedicated Copilot surface. */
+.program-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: stretch;
+}
+.program-workspace .editor-shell {
+  min-width: 0;
+}
+.copilot-panel {
+  min-height: 530px;
+  border: 1px solid #dedee1;
+  border-radius: 15px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.copilot-head {
+  min-height: 70px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #ececef;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.copilot-head h2 {
+  margin: 4px 0 0;
+  font-size: 15px;
+}
+.copilot-body {
+  flex: 1;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+}
+.copilot-empty {
+  color: #6f6f73;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.copilot-empty .message-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #171717;
+  color: #fff;
+  margin-bottom: 12px;
+}
+.copilot-empty strong {
+  color: #222;
+  font-size: 13px;
+}
+.copilot-empty p {
+  margin: 7px 0 0;
+}
+.copilot-composer {
+  margin: 0 14px 8px;
+  padding: 9px;
+  border: 1px solid #e1e1e4;
+  border-radius: 12px;
+  background: #f7f7f8;
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+}
+.copilot-composer textarea {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #777;
+}
+.copilot-composer button {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #d9d9dc;
+  color: #8b8b90;
+}
+.copilot-panel > small {
+  padding: 0 16px 14px;
+  color: #9a9a9e;
+  font-size: 10px;
+}
+@media (max-width: 1050px) {
+  .program-workspace {
+    grid-template-columns: 1fr;
+  }
+  .copilot-panel {
+    min-height: 360px;
+  }
+}
