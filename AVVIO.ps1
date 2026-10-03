@@ -1,4 +1,4 @@
-param([string]$FrontendPath = "")
+param([string]$FrontendPath = "", [switch]$ConAudio)
 
 $ErrorActionPreference = "Stop"
 
@@ -181,7 +181,8 @@ if (-not (Test-Url $OllamaUrl)) {
 }
 
 $VenvPython = Join-Path $Root ".venv\Scripts\python.exe"
-$Requirements = Join-Path $Root "requirements.txt"
+$Requirements = Join-Path $Root "requirements-core.txt"
+$AudioRequirements = Join-Path $Root "requirements-audio.txt"
 $RequirementsStamp = Join-Path $Root ".cora_requirements.sha256"
 
 if (-not (Test-Path $VenvPython)) {
@@ -194,20 +195,52 @@ if (-not (Test-Path $VenvPython)) {
 }
 
 $CurrentRequirementsHash = Get-HashText $Requirements
+if ($ConAudio) { $CurrentRequirementsHash += Get-HashText $AudioRequirements }
 $SavedRequirementsHash = if (Test-Path $RequirementsStamp) {
     (Get-Content $RequirementsStamp -Raw).Trim()
 } else {
     ""
 }
 
-if ($CurrentRequirementsHash -ne $SavedRequirementsHash) {
+& $VenvPython -c "import importlib.util; raise SystemExit(0 if all(importlib.util.find_spec(m) for m in ['fastapi','uvicorn','psycopg_pool']) else 1)"
+$PythonReady = ($LASTEXITCODE -eq 0)
+if (-not $PythonReady -or $CurrentRequirementsHash -ne $SavedRequirementsHash) {
     Write-Host "Installo/aggiorno le dipendenze Python..."
     & $VenvPython -m pip install -r $Requirements --disable-pip-version-check
     if ($LASTEXITCODE -ne 0) {
         Fail "Installazione dipendenze Python fallita."
     }
+    if ($ConAudio) {
+        & $VenvPython -m pip install -r $AudioRequirements --disable-pip-version-check
+        if ($LASTEXITCODE -ne 0) { Fail "Installazione audio fallita." }
+    }
     Set-Content -Path $RequirementsStamp -Value $CurrentRequirementsHash
 }
+
+# Only start an existing Cora DB container; never overwrite an external DB configuration.
+& $VenvPython -c "import logging,os; logging.disable(logging.CRITICAL); os.environ['CORA_DB_POOL_TIMEOUT']='2'; from core.database import database_status; raise SystemExit(0 if database_status().get('reachable') else 1)"
+if ($LASTEXITCODE -ne 0) {
+    if (Get-Command docker -ErrorAction SilentlyContinue) {
+        $CoraDbExists = $false
+        try {
+            docker inspect cora-postgres *> $null
+            $CoraDbExists = ($LASTEXITCODE -eq 0)
+        } catch { $CoraDbExists = $false }
+        if ($CoraDbExists) {
+            Write-Host "Avvio PostgreSQL Cora..."
+            docker start cora-postgres | Out-Null
+            for ($i = 0; $i -lt 15; $i++) {
+                Start-Sleep -Seconds 1
+                & $VenvPython -c "import logging,os; logging.disable(logging.CRITICAL); os.environ['CORA_DB_POOL_TIMEOUT']='2'; from core.database import database_status; raise SystemExit(0 if database_status().get('reachable') else 1)"
+                if ($LASTEXITCODE -eq 0) { break }
+            }
+        }
+    }
+    & $VenvPython -c "import logging,os; logging.disable(logging.CRITICAL); os.environ['CORA_DB_POOL_TIMEOUT']='2'; from core.database import database_status; raise SystemExit(0 if database_status().get('reachable') else 1)"
+    if ($LASTEXITCODE -ne 0) { Fail "PostgreSQL non raggiungibile. Avvialo e verifica CORA_DATABASE_URL in .env. Per la prima installazione: docker compose -f docker-compose.database.yml up -d" }
+}
+& $VenvPython -m core.auth --ensure-owner
+if ($LASTEXITCODE -ne 0) { Fail "Configurazione account non riuscita." }
 
 function Start-Backend {
     Stop-KnownProcess $BackendPidFile

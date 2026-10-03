@@ -31,6 +31,7 @@ export async function streamChat(message: string, threadId: string, onRun: (id:s
         else if (event.type === "chat.reset") { text = ""; onText(text); }
         else if (event.type === "chat.delta") { text += event.payload.text; onText(text); }
         else if (event.type === "run.state") onState(event.payload.status);
+        else if (event.type === "agent.state" && event.payload.status === "running") onState("Agente: " + event.source);
       }
     }
   } finally { reader.releaseLock(); }

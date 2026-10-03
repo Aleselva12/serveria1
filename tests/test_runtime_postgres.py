@@ -154,3 +154,72 @@ class RuntimePostgresTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):resolve(a,True,'Ale')
         with db_connection() as c:row=c.execute('SELECT status,result FROM action_approvals WHERE id=%s',(a,)).fetchone()
         self.assertEqual(row['status'],'failed');self.assertIn('error',row['result'])
+
+    def test_empty_memory_skips_embedding_and_unrelated_memory_is_filtered(self):
+        from core.memory import search_memories
+        with db_connection() as c: c.execute('TRUNCATE memories CASCADE')
+        with patch('core.memory.embed_text') as embed:
+            self.assertEqual(search_memories('test'),[]);embed.assert_not_called()
+        with db_connection() as c:
+            c.execute("INSERT INTO memories (id,memory_type,key,content,source) VALUES (%s,'fact','calendar','Meeting Monday','test')",(uuid4(),))
+        with patch('core.memory.embed_text',return_value=(None,None)):
+            self.assertEqual(search_memories('unrelated phrase'),[])
+            self.assertEqual(len(search_memories('Meeting')),1)
+
+    def test_background_summary_yields_and_resumes_from_persisted_boundary(self):
+        from core.context_budget import prepare_context,ContextDeferred
+        from langchain_core.messages import AIMessage
+        cid=uuid4()
+        with db_connection() as c:
+            c.execute('INSERT INTO conversations (id) VALUES (%s)',(cid,))
+            for i in range(12):
+                c.execute('INSERT INTO messages (id,conversation_id,role,content,created_at) VALUES (%s,%s,%s,%s,%s)',(uuid4(),cid,'user',str(i)+'x'*4000,datetime.now(timezone.utc)+timedelta(seconds=i)))
+        seen=[]
+        class Model:
+            def invoke(self,messages,**kwargs):
+                seen.extend(m['content'] for m in json.loads(messages[1].content)['messages'])
+                return AIMessage(content='summary')
+        with patch('core.models.get_chat_model',return_value=Model()):
+            with self.assertRaises(ContextDeferred): prepare_context(str(cid),should_yield=lambda:bool(seen))
+            covered=len(seen)
+            self.assertGreater(covered,0)
+            with db_connection() as c:
+                self.assertIsNotNone(c.execute('SELECT * FROM conversation_summaries WHERE conversation_id=%s',(cid,)).fetchone())
+            context=prepare_context(str(cid))
+        self.assertEqual(len(seen),len(set(seen)))
+        self.assertEqual(context[-1]['content'],'11'+'x'*4000)
+
+    def test_specialist_stream_resets_same_step_and_returns_canonical_answer(self):
+        import api
+        from langchain_core.messages import AIMessage
+        class Graph:
+            def stream(self,*args,**kwargs):
+                yield 'messages',(AIMessage(content='Delegate',id='supervisor'),{'langgraph_node':'agent','langgraph_step':1,'cora_role':'supervisor'})
+                yield 'messages',(AIMessage(content='Specialist',id='research'),{'langgraph_node':'agent','langgraph_step':1,'cora_role':'research'})
+                yield 'values',{'messages':[AIMessage(content='Canonical result')]}
+        with patch.object(api,'graph',Graph()):
+            created=self.client.post('/api/v1/chat/runs',json={'message':'query','thread_id':str(uuid4())})
+            run=self.runtime.get(created.json()['id']);self.assertTrue(run.done.wait(5))
+        self.assertEqual(run.status,'completed');self.assertEqual(run.output,'Specialist')
+        self.assertEqual(run.result['response'],'Canonical result');self.assertIn('first_token_ms',run.timings)
+
+    def test_real_graph_delegation_streams_specialist_tokens_and_persists_child(self):
+        import graph as supervisor
+        import search_agent.search_graph as specialist
+        from langchain_core.language_models.fake_chat_models import FakeListChatModel,FakeMessagesListChatModel
+        from langchain_core.messages import AIMessage
+        from core.event_bus import bus
+        root=FakeMessagesListChatModel(responses=[AIMessage(content='',tool_calls=[{'name':'search_agent_tool','args':{'query':'read'},'id':'delegation','type':'tool_call'}])]).with_config(metadata={'cora_role':'supervisor'})
+        child=FakeListChatModel(responses=['Risposta progressiva']).with_config(metadata={'cora_role':'research'})
+        with patch.object(supervisor,'model_with_tools',root),patch.object(specialist,'model_with_tools',child),patch.object(supervisor,'search_memories',return_value=[]):
+            response=self.client.post('/api/v1/chat/runs',json={'message':'read docs','thread_id':str(uuid4())})
+            run=self.runtime.get(response.json()['id']);self.assertTrue(run.done.wait(5))
+        self.assertEqual(run.status,'completed',run.error_type)
+        self.assertEqual(run.result['response'],'Risposta progressiva')
+        events,_=bus.read(0,run.id)
+        deltas=[e for e in events if e['type']=='chat.delta' and e['source']=='research']
+        self.assertGreater(len(deltas),1,[(e["type"],e["source"],e["payload"]) for e in events])
+        self.assertEqual(''.join(e['payload']['text'] for e in deltas),'Risposta progressiva')
+        with db_connection() as c:
+            child=c.execute('SELECT * FROM runtime_runs WHERE parent_run_id=%s',(run.id,)).fetchone()
+        self.assertEqual(child['status'],'completed')

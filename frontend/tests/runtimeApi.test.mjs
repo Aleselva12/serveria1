@@ -35,3 +35,15 @@ test('resync replaces text instead of appending and mutations use the global ses
   globalThis.fetch=async(path,init)=>{assert.equal(path,'/backend/api/v1/runtime/runs/run/cancel');assert.equal(init.headers.get('X-Cora-Client'),'ui');assert.equal(init.credentials,'include');return json({status:'cancelling'});};
   assert.equal((await runtimeRequest('/runtime/runs/run/cancel',{method:'POST'})).status,'cancelling');
 });
+
+test('specialist state and reset are visible without replacing canonical final result',async()=>{
+ let calls=0;const texts=[],states=[];
+ globalThis.fetch=async()=>++calls===1?json({id:'run',status:'queued'}):stream(
+ 'data: '+JSON.stringify({type:'chat.delta',payload:{text:'Supervisor'}})+'\n\n'+
+ 'data: '+JSON.stringify({type:'agent.state',source:'research',payload:{status:'running'}})+'\n\n'+
+ 'data: '+JSON.stringify({type:'chat.reset'})+'\n\n'+
+ 'data: '+JSON.stringify({type:'chat.delta',payload:{text:'Specialist'}})+'\n\n'+
+ 'event: result\ndata: '+JSON.stringify({status:'completed',result:{response:'Canonical',thread_id:'thread'}})+'\n\n');
+ const result=await streamChat('query','thread',()=>{},t=>texts.push(t),s=>states.push(s));
+ assert.deepEqual(texts,['Supervisor','','Specialist']);assert.ok(states.includes('Agente: research'));assert.equal(result.response,'Canonical');assert.equal(calls,2);
+});

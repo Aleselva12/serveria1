@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { runtimeRequest, type RunSnapshot } from "../services/runtimeApi";
 type Approval = { id:string; actor:string; action:string; payload:unknown; actions?:string[]; status:string; result?:unknown; error_type?:string };
 type Rule = { actor:string; action:string; policy:string; scope:string };
@@ -11,22 +11,31 @@ export default function RuntimePanel() {
   const [rules,setRules] = useState<Rule[]>([]);
   const [error,setError] = useState("");
   const [busy,setBusy] = useState(false);
-  async function refresh() {
+  const refreshing = useRef(false);
+  const rulesLoaded = useRef(false);
+  const rulesRevision = useRef(0);
+  const refreshQueued = useRef(false);
+  async function refresh(force = false) {
+    if (refreshing.current) { if (force) refreshQueued.current = true; return; }
+    const revision = rulesRevision.current;
+    refreshing.current = true;
     try {
       const [runtime,approvals,registry] = await Promise.all([
         runtimeRequest<{runs:RunSnapshot[];pool:Record<string,unknown>}>("/runtime"),
         runtimeRequest<{generic:Approval[];calendar:Approval[];history:Approval[]}>("/approvals"),
-        runtimeRequest<{permissions:Rule[]}>("/runtime/registry"),
+        rulesLoaded.current ? Promise.resolve(null) : runtimeRequest<{rules:Rule[]}>("/permissions"),
       ]);
-      setRuns(runtime.runs); setPool(runtime.pool); setGeneric(approvals.generic); setCalendar(approvals.calendar); setResults(approvals.history); setRules(registry.permissions); setError("");
+      setRuns(runtime.runs); setPool(runtime.pool); setGeneric(approvals.generic); setCalendar(approvals.calendar); setResults(approvals.history); if (registry && revision === rulesRevision.current) { setRules(registry.rules); rulesLoaded.current = true; } setError("");
     } catch (e) { setError(e instanceof Error ? e.message : "Runtime non disponibile."); }
+    finally { refreshing.current = false; if (refreshQueued.current) { refreshQueued.current = false; void refresh(); } }
   }
-  useEffect(() => { void refresh(); const timer = setInterval(() => void refresh(),5000); return () => clearInterval(timer); },[]);
+  useEffect(() => { void refresh(); const timer = setInterval(() => { if ((typeof document === "undefined" || !document.hidden)) void refresh(); },5000); return () => clearInterval(timer); },[]);
   async function act(path:string, method="POST", body?:object) {
     setBusy(true);
     try {
       const result = await runtimeRequest<{status?:string;error_type?:string}>(path,{method,body:body ? JSON.stringify(body) : undefined});
-      await refresh();
+      if (method === "PUT") { rulesLoaded.current = false; rulesRevision.current++; }
+      await refresh(true);
       if (result.status === "failed") setError("Azione non completata: " + result.error_type + ". Controlla il risultato prima di riprovare.");
     } catch(e) { setError(e instanceof Error ? e.message : "Operazione non riuscita."); }
     finally { setBusy(false); }

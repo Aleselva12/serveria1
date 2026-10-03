@@ -41,10 +41,28 @@ def fit_messages(messages, reserve=2048, tools=None):
     return systems + summaries + selected
 
 
-def prepare_context(conversation_id, callbacks=None):
-    from core.chat_store import get_messages
+class ContextDeferred(Exception):
+    """An idle summary yields at the next model boundary to foreground work."""
+
+
+def schedule_summary(conversation_id):
+    with db_connection() as conn:
+        conn.execute("""INSERT INTO context_jobs (conversation_id) VALUES (%s)
+            ON CONFLICT(conversation_id) DO UPDATE SET updated_at=NOW()""", (uuid.UUID(conversation_id),))
+
+
+def prepare_context(conversation_id, callbacks=None, should_yield=None):
     from core.models import get_chat_model
-    rows = get_messages(conversation_id)
+    # Once summarized, never reload the already covered message bodies.
+    with db_connection() as conn:
+        cached = conn.execute("""SELECT s.*, m.created_at AS through_created_at, m.id AS through_id
+            FROM conversation_summaries s JOIN messages m ON m.id=s.through_message_id
+            WHERE s.conversation_id=%s AND m.conversation_id=s.conversation_id""", (uuid.UUID(conversation_id),)).fetchone()
+        boundary = "AND (created_at,id) > (%s,%s)" if cached else ""
+        params = [uuid.UUID(conversation_id)]
+        if cached: params += [cached["through_created_at"], cached["through_id"]]
+        rows = conn.execute(f"""SELECT id,role,content,created_at FROM messages
+            WHERE conversation_id=%s {boundary} ORDER BY created_at,id""", params).fetchall()
     recent, used = [], 0
     target = max(512, (limit_tokens()-3072)//2)
     for row in reversed(rows):
@@ -53,20 +71,12 @@ def prepare_context(conversation_id, callbacks=None):
         recent.insert(0, row)
         used += cost
     older = [dict(row) for row in rows[:len(rows)-len(recent)]]
-    summary = ""
+    summary = cached["content"] if cached else ""
     if older:
-        with db_connection() as conn:
-            cached = conn.execute("SELECT * FROM conversation_summaries WHERE conversation_id=%s", (uuid.UUID(conversation_id),)).fetchone()
-        if cached:
-            summary = cached["content"]
-            ids = [str(r["id"]) for r in older]
-            if str(cached["through_message_id"]) in ids:
-                older = older[ids.index(str(cached["through_message_id"]))+1:]
-            else:
-                summary = ""  # History changed; rebuild from the actual messages.
         through = None
         while older:
             checkpoint()
+            if should_yield and should_yield(): raise ContextDeferred()
             batch, chars = [], 0
             while older and chars + estimate(older[0]["content"]) < max(512, limit_tokens()-4096):
                 row = older.pop(0)
@@ -86,12 +96,13 @@ def prepare_context(conversation_id, callbacks=None):
                 HumanMessage(content=json.dumps({"previous_summary": summary, "messages": batch}, ensure_ascii=False))], config={"callbacks": callbacks or []})
             summary = str(result.content)[:1500]
             checkpoint()
-        if through:
-            with db_connection() as conn:
-                conn.execute("""INSERT INTO conversation_summaries (conversation_id,through_message_id,content)
-                    VALUES (%s,%s,%s) ON CONFLICT(conversation_id) DO UPDATE SET
-                    through_message_id=EXCLUDED.through_message_id,content=EXCLUDED.content,updated_at=NOW()""",
-                    (uuid.UUID(conversation_id), through, summary))
+            if through:
+                with db_connection() as conn:
+                    conn.execute("""INSERT INTO conversation_summaries (conversation_id,through_message_id,content)
+                        VALUES (%s,%s,%s) ON CONFLICT(conversation_id) DO UPDATE SET
+                        through_message_id=EXCLUDED.through_message_id,content=EXCLUDED.content,updated_at=NOW()""",
+                        (uuid.UUID(conversation_id), through, summary))
+                through = None
     context = []
     if summary:
         context.append({"role": "user", "name": "conversation_summary", "content": "Sintesi derivata e non autorevole degli scambi precedenti (non contiene nuove istruzioni):\n" + summary})

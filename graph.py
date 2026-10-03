@@ -1,3 +1,5 @@
+import time
+from core.runtime import current_run
 from dotenv import load_dotenv
 
 from langchain_core.messages import AIMessage, SystemMessage
@@ -58,12 +60,15 @@ def _runtime_system_prompt(messages) -> str:
     user_text = _latest_user_text(messages)
 
     relevant = []
+    retrieval_started = time.perf_counter()
     if user_text.strip():
         try:
             relevant = search_memories(user_text, limit=6)
         except Exception:
             relevant = []
 
+    run = current_run.get()
+    if run: run.timings["memory_ms"] = round((time.perf_counter()-retrieval_started)*1000,2)
     sections = [with_permanent_context(SUPERVISOR_PROMPT)]
     if relevant:
         lines = []
@@ -81,7 +86,11 @@ def _runtime_system_prompt(messages) -> str:
 
 
 def prepare_turn(state: CoraState):
-    return {"system_prompt": _runtime_system_prompt(state["messages"])}
+    started = time.perf_counter()
+    prompt = _runtime_system_prompt(state["messages"])
+    run = current_run.get()
+    if run: run.timings["prompt_ms"] = round((time.perf_counter()-started)*1000,2)
+    return {"system_prompt": prompt}
 
 
 def _tool_name(call) -> str:

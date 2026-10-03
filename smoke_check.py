@@ -101,7 +101,7 @@ def check_configuration() -> None:
     print(f"  OLLAMA_BASE_URL={os.getenv('OLLAMA_BASE_URL', 'http://localhost:11435')}")
 
     optional = {
-        "CORA_OWNER_TOKEN": "accesso proprietario remoto",
+        "CORA_OWNER_TOKEN": "compatibilita router isolati; non sostituisce login",
         "CORA_DB_POOL_SIZE": "pool PostgreSQL massimo",
         "CORA_DB_POOL_TIMEOUT": "attesa pool PostgreSQL",
         "CORA_KNOWLEDGE_ROOT": "Local Research Agent",

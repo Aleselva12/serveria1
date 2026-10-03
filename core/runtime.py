@@ -39,6 +39,7 @@ class Run:
     component_threads: set = field(default_factory=set)
     timings: dict = field(default_factory=dict)
     output: str = ""
+    output_span: object = None
     timeout: float = field(default_factory=lambda: max(1, float(os.getenv("CORA_RUN_TIMEOUT_SECONDS", "300"))))
     graph_version: str = "runtime-v1"
     lock: threading.RLock = field(default_factory=threading.RLock)
@@ -86,6 +87,7 @@ class Runtime:
         self.lock = threading.RLock()
         self.slot = threading.Lock()
         self.closed = False
+        self.last_foreground = time.monotonic()
 
     def submit(self, thread_id, execute, graph_version="runtime-v1"):
         with self.lock:
@@ -95,6 +97,7 @@ class Runtime:
                 raise ValueError("Coda piena. Riprova più tardi.")
             if any(r.thread_id == thread_id for r in active):
                 raise ValueError("Questa conversazione ha già un'esecuzione attiva.")
+            self.last_foreground = time.monotonic()
             run = Run(thread_id, graph_version=graph_version)
             self.runs[run.id] = run
             from core.run_lifecycle import persist_live_run
@@ -144,6 +147,7 @@ class Runtime:
                         conn.execute("UPDATE working_memory SET state=state || %s WHERE thread_id=ANY(%s)", (Jsonb({"status": run.status}), [run.thread_id, *run.component_threads]))
             except Exception:
                 pass
+            with self.lock: self.last_foreground = time.monotonic()
             if acquired: self.slot.release()
             current_run.reset(token)
             run.done.set()
@@ -162,6 +166,19 @@ class Runtime:
             for r in self.runs.values(): r.stop()
 
 runtime = Runtime()
+
+
+def publish_text(run, role, span, text):
+    """Root and explicitly streamed child graphs share one provisional output."""
+    if not isinstance(text, str) or not text: return
+    with run.lock:
+        if span != run.output_span:
+            run.output_span = span
+            run.output = ""
+            bus.publish("chat.reset", role, run_id=run.id, thread_id=run.thread_id)
+        run.timings.setdefault("first_token_ms", round((time.monotonic()-run.created)*1000,2))
+        run.output += text
+        bus.publish("chat.delta", role, run_id=run.id, thread_id=run.thread_id, payload={"text":text})
 
 
 def checkpoint():

@@ -11,13 +11,14 @@ export function useBackend() {
   const [checking, setChecking] = useState(true);
   const live = useRef(false);
   const pending = useRef(false);
+  const registryLoaded = useRef(false);
   const refresh = useCallback(async () => {
     if (pending.current) return;
     pending.current = true;
     if (live.current) setChecking(true);
     const [status, capabilities] = await Promise.allSettled([
       api.health(),
-      api.registry(),
+      registryLoaded.current ? Promise.resolve(null) : api.registry(),
     ]);
     pending.current = false;
     if (!live.current) return;
@@ -34,10 +35,11 @@ export function useBackend() {
           : "Collegamento non riuscito.",
       );
     }
-    if (capabilities.status === "fulfilled") {
+    if (capabilities.status === "fulfilled" && capabilities.value) {
+      registryLoaded.current = true;
       setRegistry(capabilities.value);
       setRegistryError("");
-    } else {
+    } else if (capabilities.status === "rejected") {
       setRegistry(null);
       setRegistryError(
         capabilities.reason instanceof Error
@@ -50,7 +52,7 @@ export function useBackend() {
     live.current = true;
     void refresh();
     const timer = window.setInterval(() => {
-      void refresh();
+      if ((typeof document === "undefined" || !document.hidden)) void refresh();
     }, 15000);
     return () => {
       live.current = false;

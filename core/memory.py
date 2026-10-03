@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -156,8 +157,13 @@ def search_memories(
             + ", ".join(sorted(ALLOWED_MEMORY_TYPES))
         )
 
+    # Do not load an embedding model for an empty memory store.
+    with db_connection() as connection:
+        if not connection.execute("SELECT EXISTS(SELECT 1 FROM memories WHERE expires_at IS NULL OR expires_at > NOW()) AS present").fetchone()["present"]:
+            return []
     query_embedding, embedding_model = (
-        embed_text(normalized_query) if normalized_query else (None, None)
+        embed_text(normalized_query, timeout=float(os.getenv("CORA_MEMORY_EMBED_TIMEOUT_SECONDS", "5")), cached=True)
+        if normalized_query else (None, None)
     )
     dimensions = len(query_embedding) if query_embedding else None
 
@@ -197,11 +203,15 @@ def search_memories(
         score_sql = "0.0"
         score_params = []
 
+    minimum = float(os.getenv("CORA_MEMORY_MIN_SCORE", "0.25")) if query_embedding else 0.0
     sql = f"""
+        SELECT * FROM (
         SELECT *,
                {score_sql} AS search_score
         FROM memories
         WHERE {' AND '.join(clauses)}
+        ) ranked
+        WHERE search_score > %s OR %s
         ORDER BY search_score DESC, importance DESC, updated_at DESC
         LIMIT %s
     """
@@ -209,7 +219,7 @@ def search_memories(
     with db_connection() as connection:
         rows = connection.execute(
             sql,
-            [*score_params, *params, limit],
+            [*score_params, *params, minimum, not normalized_query, limit],
         ).fetchall()
 
     results = [_public_memory(row) for row in rows]

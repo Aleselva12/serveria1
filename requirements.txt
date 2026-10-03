@@ -1,26 +1,3 @@
-langchain
-langchain-core
-langgraph
-python-dotenv
-rich
-pydantic
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
-google-api-python-client
-langchain-ollama
-streamlit
-fastapi
-uvicorn
-psutil
-python-docx
-faster-whisper
-pyannote.audio
-reportlab
-
-pypdf
-
-python-multipart
-
-psycopg[binary,pool]
-pgvector
+# Installazione completa; AVVIO usa il nucleo e abilita audio con -ConAudio.
+-r requirements-core.txt
+-r requirements-audio.txt
