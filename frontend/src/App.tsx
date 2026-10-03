@@ -250,7 +250,7 @@ export default function App() {
       void history.refreshHistory();
     }
   }
-  const withSidebar = page !== "home" && page !== "files";
+  const withSidebar = !["home", "files", "architecture", "code"].includes(page);
   return (
     <div
       className={"app app-" + page + " " + (withSidebar ? "has-sidebar" : "")}
@@ -505,7 +505,8 @@ export default function App() {
                 <span className="pill pending">Da collegare</span>
               </div>
               <ConnectionNotice feature="code" />
-              <div className="editor-shell">
+              <div className="program-workspace">
+                <div className="editor-shell">
                 <aside className="editor-sidebar">
                   <div className="editor-side-title">
                     <Folder size={17} /> ESPLORA
@@ -541,6 +542,38 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+                </div>
+                <aside className="copilot-panel" aria-label="Copilot">
+                  <div className="copilot-head">
+                    <div>
+                      <div className="eyebrow">COPILOT</div>
+                      <h2>Agente programmatore</h2>
+                    </div>
+                    <span className="pill pending">Non collegato</span>
+                  </div>
+                  <div className="copilot-body">
+                    <div className="copilot-empty">
+                      <div className="message-avatar">✦</div>
+                      <strong>Copilot è pronto nell’interfaccia.</strong>
+                      <p>
+                        Questa chat verrà collegata direttamente all’agente programmatore.
+                        Per ora non invia richieste al backend.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="copilot-composer">
+                    <textarea
+                      disabled
+                      rows={3}
+                      placeholder="Scrivi al Copilot…"
+                      aria-label="Messaggio al Copilot"
+                    />
+                    <button disabled aria-label="Invia messaggio al Copilot" title="Agente programmatore non ancora collegato">
+                      <Send size={16} />
+                    </button>
+                  </div>
+                  <small>Agente programmatore · collegamento da realizzare</small>
+                </aside>
               </div>
             </section>
           )}
