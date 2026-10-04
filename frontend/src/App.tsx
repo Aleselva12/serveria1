@@ -7,9 +7,7 @@ import {
   Activity,
   ArrowRight,
   ChevronDown,
-  Code2,
   FileText,
-  Folder,
   Menu,
   Paperclip,
   RefreshCw,
@@ -20,11 +18,11 @@ import {
 import Audio from "./components/Audio";
 import { uploadAttachment, type Attachment } from "./services/mediaApi";
 import Home from "./components/Home";
+import Programmer from "./components/Programmer";
 import Calendar from "./components/Calendar";
 import FileManager from "./components/FileManager";
 import Architecture from "./components/Architecture";
 import ArchitectureRuntime from "./components/ArchitectureRuntime";
-import ConnectionNotice from "./components/ConnectionNotice";
 import MemoryManagement from "./components/MemoryManagement";
 import { apiBaseUrl } from "./services/api";
 import { useBackend } from "./services/useBackend";
@@ -464,89 +462,7 @@ export default function App() {
               )}
             </>
           )}
-          {page === "code" && (
-            <section className="content-page code-page">
-              <div className="page-heading">
-                <div>
-                  <div className="eyebrow">SPAZIO DI CODING</div>
-                  <h1>Programma</h1>
-                  <p>Codice di Cora e progetti separati.</p>
-                </div>
-                <span className="pill pending">Da collegare</span>
-              </div>
-              <ConnectionNotice feature="code" />
-              <div className="program-workspace">
-                <div className="editor-shell">
-                <aside className="editor-sidebar">
-                  <div className="editor-side-title">
-                    <Folder size={17} /> ESPLORA
-                  </div>
-                  <label className="select-label">
-                    AREA DI LAVORO
-                    <select disabled>
-                      <option>Workspace da collegare</option>
-                    </select>
-                  </label>
-                  <div className="folder-row">
-                    <Folder size={17} /> Nessun file caricato
-                  </div>
-                </aside>
-                <div className="editor-main">
-                  <div className="editor-tabs">
-                    <span>
-                      <Code2 size={15} /> Editor da collegare
-                    </span>
-                    <button disabled>Salva · da collegare</button>
-                  </div>
-                  <div className="code-surface">
-                    <p className="empty-files">
-                      Il contenuto apparirà dopo il collegamento ai workspace
-                      autorizzati.
-                    </p>
-                  </div>
-                  <div className="editor-terminal">
-                    <div className="terminal-title">OUTPUT</div>
-                    <p>Esecuzione da collegare.</p>
-                    <button className="solid-button" disabled>
-                      Esegui · da collegare
-                    </button>
-                  </div>
-                </div>
-                </div>
-                <aside className="copilot-panel" aria-label="Copilot">
-                  <div className="copilot-head">
-                    <div>
-                      <div className="eyebrow">COPILOT</div>
-                      <h2>Agente programmatore</h2>
-                    </div>
-                    <span className="pill pending">Non collegato</span>
-                  </div>
-                  <div className="copilot-body">
-                    <div className="copilot-empty">
-                      <div className="message-avatar">✦</div>
-                      <strong>Copilot è pronto nell’interfaccia.</strong>
-                      <p>
-                        Questa chat verrà collegata direttamente all’agente programmatore.
-                        Per ora non invia richieste al backend.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="copilot-composer">
-                    <textarea
-                      disabled
-                      rows={3}
-                      placeholder="Scrivi al Copilot…"
-                      aria-label="Messaggio al Copilot"
-                    />
-                    <button disabled aria-label="Invia messaggio al Copilot" title="Agente programmatore non ancora collegato">
-                      <Send size={16} />
-                    </button>
-                  </div>
-                  <small>Agente programmatore · collegamento da realizzare</small>
-                </aside>
-              </div>
-            </section>
-          )}
+          {page === "code" && <Programmer />}
           {page === "calendar" && <Calendar />}
           {page === "files" && <FileManager />}
           {page === "audio" && <Audio />}

@@ -11,11 +11,11 @@ class OverviewTests(unittest.TestCase):
         with patch('core.architecture_api.architecture_graph', side_effect=AssertionError('No internal graph inspection')):
             overview = architecture_overview()
         self.assertEqual({n['id'] for n in overview['nodes'] if n['kind'] == 'agent'},
-                         {'supervisor', 'structure_agent', 'local_research_agent', 'audio_agent', 'email_quotes_agent'})
+                         {'supervisor', 'structure_agent', 'local_research_agent', 'audio_agent', 'email_quotes_agent', 'programmer_agent'})
         self.assertNotIn('graphs', overview)
         self.assertNotIn('tools', {n['id'] for n in overview['nodes']})
         self.assertTrue(all(c['kind'] == 'core' for c in overview['components']))
-        self.assertEqual(len([e for e in overview['edges'] if e['kind'] == 'delegation']), 4)
+        self.assertEqual(len([e for e in overview['edges'] if e['kind'] == 'delegation']), 5)
         with patch('tools.supervisor_tools', [t for t in supervisor_tools if t.name != 'audio_agent_tool']):
             changed = architecture_overview()
         self.assertNotIn('audio_agent', {e['target'] for e in changed['edges']})

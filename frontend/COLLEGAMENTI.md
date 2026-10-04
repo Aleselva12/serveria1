@@ -21,7 +21,7 @@ Frontend e backend sono aggiornati insieme in `serveria1`; `/backend` è il pref
 
 SSE mostra token provvisori, aggiornamenti dello stato e risultato finale; il risultato persistito resta autorevole. Sono collegati timeout e stop cooperativo; lo stop non annulla gli effetti già avvenuti. Il pannello delle proposte non continua automaticamente il ragionamento del modello.
 
-Allegati chat e gestione delle registrazioni salvate sono collegati: vedere la sezione «Allegati della chat, file avanzati e registrazioni audio» del README principale. Il microfono non è richiesto. Restano predisposizioni l’esecuzione/pianificazione delle bozze e l’agente programmatore/editor eseguibile.
+Allegati chat e gestione delle registrazioni salvate sono collegati: vedere la sezione «Allegati della chat, file avanzati e registrazioni audio» del README principale. Il microfono non è richiesto. Restano predisposizioni l’esecuzione/pianificazione delle bozze e l’automodifica del codice attivo. Il Programmatore è collegato e lavora su workspace isolati.
 
 
 

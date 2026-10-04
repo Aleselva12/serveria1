@@ -1,0 +1,13 @@
+{
+  "title": "Nuova automazione",
+  "description": "Bozza da completare; nessuna azione eseguita.",
+  "nodes": [
+    {"id": "start", "kind": "trigger", "label": "Richiesta manuale", "x": 80, "y": 160, "config": {}, "tool_id": null},
+    {"id": "action", "kind": "tool", "label": "Scegli un tool esistente", "x": 380, "y": 160, "config": {}, "tool_id": null},
+    {"id": "result", "kind": "output", "label": "Risultato", "x": 680, "y": 160, "config": {}, "tool_id": null}
+  ],
+  "edges": [
+    {"id": "first", "source": "start", "target": "action", "label": ""},
+    {"id": "second", "source": "action", "target": "result", "label": ""}
+  ]
+}

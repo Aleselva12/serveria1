@@ -10,7 +10,10 @@ export async function runtimeRequest<T>(path: string, init: RequestInit = {}): P
 export async function streamChat(message: string, threadId: string, onRun: (id:string)=>void, onText: (text:string)=>void, onState:(state:string)=>void, attachmentIds:string[] = []) {
   const run = await runtimeRequest<RunSnapshot>("/chat/runs", { method: "POST", body: JSON.stringify({ message, thread_id: threadId, ...(attachmentIds.length ? {attachment_ids:attachmentIds} : {}) }) });
   onRun(run.id); onState(run.status);
-  const response = await authenticatedFetch(apiBaseUrl + "/api/v1/runtime/runs/" + run.id + "/events");
+  return streamRun(run, onText, onState);
+}
+export async function streamRun(run: RunSnapshot, onText: (text:string)=>void, onState:(state:string)=>void, signal?: AbortSignal) {
+  const response = await authenticatedFetch(apiBaseUrl + "/api/v1/runtime/runs/" + run.id + "/events", { signal });
   if (!response.ok || !response.body) throw new Error("Streaming non disponibile. Consulta Attività per l'esito.");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();

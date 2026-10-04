@@ -57,8 +57,9 @@ class MediaPostgresTests(unittest.TestCase):
         prefix='/api/v1/server/files'
         created=self.client.post(prefix+'/shares',json={'root_id':'files','path':'document.txt','hours':24})
         self.assertEqual(created.status_code,201,created.text);share=created.json()
-        with TestClient(self.api.app) as guest:
-            self.assertEqual(guest.get(share['url']).status_code,401)
+        guest=TestClient(self.api.app)
+        try: self.assertEqual(guest.get(share['url']).status_code,401)
+        finally: guest.close()
         self.assertEqual(self.client.get(share['url']).text,'private')
         self.assertEqual(self.client.delete(prefix+'/shares/'+share['id']).status_code,200)
         self.assertEqual(self.client.get(share['url']).status_code,404)

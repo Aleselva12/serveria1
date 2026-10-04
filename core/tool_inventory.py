@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = (
     ("tools.py", "graph.py", "supervisor_tools", "Cora / Supervisor", "Sistema e memoria"),
+    ("programmer_agent/programmer_tools.py", "programmer_agent/programmer_graph.py", "PROGRAMMER_TOOLS", "Programmer Agent", "Programmazione"),
     ("structure_agent/structure_tools.py", "structure_agent/structure_graph.py", "STRUCTURE_TOOLS", "Structure Agent", "Struttura e pianificazione"),
     ("search_agent/search_tools.py", "search_agent/search_graph.py", "LOCAL_RESEARCH_TOOLS", "Local Research Agent", "Documenti"),
     ("audio_agent/audio_tools.py", "audio_agent/audio_graph.py", "AUDIO_TOOLS", "Audio Agent", "Audio"),
@@ -182,7 +183,7 @@ def inventory(routes=(), root: Path = ROOT):
         ("calendar_update_event", "Calendario", "Proposta di modifica di un evento."),
         ("calendar_delete_event", "Calendario", "Proposta di eliminazione di un evento."),
         ("Esecuzione e pubblicazione delle automazioni", "Automazioni", "Editor grafico e salvataggio bozze disponibili; esecutore, pianificazione e assegnazione agli agenti ancora da implementare."),
-        ("Editor ed esecuzione del codice", "Programmazione", "Interfaccia predisposta; tool di modifica ed esecuzione non implementati."),
+
         ("Allegati della chat", "Documenti", "Controllo UI predisposto; caricamento e associazione ai messaggi da implementare."),
         ("Microfono dalla UI", "Audio", "Controllo UI predisposto; acquisizione e invio al backend da implementare."),
     ]

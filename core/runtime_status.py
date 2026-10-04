@@ -33,6 +33,11 @@ def component_runtime_status() -> dict:
             "model": get_model_name("supervisor"),
             "checks": {"ollama": ollama},
         },
+        "programmer_agent": {
+            "status": "ready" if ollama else "offline",
+            "model": get_model_name("programmer"),
+            "checks": {"ollama": ollama, "source_writes": False},
+        },
         "structure_agent": {
             "status": "ready" if ollama else "offline",
             "model": get_model_name("structure"),
