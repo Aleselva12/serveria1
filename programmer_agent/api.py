@@ -79,7 +79,9 @@ def files(workspace_id: UUID):
 
 
 @router.get("/workspaces/{workspace_id}/file")
-def file(workspace_id: UUID, path: str, start_line: int = Query(1, ge=1), line_count: int = Query(120, ge=1, le=240)):
+def file(workspace_id: UUID, path: str, start_line: int = Query(1, ge=1), line_count: int = Query(120, ge=1, le=240), full: bool = False):
+    if full:
+        return call(ws.read_full, str(workspace_id), path)
     return call(ws.read, str(workspace_id), path, start_line, line_count)
 
 
@@ -163,7 +165,7 @@ def start(data: ProgrammerRequest):
         raise HTTPException(422, "Scrivi una richiesta.")
     try:
         # One stable conversation per workspace; reuses the global model queue and durable run lifecycle.
-        run = runtime.submit(identifier, lambda run: execute_programmer(data, run), graph_version="programmer-v1")
+        run = runtime.submit(identifier, lambda run: execute_programmer(data, run), graph_version="programmer-v1", kind="programmer", target="programmer_agent")
         return run.snapshot()
     except ValueError as error:
         raise HTTPException(409, str(error)) from error
@@ -182,7 +184,7 @@ def check(workspace_id: UUID, data: CheckRequest):
         result = run_check(identifier, data.profile)
         return {"response": json.dumps(result, ensure_ascii=False, indent=2), "thread_id": identifier, "workspace_id": identifier}
     try:
-        return runtime.submit(identifier, execute, graph_version="programmer-checks-v1").snapshot()
+        return runtime.submit(identifier, execute, graph_version="programmer-checks-v1", kind="programmer_check", target="programmer_agent").snapshot()
     except ValueError as error:
         raise HTTPException(409, str(error)) from error
     except RuntimeError as error:
@@ -198,7 +200,7 @@ def build_graph(workspace_id: UUID):
         result = build(identifier)
         return {"response": json.dumps(result, ensure_ascii=False, indent=2), "thread_id": identifier}
     try:
-        return runtime.submit(identifier, execute, graph_version="programmer-graph-v1").snapshot()
+        return runtime.submit(identifier, execute, graph_version="programmer-graph-v1", kind="programmer_graph", target="programmer_agent").snapshot()
     except ValueError as error:
         raise HTTPException(409, str(error)) from error
     except RuntimeError as error:

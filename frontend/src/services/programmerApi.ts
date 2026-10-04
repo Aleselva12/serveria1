@@ -51,6 +51,12 @@ export const programmerApi = {
         "/file?" +
         new URLSearchParams({ path, start_line: String(start) }),
     ),
+  fullFile: (id: string, path: string) =>
+    runtimeRequest<CodeFile>(`/programmer/workspaces/${id}/file?` + new URLSearchParams({ path, full: "true" })),
+  saveFile: (id: string, path: string, content: string, expected_sha256: string) =>
+    runtimeRequest<{ saved: boolean; sha256: string }>(`/programmer/workspaces/${id}/file`, {
+      method: "PUT", body: JSON.stringify({ path, content, expected_sha256 }),
+    }),
   diff: (id: string) =>
     runtimeRequest<CodeDiff>("/programmer/workspaces/" + id + "/diff"),
   graph: (id: string) =>

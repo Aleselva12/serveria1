@@ -16,6 +16,7 @@ Frontend e backend sono aggiornati insieme in `serveria1`; `/backend` è il pref
 | Bozze grafiche | `/tools/drafts` e dettaglio per ID | `toolsApi.ts` |
 | File server | `/api/v1/server/files/*` | `filesApi.ts` |
 | Libreria IA | `/api/v1/library/files/*` | `filesApi.ts` |
+| Programmatore | `/api/v1/programmer/workspaces/*`, `/api/v1/programmer/runs` | `programmerApi.ts`, `Programmer`, `WorkspaceEditor`, `ProgrammerArtifacts` |
 | Calendario | `/api/v1/calendar/events`, storico/ripristino e proposte | `calendarApi.ts` |
 | Memoria | `/memory`, `/memory/context`, `/memory/episodes`, `/memory/working` | `api.ts` |
 

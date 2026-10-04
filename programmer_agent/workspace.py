@@ -187,6 +187,17 @@ def read(identifier: str, relative: str, start: int = 1, count: int = 120) -> di
                 "total_lines": len(lines), "truncated": start > 1 or start - 1 + count < len(lines)}
 
 
+def read_full(identifier: str, relative: str) -> dict:
+    """Bounded, complete source for manual editing; never save a paginated excerpt."""
+    with LOCK:
+        path = file_path(identifier, relative)
+        if path.stat().st_size > MAX_FILE:
+            raise ValueError("File troppo grande.")
+        content = path.read_text(encoding="utf-8")
+        return {"path": relative, "content": content, "sha256": digest(content),
+                "start_line": 1, "total_lines": len(content.splitlines()), "truncated": False}
+
+
 def write(identifier: str, relative: str, content: str, expected_sha256: str = "") -> dict:
     if len(content.encode("utf-8")) > MAX_FILE:
         raise ValueError("File oltre il limite.")

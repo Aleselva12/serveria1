@@ -4,6 +4,8 @@ Agente LangGraph nativo con modello Ollama (`CORA_MODEL_PROGRAMMER`, fallback gl
 
 ## Utilizzo
 
+L’editor manuale permette **Nuovo file** e **Modifica file** nella copia isolata. Carica il sorgente completo (massimo 256 KB), salva con controllo SHA-256 e conserva la bozza in caso di errore o conflitto. Durante la modifica la navigazione del workspace e l’avvio del Copilot/verifiche sono disabilitati; annullare una bozza modificata richiede conferma. Le verifiche e le revisioni precedenti diventano obsolete dopo una scrittura. Non è un IDE con language server o terminale e non applica modifiche al codice attivo.
+
 In **Programma**, creare un workspace, selezionarlo e descrivere il componente nel Copilot. La pagina mostra sorgente, differenze, cronologia del workspace e verifiche. Le conversazioni sono salvate in PostgreSQL con identità `programmer_agent`; l'ID conversazione è l'ID workspace. Run e operazioni restano visibili in Attività, anche dopo un errore o un riavvio. Cambiare pagina interrompe soltanto la lettura dello stream: il lavoro prosegue nel backend e non viene ripetuto automaticamente. Il pulsante Ferma usa la cancellazione del runtime.
 
 I workspace sono snapshot **filtrati**, non checkout Git completi: escludono dati, credenziali, file nascosti, link, dipendenze e file oltre 256 KB. Sono ammessi fino a 4.000 file e 12 MB per snapshot. Un controllo sha256 impedisce sovrascritture di file cambiati dopo la lettura. Le scritture sono limitate al workspace; non c'è endpoint di merge/deploy o caricamento dinamico di Python. La cartella predefinita è `data/programmer`; nel deployment Compose è `/state/programmer`, già inclusa nel volume persistente e nei backup dello stato.
@@ -46,7 +48,7 @@ L'adapter espone ricerche di nodi e vicini con risultati limitati, preservando m
 
 ## Limiti della prima versione
 
-Nessuna automodifica autonoma, applicazione al sorgente attivo, shell libera, installazione pacchetti da parte del modello, attivazione di tool generati. L'esploratore è un lettore paginato, non un IDE completo. La capacità reale del modello sul PC e il confronto fra motori vengono misurati successivamente; le verifiche automatiche del repository usano un modello simulato per provare il ciclo tool e non certificano la qualità del modello locale.
+Nessuna automodifica autonoma, applicazione al sorgente attivo, shell libera, installazione pacchetti da parte del modello, attivazione di tool generati. L’esploratore include lettura paginata e un editor manuale completo per singolo file, non un IDE con terminale o language server. La capacità reale del modello sul PC e il confronto fra motori vengono misurati successivamente; le verifiche automatiche del repository usano un modello simulato per provare il ciclo tool e non certificano la qualità del modello locale.
 
 
 ## Componenti e consegne
