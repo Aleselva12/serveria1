@@ -400,7 +400,10 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
             shutil.rmtree(slot, ignore_errors=True)  # content already restored; leftovers must not fail the request
             return node(base, dst, root["writable"])
 
+    from core.file_extras import register_extras
+    register_extras(router, root_provider, allow_upload=allow_upload)
     return router
 
 
 router = make_router("/api/v1/server/files", "File server")
+

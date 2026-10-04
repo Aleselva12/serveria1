@@ -103,7 +103,7 @@ class Runtime:
         self.closed = False
         self.last_foreground = time.monotonic()
 
-    def submit(self, thread_id, execute, graph_version="runtime-v1"):
+    def submit(self, thread_id, execute, graph_version="runtime-v1", *, kind="chat", target="supervisor"):
         with self.lock:
             if self.closed: raise RuntimeError("Runtime in arresto.")
             active = [r for r in self.runs.values() if r.status not in TERMINAL]
@@ -116,7 +116,7 @@ class Runtime:
             run.durable = self.persistent
             if run.durable:
                 from core.run_lifecycle import create_run
-                create_run(run_id=run.id, thread_id=thread_id,metadata={"graph_version":graph_version})
+                create_run(run_id=run.id, thread_id=thread_id, kind=kind, target=target, metadata={"graph_version":graph_version})
             self.runs[run.id] = run
             while len(self.runs) > 200:
                 old = next((key for key, r in self.runs.items() if r.status in TERMINAL), None)
@@ -249,3 +249,4 @@ def recover_interrupted():
     if database_configured():
         from core.run_lifecycle import recover
         recover()
+

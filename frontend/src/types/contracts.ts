@@ -41,12 +41,12 @@ export type ServiceStatus = {
 };
 export type Conversation = { id: string; title: string; updatedAt: string };
 export type Message = {
+  attachments?: import("../services/mediaApi").Attachment[];
   id: string;
   conversationId: string;
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: string;
-  attachments?: { id: string; name: string }[];
   runId?: string;
 };
 export type Agent = {
@@ -306,6 +306,7 @@ export type SavedConversation = {
   archived: boolean;
 };
 export type SavedMessage = {
+  metadata?: {attachments?: import("../services/mediaApi").Attachment[]};
   id: string;
   conversation_id: string;
   role: "user" | "assistant" | "system";
@@ -336,3 +337,4 @@ export interface ArchitectureOverview {
   direct_paths: { id: string; name: string; trigger: string; description: string; routes: string[]; source: string }[];
   automations: { id: string; name: string; trigger: string; description: string; source: string }[];
 }
+

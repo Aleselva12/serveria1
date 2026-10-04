@@ -161,7 +161,11 @@ def get_messages(conversation_id: str, *, limit: int | None = None) -> list[dict
         params.append(safe_limit)
 
     with db_connection() as connection:
-        return connection.execute(sql, params).fetchall()
+        rows = connection.execute(sql, params).fetchall()
+        for row in rows:
+            if row["role"] == "user" and row["metadata"].get("attachments"):
+                row["content"] = row["metadata"].get("display_content", row["content"])
+        return rows
 
 
 def recent_context(conversation_id: str) -> list[dict[str, str]]:
@@ -214,3 +218,4 @@ def conversation_stats() -> dict[str, int]:
         "conversations": int(row["conversations"]),
         "messages": int(row["messages"]),
     }
+

@@ -3229,3 +3229,27 @@ select:disabled {
     min-height: 360px;
   }
 }
+
+
+/* File previews, request attachments and saved recording management. */
+.media-page { padding: 24px; overflow:auto; height:100%; }
+.media-page .page-heading { margin-bottom:20px; }
+.audio-upload { display:flex; gap:16px; flex-wrap:wrap; align-items:end; margin-bottom:20px; }
+.audio-upload label,.media-actions label { display:flex; flex-direction:column; gap:6px; font-size:13px; }
+.media-page input,.media-page select,.file-notice input { padding:8px; border:1px solid #ddd; border-radius:6px; background:white; max-width:100%; }
+.audio-workspace { display:grid; grid-template-columns:minmax(220px,300px) minmax(0,1fr); gap:20px; }
+.audio-item { display:flex; flex-direction:column; text-align:left; padding:12px; width:100%; gap:6px; border-bottom:1px solid #eee; }
+.audio-item.selected { background:#f1f5f9; }
+.media-actions { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin:16px 0; }
+.media-actions button { padding:8px 12px; border:1px solid #ddd; border-radius:6px; }
+.transcript-editor { width:100%; min-height:380px; border:1px solid #ddd; border-radius:8px; padding:14px; font-family:inherit; font-size:14px; line-height:1.7; resize:vertical; }
+.attachment-drafts { display:flex; flex-wrap:wrap; gap:6px; }
+.attachment-chip { display:inline-flex; gap:8px; align-items:center; padding:5px 10px; background:#f1f5f9; border:1px solid #ddd; border-radius:8px; font-size:12px; margin:4px; color:inherit; }
+.message-content .attachment-chip { display:flex; width:fit-content; }
+.media-preview { max-width:1000px; width:90vw; max-height:90vh; overflow:auto; }
+.media-preview pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:65vh; overflow:auto; }
+.media-preview img,.media-preview video { max-width:100%; max-height:65vh; object-fit:contain; }
+.media-preview iframe { width:100%; height:65vh; border:0; }
+.file-notice input { display:block; width:100%; }
+.file-name small { display:block; font-size:11px; color:#777; overflow-wrap:anywhere; }
+@media (max-width:800px) { .audio-workspace { grid-template-columns:1fr; } .media-page { padding:14px; } }

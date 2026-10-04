@@ -6,19 +6,9 @@ export const missingConnections = {
     endpoints: "Contratti workspace/file/esecuzioni da definire",
   },
   files: {
-    label: "Funzioni aggiuntive dei file",
-    detail: "File server e Libreria IA sono collegati. Restano anteprime, ricerca ricorsiva, condivisioni e upload riprendibile; la sincronizzazione delle copie IA è un lavoro futuro.",
-    endpoints: "Contratti per anteprime, condivisioni, upload riprendibile e sincronizzazione da definire",
-  },
-  attachments: {
-    label: "Allegati della chat",
-    detail: "File server e Libreria IA hanno già il caricamento. Manca il collegamento degli allegati a una richiesta nella chat.",
-    endpoints: "Contratto allegati della conversazione e accesso degli agenti da definire",
-  },
-  audio: {
-    label: "Microfono e trascrizione dalla UI",
-    detail: "L’agente Audio può trascrivere file locali. Restano acquisizione dal microfono, invio e gestione della trascrizione nell’interfaccia.",
-    endpoints: "Contratto acquisizione/upload/trascrizione dalla UI da definire",
+    label: "Sincronizzazione delle copie IA",
+    detail: "Anteprime, ricerca nelle sottocartelle, link privati revocabili e upload riprendibili sono collegati. La sincronizzazione bidirezionale fra originali e copie IA resta un lavoro futuro.",
+    endpoints: "Contratto di sincronizzazione e gestione conflitti da definire",
   },
   graphEdit: {
     label: "Esecuzione delle automazioni grafiche",
@@ -35,7 +25,8 @@ export const homeRoadmap = {
     { label: "Chat e memoria persistenti", detail: "Cronologia, streaming, gestione e versioni della memoria e contesto permanente." },
     { label: "Accesso, permessi e approvazioni", detail: "Login del proprietario, policy delle capability e proposte consultabili in Attività." },
     { label: "Runtime e diagnostica", detail: "Coda, stati persistenti, cancellazione cooperativa, registro operazioni, bus eventi e profilazione." },
-    { label: "File, calendario e Tools", detail: "File server e copie nella Libreria IA, calendario mese/giorno e bozze delle automazioni." },
+    { label: "File, calendario e Tools", detail: "File server e Libreria IA con anteprime, ricerca ricorsiva, condivisioni private e upload riprendibili; calendario e bozze delle automazioni." },
+    { label: "Allegati chat e Audio", detail: "Documenti allegati alle richieste e pagina Audio per registrazioni salvate, trascrizione locale, correzioni ed esportazione." },
   ],
   next: [
     { label: "Misurare la latenza sul PC reale", detail: "Usare la profilazione in Attività per distinguere attesa, contesto, modello e tool prima di scegliere gli interventi." },
@@ -46,3 +37,4 @@ export const homeRoadmap = {
     { label: "Agente programmatore e automodifica", detail: "Da affrontare dopo misure delle prestazioni e definizione dei permessi sui progetti." },
   ],
 } as const;
+

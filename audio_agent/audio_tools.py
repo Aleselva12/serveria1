@@ -249,101 +249,106 @@ def transcribe_audio_file(
                 "error": "Formato audio non supportato.",
             }, ensure_ascii=False)
 
-        from core.runtime import checkpoint
-        checkpoint()
-        model = _load_whisper_model()
-        checkpoint()
-        segments_iter, info = model.transcribe(
-            str(path),
-            language=language or None,
-            beam_size=5,
-            vad_filter=True,
-            word_timestamps=False,
-        )
-
-        segments = []
-        for segment in segments_iter:
-            checkpoint()
-            text = segment.text.strip()
-            if not text:
-                continue
-            segments.append({
-                "start": float(segment.start),
-                "end": float(segment.end),
-                "text": text,
-            })
-
-        checkpoint()
-        diarization_tracks = None
-        diarization_warning = None
-
-        if diarize:
-            diarization_tracks, diarization_warning = _run_local_diarization(
-                path,
-                expected_speakers,
-            )
-
-        speaker_map = {}
-        next_speaker_number = 1
-        transcript_lines = []
-
-        for segment in segments:
-            speaker_label = None
-
-            if diarization_tracks:
-                raw_speaker = _speaker_for_segment(
-                    segment["start"],
-                    segment["end"],
-                    diarization_tracks,
-                )
-
-                if raw_speaker is not None:
-                    if raw_speaker not in speaker_map:
-                        speaker_map[raw_speaker] = (
-                            f"Interlocutore {next_speaker_number}"
-                        )
-                        next_speaker_number += 1
-                    speaker_label = speaker_map[raw_speaker]
-
-            timestamp = _format_timestamp(segment["start"])
-            prefix = (
-                f"[{timestamp}] {speaker_label}: "
-                if speaker_label
-                else f"[{timestamp}] "
-            )
-            transcript_lines.append(prefix + segment["text"])
-
-        transcript = "\n".join(transcript_lines)
-        duration_seconds = (
-            round(max((segment["end"] for segment in segments), default=0.0), 2)
-        )
-
-        diarization_status = "not_requested"
-        if diarize and diarization_tracks:
-            diarization_status = "applied"
-        elif diarize:
-            diarization_status = "unavailable"
-
-        response = {
-            "status": "ok",
-            "source_path": str(path.relative_to(AUDIO_ROOT)),
-            "detected_language": getattr(info, "language", None),
-            "language_probability": getattr(info, "language_probability", None),
-            "duration_seconds": duration_seconds,
-            "segment_count": len(segments),
-            "diarization_status": diarization_status,
-            "diarization_warning": diarization_warning,
-            "speaker_count_detected": len(speaker_map) if diarization_tracks else None,
-            "transcript": transcript,
-        }
-
-        return json.dumps(response, ensure_ascii=False, indent=2)
+        return json.dumps(transcribe_path(path, language, diarize, expected_speakers), ensure_ascii=False, indent=2)
 
     except Exception as error:
         return json.dumps({
             "status": "error",
             "error": str(error),
         }, ensure_ascii=False)
+
+
+def transcribe_path(path: Path, language="it", diarize=False, expected_speakers=2):
+    """Shared local engine; owner API validates its upload path before calling it."""
+    from core.runtime import checkpoint
+    checkpoint()
+    model = _load_whisper_model()
+    checkpoint()
+    segments_iter, info = model.transcribe(
+        str(path),
+        language=language or None,
+        beam_size=5,
+        vad_filter=True,
+        word_timestamps=False,
+    )
+
+    segments = []
+    for segment in segments_iter:
+        checkpoint()
+        text = segment.text.strip()
+        if not text:
+            continue
+        segments.append({
+            "start": float(segment.start),
+            "end": float(segment.end),
+            "text": text,
+        })
+
+    checkpoint()
+    diarization_tracks = None
+    diarization_warning = None
+
+    if diarize:
+        diarization_tracks, diarization_warning = _run_local_diarization(
+            path,
+            expected_speakers,
+        )
+
+    speaker_map = {}
+    next_speaker_number = 1
+    transcript_lines = []
+
+    for segment in segments:
+        speaker_label = None
+
+        if diarization_tracks:
+            raw_speaker = _speaker_for_segment(
+                segment["start"],
+                segment["end"],
+                diarization_tracks,
+            )
+
+            if raw_speaker is not None:
+                if raw_speaker not in speaker_map:
+                    speaker_map[raw_speaker] = (
+                        f"Interlocutore {next_speaker_number}"
+                    )
+                    next_speaker_number += 1
+                speaker_label = speaker_map[raw_speaker]
+
+        timestamp = _format_timestamp(segment["start"])
+        prefix = (
+            f"[{timestamp}] {speaker_label}: "
+            if speaker_label
+            else f"[{timestamp}] "
+        )
+        transcript_lines.append(prefix + segment["text"])
+
+    transcript = "\n".join(transcript_lines)
+    duration_seconds = (
+        round(max((segment["end"] for segment in segments), default=0.0), 2)
+    )
+
+    diarization_status = "not_requested"
+    if diarize and diarization_tracks:
+        diarization_status = "applied"
+    elif diarize:
+        diarization_status = "unavailable"
+
+    response = {
+        "status": "ok",
+        "source_path": str(path.relative_to(AUDIO_ROOT)),
+        "detected_language": getattr(info, "language", None),
+        "language_probability": getattr(info, "language_probability", None),
+        "duration_seconds": duration_seconds,
+        "segment_count": len(segments),
+        "diarization_status": diarization_status,
+        "diarization_warning": diarization_warning,
+        "speaker_count_detected": len(speaker_map) if diarization_tracks else None,
+        "transcript": transcript,
+    }
+
+    return response
 
 
 @agent_tool('audio_agent', capability='save_transcript', actions=('save_transcript',), effect='write', retry='never')
@@ -394,3 +399,4 @@ AUDIO_TOOLS = [
 
 from core.calendar_tools import calendar_tools_for
 AUDIO_TOOLS += calendar_tools_for("audio_agent")
+

@@ -84,7 +84,7 @@ export function useConversations(connected: boolean, sending: boolean) {
         ...c,
         messages: rows.map(m => ({
           id: m.id, conversationId: m.conversation_id, role: m.role,
-          content: m.content, createdAt: m.created_at,
+          content: m.content, createdAt: m.created_at, attachments: m.metadata?.attachments,
         })),
       } : c));
     }).catch(error => {
@@ -117,3 +117,4 @@ export function useConversations(connected: boolean, sending: boolean) {
   return { chats, setChats: updateChats, currentChat, selectChat, newChat, refreshHistory,
     historyLoading, historyError, messagesLoading, messagesError };
 }
+

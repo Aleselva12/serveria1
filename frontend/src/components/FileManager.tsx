@@ -15,6 +15,8 @@ import {
   Undo2,
   X,
 } from "lucide-react";
+import FilePreview from "./FilePreview";
+import { apiBaseUrl } from "../services/api";
 import { filesApi } from "../services/filesApi";
 import type {
   BrowserListing,
@@ -317,6 +319,11 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
   const [offset, setOffset] = useState(0);
   const [listing, setListing] = useState<BrowserListing | null>(null);
   const [trash, setTrash] = useState<TrashItem[]>([]);
+  const [recursive,setRecursive] = useState(false);
+  const [preview,setPreview] = useState<BrowserNode|null>(null);
+  const [shareList,setShareList] = useState<{id:string;path:string;expiresAt:string;revoked:boolean}[]|null>(null);
+  const [shareLink,setShareLink] = useState("");
+  const [uploadProgress,setUploadProgress] = useState("");
   const [inTrash, setInTrash] = useState(false);
   const [view, setView] = useState<"list" | "grid">("list");
   const [loading, setLoading] = useState(true);
@@ -391,6 +398,7 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
             path,
             search,
             offset,
+            recursive,
           );
           if (live) setListing(data);
         }
@@ -404,9 +412,10 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
     return () => {
       live = false;
     };
-  }, [area, token, rootId, path, search, offset, inTrash, reload]);
+  }, [area, token, rootId, path, search, offset, recursive, inTrash, reload]);
   function navigate(next: string) {
     setError("");
+    setPreview(null);setShareList(null);setShareLink("");
     setPath(next);
     setOffset(0);
     setQuery("");
@@ -436,11 +445,12 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
   async function uploadFiles(files: File[]) {
     if (!files.length || !writable || mutationLock.current) return;
     let completed = 0;
+    setUploadProgress("");
     await run(
       async () => {
         for (const file of files) {
           try {
-            await filesApi.upload(area, token, rootId, path, file);
+            await filesApi.resumableUpload(area, rootId, path, file, setUploadProgress);
             completed++;
           } catch (e) {
             setReload((n) => n + 1);
@@ -508,9 +518,15 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
         "Operazione completata.",
       );
   }
+  async function showShares() {
+    await run(async()=>{const data=await filesApi.shares(area,rootId);setShareList(data.items);}, "Condivisioni caricate.");
+  }
   function actions(item: BrowserNode) {
     return (
       <div className="file-actions">
+        {item.kind==="file"&&<><button disabled={busy} title="Anteprima" aria-label={"Anteprima "+item.name} onClick={()=>setPreview(item)}>Anteprima</button>
+        <button disabled={busy} title="Condividi per 24 ore (richiede accesso)" onClick={()=>void run(async()=>{const share=await filesApi.share(area,rootId,item.path);setShareLink(new URL(apiBaseUrl+share.url,window.location.origin).href);},"Collegamento creato: valido 24 ore, richiede accesso al server.")}>Condividi</button></>}
+
         {item.capabilities.includes("download") && (
           <button
             disabled={busy}
@@ -596,8 +612,8 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
     return (
       <button
         className="file-name"
-        disabled={busy || item.kind !== "folder"}
-        onClick={() => navigate(item.path)}
+        disabled={busy || !["folder","file"].includes(item.kind)}
+        onClick={() => item.kind==="folder" ? navigate(item.path) : setPreview(item)}
       >
         {item.kind === "folder" ? <Folder size={18} /> : <FileText size={18} />}
         <span>{item.name}</span>
@@ -627,12 +643,13 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
             <Search size={15} />
             <input
               disabled={busy || inTrash}
-              placeholder="Cerca in questa cartella"
-              aria-label="Cerca per nome nella cartella"
+              placeholder={recursive?"Cerca anche nelle sottocartelle":"Cerca in questa cartella"}
+              aria-label="Cerca per nome"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </label>
+          <label><input type="checkbox" checked={recursive} disabled={busy||inTrash} onChange={e=>{setRecursive(e.target.checked);setOffset(0);}}/>Sottocartelle</label>
         </div>
         <div className="file-toolbar-actions">
           <button
@@ -647,6 +664,8 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
           >
             <RefreshCw size={16} />
           </button>
+          <button className="file-tool" disabled={busy||!rootId} onClick={()=>void showShares()}>Condivisioni</button>
+          <button className="file-tool" disabled={busy||!writable} onClick={()=>void run(()=>filesApi.cancelPendingUploads(area,rootId,path),"Upload in sospeso annullati per questa cartella.")}>Annulla upload sospesi</button>
           <div className="view-switch">
             <button
               className={view === "list" ? "selected" : ""}
@@ -702,6 +721,12 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
           />
         </div>
       </div>
+      {busy&&uploadProgress&&<p role="status">{uploadProgress}</p>}
+      {!busy&&uploadProgress&&error&&<p>Per riprendere un upload interrotto, seleziona nuovamente lo stesso file entro 24 ore.</p>}
+      {shareLink&&<div className="file-notice"><label>Collegamento privato (richiede login)<input readOnly value={shareLink} onFocus={e=>e.target.select()}/></label></div>}
+      {listing&&(listing as BrowserListing & {truncated?:boolean}).truncated&&<p className="connection-notice">Ricerca limitata a 10.000 elementi o 30 livelli. Cerca in una sottocartella per continuare.</p>}
+      {shareList&&<div className="system-card"><div className="metric-head"><h3>Condivisioni della risorsa</h3><button onClick={()=>setShareList(null)}>Chiudi</button></div>{!shareList.length&&<p>Nessun collegamento creato.</p>}{shareList.map(item=><div className="settings-row" key={item.id}><div><strong>{item.path}</strong><small>Scadenza: {new Date(item.expiresAt).toLocaleString("it-IT")} · {item.revoked?"Revocato":""}</small></div><button disabled={busy||item.revoked} onClick={()=>void run(async()=>{await filesApi.revokeShare(area,item.id);setShareList(prev=>prev?.map(s=>s.id===item.id?{...s,revoked:true}:s)||null);},"Collegamento revocato.")}>Revoca</button></div>)}</div>}
+      {preview&&<FilePreview area={area} rootId={rootId} token={token} item={preview} close={()=>setPreview(null)}/>}
       {error && (
         <div className="connection-error" role="alert">
           {error}
@@ -1056,3 +1081,4 @@ export default function FileManager() {
     </section>
   );
 }
+

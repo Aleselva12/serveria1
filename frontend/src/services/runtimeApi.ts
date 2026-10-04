@@ -7,8 +7,8 @@ export async function runtimeRequest<T>(path: string, init: RequestInit = {}): P
   if (!response.ok) throw new Error(data.detail || "Operazione non riuscita.");
   return data as T;
 }
-export async function streamChat(message: string, threadId: string, onRun: (id:string)=>void, onText: (text:string)=>void, onState:(state:string)=>void) {
-  const run = await runtimeRequest<RunSnapshot>("/chat/runs", { method: "POST", body: JSON.stringify({ message, thread_id: threadId }) });
+export async function streamChat(message: string, threadId: string, onRun: (id:string)=>void, onText: (text:string)=>void, onState:(state:string)=>void, attachmentIds:string[] = []) {
+  const run = await runtimeRequest<RunSnapshot>("/chat/runs", { method: "POST", body: JSON.stringify({ message, thread_id: threadId, ...(attachmentIds.length ? {attachment_ids:attachmentIds} : {}) }) });
   onRun(run.id); onState(run.status);
   const response = await authenticatedFetch(apiBaseUrl + "/api/v1/runtime/runs/" + run.id + "/events");
   if (!response.ok || !response.body) throw new Error("Streaming non disponibile. Consulta Attività per l'esito.");
@@ -46,3 +46,4 @@ export type CapabilityOperation = {
   status:string; payload:unknown; result:unknown; error_type:string|null;
   review_outcome:string|null; review_note:string|null; reviewed_by:string|null;
 };
+

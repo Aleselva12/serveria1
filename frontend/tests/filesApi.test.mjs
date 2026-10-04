@@ -18,12 +18,14 @@ const url = (s) =>
 const apiSource = (
   await readFile(new URL("../src/services/api.ts", import.meta.url), "utf8")
 ).replace("import.meta.env.VITE_API_BASE_URL", "undefined");
+const hashSource = await readFile(new URL("../src/services/fileHash.ts", import.meta.url), "utf8");
+const mediaSource = (await readFile(new URL("../src/services/mediaApi.ts", import.meta.url), "utf8")).replaceAll("'./transport'", JSON.stringify(transportUrl)).replaceAll("'./api'", JSON.stringify(url(apiSource)));
 const source = (
   await readFile(
     new URL("../src/services/filesApi.ts", import.meta.url),
     "utf8",
   )
-).replace('"./api"', JSON.stringify(url(apiSource)));
+).replace('"./api"', JSON.stringify(url(apiSource))).replace('"./fileHash"', JSON.stringify(url(hashSource))).replace('"./mediaApi"', JSON.stringify(url(mediaSource)));
 const { filesApi } = await import(url(source));
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -134,3 +136,4 @@ test("folder names and search strings are correctly URL encoded", async () => {
   };
   await filesApi.children("server", "", "drive", "A & B", "x&root_id=other");
 });
+

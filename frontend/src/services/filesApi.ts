@@ -1,3 +1,5 @@
+import { hashFile } from "./fileHash";
+import { mediaRequest, MediaError } from "./mediaApi";
 import { authenticatedFetch } from "./transport";
 import { apiBaseUrl, ApiError } from "./api";
 import type {
@@ -115,10 +117,11 @@ export const filesApi = {
     path: string,
     search = "",
     offset = 0,
+    recursive = false,
   ): Promise<BrowserListing> {
     const data = await json<BrowserListing>(
       area,
-      "/children?" +
+      (recursive && search ? "/search?" : "/children?") +
         query({ root_id: rootId, path, query: search, offset, limit: 100 }),
       token,
     );
@@ -178,6 +181,51 @@ export const filesApi = {
     form.set("file", file);
     return json(area, "/upload", token, { method: "POST", body: form });
   },
+  async preview(area:FileArea, token:string, rootId:string, item:BrowserNode) {
+    const response=await fetchFile(area,"/preview?"+query({root_id:rootId,path:item.path}),token,{},true);
+    if(response.headers.get("content-type")?.includes("application/json")) {
+      const data=await response.json();
+      if(data.kind!=="text" || typeof data.text!=="string")throw new Error("Anteprima non valida.");
+      return {kind:"text",text:data.text,truncated:Boolean(data.truncated),url:"",mime:""};
+    }
+    const blob=await response.blob();
+    return {kind:"media",text:"",truncated:false,url:URL.createObjectURL(blob),mime:blob.type};
+  },
+  shares(area:FileArea,rootId:string) {
+    return mediaRequest<{items:{id:string;path:string;expiresAt:string;revoked:boolean}[]}>(prefix(area)+"/shares?"+query({root_id:rootId}));
+  },
+  share(area:FileArea,rootId:string,path:string,hours=24) {
+    return mediaRequest<{id:string;url:string;expiresAt:string;requiresLogin:boolean}>(prefix(area)+"/shares",{method:"POST",body:JSON.stringify({root_id:rootId,path,hours})});
+  },
+  revokeShare(area:FileArea,id:string) {return mediaRequest(prefix(area)+"/shares/"+id,{method:"DELETE"});},
+  async resumableUpload(area:FileArea,rootId:string,path:string,file:File,progress:(text:string)=>void) {
+    const storageKey="cora-upload:"+area+":"+rootId+":"+path+":"+file.name+":"+file.size;
+    progress("Verifica del file…");
+    const digest=await hashFile(file,p=>progress(`Verifica del file ${p}%`));
+    type UploadState={id:string;offset:number;size:number;sha256:string};
+    let session:UploadState|null=null;
+    const previous=localStorage.getItem(storageKey);
+    if(previous){
+      // A stored ID is scoped to this area/root. Expired sessions can safely start again.
+      try{session=await mediaRequest<UploadState>(prefix(area)+"/uploads/"+previous+"?"+query({root_id:rootId}));}
+      catch(e){if(e instanceof MediaError && [404,410].includes(e.status))localStorage.removeItem(storageKey);else throw e;}
+      if(session&&session.sha256!==digest)throw new Error("Il file è diverso dall’upload in sospeso. Annulla l’upload precedente prima di caricarne un altro con questo nome.");
+    }
+    if(!session){session=await mediaRequest<UploadState>(prefix(area)+"/uploads",{method:"POST",body:JSON.stringify({root_id:rootId,path,filename:file.name,size:file.size,sha256:digest})});localStorage.setItem(storageKey,session.id);}
+    while(session.offset<file.size){
+      if(!Number.isInteger(session.offset)||session.offset<0)throw new Error("Offset upload non valido.");
+      const form=new FormData();form.set("root_id",rootId);form.set("offset",String(session.offset));form.set("file",file.slice(session.offset,session.offset+4*1024*1024),file.name);
+      session=await mediaRequest<UploadState>(prefix(area)+"/uploads/"+session.id+"/chunks",{method:"POST",body:form});
+      progress(`Caricamento ${Math.round(session.offset/file.size*100)}%`);
+    }
+    progress("Salvataggio sul server…");
+    const result=await mediaRequest(prefix(area)+"/uploads/"+session.id+"/complete?"+query({root_id:rootId}),{method:"POST"});
+    localStorage.removeItem(storageKey);return result;
+  },
+  async cancelPendingUploads(area:FileArea,rootId:string,path:string) {
+    const starts="cora-upload:"+area+":"+rootId+":"+path+":";
+    for(const key of Object.keys(localStorage).filter(k=>k.startsWith(starts))){const id=localStorage.getItem(key);if(id){try{await mediaRequest(prefix(area)+"/uploads/"+id+"?"+query({root_id:rootId}),{method:"DELETE"});}catch(e){if(!(e instanceof MediaError)||![404,410].includes(e.status))throw e;}}localStorage.removeItem(key);}
+  },
   async download(
     area: FileArea,
     token: string,
@@ -201,3 +249,4 @@ export const filesApi = {
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   },
 };
+
