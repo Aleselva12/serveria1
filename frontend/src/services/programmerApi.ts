@@ -111,3 +111,98 @@ export const programmerApi = {
     return streamRun(run, () => {}, onState, signal);
   },
 };
+
+export type ComponentRecord = {
+  id: string;
+  title: string;
+  kind: string;
+  version: number;
+  files: string[];
+  dependencies: string[];
+  integration: string;
+  status: string;
+  recorded_status: string;
+  stale: boolean;
+  missing_checks: string[];
+  workspace_digest: string;
+};
+export type GraphNode = {
+  id: string | number;
+  label?: string;
+  name?: string;
+  unresolved?: boolean;
+  [key: string]: unknown;
+};
+export type GraphEdge = {
+  source: string | number;
+  target: string | number;
+  relation?: string;
+  confidence?: string;
+  [key: string]: unknown;
+};
+export type GraphView = {
+  status: GraphStatus;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  total_matches: number;
+  truncated: boolean;
+};
+export const programmerArtifactsApi = {
+  components: (id: string) =>
+    runtimeRequest<{ components: ComponentRecord[] }>(
+      `/programmer/workspaces/${id}/components`,
+    ),
+  register: (
+    id: string,
+    data: {
+      title: string;
+      kind: string;
+      files: string[];
+      dependencies: string[];
+      integration: string;
+      component_id: string;
+    },
+  ) =>
+    runtimeRequest<ComponentRecord>(`/programmer/workspaces/${id}/components`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  transition: (
+    id: string,
+    component: ComponentRecord,
+    status: string,
+    note: string,
+  ) =>
+    runtimeRequest<ComponentRecord>(
+      `/programmer/workspaces/${id}/components/${component.id}/status`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          status,
+          note,
+          expected_version: component.version,
+          expected_digest: component.workspace_digest,
+        }),
+      },
+    ),
+  deliver: (id: string, component: string) =>
+    runtimeRequest<{ id: string; sha256: string; missing_checks: string[] }>(
+      `/programmer/workspaces/${id}/components/${component}/deliveries`,
+      { method: "POST" },
+    ),
+  checks: (id: string) =>
+    runtimeRequest<{
+      checks: {
+        profile: string;
+        passed: boolean;
+        checked_at: string;
+        workspace_digest: string;
+        scope?: string;
+      }[];
+    }>(`/programmer/workspaces/${id}/checks`),
+  graph: (id: string, query: string, nodeId: string) =>
+    runtimeRequest<GraphView>(
+      `/programmer/workspaces/${id}/graph/view?` +
+        new URLSearchParams({ query, node_id: nodeId }),
+    ),
+};

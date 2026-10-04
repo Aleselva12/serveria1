@@ -86,3 +86,28 @@ def query_graph(identifier: str, query: str, node_id: str = "") -> dict:
     edges = [e for e in graph["edges"] if str(e.get("source")) in ids or str(e.get("target")) in ids]
     return {"status": status, "nodes": nodes[:10], "edges": edges[:30], "total_matches": len(nodes),
             "total_edges": len(edges), "truncated": len(nodes) > 10 or len(edges) > 30}
+
+
+def graph_view(identifier: str, query: str = '', node_id: str = '') -> dict:
+    """Bounded induced subgraph, centered on a selected symbol or text matches."""
+    with ws.LOCK:
+        status = graph_status(identifier)
+        if not status['available']:
+            return {'status': status, 'nodes': [], 'edges': [], 'total_matches': 0, 'truncated': False}
+        graph = json.loads((ws.directory(identifier) / 'graph.json').read_text(encoding='utf-8'))
+        by_id = {str(n['id']): n for n in graph['nodes']}
+        matches = [n for n in graph['nodes'] if str(n['id']) == node_id] if node_id else [
+            n for n in graph['nodes'] if not query or query.lower() in json.dumps(n, ensure_ascii=False).lower()]
+        seeds = {str(n['id']) for n in matches[:1 if node_id else 12]}
+        adjacent = [e for e in graph['edges'] if str(e['source']) in seeds or str(e['target']) in seeds]
+        chosen = [str(n['id']) for n in matches[:1 if node_id else 12]]
+        for edge in adjacent:
+            for key in ('source', 'target'):
+                endpoint = str(edge[key])
+                if endpoint not in chosen and len(chosen) < 40:
+                    chosen.append(endpoint)
+        included = set(chosen)
+        edges = [e for e in graph['edges'] if str(e['source']) in included and str(e['target']) in included]
+        return {'status': status, 'nodes': [by_id[key] for key in chosen], 'edges': edges[:100],
+                'total_matches': len(matches), 'truncated': len(matches) > len(seeds) or len(edges) > 100 or
+                any(str(e['source']) not in included or str(e['target']) not in included for e in adjacent)}

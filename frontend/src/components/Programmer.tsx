@@ -10,6 +10,8 @@ import {
 import { api } from "../services/api";
 import { runtimeRequest } from "../services/runtimeApi";
 
+import ProgrammerArtifacts from "./ProgrammerArtifacts";
+
 export default function Programmer() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]),
     [selected, setSelected] = useState("");
@@ -34,6 +36,7 @@ export default function Programmer() {
   const [report, setReport] = useState(""),
     [error, setError] = useState(""),
     [viewDiff, setViewDiff] = useState(false);
+  const [revision, setRevision] = useState(0);
   const abort = useRef<AbortController | null>(null),
     selection = useRef(""),
     mounted = useRef(true),
@@ -75,6 +78,7 @@ export default function Programmer() {
     setFiles(listing.files);
     setDiff(changes);
     setGraph(mapping);
+    setRevision((prev) => prev + 1);
   }
   useEffect(() => {
     selection.current = selected;
@@ -398,6 +402,24 @@ export default function Programmer() {
                 </button>
                 <button
                   disabled={!selected || busy || importing}
+                  onClick={() => void execute("contracts")}
+                >
+                  Verifica contratti
+                </button>
+                <button
+                  disabled={!selected || busy || importing}
+                  onClick={() => void execute("typescript")}
+                >
+                  Verifica TypeScript
+                </button>
+                <button
+                  disabled={!selected || busy || importing}
+                  onClick={() => void execute("frontend_build")}
+                >
+                  Build frontend Docker
+                </button>
+                <button
+                  disabled={!selected || busy || importing}
                   onClick={() => void execute("python_tests")}
                 >
                   Test Docker
@@ -498,6 +520,11 @@ export default function Programmer() {
           </small>
         </aside>
       </div>
+      <ProgrammerArtifacts
+        workspaceId={selected}
+        revision={revision}
+        disabled={busy || importing || creating}
+      />
     </section>
   );
 }

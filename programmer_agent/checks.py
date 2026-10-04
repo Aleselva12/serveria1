@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -47,7 +48,7 @@ def _docker(*args: str, timeout: float = 10) -> str:
     return text.strip()
 
 
-def docker_check(identifier: str) -> dict:
+def docker_check(identifier: str, profile: str = "python_tests") -> dict:
     if not shutil.which("docker"):
         raise ValueError("Docker non disponibile. Le verifiche statiche restano utilizzabili.")
     files = ws.directory(identifier) / "files"
@@ -58,7 +59,25 @@ def docker_check(identifier: str) -> dict:
             ws._no_links(Path(folder) / name)
     for relative in paths:
         ws.file_path(identifier, relative)
-    image = os.getenv("CORA_PROGRAMMER_CHECK_IMAGE", "cora-programmer-checks:local")
+    if profile not in {"python_tests", "typescript", "frontend_build"}:
+        raise ValueError("Profilo Docker non consentito.")
+    frontend = profile != "python_tests"
+    if frontend and not (files / "frontend" / "tsconfig.json").is_file():
+        raise ValueError("Configurazione frontend assente nello snapshot.")
+    if not frontend and not any(p.startswith("tests/test") and p.endswith(".py") for p in paths):
+        raise ValueError("Nessun test Python presente; verifica non eseguita.")
+    image = os.getenv("CORA_PROGRAMMER_FRONTEND_CHECK_IMAGE", "cora-programmer-frontend:local") if frontend else os.getenv("CORA_PROGRAMMER_CHECK_IMAGE", "cora-programmer-checks:local")
+    # Only fixed commands run; configuration and generated source execute inside isolation.
+    script = ("const fs=require('fs'),cp=require('child_process'),crypto=require('crypto');"
+              "for(const f of ['package.json','package-lock.json']){const h=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');"
+              "if(h('/work/frontend/'+f)!==h('/opt/frontend/'+f))throw new Error('Dependency manifest changed: rebuild trusted check image');}"
+              "fs.cpSync('/work/frontend','/tmp/project',{recursive:true});"
+              "fs.symlinkSync('/opt/frontend/node_modules','/tmp/project/node_modules','dir');"
+              "const r=cp.spawnSync('/opt/frontend/node_modules/.bin/tsc',['-b'],{cwd:'/tmp/project',stdio:'inherit'});"
+              "if(r.error)throw r.error;if(r.status!==0)process.exit(r.status??1);")
+    if profile == "frontend_build":
+        script += "const b=cp.spawnSync('/opt/frontend/node_modules/.bin/vite',['build'],{cwd:'/tmp/project',stdio:'inherit'});if(b.error)throw b.error;process.exit(b.status??1);"
+    command = ["--entrypoint=node", image, "-e", script] if frontend else ["--entrypoint=python", image, "-B", "-m", "unittest", "discover", "-s", "tests", "-v"]
     host_root = os.getenv("CORA_PROGRAMMER_DOCKER_WORKSPACE_ROOT", "")
     mount = Path(host_root) / identifier / "files" if host_root else files
     name = "cora-check-" + uuid4().hex
@@ -69,11 +88,11 @@ def docker_check(identifier: str) -> dict:
         checkpoint()
         _docker("run", "--detach", "--pull=never", "--name", name, "--network=none", "--read-only",
                 "--user=65534:65534", "--cap-drop=ALL", "--security-opt=no-new-privileges",
-                "--pids-limit=128", "--memory=512m", "--cpus=1", "--log-driver=json-file",
+                "--pids-limit=128", "--memory=" + ("1g" if frontend else "512m"), "--cpus=1", "--log-driver=json-file",
                 "--log-opt=max-size=1m", "--log-opt=max-file=1",
-                "--tmpfs=/tmp:rw,noexec,nosuid,size=64m", "--mount", f"type=bind,src={mount},dst=/work,readonly",
+                "--tmpfs=/tmp:rw,noexec,nosuid,size=" + ("256m" if frontend else "64m"), "--mount", f"type=bind,src={mount},dst=/work,readonly",
                 "--workdir=/work", "--env=PYTHONDONTWRITEBYTECODE=1", "--env=HOME=/tmp",
-                "--entrypoint=python", image, "-B", "-m", "unittest", "discover", "-s", "tests", "-v")
+                *command)
         created = True
         while True:
             checkpoint()
@@ -85,7 +104,12 @@ def docker_check(identifier: str) -> dict:
             time.sleep(.2)
         code = int(_docker("inspect", "--format={{.State.ExitCode}}", name))
         output = _docker("logs", "--tail=100", name)
-        return {"profile": "python_tests", "passed": code == 0, "exit_code": code,
+        if profile == "python_tests":
+            summary = re.search(r"Ran (\d+) tests?", output)
+            skipped = re.search(r"skipped=(\d+)", output)
+            if not summary or int(summary[1]) <= (int(skipped[1]) if skipped else 0):
+                raise ValueError("Nessun test eseguito riconoscibile; verifica non attestata.")
+        return {"profile": profile, "passed": code == 0, "exit_code": code,
                 "output": output, "output_may_be_truncated": True, "executes_code": True, "environment": "docker",
                 "duration_ms": round((time.monotonic() - started) * 1000)}
     finally:
@@ -102,15 +126,35 @@ def docker_check(identifier: str) -> dict:
 def _run_check(identifier: str, profile: str = "syntax") -> dict:
     if profile == "syntax":
         result = static_check(identifier)
-    elif profile == "python_tests":
-        result = docker_check(identifier)
+    elif profile == "contracts":
+        from programmer_agent.contract_checks import contracts
+        result = contracts(identifier)
+    elif profile in {"python_tests", "typescript", "frontend_build"}:
+        result = docker_check(identifier, profile)
     else:
-        raise ValueError("Profilo consentito: syntax o python_tests.")
+        raise ValueError("Profilo consentito: syntax, contracts, python_tests, typescript o frontend_build.")
+    return result
+
+
+def _record_check(identifier: str, result: dict) -> dict:
+    from programmer_agent.components import check_history, workspace_digest, now
+    result.update(workspace_digest=workspace_digest(identifier), checked_at=now())
+    history = check_history(identifier)
+    history.append(result)
+    ws._atomic(ws.directory(identifier) / "checks.json", json.dumps(history[-50:], ensure_ascii=False))
     ws._atomic(ws.directory(identifier) / "last_check.json", json.dumps(result, ensure_ascii=False))
     return result
 
 
 def run_check(identifier: str, profile: str = "syntax") -> dict:
     # File mutations through Cora cannot change a test's source while it runs.
+    if profile not in {"syntax", "contracts", "python_tests", "typescript", "frontend_build"}:
+        raise ValueError("Profilo non consentito.")
     with ws.LOCK:
-        return _run_check(identifier, profile)
+        try:
+            result = _run_check(identifier, profile)
+        except (ValueError, OSError, RuntimeError, TimeoutError) as error:
+            _record_check(identifier, {"profile": profile, "passed": False, "completed": False,
+                                      "error": str(error)[:1000], "scope": "Verifica non completata."})
+            raise
+        return _record_check(identifier, result)

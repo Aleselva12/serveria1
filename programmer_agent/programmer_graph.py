@@ -22,6 +22,7 @@ Procedi con interventi circoscritti. Verifica la sintassi, poi usa Docker se ser
 Non importare codice generato nel backend, non chiedere credenziali, non installare dipendenze o eseguire comandi host.
 Le bozze grafiche non hanno ancora un esecutore: distingui configurazione, codice creato e attivazione.
 Il grafo Graphify può mancare o essere obsoleto: verifica sempre i file prima di scrivere.
+Registra il componente con file, test, dipendenze e istruzioni di integrazione; prepara il pacchetto di consegna. Non attestare revisione o attivazione.
 Alla fine elenca file creati/modificati, verifiche realmente eseguite e collegamenti ancora necessari.
 Non dichiarare successo se un controllo ha fallito o se hai solo scritto codice nella risposta.
 """

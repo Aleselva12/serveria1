@@ -176,7 +176,7 @@ def check(workspace_id: UUID, data: CheckRequest):
     from programmer_agent.checks import run_check
     identifier = str(workspace_id)
     call(ws.directory, identifier)
-    if data.profile not in {"syntax", "python_tests"}:
+    if data.profile not in {"syntax", "contracts", "python_tests", "typescript", "frontend_build"}:
         raise HTTPException(422, "Profilo non disponibile.")
     def execute(run):
         result = run_check(identifier, data.profile)
@@ -203,3 +203,64 @@ def build_graph(workspace_id: UUID):
         raise HTTPException(409, str(error)) from error
     except RuntimeError as error:
         raise HTTPException(503, "Runtime non disponibile.") from error
+
+
+class ComponentRequest(StrictRequest):
+    title: str = Field(min_length=1, max_length=120)
+    kind: str
+    files: list[str] = Field(min_length=1, max_length=100)
+    dependencies: list[str] = Field(default_factory=list, max_length=50)
+    integration: str = Field(min_length=1, max_length=12000)
+    component_id: str = ''
+
+
+class ComponentTransition(StrictRequest):
+    status: str
+    note: str = Field(min_length=1, max_length=3000)
+    expected_version: int = Field(ge=1)
+    expected_digest: str = Field(min_length=64, max_length=64)
+
+
+@router.get('/workspaces/{workspace_id}/components')
+def components(workspace_id: UUID):
+    from programmer_agent.components import listing
+    return {'components': call(listing, str(workspace_id))}
+
+
+@router.post('/workspaces/{workspace_id}/components', status_code=201)
+def register_component(workspace_id: UUID, data: ComponentRequest):
+    from programmer_agent.components import register
+    return call(register, str(workspace_id), **data.model_dump())
+
+
+@router.post('/workspaces/{workspace_id}/components/{component_id}/status')
+def component_status(workspace_id: UUID, component_id: UUID, data: ComponentTransition):
+    from programmer_agent.components import transition
+    return call(transition, str(workspace_id), str(component_id), **data.model_dump())
+
+
+@router.post('/workspaces/{workspace_id}/components/{component_id}/deliveries', status_code=201)
+def delivery(workspace_id: UUID, component_id: UUID):
+    from programmer_agent.components import deliver
+    return call(deliver, str(workspace_id), str(component_id))
+
+
+@router.get('/workspaces/{workspace_id}/deliveries/{delivery_id}')
+def download_delivery(workspace_id: UUID, delivery_id: UUID):
+    from fastapi.responses import FileResponse
+    path = call(ws.directory, str(workspace_id)) / 'deliveries' / (str(delivery_id)+'.zip')
+    call(ws._no_links, path)
+    if not path.is_file():
+        raise HTTPException(404, 'Consegna non trovata.')
+    return FileResponse(path, media_type='application/zip', filename='cora-component-'+str(delivery_id)+'.zip')
+
+
+@router.get('/workspaces/{workspace_id}/checks')
+def check_history(workspace_id: UUID):
+    from programmer_agent.components import check_history
+    return {'checks': call(check_history, str(workspace_id))}
+
+
+@router.get('/workspaces/{workspace_id}/graph/view')
+def graph_view(workspace_id: UUID, query: str = Query('', max_length=200), node_id: str = Query('', max_length=500)):
+    return call(knowledge.graph_view, str(workspace_id), query, node_id)

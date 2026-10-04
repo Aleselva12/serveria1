@@ -129,17 +129,18 @@ class ProgrammerTests(unittest.TestCase):
         self.assertEqual(ws.read(self.identifier, "generated.py")["content"], "value = 42\n")
         self.assertFalse((self.source / "generated.py").exists())
         tools = [e for e in executables.values() if e["actor"] == "programmer_agent"]
-        self.assertEqual(len(tools), 11)
+        self.assertEqual(len(tools), 14)
         self.assertTrue(all(e["connected"] for e in tools))
 
     def test_docker_is_only_execution_path_and_cleanup_runs_on_cancellation(self):
         from core.runtime import RunStopped
+        ws.write(self.identifier, "tests/test_sample.py", "import unittest\nclass Test(unittest.TestCase):\n def test_one(self): self.assertTrue(True)\n")
         calls = []
         def docker(*args, **kwargs):
             calls.append(args)
             if args[0] == "run": return "container"
             if args[0] == "inspect": return "false" if "Running" in args[1] else "0"
-            if args[0] == "logs": return "OK"
+            if args[0] == "logs": return "Ran 1 test\nOK"
             return ""
         with patch('programmer_agent.checks.shutil.which', return_value=None), self.assertRaises(ValueError):
             docker_check(self.identifier)
@@ -189,3 +190,112 @@ class ProgrammerTests(unittest.TestCase):
             self.assertEqual(_workspace(self.identifier), self.identifier)
             with self.assertRaises(ValueError): _workspace(other['id'])
         self.assertEqual(_workspace(self.identifier), self.identifier)
+
+    def test_component_delivery_is_complete_immutable_and_lifecycle_requires_evidence(self):
+        import io, zipfile
+        from programmer_agent import components as cp
+        ws.write(self.identifier, 'generated.py', 'value = 42')
+        row = cp.register(self.identifier, 'Example', 'other', ['generated.py'], ['stdlib'], 'Review and integrate manually')
+        with self.assertRaises(ValueError):
+            cp.transition(self.identifier, row['id'], 'active', 'Declared', row['version'], row['workspace_digest'])
+        run_check(self.identifier)
+        self.assertEqual(cp.listing(self.identifier)[0]['status'], 'verified')
+        row = cp.transition(self.identifier, row['id'], 'reviewed', 'Reviewed diff and evidence', row['version'], row['workspace_digest'])
+        delivery = cp.deliver(self.identifier, row['id'])
+        url = '/api/v1/programmer/workspaces/'+self.identifier+'/deliveries/'+delivery['id']
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+            self.assertEqual(archive.read('files/generated.py'), b'value = 42')
+            manifest = json.loads(archive.read('manifest.json'))
+            self.assertFalse(manifest['activation_performed'])
+            self.assertEqual(manifest['component']['status'], 'reviewed')
+            self.assertEqual(len(manifest['checks']), 1)
+            self.assertIn(b'No newline at end of file', archive.read('changes.patch'))
+        ws.write(self.identifier, 'generated.py', 'value = 43', ws.read(self.identifier, 'generated.py')['sha256'])
+        stale = cp.listing(self.identifier)[0]
+        self.assertTrue(stale['stale']); self.assertEqual(stale['status'], 'draft')
+        with self.assertRaises(ws.WorkspaceConflict): cp.deliver(self.identifier, row['id'])
+        with self.assertRaises(ws.WorkspaceConflict): cp.transition(self.identifier, row['id'], 'integrated', 'Done', row['version'], row['workspace_digest'])
+        self.assertEqual(self.client.get(url).content, response.content)
+        updated = cp.register(self.identifier, row['title'], row['kind'], row['files'], [], row['integration'], row['id'])
+        self.assertEqual(updated['version'], 2)
+        self.assertEqual(updated['status'], 'draft')
+
+    def test_failed_check_supersedes_prior_success_for_identical_source(self):
+        from programmer_agent import components as cp
+        row = cp.register(self.identifier, 'Example', 'other', ['sample.py'], [], 'Manual review')
+        run_check(self.identifier)
+        with patch('programmer_agent.checks.static_check', return_value={'profile': 'syntax', 'passed': False}):
+            run_check(self.identifier)
+        self.assertEqual(cp.listing(self.identifier)[0]['status'], 'draft')
+        package = cp.deliver(self.identifier, row['id'])
+        self.assertEqual(package['missing_checks'], ['syntax'])
+
+    def test_contract_checks_do_not_import_adapters_and_reject_missing_types(self):
+        from programmer_agent.contract_checks import contracts
+        marker = Path(self.temp.name) / 'executed'
+        content = knowledge.template('tool') + f'\nfrom pathlib import Path\nPath({str(marker)!r}).write_text("executed")\n'
+        ws.write(self.identifier, 'generated_tools/example.py', content)
+        result = contracts(self.identifier)
+        self.assertTrue(result['passed'], result)
+        self.assertFalse(marker.exists())
+        ws.write(self.identifier, 'generated_tools/example.py', content.replace('value: str', 'value'), ws.read(self.identifier, 'generated_tools/example.py')['sha256'])
+        self.assertFalse(contracts(self.identifier)['passed'])
+        ws.write(self.identifier, 'generated_automations/draft.json', knowledge.template('automation'))
+        self.assertTrue(any('Bozza incompleta' in e['error'] for e in contracts(self.identifier)['errors']))
+
+    def test_frontend_profiles_use_fixed_isolated_commands_and_cleanup(self):
+        ws.write(self.identifier, 'frontend/tsconfig.json', '{}')
+        calls = []
+        def docker(*args, **kwargs):
+            calls.append(args)
+            if args[0] == 'inspect': return 'false' if 'Running' in args[1] else '0'
+            if args[0] == 'logs': return 'Build complete'
+            return 'container'
+        with patch('programmer_agent.checks.shutil.which', return_value='docker'), patch('programmer_agent.checks._docker', side_effect=docker):
+            result = docker_check(self.identifier, 'frontend_build')
+        self.assertTrue(result['passed'])
+        command = calls[0]
+        for flag in ('--entrypoint=node', '--network=none', '--pull=never', '--read-only'):
+            self.assertIn(flag, command)
+        self.assertIn("['build']", command[-1])
+        self.assertIn('/opt/frontend/node_modules/.bin/tsc', command[-1])
+        self.assertEqual(calls[-1][0], 'rm')
+        with self.assertRaises(ValueError): docker_check(self.identifier, 'shell')
+
+    def test_graph_view_is_bounded_and_contains_only_displayed_endpoints(self):
+        graph = {'nodes': [{'id':str(i),'label':'symbol'} for i in range(100)],
+                 'edges': [{'source':'0','target':str(i)} for i in range(1,100)]}
+        knowledge.import_graph(self.identifier, graph, self.row['source_digest'])
+        result = knowledge.graph_view(self.identifier, node_id='0')
+        self.assertEqual(len(result['nodes']), 40)
+        self.assertTrue(result['truncated'])
+        ids = {str(n['id']) for n in result['nodes']}
+        self.assertTrue(all(str(e['source']) in ids and str(e['target']) in ids for e in result['edges']))
+        self.assertFalse(knowledge.graph_view(self.identifier, 'not present')['nodes'])
+
+    def test_unavailable_checks_are_recorded_and_revoke_verified_state(self):
+        from programmer_agent import components as cp
+        row = cp.register(self.identifier, 'Example', 'other', ['sample.py'], [], 'Review')
+        run_check(self.identifier)
+        cp.transition(self.identifier, row['id'], 'reviewed', 'Reviewed', row['version'], row['workspace_digest'])
+        with patch('programmer_agent.checks.static_check', side_effect=OSError('Parser unavailable')):
+            with self.assertRaises(OSError): run_check(self.identifier)
+        self.assertFalse(cp.check_history(self.identifier)[-1]['completed'])
+        self.assertEqual(cp.listing(self.identifier)[0]['status'], 'draft')
+        with self.assertRaises(ValueError):
+            cp.transition(self.identifier, row['id'], 'integrated', 'Done', row['version'], row['workspace_digest'])
+
+    def test_tool_registration_requires_tests_and_all_skipped_is_not_success(self):
+        from programmer_agent import components as cp
+        with self.assertRaises(ValueError):
+            cp.register(self.identifier, 'Example', 'tool', ['sample.py'], [], 'Review')
+        ws.write(self.identifier, 'tests/test_example.py', 'import unittest\n')
+        def docker(*args, **kwargs):
+            if args[0] == 'inspect': return 'false' if 'Running' in args[1] else '0'
+            if args[0] == 'logs': return 'Ran 1 test\nOK (skipped=1)'
+            return ''
+        with patch('programmer_agent.checks.shutil.which', return_value='docker'), patch('programmer_agent.checks._docker', side_effect=docker):
+            with self.assertRaises(ValueError): run_check(self.identifier, 'python_tests')
+        self.assertFalse(cp.check_history(self.identifier)[-1]['passed'])
