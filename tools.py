@@ -349,6 +349,21 @@ def email_agent_tool(query: str, thread_id: str = "") -> str:
     )
 
 
+@agent_tool('supervisor', capability='programmer_agent_tool', actions=('delegate_programmer',), effect='delegate', retry='never', response_mode='final')
+def programmer_agent_tool(query: str, workspace_id: str) -> str:
+    """Delega creazione di tool/automazioni al Programmatore. Richiede l'ID di un workspace già creato nella pagina Programma."""
+    _require_supervisor_permission("delegate_programmer")
+    from programmer_agent.workspace import bind_workspace
+
+    def load():
+        from programmer_agent.programmer_graph import graph
+        return graph
+
+    with bind_workspace(workspace_id):
+        return _delegate_agent(target="programmer_agent", capability="programming", query=query,
+                               thread_id=workspace_id, graph_loader=load)
+
+
 supervisor_tools = [
     calculator_tool,
     system_status_tool,
@@ -363,6 +378,7 @@ supervisor_tools = [
     search_agent_tool,
     audio_agent_tool,
     email_agent_tool,
+    programmer_agent_tool,
 ]
 
 

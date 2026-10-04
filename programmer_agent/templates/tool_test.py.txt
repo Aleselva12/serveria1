@@ -1,0 +1,10 @@
+import unittest
+from generated_tools.normalize import normalize_text
+
+
+class NormalizeTests(unittest.TestCase):
+    def test_whitespace(self):
+        self.assertEqual(normalize_text("  ciao\n mondo  "), "ciao mondo")
+
+    def test_empty(self):
+        self.assertEqual(normalize_text("\t "), "")

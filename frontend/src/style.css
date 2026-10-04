@@ -3229,3 +3229,24 @@ select:disabled {
     min-height: 360px;
   }
 }
+
+/* Programmer workspace: source viewer, diff and isolated check reports. */
+.programmer-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:10px 0; }
+.programmer-actions input { flex:1; min-width:180px; padding:10px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:inherit; }
+.programmer-actions button, .programmer-pagination button { padding:8px 12px; border-radius:8px; cursor:pointer; }
+.programmer-error { color:#a43b32; padding:12px; background:#fff1ef; border-radius:8px; }
+.programmer-file-list { max-height:500px; overflow:auto; margin-top:12px; }
+.programmer-file-list button { display:block; width:100%; text-align:left; background:transparent; color:inherit; border:0; padding:6px; font-size:11px; overflow-wrap:anywhere; cursor:pointer; }
+.programmer-file-list button.selected { background:#e5eaf5; border-radius:5px; }
+.editor-sidebar > input { width:100%; box-sizing:border-box; padding:8px; }
+.editor-sidebar > small { display:block; overflow-wrap:anywhere; margin-top:12px; font-size:10px; }
+.programmer-code { min-height:330px; max-height:650px; overflow:auto; padding:18px; }
+.programmer-code pre { font-family:monospace; font-size:12px; line-height:1.6; margin:8px 0 18px; white-space:pre; }
+.programmer-pagination { display:flex; align-items:center; gap:10px; }
+.programmer-report { max-height:240px; overflow:auto; font-size:11px; white-space:pre-wrap; }
+.programmer-upload { display:flex; gap:10px; align-items:center; font-size:12px; flex-wrap:wrap; }
+.programmer-upload input { max-width:260px; }
+.programmer-message { padding:12px; margin-bottom:12px; border-radius:10px; background:#f1f3f8; }
+.programmer-message.user { background:#e9effb; }
+.programmer-message p { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; line-height:1.6; margin:6px 0; }
+.copilot-body { max-height:650px; overflow:auto; }

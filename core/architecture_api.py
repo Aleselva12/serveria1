@@ -10,6 +10,7 @@ router = APIRouter(prefix="/api/v1", tags=["Architecture"])
 GRAPH_SOURCES = (
     ("supervisor", "graph", "graph"),
     ("structure_agent", "structure_agent.structure_graph", "graph"),
+    ("programmer_agent", "programmer_agent.programmer_graph", "graph"),
     ("local_research_agent", "search_agent.search_graph", "create_search_graph"),
     ("audio_agent", "audio_agent.audio_graph", "graph"),
     ("email_quotes_agent", "email_agent.email_graph", "graph"),
@@ -34,7 +35,7 @@ def architecture_graph():
     # Delegation edges are derived from tools bound to the supervisor.
     from tools import supervisor_tools
     targets = {"structure_agent_tool": "structure_agent", "search_agent_tool": "local_research_agent",
-               "audio_agent_tool": "audio_agent", "email_agent_tool": "email_quotes_agent"}
+               "audio_agent_tool": "audio_agent", "email_agent_tool": "email_quotes_agent", "programmer_agent_tool": "programmer_agent"}
     delegations = [dict(source="supervisor", target=targets[t.name], tool=t.name)
                    for t in supervisor_tools if t.name in targets]
     payload = dict(graphs=graphs, delegations=delegations, errors=errors)
@@ -74,16 +75,17 @@ def architecture_overview():
     registry = get_registry()
     roles = {"supervisor": "supervisor", "structure_agent": "structure",
              "local_research_agent": "research", "audio_agent": "audio",
-             "email_quotes_agent": "email"}
+             "email_quotes_agent": "email", "programmer_agent": "programmer"}
     nodes = [{**c, "kind": "agent" if c["id"] in roles else c["kind"],
               "model": get_model_name(roles[c["id"]]) if c["id"] in roles else None}
              for c in registry["components"] if c["id"] in roles or c["kind"] == "interface"]
     targets = {"structure_agent_tool": "structure_agent", "search_agent_tool": "local_research_agent",
-               "audio_agent_tool": "audio_agent", "email_agent_tool": "email_quotes_agent"}
+               "audio_agent_tool": "audio_agent", "email_agent_tool": "email_quotes_agent", "programmer_agent_tool": "programmer_agent"}
     edges = [dict(source="react_ui", target="fastapi_backend", label="Richiesta chat", kind="request"),
              dict(source="fastapi_backend", target="supervisor", label="/chat", kind="request")]
     edges += [dict(source="supervisor", target=targets[t.name], label="Delega", kind="delegation")
               for t in supervisor_tools if t.name in targets]
+    edges.append(dict(source="fastapi_backend", target="programmer_agent", label="Copilot /programmer/runs", kind="request"))
     components = [c for c in registry["components"] if c["kind"] == "core" and c["id"] != "supervisor"]
     direct_paths = []
     for identifier, name, trigger, router, description in (

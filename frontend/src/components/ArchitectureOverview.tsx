@@ -6,7 +6,7 @@ import "./architecture-overview.css";
 const label = (id: string, name: string) => ({
   react_ui: "Interfaccia", fastapi_backend: "API · FastAPI", supervisor: "Cora · Agente centrale",
   structure_agent: "Struttura", local_research_agent: "Documenti", audio_agent: "Audio",
-  email_quotes_agent: "Mail e preventivi",
+  email_quotes_agent: "Mail e preventivi", programmer_agent: "Programmatore",
 }[id] || name);
 
 export default function ArchitectureOverview({ health, selectedNode, onSelect }: {

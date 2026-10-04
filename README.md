@@ -17,19 +17,20 @@ Per accesso remoto mantenere backend, PostgreSQL e Ollama nella rete privata. Se
 
 ## Agenti e capacità
 
-Il Supervisor risponde o delega a quattro agenti distinti:
+Il Supervisor risponde o delega a cinque agenti distinti:
 
 | Agente | Capacità implementate |
 | --- | --- |
 | Supervisor | Calcolatrice, monitoraggio, lettura file autorizzati, registro componenti, memoria persistente e deleghe. |
 | Structure | Planning, evaluation, control e management; scrive soltanto nel proprio workspace. |
+| Programmer | Crea tool e automazioni in snapshot separati; skill, catalogo, Graphify opzionale e verifiche statiche/Docker. |
 | Local Research | Documenti locali, ricerca lessicale, lettura Word/PDF/testo, nuovi Word e append non distruttivo. Non cerca sul web. |
 | Audio | Trascrizione locale faster-whisper, timestamp, diarizzazione locale opzionale, riassunti e salvataggio trascrizioni. |
 | Email & Quotes | Ricerca e lettura Gmail, riepiloghi, bozze Gmail e preventivi PDF da dati strutturati. Invio email bloccato. |
 
 Le azioni calendario sono tool assegnati agli agenti autorizzati, senza un agente calendario dedicato. PostgreSQL è la fonte degli eventi, con versioni, storico, eliminazione recuperabile e proposte.
 
-Modello predefinito: `gpt-oss:20b`, endpoint `http://localhost:11435`. Le variabili `CORA_MODEL_SUPERVISOR/STRUCTURE/RESEARCH/AUDIO/EMAIL` consentono scelte per ruolo. La configurazione effettiva si trova in `core/models.py`; le richieste dei modelli non usano proxy di ambiente.
+Modello predefinito: `gpt-oss:20b`, endpoint `http://localhost:11435`. Le variabili `CORA_MODEL_SUPERVISOR/STRUCTURE/RESEARCH/AUDIO/EMAIL/PROGRAMMER` consentono scelte per ruolo. La configurazione effettiva si trova in `core/models.py`; le richieste dei modelli non usano proxy di ambiente.
 
 ## Runtime e prestazioni
 
@@ -118,7 +119,7 @@ PostgreSQL + pgvector conserva conversazioni/messaggi, memorie/relazioni/fonti, 
 
 Il contesto permanente in modifica non viene sovrascritto dai controlli periodici, dalle riconnessioni o da salvataggi precedenti ancora in volo. Cataloghi e permessi vengono caricati all’apertura (i permessi anche dopo modifica), mentre gli stati restano aggiornati periodicamente; il polling si sospende nella scheda nascosta.
 
-La UI comprende Home con misure reali disponibili, chat con cronologia persistente e streaming, File server/Libreria IA, architettura generale e tools con editor grafico delle bozze, Programma predisposto, calendario mese/giorno, Attività, Impostazioni e Gestione Memoria. In assenza di backend si può visualizzare l'interfaccia offline senza fingere che le operazioni siano riuscite.
+La UI comprende Home con misure reali disponibili, chat con cronologia persistente e streaming, File server/Libreria IA, architettura generale e tools con editor grafico delle bozze, Programma con Copilot e workspace del programmatore, calendario mese/giorno, Attività, Impostazioni e Gestione Memoria. In assenza di backend si può visualizzare l'interfaccia offline senza fingere che le operazioni siano riuscite.
 
 I file server sono gestiti sotto risorse autorizzate da `CORA_FILE_ROOTS`, con upload, download, cartelle, copia/spostamento/rinomina, cestino e ripristino. La Libreria IA opera su copie in `CORA_KNOWLEDGE_ROOT`; gli upload conservano un originale distinto. Protezioni di percorso, link, limiti upload, conflitti e sola lettura restano attive. I file caricati sul server non diventano automaticamente documenti dell'IA. Non puntare cartelle scrivibili agli archivi interni di Immich/Nextcloud.
 
@@ -129,4 +130,6 @@ I file server sono gestiti sotto risorse autorizzate da `CORA_FILE_ROOTS`, con u
 - Import e copertura: `python smoke_check.py`.
 - Frontend, nella sua cartella: `npm test` e `npm run build`.
 
-Non ancora implementati: orchestratore autonomo, agente programmatore e automodifica, esecutore/pianificazione delle bozze grafiche, server multiutente, bus distribuito, arresto forzato sicuro di qualsiasi tool, ripresa automatica dei run interrotti. La latenza sul PC reale e il comportamento del modello locale vanno misurati con la nuova profilazione; i test non equivalgono a un benchmark di Ollama o Whisper sul server finale.
+Non ancora implementati: orchestratore autonomo, automodifica e attivazione del codice generato, esecutore/pianificazione delle bozze grafiche, server multiutente, bus distribuito, arresto forzato sicuro di qualsiasi tool, ripresa automatica dei run interrotti. La latenza sul PC reale e il comportamento del modello locale vanno misurati con la nuova profilazione; i test non equivalgono a un benchmark di Ollama o Whisper sul server finale.
+
+Per il programmatore, i workspace separati, le skill e la configurazione opzionale di Graphify/Docker vedere [programmer_agent/README.md](programmer_agent/README.md).

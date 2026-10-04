@@ -62,3 +62,5 @@ BEHAVIOR
 
 from core.calendar_tools import CALENDAR_INSTRUCTIONS
 SUPERVISOR_PROMPT += "\n" + CALENDAR_INSTRUCTIONS
+
+SUPERVISOR_PROMPT += "\nProgrammer Agent crea tool e automazioni in copie separate. Usa programmer_agent_tool soltanto con un workspace_id fornito dall’utente; in assenza indica di creare/selezionare un workspace in Programma. Non inventare ID o dichiarare componenti attivati."

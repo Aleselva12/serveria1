@@ -37,6 +37,7 @@ from core.context_budget import prepare_context, schedule_summary
 from core.runtime import runtime, RunStopped, checkpoint, publish_text
 from core.runtime_api import router as runtime_router
 from core.permissions_api import router as permissions_router
+from programmer_agent.api import router as programmer_router
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Request
 
@@ -77,6 +78,7 @@ app.include_router(library_router)
 app.include_router(calendar_router)
 app.include_router(architecture_router)
 app.include_router(automation_router)
+app.include_router(programmer_router)
 
 app.add_middleware(
     CORSMiddleware,

@@ -143,6 +143,16 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         ),
     ),
     ComponentDefinition(
+        id="programmer_agent", name="Programmer Agent", kind="agent",
+        description="Crea tool e automazioni nel workspace separato; modifica bozze, consulta skill e Graphify, verifica con controlli statici o Docker.",
+        module="programmer_agent.programmer_graph",
+        capabilities=(Capability("code_workspace", "Legge e modifica uno snapshot filtrato, senza scrivere nel codice attivo."),
+                      Capability("coding_skills", "Consulta skill, modelli e contratti dei tool reali."),
+                      Capability("code_checks", "Controlla sintassi e test in Docker senza rete o dati personali."),
+                      Capability("code_graph", "Consulta un grafo Graphify importato, con avviso di obsolescenza.")),
+        dependencies=("ollama",),
+    ),
+    ComponentDefinition(
         id="structure_agent",
         name="Structure Agent",
         kind="agent",
