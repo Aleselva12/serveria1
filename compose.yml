@@ -36,6 +36,7 @@ services:
       CORA_CHAT_TRANSCRIPT_ROOT: /state/chat-transcripts
       CORA_STRUCTURE_WORKSPACE: /state/structure_workspace
       CORA_AUTOMATION_ROOT: /state/automation_drafts
+      CORA_PROGRAMMER_WORKSPACE_ROOT: /state/programmer
       CORA_GMAIL_CREDENTIALS_PATH: /state/gmail/credentials.json
       CORA_GMAIL_TOKEN_PATH: /state/gmail/token.json
       CORA_WHISPER_MODEL: /state/models/whisper

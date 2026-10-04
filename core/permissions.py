@@ -86,6 +86,7 @@ SUPERVISOR_RULES: tuple[ActionPermission, ...] = (
     ActionPermission("supervisor", "delegate_research", PermissionLevel.EXECUTE, ApprovalPolicy.AUTO),
     ActionPermission("supervisor", "delegate_audio", PermissionLevel.EXECUTE, ApprovalPolicy.AUTO),
     ActionPermission("supervisor", "delegate_email", PermissionLevel.EXECUTE, ApprovalPolicy.AUTO),
+    ActionPermission("supervisor", "delegate_programmer", PermissionLevel.EXECUTE, ApprovalPolicy.AUTO),
 )
 
 
@@ -187,6 +188,18 @@ EMAIL_AGENT_RULES: tuple[ActionPermission, ...] = (
 )
 
 
+PROGRAMMER_AGENT_RULES: tuple[ActionPermission, ...] = (
+    ActionPermission("programmer_agent", "read_workspace", PermissionLevel.READ, ApprovalPolicy.AUTO, "programmer_workspace"),
+    ActionPermission("programmer_agent", "write_workspace", PermissionLevel.WRITE, ApprovalPolicy.AUTO, "programmer_workspace"),
+    ActionPermission("programmer_agent", "inspect_catalog", PermissionLevel.READ, ApprovalPolicy.AUTO),
+    ActionPermission("programmer_agent", "read_skills", PermissionLevel.READ, ApprovalPolicy.AUTO),
+    ActionPermission("programmer_agent", "check_workspace", PermissionLevel.WRITE, ApprovalPolicy.AUTO, "programmer_workspace"),
+    ActionPermission("programmer_agent", "execute_checks", PermissionLevel.EXECUTE, ApprovalPolicy.AUTO, "docker_checks"),
+    ActionPermission("programmer_agent", "modify_live_source", PermissionLevel.WRITE, ApprovalPolicy.BLOCKED),
+    ActionPermission("programmer_agent", "activate_component", PermissionLevel.ADMIN, ApprovalPolicy.BLOCKED),
+)
+
+
 CALENDAR_ACTORS = ("supervisor", "email_quotes_agent", "audio_agent", "local_research_agent")
 CALENDAR_RULES = tuple(
     ActionPermission(actor, "calendar_" + action + "_event", level, policy, "calendar")
@@ -207,6 +220,7 @@ RULES: tuple[ActionPermission, ...] = (
     + AUDIO_AGENT_RULES
     + EMAIL_AGENT_RULES
     + CALENDAR_RULES
+    + PROGRAMMER_AGENT_RULES
 )
 
 
@@ -225,7 +239,9 @@ EXPECTED_ACTIONS: dict[str, set[str]] = {
         "delegate_research",
         "delegate_audio",
         "delegate_email",
+        "delegate_programmer",
     },
+    "programmer_agent": {r.action for r in PROGRAMMER_AGENT_RULES},
     "structure_agent": {
         "inspect_structure",
         "inspect_runtime",

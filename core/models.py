@@ -14,6 +14,7 @@ ROLE_MODEL_ENV = {
     "audio": "CORA_MODEL_AUDIO",
     "email": "CORA_MODEL_EMAIL",
     "structure": "CORA_MODEL_STRUCTURE",
+    "programmer": "CORA_MODEL_PROGRAMMER",
 }
 
 

@@ -63,7 +63,7 @@ class RuntimeTests(unittest.TestCase):
         first = architecture_graph()
         self.assertEqual(first['errors'], [])
         self.assertEqual(first['version'], architecture_graph()['version'])
-        self.assertEqual(len(first['graphs']), 5)
+        self.assertEqual(len(first['graphs']), 6)
         from graph import graph
         supervisor = next(g for g in first['graphs'] if g['id'] == 'supervisor')
         self.assertEqual({(e['source'], e['target']) for e in supervisor['edges']},

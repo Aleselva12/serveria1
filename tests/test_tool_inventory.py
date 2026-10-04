@@ -46,7 +46,7 @@ class InventoryTest(unittest.TestCase):
     def test_missing_source_is_reported_not_marked_implemented(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = module.inventory(root=Path(tmp))
-        self.assertEqual(len(result["errors"]), 5)
+        self.assertEqual(len(result["errors"]), 6)
         self.assertTrue(all(e["status"] == "planned" for e in result["entries"]))
 
     def test_calendar_moves_from_planned_to_connected_only_with_graph_binding(self):

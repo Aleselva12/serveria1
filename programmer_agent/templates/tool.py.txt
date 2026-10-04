@@ -1,0 +1,14 @@
+"""Bozza: registra attore/azione e collega l'adapter prima dell'attivazione."""
+from core.governance import agent_tool
+
+
+def normalize_text(value: str) -> str:
+    """Logica pura, verificabile senza avviare il modello."""
+    return " ".join(value.split())
+
+
+@agent_tool("generated_tool", capability="normalize_text", actions=("normalize_text",),
+            effect="compute", retry="safe", version=1)
+def normalize_text_tool(value: str) -> str:
+    """Normalizza gli spazi nel testo fornito dall'utente."""
+    return normalize_text(value)
