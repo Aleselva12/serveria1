@@ -1,10 +1,5 @@
 /** Collegamenti ancora incompleti. Le funzioni già operative non appartengono al backlog. */
 export const missingConnections = {
-  code: {
-    label: "IDE completo e applicazione delle modifiche",
-    detail: "Il Programmatore lavora già su workspace isolati con Copilot, lettura, scrittura, differenze e verifiche. Restano un IDE completo, build frontend automatica e integrazione delle modifiche nel codice attivo.",
-    endpoints: "Integrazione nel codice attivo e build frontend da definire; /api/v1/programmer è collegato",
-  },
   files: {
     label: "Sincronizzazione delle copie IA",
     detail: "Anteprime, ricerca nelle sottocartelle, link privati revocabili e upload riprendibili sono collegati. La sincronizzazione bidirezionale fra originali e copie IA resta un lavoro futuro.",
@@ -26,7 +21,7 @@ export const homeRoadmap = {
     { label: "Accesso, permessi e approvazioni", detail: "Login del proprietario, policy delle capability e proposte consultabili in Attività." },
     { label: "Runtime e diagnostica", detail: "Coda, stati persistenti, cancellazione cooperativa, registro operazioni, bus eventi e profilazione." },
     { label: "File, calendario e Tools", detail: "File server e Libreria IA con anteprime, ricerca ricorsiva, condivisioni private e upload riprendibili; calendario e bozze delle automazioni." },
-    { label: "Programmatore", detail: "Copilot, workspace isolati, tool/skill, verifiche e Graphify opzionale. Il codice prodotto non viene applicato o attivato automaticamente." },
+    { label: "Programmatore", detail: "Copilot, workspace isolati, 14 strumenti, skill, registro componenti, consegne ZIP e verifiche Python/contratti/TypeScript/build frontend. Mappa Graphify opzionale con ricerca ed esplorazione. Integrazione e attivazione restano manuali." },
     { label: "Allegati chat e Audio", detail: "Documenti allegati alle richieste e pagina Audio per registrazioni salvate, trascrizione locale, correzioni ed esportazione." },
   ],
   next: [
