@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import hashlib
 import threading
 from contextlib import contextmanager
 from pathlib import Path
@@ -18,6 +19,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 DATABASE_URL = os.getenv("CORA_DATABASE_URL", "").strip()
 SCHEMA_FILE = PROJECT_ROOT / "database" / "schema.sql"
+MIGRATIONS_ROOT = PROJECT_ROOT / 'database' / 'migrations'
 _schema_ready = False
 _schema_lock = threading.Lock()
 _pool_lock = threading.Lock()
@@ -42,7 +44,28 @@ def _ensure_schema(connection: psycopg.Connection) -> None:
         return
     if not SCHEMA_FILE.exists():
         raise RuntimeError(f"Schema PostgreSQL non trovato: {SCHEMA_FILE}")
-    connection.execute(SCHEMA_FILE.read_text(encoding="utf-8"))
+    # One installer at a time, even across processes/host provisioning commands.
+    connection.execute('SELECT pg_advisory_xact_lock(709241001)')
+    connection.execute('''CREATE TABLE IF NOT EXISTS cora_schema_migrations (
+        version TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW())''')
+    files = [('0001_baseline',SCHEMA_FILE)]
+    files += [(path.stem,path) for path in sorted(MIGRATIONS_ROOT.glob('[0-9][0-9][0-9][0-9]_*.sql'))]
+    versions = [version for version,_ in files]
+    if len(versions)!=len({version[:4] for version in versions}) or any(version[:4]<='0001' for version,_ in files[1:]):
+        raise RuntimeError('Migration versions must be unique and follow the baseline')
+    applied = {row['version']:row['checksum'] for row in connection.execute('SELECT version,checksum FROM cora_schema_migrations').fetchall()}
+    if set(applied)-set(versions): raise RuntimeError('Database schema is newer than this code; rollback requires a matching backup')
+    if applied and any(version not in applied and version<max(applied) for version in versions):
+        raise RuntimeError('New migrations must follow every applied version')
+    for version,path in files:
+        # Git may check out CRLF on the test PC and LF on Debian.
+        content=path.read_bytes().replace(b'\r\n',b'\n')
+        checksum=hashlib.sha256(content).hexdigest()
+        if version in applied:
+            if applied[version]!=checksum:raise RuntimeError('Applied migration changed: '+version)
+            continue
+        connection.execute(content.decode('utf-8'))
+        connection.execute('INSERT INTO cora_schema_migrations(version,checksum) VALUES(%s,%s)',(version,checksum))
     connection.commit()
     _schema_ready = True
 
