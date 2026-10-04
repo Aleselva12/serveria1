@@ -262,17 +262,18 @@ export const api = {
   async systemContext(): Promise<SystemContext> {
     return request<SystemContext>("/memory/context");
   },
-  async saveSystemContext(content: string): Promise<SystemContext> {
+  async saveSystemContext(content: string, expectedVersion: number): Promise<SystemContext> {
     return request<SystemContext>("/memory/context", {
       method: "PUT",
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, expected_version:expectedVersion }),
     });
   },
-  async memories(query = "", memoryType = "", limit = 100): Promise<PersistentMemory[]> {
+  async memories(query = "", memoryType = "", limit = 100, includeExpired = false): Promise<PersistentMemory[]> {
     const params = new URLSearchParams({
       query,
       memory_type: memoryType,
       limit: String(limit),
+      include_expired:String(includeExpired),
     });
     return request<PersistentMemory[]>("/memory?" + params.toString());
   },
@@ -282,6 +283,11 @@ export const api = {
     content: string;
     source?: string;
     importance?: number;
+    assertion?: PersistentMemory["assertion"];
+    confidence?: number | null;
+    expires_at?: string | null;
+    expected_version?: number;
+    expected_memory_id?: string;
   }): Promise<PersistentMemory> {
     return request<PersistentMemory>("/memory", {
       method: "POST",
@@ -291,6 +297,9 @@ export const api = {
         ...input,
       }),
     });
+  },
+  async memoryHistory(id: string): Promise<{version:number; snapshot:PersistentMemory; editor:string; created_at:string}[]> {
+    return request("/memory/"+encodeURIComponent(id)+"/history");
   },
   async deleteMemory(id: string): Promise<{ deleted: boolean }> {
     return request<{ deleted: boolean }>("/memory/" + encodeURIComponent(id), {

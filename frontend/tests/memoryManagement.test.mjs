@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+import {readFile} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+import ts from 'typescript';
+import React from 'react';
+import {create,act} from 'react-test-renderer';
+const require=createRequire(import.meta.url);
+globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+globalThis.window={setTimeout,clearTimeout};
+let sent;
+const memory={id:'one',memory_type:'note',key:'owner',content:'Previous',version:4,assertion:'inference',confidence:0.5,owner_kind:'user',source:'user_explicit',updated_at:'2026-10-04T00:00:00Z',metadata:{}};
+globalThis.__memoryApi={memories:async()=>[memory],episodes:async()=>[],workingMemory:async()=>[],saveMemory:async input=>{sent=input;throw new Error('Memoria cambiata: rileggi la versione corrente.');},memoryHistory:async()=>[{version:4,snapshot:memory,editor:'user',created_at:memory.updated_at}]};
+const source=await readFile(new URL('../src/components/MemoryManagement.tsx',import.meta.url),'utf8');
+let compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022,jsx:ts.JsxEmit.React}}).outputText;
+compiled='import React from '+JSON.stringify(pathToFileURL(require.resolve('react')).href)+';\n'+compiled.replace('from "react"','from '+JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace(/import \{[^}]*\} from "lucide-react";/s,'const ArrowLeft=()=>null,Brain=()=>null,Clock3=()=>null,Database=()=>null,Layers3=()=>null,Plus=()=>null,RefreshCw=()=>null,Search=()=>null,Trash2=()=>null;').replace('import { api } from "../services/api";','const api=globalThis.__memoryApi;');
+const {default:Memory}=await import('data:text/javascript;base64,'+Buffer.from(compiled).toString('base64'));
+const text=node=>node.children.map(c=>typeof c==='string'?c:text(c)).join('');
+test('editing carries the read version and a conflict retains the draft',async()=>{
+ let view;await act(async()=>{view=create(React.createElement(Memory,{onBack(){}}));});
+ await act(async()=>view.root.findAllByType('button').find(b=>text(b)==='Modifica').props.onClick());
+ await act(async()=>view.root.findByType('textarea').props.onChange({target:{value:'My correction'}}));
+ await act(async()=>await view.root.findAllByType('button').find(b=>text(b).includes('Salva versione 5')).props.onClick());
+ assert.equal(sent.expected_version,4);assert.equal(sent.expected_memory_id,'one');assert.equal(sent.content,'My correction');assert.equal(sent.assertion,'inference');
+ assert.equal(view.root.findByType('textarea').props.value,'My correction');
+ assert.ok(view.root.findAllByProps({className:'connection-error'}).length);
+ await act(async()=>view.unmount());
+});
+test('history shows the stored version without rewriting the memory',async()=>{
+ let view;await act(async()=>{view=create(React.createElement(Memory,{onBack(){}}));});
+ await act(async()=>await view.root.findAllByType('button').find(b=>text(b)==='Versioni').props.onClick());
+ assert.ok(view.root.findAllByType('small').some(node=>text(node).includes('v4')));
+ assert.ok(view.root.findAllByType('button').some(b=>text(b)==='Chiudi storico'));
+ await act(async()=>view.unmount());
+});

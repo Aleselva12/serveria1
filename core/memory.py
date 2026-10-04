@@ -36,107 +36,97 @@ def _public_memory(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+class MemoryConflict(ValueError):
+    """The caller has not read the current version. No memory was changed."""
+
+
+ASSERTIONS = {"user_statement", "observation", "inference", "unclassified"}
+
+
+def _owner_update_approved(action="remember_memory"):
+    from core.governance import invocation, approved_action
+    call, grant = invocation.get(), approved_action.get()
+    return bool(call and grant and grant[0] == call["actor"]
+                and action in grant[1] and grant[2:] == (call["tool_id"], call["payload"]))
+
+
 def save_memory(
-    *,
-    memory_type: str,
-    key: str,
-    content: str,
-    source: str = "user_explicit",
-    importance: int = 3,
-    expires_at: str | None = None,
-    metadata: dict[str, Any] | None = None,
-    thread_id: str | None = None,
+    *, memory_type: str, key: str, content: str, source: str = "user_explicit",
+    importance: int = 3, expires_at: str | None = None,
+    metadata: dict[str, Any] | None = None, thread_id: str | None = None,
+    assertion: str = "user_statement", confidence: float | None = None,
+    expected_version: int = 0, editor: str = "user", source_ref: str | None = None,
+    expected_memory_id: str | None = None,
 ) -> dict[str, Any]:
-    """Create or update one persistent memory in PostgreSQL + pgvector."""
-    normalized_type = memory_type.strip().lower()
+    """Versioned write. expected_version=0 creates; updates require a read version.
+
+    editor is supplied by trusted entrypoints, never model arguments or metadata.
+    Agent updates of owner/legacy memories require an exact-action owner approval.
+    """
+    normalized_type, normalized_key, normalized_content = memory_type.strip().lower(), key.strip(), content.strip()
     if normalized_type not in ALLOWED_MEMORY_TYPES:
-        raise ValueError(
-            "memory_type non valido. Valori ammessi: "
-            + ", ".join(sorted(ALLOWED_MEMORY_TYPES))
-        )
-
-    normalized_key = key.strip()
-    normalized_content = content.strip()
-    if not normalized_key or not normalized_content:
-        raise ValueError("key e content non possono essere vuoti.")
-
-    importance = max(1, min(int(importance), 5))
-    embedding, embedding_model = embed_text(normalized_content)
-    dimensions = len(embedding) if embedding else None
+        raise ValueError("memory_type non valido.")
+    if not normalized_key or len(normalized_key) > 200 or not normalized_content or len(normalized_content) > 12000:
+        raise ValueError("Chiave (1–200 caratteri) e contenuto (1–12000) richiesti.")
+    if assertion not in ASSERTIONS or editor not in {"user", "agent"}:
+        raise ValueError("Classificazione o autore non valido.")
+    if confidence is not None and not 0 <= confidence <= 1:
+        raise ValueError("La confidenza deve essere tra 0 e 1.")
+    if editor == "agent" and assertion == "unclassified":
+        raise ValueError("L'agente deve distinguere affermazioni, osservazioni e deduzioni.")
+    if expected_version < 0 or not 1 <= importance <= 5:
+        raise ValueError("Versione o importanza non valida.")
     parsed_expiry = datetime.fromisoformat(expires_at) if expires_at else None
-    memory_id = uuid.uuid4()
-
+    if parsed_expiry and (parsed_expiry.tzinfo is None or parsed_expiry <= _utc_now()):
+        raise ValueError("La scadenza deve essere futura e includere il fuso orario.")
+    from psycopg.types.json import Jsonb
+    # Serialize competing creates as well as edits, without holding a lock during embeddings.
+    # The text commits immediately; derived embeddings are indexed in the idle worker.
     with db_connection() as connection:
-        row = connection.execute(
-            """
-            INSERT INTO memories (
-                id, memory_type, key, content, source, importance,
-                expires_at, embedding, embedding_model,
-                embedding_dimensions, metadata
-            )
-            VALUES (
-                %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s::jsonb
-            )
-            ON CONFLICT (memory_type, key)
-            DO UPDATE SET
-                content = EXCLUDED.content,
-                source = EXCLUDED.source,
-                importance = EXCLUDED.importance,
-                updated_at = NOW(),
-                expires_at = EXCLUDED.expires_at,
-                embedding = EXCLUDED.embedding,
-                embedding_model = EXCLUDED.embedding_model,
-                embedding_dimensions = EXCLUDED.embedding_dimensions,
-                metadata = EXCLUDED.metadata
-            RETURNING *,
-                CASE WHEN created_at = updated_at THEN 'created' ELSE 'updated' END AS action
-            """,
-            (
-                memory_id,
-                normalized_type,
-                normalized_key,
-                normalized_content,
-                source,
-                importance,
-                parsed_expiry,
-                Vector(embedding) if embedding else None,
-                embedding_model,
-                dimensions,
-                json.dumps(metadata or {}, ensure_ascii=False),
-            ),
-        ).fetchone()
-        connection.execute(
-            """
-            INSERT INTO memory_sources (
-                id, memory_id, source_type, source_ref, metadata
-            )
-            VALUES (%s, %s, %s, %s, %s::jsonb)
-            """,
-            (
-                uuid.uuid4(),
-                row["id"],
-                source,
-                (metadata or {}).get("source_ref"),
-                json.dumps(metadata or {}, ensure_ascii=False),
-            ),
-        )
-        connection.commit()
-
+        connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))", (normalized_type + ":" + normalized_key,))
+        previous = connection.execute("SELECT * FROM memories WHERE memory_type=%s AND key=%s FOR UPDATE",
+                                      (normalized_type, normalized_key)).fetchone()
+        if (previous["version"] if previous else 0) != expected_version:
+            raise MemoryConflict("Memoria cambiata: rileggi la versione corrente prima di aggiornare.")
+        if previous and (not expected_memory_id or str(previous['id']) != str(uuid.UUID(expected_memory_id))):
+            raise MemoryConflict("Identità della memoria cambiata: rileggi ID e versione prima di aggiornare.")
+        if not previous and expected_memory_id:
+            raise MemoryConflict("La memoria letta è stata eliminata; la creazione richiede una nuova richiesta.")
+        if previous and editor == "agent" and previous["owner_kind"] != "agent" and not _owner_update_approved():
+            from core.governance import ApprovalRequired
+            raise ApprovalRequired("supervisor", "remember_memory")
+        owner = previous["owner_kind"] if previous else editor
+        if editor == "user": owner = "user"
+        data = dict(metadata or {})
+        # These references cannot be overridden by metadata from the model.
+        data.update(editor=editor, source_ref=source_ref, thread_id=thread_id)
+        row = connection.execute("""
+            INSERT INTO memories (id,memory_type,key,content,source,importance,expires_at,
+                metadata,assertion,confidence,owner_kind,version)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,1)
+            ON CONFLICT (memory_type,key) DO UPDATE SET
+                content=EXCLUDED.content,source=EXCLUDED.source,importance=EXCLUDED.importance,
+                expires_at=EXCLUDED.expires_at,metadata=EXCLUDED.metadata,assertion=EXCLUDED.assertion,
+                confidence=EXCLUDED.confidence,owner_kind=EXCLUDED.owner_kind,
+                version=memories.version+1,updated_at=NOW(),embedding=NULL,
+                embedding_model=NULL,embedding_dimensions=NULL
+            RETURNING *""", (uuid.uuid4(),normalized_type,normalized_key,normalized_content,source,
+                importance,parsed_expiry,Jsonb(data),assertion,confidence,owner)).fetchone()
+        connection.execute("""INSERT INTO memory_versions (memory_id,version,snapshot,editor)
+            SELECT id,version,to_jsonb(memories)-'embedding',%s FROM memories WHERE id=%s""", (editor,row["id"]))
+        connection.execute("""INSERT INTO memory_sources (id,memory_id,source_type,source_ref,metadata)
+            VALUES (%s,%s,%s,%s,%s)""", (uuid.uuid4(),row["id"],source,source_ref,Jsonb({**data,"version":row["version"]})))
     result = _public_memory(row)
-    log_event(
-        "memory_write",
-        component="memory_store",
-        thread_id=thread_id,
-        data={
-            "memory_id": str(result["id"]),
-            "memory_type": normalized_type,
-            "action": result["action"],
-            "embedding_model": embedding_model,
-            "embedding_dimensions": dimensions,
-        },
-    )
+    result["action"] = "updated" if previous else "created"
+    log_event("memory_write", component="memory_store", thread_id=thread_id,
+              data={"memory_id":str(row["id"]),"version":row["version"],"assertion":assertion,"action":result["action"]})
     return result
+
+
+def memory_history(memory_id: str, *, limit: int = 50):
+    with db_connection() as connection:
+        return connection.execute("""SELECT version,snapshot,editor,created_at FROM memory_versions
+            WHERE memory_id=%s ORDER BY version DESC LIMIT %s""", (uuid.UUID(memory_id),max(1,min(limit,100)))).fetchall()
 
 
 def search_memories(
@@ -145,6 +135,7 @@ def search_memories(
     memory_type: str = "",
     limit: int = 20,
     thread_id: str | None = None,
+    include_expired: bool = False,
 ) -> list[dict[str, Any]]:
     """Hybrid lexical + semantic search over persistent memories."""
     limit = max(1, min(int(limit), 100))
@@ -159,7 +150,7 @@ def search_memories(
 
     # Do not load an embedding model for an empty memory store.
     with db_connection() as connection:
-        if not connection.execute("SELECT EXISTS(SELECT 1 FROM memories WHERE expires_at IS NULL OR expires_at > NOW()) AS present").fetchone()["present"]:
+        if not connection.execute("SELECT EXISTS(SELECT 1 FROM memories WHERE %s OR expires_at IS NULL OR expires_at > NOW()) AS present",(include_expired,)).fetchone()["present"]:
             return []
     query_embedding, embedding_model = (
         embed_text(normalized_query, timeout=float(os.getenv("CORA_MEMORY_EMBED_TIMEOUT_SECONDS", "5")), cached=True)
@@ -167,8 +158,8 @@ def search_memories(
     )
     dimensions = len(query_embedding) if query_embedding else None
 
-    clauses = ["(expires_at IS NULL OR expires_at > NOW())"]
-    params: list[Any] = []
+    clauses = ["(%s OR expires_at IS NULL OR expires_at > NOW())"]
+    params: list[Any] = [include_expired]
 
     if normalized_type:
         clauses.append("memory_type = %s")
@@ -238,8 +229,14 @@ def search_memories(
     return results
 
 
-def delete_memory(memory_id: str, *, thread_id: str | None = None) -> bool:
+def delete_memory(memory_id: str, *, thread_id: str | None = None, editor="user", expected_version=None) -> bool:
     with db_connection() as connection:
+        row = connection.execute("SELECT * FROM memories WHERE id=%s FOR UPDATE",(uuid.UUID(memory_id),)).fetchone()
+        if row and editor == 'agent':
+            if expected_version != row['version']: raise MemoryConflict("Rileggi la versione prima di eliminare.")
+            if row['owner_kind'] != 'agent' and not _owner_update_approved('forget_memory'):
+                from core.governance import ApprovalRequired
+                raise ApprovalRequired('supervisor','forget_memory')
         result = connection.execute(
             "DELETE FROM memories WHERE id = %s",
             (uuid.UUID(memory_id.strip()),),

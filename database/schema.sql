@@ -50,6 +50,27 @@ CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(memory_type);
 CREATE INDEX IF NOT EXISTS idx_memories_key ON memories(key);
 CREATE INDEX IF NOT EXISTS idx_memories_updated ON memories(updated_at DESC);
 
+-- Existing rows are explicitly unclassified, never silently promoted to facts.
+ALTER TABLE memories ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE memories ADD COLUMN IF NOT EXISTS assertion TEXT NOT NULL DEFAULT 'unclassified'
+    CHECK (assertion IN ('user_statement','observation','inference','unclassified'));
+ALTER TABLE memories ADD COLUMN IF NOT EXISTS confidence DOUBLE PRECISION
+    CHECK (confidence BETWEEN 0 AND 1);
+ALTER TABLE memories ADD COLUMN IF NOT EXISTS owner_kind TEXT NOT NULL DEFAULT 'legacy'
+    CHECK (owner_kind IN ('user','agent','legacy'));
+UPDATE memories SET owner_kind='user' WHERE owner_kind='legacy' AND source IN ('user_explicit','user_settings');
+CREATE TABLE IF NOT EXISTS memory_versions (
+    memory_id UUID NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL,
+    snapshot JSONB NOT NULL,
+    editor TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (memory_id,version)
+);
+INSERT INTO memory_versions (memory_id,version,snapshot,editor)
+SELECT id,version,to_jsonb(memories)-'embedding','migration'
+FROM memories ON CONFLICT DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS memory_relations (
     id UUID PRIMARY KEY,
     source_memory_id UUID NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
@@ -90,6 +111,15 @@ CREATE TABLE IF NOT EXISTS system_context (
 INSERT INTO system_context (id, content)
 VALUES (1, '')
 ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS system_context_versions (
+    version INTEGER PRIMARY KEY,
+    content TEXT NOT NULL,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+INSERT INTO system_context_versions (version,content,metadata)
+SELECT version,content,metadata FROM system_context ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS episodes (
     id UUID PRIMARY KEY,

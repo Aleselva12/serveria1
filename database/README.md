@@ -35,3 +35,5 @@ For a PostgreSQL-protocol emulator that does not support prepared statements, se
 `CORA_DB_PREPARE_THRESHOLD=none`; ordinary PostgreSQL defaults to threshold 5.
 
 Le sintesi incrementali usano `conversation_summaries.through_message_id`; `context_jobs` conserva le conversazioni da preparare durante l’inattività. Sono dati derivati: i messaggi originali restano la fonte.
+
+Memory edits are versioned in `memory_versions`, with an optimistic expected version and transactional key/row locks. Owner/legacy memories remain protected against unapproved agent updates. Existing classifications are unknown, not inferred during migration. `system_context_versions` preserves owner settings revisions. Memory embeddings are derived asynchronously and applied only to the indexed version. Memory deletion cascades to its revisions and source rows; this does not delete separate conversation/run archives.

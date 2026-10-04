@@ -82,7 +82,7 @@ export default function App() {
   const [activity, setActivity] = useState<RequestActivity[]>([]);
   const [selectedNode, setSelectedNode] = useState("supervisor");
   const backend = useBackend();
-  const { content: permanentContext, updatedAt: contextUpdatedAt, version: contextVersion, saving: contextSaving, error: contextError, edit: setPermanentContext, save: savePermanentContext } = usePermanentContext(Boolean(backend.health));
+  const { content: permanentContext, updatedAt: contextUpdatedAt, version: contextVersion, saving: contextSaving, error: contextError, edit: setPermanentContext, save: savePermanentContext, reload:reloadPermanentContext } = usePermanentContext(Boolean(backend.health));
   const history = useConversations(Boolean(backend.health), sending);
   const { chats, setChats, currentChat } = history;
   useEffect(() => {
@@ -674,7 +674,7 @@ export default function App() {
                     placeholder="Scrivi poche frasi base comuni a Cora e agli agenti…"
                   />
                   {contextError && (
-                    <div className="connection-error">{contextError}</div>
+                    <div className="connection-error">{contextError} <button className="text-button" disabled={contextSaving} onClick={()=>void reloadPermanentContext()}>Carica la versione salvata (sostituisce la bozza)</button></div>
                   )}
                   <div className="settings-memory-actions">
                     <small>
@@ -749,4 +749,3 @@ export default function App() {
     </div>
   );
 }
-

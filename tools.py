@@ -106,7 +106,7 @@ def recent_system_events_tool(
     return json.dumps(events, ensure_ascii=False, indent=2)
 
 
-@agent_tool('supervisor', capability='remember_tool', actions=('remember_memory',), effect='write', retry='never')
+@agent_tool('supervisor', capability='remember_tool', actions=('remember_memory',), effect='write', retry='never', version=2)
 def remember_tool(
     memory_type: str,
     key: str,
@@ -114,8 +114,12 @@ def remember_tool(
     importance: int = 3,
     expires_at: str = "",
     reason: str = "",
+    assertion: str = "inference",
+    confidence: float | None = None,
+    expected_version: int = 0,
+    expected_memory_id: str = "",
 ) -> str:
-    """Salva o aggiorna una memoria semantica persistente."""
+    """Annota memoria: user_statement, observation o inference. Per aggiornare leggi ID e versione con recall_memory_tool e passa expected_memory_id e expected_version; 0 crea. Correggere memorie dell'utente richiede approvazione."""
     _require_supervisor_permission("remember_memory")
     result = save_memory(
         memory_type=memory_type,
@@ -124,9 +128,16 @@ def remember_tool(
         importance=importance,
         expires_at=expires_at.strip() or None,
         source="assistant_selected",
-        metadata={"reason": reason.strip()} if reason.strip() else {},
+        metadata={"reason": reason.strip()},
+        assertion=assertion,
+        confidence=confidence,
+        expected_version=expected_version,
+        expected_memory_id=expected_memory_id or None,
+        editor="agent",
+        thread_id=current_runtime()[1] or None,
+        source_ref=current_runtime()[0] or None,
     )
-    return json.dumps(result, ensure_ascii=False, indent=2)
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 
 
 @agent_tool('supervisor', capability='recall_memory_tool', actions=('recall_memory',), effect='read', retry='safe')
@@ -142,14 +153,14 @@ def recall_memory_tool(
         memory_type=memory_type,
         limit=max(1, min(limit, 50)),
     )
-    return json.dumps(results, ensure_ascii=False, indent=2)
+    return json.dumps(results, ensure_ascii=False, indent=2, default=str)
 
 
-@agent_tool('supervisor', capability='forget_memory_tool', actions=('forget_memory',), effect='write', retry='never')
-def forget_memory_tool(memory_id: str) -> str:
-    """Elimina una singola memoria persistente per ID su richiesta esplicita."""
+@agent_tool('supervisor', capability='forget_memory_tool', actions=('forget_memory',), effect='write', retry='never', version=2)
+def forget_memory_tool(memory_id: str, expected_version: int) -> str:
+    """Elimina una memoria su richiesta esplicita, indicando la versione letta. Le memorie dell'utente richiedono approvazione."""
     _require_supervisor_permission("forget_memory")
-    deleted = delete_memory(memory_id)
+    deleted = delete_memory(memory_id,editor="agent",expected_version=expected_version)
     return json.dumps(
         {"memory_id": memory_id, "deleted": deleted},
         ensure_ascii=False,
