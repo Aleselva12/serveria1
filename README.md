@@ -133,3 +133,82 @@ I file server sono gestiti sotto risorse autorizzate da `CORA_FILE_ROOTS`, con u
 Non ancora implementati: orchestratore autonomo, automodifica e attivazione del codice generato, esecutore/pianificazione delle bozze grafiche, server multiutente, bus distribuito, arresto forzato sicuro di qualsiasi tool, ripresa automatica dei run interrotti. La latenza sul PC reale e il comportamento del modello locale vanno misurati con la nuova profilazione; i test non equivalgono a un benchmark di Ollama o Whisper sul server finale.
 
 Per il programmatore, i workspace separati, le skill e la configurazione opzionale di Graphify/Docker vedere [programmer_agent/README.md](programmer_agent/README.md).
+
+
+## Allegati della chat, file avanzati e registrazioni audio
+
+La graffetta della chat carica fino a **sei documenti per richiesta**, ciascuno di
+massimo **5 MB**: testo, PDF testuale e Word DOCX. Ogni upload appartiene alla
+conversazione selezionata, è conservato come copia distinta e non viene spostato
+nella Libreria IA. Il server verifica gli ID e l’integrità prima della richiesta.
+Cora riceve un estratto di massimo **2.400 caratteri per documento**, marcato come
+dato utente; il troncamento è dichiarato. PDF scansionati richiedono OCR non ancora
+implementato. La cronologia conserva messaggio, riferimenti e download originali.
+Rimuovere un allegato dalla bozza lo esclude dalla richiesta; non elimina la copia
+caricata. Gli estratti sono salvati nella conversazione e partecipano al budget di
+contesto esistente, che può rifiutare un turno troppo grande.
+
+File server e Libreria IA offrono ora:
+
+- Anteprime testuali (massimo 120.000 byte/caratteri), Word, PDF, immagini e media
+  supportati; HTML/SVG vengono scaricati senza esecuzione. Le anteprime binarie
+  sono limitate a 50 MB. Le operazioni restano entro la risorsa autorizzata.
+- Ricerca per nome anche nelle sottocartelle, limitata a 10.000 elementi e 30
+  livelli; l’interfaccia segnala risultati parziali. Link simbolici e aree interne
+  sono esclusi.
+- Collegamenti privati per singoli file, validi 24 ore dalla UI (API fino a sette
+  giorni), revocabili. **Richiedono login del proprietario e accesso alla rete del
+  server**: non sono link pubblici né un sistema multiutente. Se il file cambia,
+  viene richiesto un nuovo link. Lo storico mostra scadenza e revoca; il segreto
+  completo è restituito solo alla creazione e nel database è conservato un hash.
+- Upload in blocchi con controllo SHA-256 e offset. Se interrotto, selezionare lo
+  stesso file entro 24 ore, nello stesso browser, risorsa e cartella. La UI
+  conserva solo l’ID locale della sessione. L’upload completo conserva una ricevuta
+  per evitare una seconda pubblicazione dopo una risposta persa; uno stato di
+  pubblicazione incerto richiede verifica della destinazione. Massimo otto upload
+  pendenti per risorsa e dimensione cumulativa pari a due volte il limite upload.
+  Il comando «Annulla upload sospesi» agisce sulle sessioni note a quel browser.
+  Le sessioni scadute vengono rimosse all’accesso o al prossimo avvio di upload.
+  Gli upload della Libreria continuano a conservare un originale distinto.
+
+La pagina **Audio**, nel menu secondario, riceve registrazioni già salvate (WAV,
+MP3, M4A, MP4, AAC, FLAC, OGG, OPUS e WebM), titolo, data e nomi degli interlocutori.
+Non acquisisce il microfono. Conserva il file sotto `CORA_AUDIO_ROOT/ui_uploads`,
+lo rende scaricabile/riproducibile e avvia faster-whisper locale nella **stessa
+coda runtime** della chat. La trascrizione diretta richiesta dal proprietario è
+un’azione UI, non una delega LLM; non cambia le policy dell’agente Audio. Il run
+resta consultabile in Attività, è annullabile cooperativamente e non si ripete
+automaticamente dopo errore/riavvio. Il timeout del runtime si applica anche agli
+audio lunghi. Le dipendenze/modello mancanti sono indicate nella pagina.
+
+La diarizzazione opzionale richiede il modello pyannote locale; se indisponibile,
+la trascrizione resta utilizzabile e mostra l’avviso. Le etichette automatiche
+«Interlocutore 1/2» non garantiscono l’identità: verificare l’associazione ai nomi.
+Il testo può essere corretto con controllo di versione, scaricato o copiato nella
+Libreria IA con nome contenente ID/versione. La copia conserva anche l’originale
+sul server. Il risultato automatico resta separato dal testo corretto. Per usare
+il testo nella chat, scaricarlo e allegarlo a una richiesta. Il riassunto si può
+richiedere nella chat sulla trascrizione; non viene generato automaticamente.
+
+La migrazione `0002_files_chat_audio.sql` crea `chat_attachments`, `audio_records`
+e `file_shares` al primo accesso al database. Effettuare il normale backup prima
+dell’aggiornamento. In Docker gli allegati sono persistenti sotto
+`/state/chat_attachments`; sul PC il default è `data/chat_attachments`, modificabile
+con `CORA_CHAT_ATTACHMENTS_ROOT`. Conservare **database e cartelle** insieme nei
+backup: i metadati SQL non sostituiscono i file audio/allegati. La sincronizzazione
+bidirezionale degli originali e delle copie IA resta futura.
+
+| Punto di contatto | Frontend | Backend |
+| --- | --- | --- |
+| Allegati e `attachment_ids` della richiesta | `App.tsx`, `mediaApi.ts`, `runtimeApi.ts`, `useConversations.ts` | `core/chat_attachments.py`, `api.py`, `core/chat_store.py` |
+| Anteprime e ricerca ricorsiva | `FileManager.tsx`, `FilePreview.tsx`, `filesApi.ts` | `core/file_extras.py`: `/preview`, `/search`, sui router File server e Libreria |
+| Link privati e revoca | `FileManager.tsx`, `filesApi.ts` | `core/file_extras.py`: `/shares`, `/shared/{token}` |
+| Upload riprendibile e integrità | `filesApi.ts`, `fileHash.ts` | `core/file_extras.py`: `/uploads`, stato, `/chunks`, `/complete` e DELETE |
+| Registrazioni, stato, trascrizione e correzioni | `Audio.tsx`, `mediaApi.ts` | `core/audio_api.py`: `/api/v1/audio`, `/status`, dettagli, `/source`, `/transcribe`, `/transcript`, download e `/library` |
+| Motore di trascrizione comune | — | `audio_agent/audio_tools.py`: `transcribe_path`, riusato dal tool e dalla UI |
+| Stato dei lavori e annullamento | `Audio.tsx`, `runtimeApi.ts` | API runtime esistenti e `runtime_runs` |
+
+I file elencati sotto `frontend/src/components/` sono le schermate; sotto
+`frontend/src/services/` si trovano i relativi adapter HTTP. I router sono
+registrati in `api.py`; `core/server_files.py` aggiunge le funzioni avanzate a
+entrambi i router senza duplicare la gestione delle cartelle.

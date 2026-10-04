@@ -9,13 +9,14 @@ import {
   ChevronDown,
   FileText,
   Menu,
-  Mic,
   Paperclip,
   RefreshCw,
   Send,
   Settings,
   Save,
 } from "lucide-react";
+import Audio from "./components/Audio";
+import { uploadAttachment, type Attachment } from "./services/mediaApi";
 import Home from "./components/Home";
 import Programmer from "./components/Programmer";
 import Calendar from "./components/Calendar";
@@ -34,6 +35,7 @@ type Page =
   | "code"
   | "calendar"
   | "files"
+  | "audio"
   | "activity"
   | "settings"
   | "memory-management";
@@ -51,6 +53,7 @@ const primary: { id: Page; label: string }[] = [
   { id: "calendar", label: "Calendario" },
 ];
 const secondary: { id: Page; label: string; icon: typeof FileText }[] = [
+  { id: "audio", label: "Audio", icon: FileText },
   { id: "activity", label: "Attività", icon: Activity },
   { id: "settings", label: "Impostazioni", icon: Settings },
 ];
@@ -61,6 +64,7 @@ const labels: Record<Page, string> = {
   code: "Programma",
   calendar: "Calendario",
   files: "File",
+  audio: "Audio",
   activity: "Attività",
   settings: "Impostazioni",
   "memory-management": "Gestione Memoria",
@@ -76,6 +80,10 @@ export default function App() {
   const [activeRun, setActiveRun] = useState("");
   const [chatError, setChatError] = useState("");
   const sendLock = useRef(false);
+  const attachmentInput = useRef<HTMLInputElement>(null);
+  const [attachmentDrafts,setAttachmentDrafts] = useState<Record<string,Attachment[]>>({});
+  const [attachmentBusy,setAttachmentBusy] = useState(false);
+  const attachmentLock = useRef(false);
   const messagesEnd = useRef<HTMLDivElement>(null);
   const [activity, setActivity] = useState<RequestActivity[]>([]);
   const [selectedNode, setSelectedNode] = useState("supervisor");
@@ -104,9 +112,19 @@ export default function App() {
     setChatError("");
     navigate("chat");
   }
+  async function attach(files:File[]) {
+    if(attachmentLock.current||sendLock.current)return;
+    const id=currentChat.threadId, existing=attachmentDrafts[id]||[];
+    if(existing.length+files.length>6){setChatError("Massimo sei allegati per richiesta.");return;}
+    attachmentLock.current=true;setAttachmentBusy(true);setChatError("");
+    try{for(const file of files){const item=await uploadAttachment(id,file);setAttachmentDrafts(prev=>({...prev,[id]:[...(prev[id]||[]),item]}));}}
+    catch(e){setChatError(e instanceof Error?e.message:"Allegato non caricato.");}
+    finally{attachmentLock.current=false;setAttachmentBusy(false);}
+  }
   async function send() {
-    const content = draft.trim();
-    if (!content || sendLock.current || history.messagesLoading || history.historyLoading || history.messagesError || !backend.health?.ollama_online) return;
+    const attachments = attachmentDrafts[currentChat.threadId]||[];
+    const content = draft.trim() || (attachments.length ? "Analizza i file allegati." : "");
+    if (!content || attachmentLock.current || sendLock.current || history.messagesLoading || history.historyLoading || history.messagesError || !backend.health?.ollama_online) return;
     sendLock.current = true;
     setSending(true);
     setLiveText("");
@@ -114,6 +132,7 @@ export default function App() {
     setRunState("queued");
     setChatError("");
     setDraft("");
+    setAttachmentDrafts(prev=>({...prev,[currentChat.threadId]:[]}));
     const conversationId = currentChat.id,
       threadId = currentChat.threadId,
       requestId = uid(),
@@ -132,6 +151,7 @@ export default function App() {
                   conversationId,
                   role: "user",
                   content,
+                  attachments,
                   createdAt,
                 },
               ],
@@ -149,7 +169,7 @@ export default function App() {
       ...prev,
     ]);
     try {
-      const result = await streamChat(content, threadId, setActiveRun, setLiveText, setRunState);
+      const result = await streamChat(content, threadId, setActiveRun, setLiveText, setRunState, attachments.map(a=>a.id));
       setChats((prev) =>
         prev.map((c) =>
           c.id === conversationId
@@ -196,6 +216,7 @@ export default function App() {
         prev.map((a) => (a.id === requestId ? { ...a, status: "failed" } : a)),
       );
       setDraft((prev) => prev || content);
+      setAttachmentDrafts(prev=>({...prev,[threadId]:[...attachments,...(prev[threadId]||[])]}));
     } finally {
       sendLock.current = false;
       setSending(false);
@@ -204,7 +225,7 @@ export default function App() {
       void history.refreshHistory();
     }
   }
-  const withSidebar = !["home", "files", "architecture", "code"].includes(page);
+  const withSidebar = !["home", "files", "audio", "architecture", "code"].includes(page);
   return (
     <div
       className={"app app-" + page + " " + (withSidebar ? "has-sidebar" : "")}
@@ -354,6 +375,7 @@ export default function App() {
                     </div>
                     <div className="message-content">
                       {m.content}
+                      {m.attachments?.map(a=><a className="attachment-chip" href={apiBaseUrl+a.downloadUrl} key={a.id}>{a.name}{a.truncated?" · estratto limitato":""}</a>)}
                       {m.failed && (
                         <small className="message-failed">
                           Esito della richiesta non confermato
@@ -371,12 +393,11 @@ export default function App() {
                     {chatError}
                   </div>
                 )}
+                {attachmentBusy&&<p role="status">Caricamento degli allegati…</p>}
+                <div className="attachment-drafts">{(attachmentDrafts[currentChat.threadId]||[]).map(a=><span className="attachment-chip" key={a.id}>{a.name}{a.truncated?" · estratto limitato":""}<button disabled={sending||attachmentBusy} aria-label={"Rimuovi allegato "+a.name} onClick={()=>setAttachmentDrafts(prev=>({...prev,[currentChat.threadId]:(prev[currentChat.threadId]||[]).filter(x=>x.id!==a.id)}))}>×</button></span>)}</div>
                 <div className="composer">
-                  <button
-                    disabled
-                    title="Allegati: collegamento da realizzare"
-                    aria-label="Allega file · da collegare"
-                  >
+                  <input ref={attachmentInput} type="file" multiple hidden accept=".txt,.md,.csv,.tsv,.json,.pdf,.docx,.py,.ts,.tsx,.js,.css,.yaml,.yml,.toml,.log" onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value="";void attach(files);}}/>
+                  <button disabled={sending||attachmentBusy||!backend.health} title="Allega documenti alla richiesta" aria-label="Allega file" onClick={()=>attachmentInput.current?.click()}>
                     <Paperclip size={19} />
                   </button>
                   <textarea
@@ -398,16 +419,9 @@ export default function App() {
                     rows={1}
                   />
                   <button
-                    disabled
-                    title="Microfono: collegamento da realizzare"
-                    aria-label="Microfono · da collegare"
-                  >
-                    <Mic size={18} />
-                  </button>
-                  <button
                     className="send-button"
                     disabled={
-                      sending || history.messagesLoading || history.historyLoading || Boolean(history.messagesError) || !backend.health?.ollama_online || !draft.trim()
+                      sending || attachmentBusy || history.messagesLoading || history.historyLoading || Boolean(history.messagesError) || !backend.health?.ollama_online || (!draft.trim() && !(attachmentDrafts[currentChat.threadId]||[]).length)
                     }
                     title="Invia messaggio"
                     aria-label="Invia messaggio"
@@ -426,9 +440,9 @@ export default function App() {
                 </p>
                 <p>Storico salvato sul server · ultime 500 conversazioni, fino a 2.000 messaggi per chat.</p>
                 <div className="composer-notes">
-                  <span>Allegati · da collegare</span>
-                  <span>Microfono · da collegare</span>
-                  <span>Risposta progressiva · da collegare</span>
+                  <span>Allegati: massimo 6 documenti, 5 MB ciascuno · estratti limitati</span>
+                  <button className="text-button" onClick={()=>navigate("audio")}>Registrazioni e trascrizioni → Audio</button>
+                  <span>Risposta progressiva attiva</span>
                 </div>
               </div>
             </section>
@@ -451,6 +465,7 @@ export default function App() {
           {page === "code" && <Programmer />}
           {page === "calendar" && <Calendar />}
           {page === "files" && <FileManager />}
+          {page === "audio" && <Audio />}
           {page === "activity" && (
             <section className="content-page activity-page">
               <div className="page-heading">
@@ -665,3 +680,4 @@ export default function App() {
     </div>
   );
 }
+

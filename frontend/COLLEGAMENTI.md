@@ -21,4 +21,26 @@ Frontend e backend sono aggiornati insieme in `serveria1`; `/backend` è il pref
 
 SSE mostra token provvisori, aggiornamenti dello stato e risultato finale; il risultato persistito resta autorevole. Sono collegati timeout e stop cooperativo; lo stop non annulla gli effetti già avvenuti. Il pannello delle proposte non continua automaticamente il ragionamento del modello.
 
-Restano predisposizioni: esecuzione/pianificazione delle bozze, agente programmatore/editor eseguibile, allegati chat e acquisizione microfono. Non considerarli tool operativi.
+Allegati chat e gestione delle registrazioni salvate sono collegati: vedere la sezione «Allegati della chat, file avanzati e registrazioni audio» del README principale. Il microfono non è richiesto. Restano predisposizioni l’esecuzione/pianificazione delle bozze e l’automodifica del codice attivo. Il Programmatore è collegato e lavora su workspace isolati.
+
+
+
+## Nuovi adapter e percorsi
+
+```text
+src/
+├── App.tsx                        # graffetta, allegati della richiesta e menu Audio
+├── components/
+│   ├── Audio.tsx                  # caricamento, stato, correzioni, download e copia IA
+│   ├── FileManager.tsx            # anteprime, ricerca ricorsiva, link e ripresa upload
+│   └── FilePreview.tsx            # visualizzazione sicura dell’anteprima
+└── services/
+    ├── mediaApi.ts                # /api/v1/chat/attachments e /api/v1/audio
+    ├── runtimeApi.ts              # attachment_ids, run, streaming e annullamento
+    ├── useConversations.ts        # riferimenti agli allegati nella cronologia
+    ├── filesApi.ts                # /preview, /search, /shares, /uploads
+    └── fileHash.ts                # SHA-256 incrementale senza caricare tutto in RAM
+```
+
+I contratti completi, i limiti e la migrazione SQL sono descritti nel README
+principale. I link condivisi richiedono login e accesso alla rete privata.

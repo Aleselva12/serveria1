@@ -26,6 +26,8 @@ from core.models import get_model_name
 from core.monitoring import router as monitoring_router
 from core.server_files import router as files_router
 from core.ia_library import router as library_router
+from core.chat_attachments import router as attachments_router, attachment_rows, request_content, public as attachment_public
+from core.audio_api import router as audio_router
 from core.registry import get_agents, get_registry
 from graph import graph
 from core.tool_inventory import inventory
@@ -75,6 +77,8 @@ app.include_router(permissions_router)
 app.include_router(monitoring_router)
 app.include_router(files_router)
 app.include_router(library_router)
+app.include_router(attachments_router)
+app.include_router(audio_router)
 app.include_router(calendar_router)
 app.include_router(architecture_router)
 app.include_router(automation_router)
@@ -94,6 +98,7 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=24000)
     thread_id: uuid.UUID | None = None
+    attachment_ids: list[uuid.UUID] = Field(default_factory=list, max_length=6)
 
 
 class ChatResponse(BaseModel):
@@ -263,6 +268,8 @@ def remove_memory(memory_id: str):
 
 def execute_chat(request: ChatRequest, run):
     message = request.message.strip()
+    attachments = attachment_rows(run.thread_id, request.attachment_ids) if request.attachment_ids else []
+    enriched_message = request_content(message, attachments)
     if not message:
         return ChatResponse(
             response="Scrivi un messaggio per iniziare.",
@@ -275,9 +282,9 @@ def execute_chat(request: ChatRequest, run):
     user_message = save_message(
         conversation_id=thread_id,
         role="user",
-        content=message,
+        content=enriched_message,
         agent_id="user",
-        metadata={"source": "chat_api", "run_id": run.id},
+        metadata={"source": "chat_api", "run_id": run.id, "display_content": message, "attachments": [attachment_public(row) for row in attachments]},
         refresh_transcript_now=False,
     )
     run.timings["user_save_ms"] = round((time.perf_counter()-phase)*1000,2)
@@ -357,6 +364,8 @@ def execute_chat(request: ChatRequest, run):
 
 def submit_chat(request):
     thread_id = str(request.thread_id) if request.thread_id else str(uuid.uuid4())
+    if request.attachment_ids:
+        attachment_rows(thread_id, request.attachment_ids)
     try:
         return runtime.submit(thread_id, lambda run: execute_chat(request, run).model_dump(), graph_version=architecture_graph()["version"])
     except ValueError as error:
@@ -394,3 +403,4 @@ def _postprocess_turn(thread_id,message,response,user_id,assistant_id):
             metadata={"user_message_id":user_id,"assistant_message_id":assistant_id})
     except Exception:
         pass  # Primary messages remain authoritative; derived copies can be rebuilt.
+

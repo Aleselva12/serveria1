@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV = ROOT / 'deploy.env'
-DIRECTORIES = ('knowledge','library_originals','audio/_transcripts','quotes','logs','models',
+DIRECTORIES = ('chat_attachments','knowledge','library_originals','audio/_transcripts','quotes','logs','models',
                'chat-transcripts','structure_workspace','automation_drafts','gmail','files')
 
 
@@ -128,3 +128,4 @@ if __name__=='__main__':
     try:main()
     except (ValueError,OSError,subprocess.CalledProcessError) as error:
         print('Operazione non riuscita:',error,file=sys.stderr);raise SystemExit(1)
+

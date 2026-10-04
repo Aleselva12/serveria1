@@ -47,3 +47,12 @@ test('specialist state and reset are visible without replacing canonical final r
  const result=await streamChat('query','thread',()=>{},t=>texts.push(t),s=>states.push(s));
  assert.deepEqual(texts,['Supervisor','','Specialist']);assert.ok(states.includes('Agente: research'));assert.equal(result.response,'Canonical');assert.equal(calls,2);
 });
+
+
+test('chat attachments are sent with the request and streaming never resubmits them',async()=>{
+ let calls=0;globalThis.fetch=async(url,init)=>{
+  if(++calls===1){assert.deepEqual(JSON.parse(init.body),{message:'Leggi',thread_id:'thread',attachment_ids:['attachment-id']});return json({id:'run',status:'queued'});}
+  return stream('event: result\ndata: '+JSON.stringify({status:'completed',result:{response:'Letto',thread_id:'thread'}})+'\n\n');
+ };
+ await streamChat('Leggi','thread',()=>{},()=>{},()=>{},['attachment-id']);assert.equal(calls,2);
+});
