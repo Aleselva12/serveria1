@@ -24,6 +24,7 @@ let code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES20
  .replace(/from "react\/jsx-runtime"/g,'from '+external('react/jsx-runtime')).replace(/from "react"/g,'from '+external('react')).replace(/from "lucide-react"/g,'from '+external('lucide-react'))
  .replace(/import \{[^}]*\} from "\.\.\/services\/programmerApi";/,'const programmerApi=globalThis.__programmerApi;')
  .replace(/import ProgrammerArtifacts from "\.\/ProgrammerArtifacts";/, "const ProgrammerArtifacts=()=>null;")
+ .replace(/import WorkspaceEditor from "\.\/WorkspaceEditor";/, "const WorkspaceEditor=()=>null;")
  .replace(/import \{ api \} from "\.\.\/services\/api";/,'const api={conversationMessages:id=>globalThis.__programmerHistory(id)};')
  .replace(/import \{ runtimeRequest \} from "\.\.\/services\/runtimeApi";/,'const runtimeRequest=(...args)=>globalThis.__programmerRuntime(...args);');
 const Programmer=(await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'))).default;

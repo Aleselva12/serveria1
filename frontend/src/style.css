@@ -3291,3 +3291,9 @@ select:disabled {
 .programmer-graph svg g.unresolved circle { fill:#f2f0e5;stroke:#9b8c57;stroke-dasharray:5 4; }
 .programmer-graph svg text { fill:#294a43;font-size:13px; }
 @media(max-width:1100px) { .programmer-artifacts { grid-template-columns:1fr; } }
+.workspace-editor textarea {
+  width: 100%; box-sizing: border-box; resize: vertical;
+  font-family: monospace; tab-size: 2; white-space: pre;
+  background: var(--panel, #171b23); color: inherit;
+  border: 1px solid var(--border, #39404d); padding: 12px;
+}

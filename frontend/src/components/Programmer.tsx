@@ -11,6 +11,7 @@ import { api } from "../services/api";
 import { runtimeRequest } from "../services/runtimeApi";
 
 import ProgrammerArtifacts from "./ProgrammerArtifacts";
+import WorkspaceEditor from "./WorkspaceEditor";
 
 export default function Programmer() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]),
@@ -37,6 +38,7 @@ export default function Programmer() {
     [error, setError] = useState(""),
     [viewDiff, setViewDiff] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [editing, setEditing] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null),
     selection = useRef(""),
     mounted = useRef(true),
@@ -103,7 +105,7 @@ export default function Programmer() {
       .catch(() => {});
   }, [selected]);
   async function create() {
-    if (creating || busy || !title.trim()) return;
+    if (creating || busy || editing !== null || !title.trim()) return;
     setCreating(true);
     setError("");
     try {
@@ -136,7 +138,7 @@ export default function Programmer() {
     }
   }
   async function execute(profile?: string) {
-    if (busy || !selected || (!profile && !draft.trim())) return;
+    if (busy || editing !== null || !selected || (!profile && !draft.trim())) return;
     const id = selected,
       message = draft.trim();
     setBusy(true);
@@ -270,7 +272,7 @@ export default function Programmer() {
         />
         <button
           className="solid-button"
-          disabled={!online || busy || creating || !title.trim()}
+          disabled={!online || busy || creating || editing !== null || !title.trim()}
           onClick={() => void create()}
         >
           {creating ? "Preparazione…" : "Crea workspace"}
@@ -294,7 +296,7 @@ export default function Programmer() {
               <select
                 aria-label="Workspace programmatore"
                 value={selected}
-                disabled={busy || creating || importing}
+                disabled={busy || creating || importing || editing !== null}
                 onChange={(e) => setSelected(e.target.value)}
               >
                 <option value="">Seleziona un workspace</option>
@@ -318,6 +320,7 @@ export default function Programmer() {
                   <button
                     key={path}
                     className={file?.path === path ? "selected" : ""}
+                    disabled={editing !== null}
                     onClick={() => void read(path)}
                   >
                     {path}
@@ -328,6 +331,8 @@ export default function Programmer() {
           </aside>
           <div className="editor-main">
             <div className="editor-tabs">
+              <button disabled={!selected || busy || importing || editing !== null} onClick={() => setEditing("")}>Nuovo file</button>
+              <button disabled={!file || busy || importing || editing !== null} onClick={() => setEditing(file!.path)}>Modifica file</button>
               <span>
                 <Code2 size={15} />
                 {viewDiff
@@ -335,14 +340,14 @@ export default function Programmer() {
                   : file?.path || "Sorgente dello snapshot"}
               </span>
               <button
-                disabled={!selected}
+                disabled={!selected || editing !== null}
                 onClick={() => setViewDiff(!viewDiff)}
               >
                 {diff?.total_changes || 0} modifiche
               </button>
             </div>
             <div className="code-surface programmer-code">
-              {viewDiff ? (
+              {editing !== null ? <WorkspaceEditor workspace={selected} path={editing} onClose={() => setEditing(null)} onSaved={async path => { await refresh(selected); await read(path); }} /> : viewDiff ? (
                 <>
                   {diff?.changes.length ? (
                     diff.changes.map((c) => (
@@ -395,38 +400,38 @@ export default function Programmer() {
               <div className="terminal-title">VERIFICHE E MAPPA DEL CODICE</div>
               <div className="programmer-actions">
                 <button
-                  disabled={!selected || busy || importing}
+                  disabled={!selected || busy || importing || editing !== null}
                   onClick={() => void execute("syntax")}
                 >
                   Verifica sintassi
                 </button>
                 <button
-                  disabled={!selected || busy || importing}
+                  disabled={!selected || busy || importing || editing !== null}
                   onClick={() => void execute("contracts")}
                 >
                   Verifica contratti
                 </button>
                 <button
-                  disabled={!selected || busy || importing}
+                  disabled={!selected || busy || importing || editing !== null}
                   onClick={() => void execute("typescript")}
                 >
                   Verifica TypeScript
                 </button>
                 <button
-                  disabled={!selected || busy || importing}
+                  disabled={!selected || busy || importing || editing !== null}
                   onClick={() => void execute("frontend_build")}
                 >
                   Build frontend Docker
                 </button>
                 <button
-                  disabled={!selected || busy || importing}
+                  disabled={!selected || busy || importing || editing !== null}
                   onClick={() => void execute("python_tests")}
                 >
                   Test Docker
                 </button>
                 {file?.path.endsWith(".json") && (
                   <button
-                    disabled={busy || importing}
+                    disabled={busy || importing || editing !== null}
                     onClick={() => void importDraft()}
                   >
                     Importa bozza in Tools
@@ -434,7 +439,7 @@ export default function Programmer() {
                 )}
               </div>
               <button
-                disabled={!selected || busy || importing}
+                disabled={!selected || busy || importing || editing !== null}
                 onClick={() => void execute("graph")}
               >
                 Costruisci mappa Graphify
@@ -450,7 +455,7 @@ export default function Programmer() {
                 <input
                   type="file"
                   accept=".json"
-                  disabled={!selected || busy || importing}
+                  disabled={!selected || busy || importing || editing !== null}
                   onChange={(e) => {
                     const upload = e.target.files?.[0];
                     if (upload) void importGraph(upload);
@@ -499,12 +504,12 @@ export default function Programmer() {
               rows={3}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              disabled={!online || !selected || busy}
+              disabled={!online || !selected || busy || editing !== null}
               placeholder="Descrivi il tool o l’automazione…"
               aria-label="Messaggio al Copilot"
             />
             <button
-              disabled={!online || !selected || busy || !draft.trim()}
+              disabled={!online || !selected || busy || editing !== null || !draft.trim()}
               onClick={() => void execute()}
               aria-label="Invia messaggio al Copilot"
             >
@@ -523,7 +528,7 @@ export default function Programmer() {
       <ProgrammerArtifacts
         workspaceId={selected}
         revision={revision}
-        disabled={busy || importing || creating}
+        disabled={busy || importing || creating || editing !== null}
       />
     </section>
   );

@@ -43,6 +43,21 @@ class ProgrammerTests(unittest.TestCase):
         self.assertIn("+value = 2", diff["changes"][0]["patch"])
         self.assertEqual(ws.list_workspaces()[0]["id"], self.identifier)
 
+    def test_manual_editor_reads_full_file_and_rejects_stale_save(self):
+        content = "value = 1\n" * 300 + "# no final newline"
+        ws.write(self.identifier, "long.py", content)
+        url = f"/api/v1/programmer/workspaces/{self.identifier}/file"
+        partial = self.client.get(url, params={"path": "long.py"}).json()
+        self.assertTrue(partial["truncated"])
+        full = self.client.get(url, params={"path": "long.py", "full": "true"}).json()
+        self.assertEqual(full["content"], content)
+        self.assertFalse(full["truncated"])
+        ws.write(self.identifier, "long.py", "newer", full["sha256"])
+        result = self.client.put(url, json={"path": "long.py", "content": content, "expected_sha256": full["sha256"]})
+        self.assertEqual(result.status_code, 409)
+        self.assertEqual(ws.read_full(self.identifier, "long.py")["content"], "newer")
+        self.assertEqual(self.client.get(url, params={"path": "../secret.py", "full": "true"}).status_code, 422)
+
     def test_path_traversal_secrets_symlinks_and_live_root_are_rejected(self):
         for path in ("../outside.py", "/tmp/a.py", "a\\b.py", ".env", "credentials.json", "data/chat.json", "test.exe", "C:/a.py"):
             with self.subTest(path=path), self.assertRaises(ValueError):
