@@ -1,0 +1,2 @@
+# CPU transcription only. Speaker diarization is an independent optional engine.
+faster-whisper

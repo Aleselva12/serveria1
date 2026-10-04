@@ -40,11 +40,68 @@ docker compose --env-file deploy.env exec api python -c \
   'import os,urllib.request; print(urllib.request.urlopen(os.environ["OLLAMA_BASE_URL"].rstrip("/")+"/api/tags",timeout=5).status)'
 ```
 
-L'immagine iniziale contiene le dipendenze core, non Faster-Whisper e
-pyannote. La chat e i tool documenti/calendario/mail sono presenti; trascrizione
-e diarizzazione richiedono il successivo profilo audio. Il collegamento Gmail
+L'immagine iniziale contiene le dipendenze core. Il profilo audio CPU descritto
+sotto aggiunge Faster-Whisper; pyannote e la diarizzazione restano separati.
+La chat e i tool documenti/calendario/mail sono presenti. Il collegamento Gmail
 richiede credenziali e token già autorizzati in `state/gmail`; la configurazione
 OAuth interattiva via browser non viene eseguita nel container headless.
+
+## Audio CPU, modello locale
+
+Impostare in `deploy.env`:
+
+```dotenv
+CORA_API_BUILD_TARGET=api-audio-cpu
+CORA_WHISPER_CPU_THREADS=4
+```
+
+Poi costruire l'immagine e preparare il modello:
+
+```sh
+docker compose --env-file deploy.env build api
+python3 deploy/manage.py audio-model small
+python3 deploy/manage.py audio-check
+python3 deploy/manage.py up
+```
+
+`audio-model` è l'unico passaggio online di preparazione: scarica i pesi pubblici
+da Hugging Face senza token, non riceve audio e non avvia il servizio. Risolve
+una revisione immutabile e registra revision/ID e checksum in
+`state/models/whisper/cora-model.json`. Si può fissare la revisione con
+`audio-model small --revision SHA_COMPLETO`. Rifiuta un modello già presente;
+non mescola un download parziale con i pesi installati. Per importare un modello
+già preparato copiare l'intera directory, incluso il manifest, mantenendo i
+permessi dell'utente del container.
+
+La trascrizione usa `/state/models/whisper`, CPU/int8, un worker e il numero di
+thread configurato. `HF_HUB_OFFLINE=1` e `local_files_only=True` impediscono
+download durante i tool; un modello mancante/incompleto viene segnalato.
+`audio-check` verifica checksum e caricamento reale del motore senza trascrivere
+file personali. Il modello è incluso nel backup di `state`; i modelli Ollama
+restano esterni. I file da trascrivere vanno in `state/audio` (oppure in un bind
+audio autorizzato), non automaticamente nella Libreria IA.
+
+La cancellazione viene osservata prima/dopo il caricamento e fra i segmenti;
+una fase nativa di decodifica già partita può terminare prima dell'arresto.
+Non vengono inventati speaker: una richiesta di diarizzazione senza un motore
+configurato continua a dichiararne l'indisponibilità.
+
+## Collaudo della macchina reale
+
+```sh
+python3 deploy/manage.py doctor
+```
+
+Il comando interroga PostgreSQL e la lista dei modelli Ollama, verifica cartelle
+e permessi e, con il profilo audio, il manifest locale. Restituisce JSON con
+`ok` e codice di uscita 0/1; non stampa credenziali, non genera testo, non carica
+audio sul modello e non usa endpoint cloud. Non certifica la qualità della
+trascrizione, il throughput o la disponibilità futura dei dischi.
+
+Dopo esito positivo: verificare login, una chat breve, un file di prova nel File
+Server e una breve registrazione audio propria. Controllare Attività e provare
+il riavvio per confermare la persistenza. Il risultato di CI non equivale al
+collaudo del proprio server e dei mount NAS.
 
 ## Persistenza e mount
 
@@ -115,6 +172,8 @@ uv pip compile requirements-core.txt --python-version 3.12 \
 ```
 
 Lo schema è versionato con checksum; leggere `database/migrations/README.md`
-prima di modificarlo. La CI verifica un ciclo di build, avvio, login, streaming
-e backup/ripristino su un'installazione sacrificabile. Il collaudo sul server
-reale e il profilo audio restano passi successivi, senza installazione automatica.
+prima di modificarlo. La CI verifica entrambi i target, un ciclo di build, avvio,
+login, streaming e backup/ripristino su un'installazione sacrificabile. Il target
+audio prepara un modello tiny di prova e verifica un'inferenza CPU offline su
+silenzio sintetico; non misura la qualità su parlato reale. Il collaudo sul server
+reale resta da eseguire, senza installazione automatica.

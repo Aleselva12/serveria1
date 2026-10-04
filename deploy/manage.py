@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV = ROOT / 'deploy.env'
-DIRECTORIES = ('knowledge','library_originals','audio/_transcripts','quotes','logs',
+DIRECTORIES = ('knowledge','library_originals','audio/_transcripts','quotes','logs','models',
                'chat-transcripts','structure_workspace','automation_drafts','gmail','files')
 
 
@@ -100,8 +100,9 @@ def restore(path):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command',choices=('init','check','up','owner','backup','verify-backup','restore'))
+    parser.add_argument('command',choices=('init','check','up','owner','backup','verify-backup','restore','audio-model','audio-check','doctor'))
     parser.add_argument('path',nargs='?',type=Path)
+    parser.add_argument('--revision',help='Immutable model revision; defaults to resolving the current public revision once')
     args=parser.parse_args()
     if args.command=='init':return init()
     if args.command in {'backup','restore','verify-backup'}:
@@ -114,6 +115,13 @@ def main():
     if args.command=='check':compose('config','--quiet')
     elif args.command=='up':compose('up','-d','--build','--wait')
     elif args.command=='owner':compose('exec','api','python','-m','core.auth','--ensure-owner')
+    elif args.command=='audio-model':
+        model=str(args.path) if args.path else 'small'
+        command=['run','--rm','--no-deps','-T','-e','HF_HUB_OFFLINE=0','api','python','-m','audio_agent.model_setup','--model',model]
+        if args.revision:command+=['--revision',args.revision]
+        compose(*command)
+    elif args.command=='audio-check':compose('run','--rm','--no-deps','-T','api','python','-m','audio_agent.model_setup','--check')
+    elif args.command=='doctor':compose('exec','-T','api','python','-m','deploy.doctor')
 
 
 if __name__=='__main__':

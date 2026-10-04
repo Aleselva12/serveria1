@@ -41,8 +41,12 @@ jobs:
   deployment:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      matrix:
+        target: [api, api-audio-cpu]
     env:
       CORA_DISPOSABLE_DEPLOY_TEST: 'yes'
+      CORA_CI_API_TARGET: ${{ matrix.target }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
