@@ -88,6 +88,30 @@ configurato continua a dichiararne l'indisponibilità.
 
 ## Collaudo della macchina reale
 
+Sul PC Windows si può mantenere l'avvio nativo, senza migrare il database al
+nuovo Compose. Chiudere Cora e usare `AVVIO.cmd -ConAudio` per installare la sola
+trascrizione (la diarizzazione ha l'opzione distinta `-ConDiarizzazione`). Per
+preparare lo stesso modello offline da PowerShell, nella radice della repository:
+
+```powershell
+.\.venv\Scripts\python.exe -m audio_agent.model_setup --model small --destination .\models\whisper
+```
+
+Impostare poi in `.env` `CORA_WHISPER_MODEL=./models/whisper`,
+`CORA_WHISPER_LOCAL_ONLY=true`, `CORA_WHISPER_DEVICE=cpu`,
+`CORA_WHISPER_COMPUTE_TYPE=int8` e `HF_HUB_OFFLINE=1`. Verificare:
+
+```powershell
+.\.venv\Scripts\python.exe -m audio_agent.model_setup --check
+.\.venv\Scripts\python.exe -m deploy.doctor
+```
+
+`models/` è esclusa da Git. Il backup Docker include i modelli sotto `state`,
+ma non la cartella del percorso nativo: copiarla separatamente insieme alla
+configurazione quando si trasferisce il PC al server. Il lock Docker resta
+specifico per Linux/Python 3.12; il launcher nativo usa i requirements CPU,
+incluso il limite PyAV compatibile con Faster-Whisper.
+
 ```sh
 python3 deploy/manage.py doctor
 ```

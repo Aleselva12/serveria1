@@ -52,11 +52,15 @@ def prepare(model,destination,revision=None):
 
 
 def main():
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parents[1]/'.env')
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--model',default='small');parser.add_argument('--revision')
+    parser.add_argument('--destination',type=Path,help='Local model directory, also for native PC preparation')
     parser.add_argument('--check',action='store_true')
     args=parser.parse_args()
-    destination=Path(os.getenv('CORA_WHISPER_MODEL','/state/models/whisper'))
+    destination=args.destination or Path(os.getenv('CORA_WHISPER_MODEL','./models/whisper'))
+    if args.destination:os.environ['CORA_WHISPER_MODEL']=str(destination)
     if args.check:
         manifest=verify(destination)
         from audio_agent.audio_tools import _load_whisper_model

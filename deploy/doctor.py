@@ -42,7 +42,7 @@ def inspect():
         paths=[{'id':name,'ok':path.is_dir() and os.access(path,os.R_OK|(os.W_OK if writable else 0))} for name,path,writable in directories]
         checks['storage']={'ok':all(p['ok'] for p in paths),'resources':paths}
     except Exception as error:checks['storage']={'ok':False,'error_type':type(error).__name__}
-    audio=os.getenv('CORA_API_BUILD_TARGET')=='api-audio-cpu'
+    audio=os.getenv('CORA_API_BUILD_TARGET')=='api-audio-cpu' or os.getenv('CORA_WHISPER_LOCAL_ONLY','').lower()=='true'
     if audio:
         try:
             from audio_agent.model_setup import verify
