@@ -9,13 +9,15 @@ import {create,act} from 'react-test-renderer';
 const require=createRequire(import.meta.url);
 const external=n=>JSON.stringify(pathToFileURL(require.resolve(n)).href);
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
-let calls=[],policy='auto',unknownEffects=[],history=[],reviewCalls=[];
+let calls=[],policy='auto',unknownEffects=[],history=[],reviewCalls=[],telemetry=null;
 globalThis.__panelRequest=async(path,init={})=>{
  calls.push(path);
  if(path.startsWith('/runtime/runs?'))return history;
  if(path.startsWith('/runtime/operations?'))return unknownEffects;
  if(path.endsWith('/review')){const decision=JSON.parse(init.body);reviewCalls.push(decision);unknownEffects=[];return {status:'uncertain',review_outcome:decision.outcome};}
- if(path==='/runtime')return {runs:[],pool:{}};
+ if(path==='/runtime')return {runs:[],pool:{},traces:{write_error:null,diagnostics:telemetry}};
+ if(path.startsWith('/runtime/domain-events?'))return {events:[{id:'event1',sequence:1,type:'run.committed',source:'supervisor',component_run_id:'root',payload:{status:'completed'}}],next_cursor:1};
+ if(path.startsWith('/runtime/diagnostics?'))return {events:[],next_before:null};
  if(path==='/approvals')return {generic:[],calendar:[],history:[]};
  if(path==='/permissions')return {rules:[{actor:'supervisor',action:'calculate',policy,scope:'local'}]};
  if(path==='/runtime/policies'){policy=JSON.parse(init.body).policy;return {saved:true};}
@@ -36,6 +38,22 @@ test('polling loads lightweight permissions once, skips hidden tabs and reloads 
   await act(async()=>r.root.findByType('select').props.onChange({target:{value:'confirm'}}));
   assert.equal(calls.filter(p=>p==='/permissions').length,2);assert.equal(r.root.findByType('select').props.value,'confirm');
  } finally {if(r)await act(async()=>r.unmount());globalThis.setInterval=original;globalThis.clearInterval=clear;globalThis.document=doc;}
+});
+
+test('diagnostic losses are visible without turning canonical success into failure',async()=>{
+ telemetry={pending:3,dropped:2,last_error:'OSError',retention_days:30,worker_alive:true};
+ history=[{id:'root',status:'completed',target:'supervisor',approval_ids:[]}];
+ let r;
+ try {
+  await act(async()=>{r=create(React.createElement(Panel));});
+  assert.ok(JSON.stringify(r.toJSON()).includes('Diagnostica incompleta'));
+  await act(async()=>r.root.findAllByType('button').find(b=>b.children.includes('Vedi operazioni')).props.onClick());
+  assert.ok(JSON.stringify(r.toJSON()).includes('run.committed'));
+  const before=calls.filter(p=>p.includes('/runtime/domain-events?')).length;
+  await act(async()=>r.root.findAllByType('button').find(b=>b.children.includes('Carica eventi successivi')).props.onClick());
+  assert.equal(calls.filter(p=>p.includes('/runtime/domain-events?')).length,before+1);
+  assert.equal(JSON.stringify(r.toJSON()).match(/run.committed/g).length,1);
+ } finally {if(r)await act(async()=>r.unmount());telemetry=null;history=[];}
 });
 
 test('uncertain effects require a recorded verification and review never replays an operation',async()=>{

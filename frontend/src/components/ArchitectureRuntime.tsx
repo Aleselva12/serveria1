@@ -19,12 +19,17 @@ export function performanceRows(metrics: Record<string, unknown>, duration: numb
   const sum = (key:string) => models.reduce((total,m) => total + (typeof m[key] === "number" && Number.isFinite(m[key]) && m[key] >= 0 ? m[key] : 0),0);
   if (models.length) {
     rows.push(["Chiamate modello",String(models.length)]);
+    const ttft = models.filter(m=>typeof m.first_token_ms === 'number' && Number.isFinite(m.first_token_ms));
+    if (ttft.length) ms("Primo token per chiamata (medio)",ttft.reduce((sum,m)=>sum+(m.first_token_ms as number),0)/ttft.length);
     if (models.some(m=>typeof m.load_duration === "number")) ms("Caricamento modelli",sum("load_duration")/1e6);
     if (models.some(m=>typeof m.prompt_eval_count === "number")) rows.push(["Token input elaborati",String(sum("prompt_eval_count"))]);
     if (models.some(m=>typeof m.eval_count === "number")) rows.push(["Token generati",String(sum("eval_count"))]);
     const seconds = sum("eval_duration")/1e9;
     if (seconds > 0) rows.push(["Velocità di generazione",(sum("eval_count")/seconds).toLocaleString("it-IT",{maximumFractionDigits:1}) + " token/s"]);
   }
+  if (typeof metrics.context_estimated_tokens === 'number') rows.push(["Token contesto stimati",String(metrics.context_estimated_tokens)]);
+  if (typeof metrics.context_input_budget === 'number') rows.push(["Budget input",String(metrics.context_input_budget)]);
+  if (typeof metrics.context_dropped_turns === 'number') rows.push(["Turni esclusi",String(metrics.context_dropped_turns)]);
   return rows;
 }
 
@@ -38,6 +43,7 @@ export default function ArchitectureRuntime({
   const [graph, setGraph] = useState<ArchitectureGraph | null>(null);
   const [runs, setRuns] = useState<ExecutionRun[]>([]);
   const [selected, setSelected] = useState("");
+  const [detail,setDetail] = useState<ExecutionRun|null>(null);
   const [graphError, setGraphError] = useState("");
   const [runError, setRunError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -54,7 +60,14 @@ export default function ArchitectureRuntime({
     setLoading(false);
   }
   useEffect(() => { let active = true; const update = () => { if (active && (typeof document === "undefined" || !document.hidden)) void refresh(); }; update(); const timer = setInterval(update, 10000); return () => { active = false; clearInterval(timer); }; }, [showGraph, showTraces]);
-  const run = runs.find(r => r.id === selected) || runs[0];
+  const summary = runs.find(r => r.id === selected) || runs[0];
+  useEffect(()=>{
+    if (!showTraces || !summary) return;
+    let active = true;
+    void api.executionRun(summary.id).then(value=>{if(active)setDetail(value);}).catch(error=>{if(active)setRunError(error.message);});
+    return ()=>{active=false;};
+  },[selected,runs,showTraces]);
+  const run = detail?.id === summary?.id ? detail : summary;
   return <div className="runtime-architecture">
     {showGraph && <>
       <div className="runtime-toolbar"><h2>Grafo eseguibile</h2><button className="chip" disabled={loading} onClick={() => void refresh()}>Aggiorna</button></div>
@@ -74,11 +87,11 @@ export default function ArchitectureRuntime({
       {graph.errors.map(e => <p role="alert" key={e.component}>Grafo non disponibile: {e.component} · {e.error_type}</p>)}
       </>}
     </>}
-    {showTraces && <div className="section-card"><div className="runtime-toolbar"><h2>Tracce di esecuzione</h2><button className="chip" disabled={loading} onClick={() => void refresh()}>Aggiorna</button></div><p>Ultime 50 richieste chat · aggiornamento ogni 10 secondi · conservate dopo il riavvio.</p>
+    {showTraces && <div className="section-card"><div className="runtime-toolbar"><h2>Tracce di esecuzione</h2><button className="chip" disabled={loading} onClick={() => void refresh()}>Aggiorna</button></div><p>Ultimi 50 run radice · stati persistenti · diagnostica dettagliata per 30 giorni predefiniti. Solo il dettaglio selezionato viene caricato.</p>
       {runError && <p role="alert">{runError}</p>}
       {!loading && !runError && !runs.length && <p>Nessuna esecuzione registrata. Invia un messaggio a Cora per generare la prima traccia.</p>}
       {runs.length > 0 && <><label>Esecuzione <select value={run?.id || ""} onChange={e => setSelected(e.target.value)}>{runs.map(r => <option value={r.id} key={r.id}>{new Date(r.started_at).toLocaleString("it-IT")} · {r.status} · {r.id.slice(0, 8)}</option>)}</select></label>
-      {run && <><p>Chat: <code>{run.thread_id}</code> · Grafo: <code>{run.graph_version}</code> · Errori registrati: {run.error_count}</p>{run.note && <p>{run.note}</p>}{run.metrics && <details><summary>Profilazione prestazioni</summary><table><tbody>{performanceRows(run.metrics,run.duration_ms).map(([label,value])=><tr key={label}><th>{label}</th><td>{value}</td></tr>)}</tbody></table><p>Le durate di contesto, modelli e tool possono sovrapporsi: non vanno sommate. Il primo testo può essere provvisorio.</p><details><summary>Dati tecnici</summary><pre>{JSON.stringify(run.metrics,null,2)}</pre></details></details>}<div className="trace-table"><table><thead><tr><th>Ora</th><th>Passaggio</th><th>Stato</th><th>Durata</th><th>Relazione</th></tr></thead><tbody>{run.events.map((e, i) => <tr key={i}><td>{new Date(e.timestamp).toLocaleTimeString("it-IT")}</td><td>{e.kind} · {e.name}</td><td>{e.status}{e.error_type && ` · ${e.error_type}`}</td><td>{e.duration_ms === null ? "—" : `${e.duration_ms} ms`}</td><td title={e.parent_id || ""}>{e.span_id?.slice(0, 8) || "richiesta"}{e.parent_id && ` ← ${e.parent_id.slice(0, 8)}`}</td></tr>)}</tbody></table></div></>}
+      {run && <><p>Chat: <code>{run.thread_id}</code> · Grafo: <code>{run.graph_version}</code> · Errori nel campione: {run.error_count}</p>{run.note && <p>{run.note}</p>}{run.metrics && <details><summary>Profilazione prestazioni</summary><table><tbody>{performanceRows(run.metrics,run.duration_ms).map(([label,value])=><tr key={label}><th>{label}</th><td>{value}</td></tr>)}</tbody></table><p>Le durate di contesto, modelli e tool possono sovrapporsi: non vanno sommate. Il primo testo può essere provvisorio.</p><details><summary>Dati tecnici</summary><pre>{JSON.stringify(run.metrics,null,2)}</pre></details></details>}<div className="trace-table"><table><thead><tr><th>Ora</th><th>Passaggio</th><th>Stato</th><th>Durata</th><th>Relazione</th></tr></thead><tbody>{run.events.map((e, i) => <tr key={i}><td>{new Date(e.timestamp).toLocaleTimeString("it-IT")}</td><td>{e.kind} · {e.name}</td><td>{e.status}{e.error_type && ` · ${e.error_type}`}</td><td>{e.duration_ms === null ? "—" : `${e.duration_ms} ms`}</td><td title={e.parent_id || ""}>{e.span_id?.slice(0, 8) || "richiesta"}{e.parent_id && ` ← ${e.parent_id.slice(0, 8)}`}</td></tr>)}</tbody></table></div></>}
       </>}
     </div>}
   </div>;

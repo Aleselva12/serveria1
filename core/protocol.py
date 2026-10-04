@@ -15,6 +15,12 @@ class ComponentEvent(BaseModel):
     thread_id: str | None = None
     correlation_id: str | None = None
     sequence: int = 0
+    process_id: str | None = None
+    component_run_id: str | None = None
+    parent_run_id: str | None = None
+    span_id: str | None = None
+    parent_span_id: str | None = None
+    operation_id: str | None = None
     payload: dict[str, Any] = Field(default_factory=dict)
 
 class ComponentRequest(BaseModel):

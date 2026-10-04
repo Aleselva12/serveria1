@@ -12,6 +12,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 const fixture={version:'v1',graphs:[{id:'supervisor',nodes:[{id:'agent',name:'agent'},{id:'tools',name:'tools'}],edges:[{source:'agent',target:'tools',conditional:true,label:''}]}],delegations:[],errors:[]};
 let offline=false;
 globalThis.__runtimeApi={architectureGraph:async()=>{if(offline)throw Error('Offline');return fixture;},executionRuns:async()=>{if(offline)throw Error('Offline');return [{id:'run1',thread_id:'chat1',graph_version:'v1',status:'error',started_at:'2026-10-02T10:00:00Z',error_count:1,note:null,events:[{timestamp:'2026-10-02T10:00:00Z',kind:'tool',name:'calculator',status:'error',duration_ms:2,span_id:'span',parent_id:'parent',error_type:'ValueError'}]}];}};
+globalThis.__runtimeApi.executionRun=async()=> (await globalThis.__runtimeApi.executionRuns())[0];
 const source=await readFile(new URL('../src/components/ArchitectureRuntime.tsx',import.meta.url),'utf8');
 const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText.replace(/from "react\/jsx-runtime"/g,'from '+external('react/jsx-runtime')).replace(/from "react"/g,'from '+external('react')).replace('import { api } from "../services/api";','const api=globalThis.__runtimeApi;').replace('import "./architecture-runtime.css";','');
 const {default:Runtime,performanceRows}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));

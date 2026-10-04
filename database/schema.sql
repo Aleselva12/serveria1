@@ -99,6 +99,39 @@ CREATE INDEX IF NOT EXISTS idx_agent_events_thread
 CREATE INDEX IF NOT EXISTS idx_agent_events_component
     ON agent_events(component, timestamp DESC);
 
+-- Critical facts commit atomically with their aggregate. No handlers or replay of effects.
+CREATE TABLE IF NOT EXISTS domain_event_clock (
+    id SMALLINT PRIMARY KEY CHECK(id=1), sequence BIGINT NOT NULL DEFAULT 0
+);
+INSERT INTO domain_event_clock(id) VALUES(1) ON CONFLICT DO NOTHING;
+CREATE TABLE IF NOT EXISTS domain_events (
+    sequence BIGINT PRIMARY KEY,
+    id UUID NOT NULL UNIQUE,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    type TEXT NOT NULL,
+    source TEXT NOT NULL,
+    root_run_id UUID,
+    component_run_id UUID,
+    aggregate_id UUID NOT NULL,
+    aggregate_revision INTEGER NOT NULL,
+    event JSONB NOT NULL,
+    UNIQUE(type,aggregate_id,aggregate_revision)
+);
+CREATE INDEX IF NOT EXISTS idx_domain_events_root ON domain_events(root_run_id,sequence);
+
+-- Best-effort technical diagnostics, independently retained and explicitly lossy.
+CREATE TABLE IF NOT EXISTS diagnostic_events (
+    id UUID PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL,
+    root_run_id TEXT,
+    component_run_id TEXT,
+    type TEXT NOT NULL,
+    source TEXT NOT NULL,
+    event JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_diagnostic_events_root ON diagnostic_events(root_run_id,timestamp,id);
+CREATE INDEX IF NOT EXISTS idx_diagnostic_events_timestamp ON diagnostic_events(timestamp,id);
+
 
 CREATE TABLE IF NOT EXISTS system_context (
     id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),

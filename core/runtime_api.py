@@ -1,7 +1,7 @@
 import asyncio
 import json
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query
 from pydantic import BaseModel, ConfigDict
 from starlette.responses import StreamingResponse
 from core.runtime import runtime, TERMINAL
@@ -31,7 +31,8 @@ def require_run(identifier):
 @router.get("/runtime")
 def runtime_status():
     from core.execution_traces import trace_status
-    return {"version": 2, "runs": runtime.snapshot(), "pool": pool_stats(), "workers": 1,"accepting_runs":not runtime.closed,"traces":trace_status()}
+    return {"version": 3, "runs": runtime.snapshot(), "pool": pool_stats(), "workers": 1,"accepting_runs":not runtime.closed,"traces":trace_status(),
+            'bus':{'process_id':bus.process_id,'sequence':bus.sequence,'capacity':bus.events.maxlen,'transport':'in_process'}}
 
 @router.get("/runtime/registry")
 def registry():
@@ -63,7 +64,7 @@ def cancel(run_id: str):
     except DurabilityLost as error: raise HTTPException(503,"Arresto richiesto localmente; stato persistente non confermato. Controlla Attività.") from error
 
 @router.get("/runtime/runs/{run_id}/events")
-async def events(run_id: str, request: Request, after: int = 0):
+async def events(run_id: str, request: Request, after: int = Query(0,ge=0), process_id: str | None = None):
     run = runtime.get(run_id)
     if not run:
         from core.run_lifecycle import get_run, persisted_snapshot
@@ -76,20 +77,68 @@ async def events(run_id: str, request: Request, after: int = 0):
         return StreamingResponse(archived_stream(),media_type='text/event-stream',headers={"Cache-Control":"no-cache"})
     async def stream():
         cursor = after
+        origin = process_id
+        last = request.headers.get('last-event-id')
+        if last:
+            try:
+                origin,number = last.rsplit(':',1)
+                UUID(origin)
+                cursor = int(number)
+                if cursor < 0: raise ValueError()
+            except (ValueError,AttributeError):
+                origin,cursor = 'invalid',0
+        initial = not cursor or origin != bus.process_id
         while True:
             if await request.is_disconnected(): break
-            batch, gap = bus.read(cursor, run_id)
-            if gap:
-                yield "event: resync\ndata: " + json.dumps(run.snapshot(), default=str) + "\n\n"
+            batch, gap, watermark = bus.read_window(cursor,run_id)
+            if initial or gap:
+                # Same lock order as text producers: snapshot and cursor are one consistent boundary.
+                with run.lock:
+                    state = run.snapshot()
+                    with bus.condition: cursor = bus.sequence
+                yield 'id: '+bus.process_id+':'+str(cursor)+"\nevent: resync\ndata: " + json.dumps(state, default=str) + "\n\n"
+                initial = False
+                batch = []
             for event in batch:
                 cursor = event["sequence"]
-                yield "id: " + str(cursor) + "\ndata: " + json.dumps(event, ensure_ascii=False, default=str) + "\n\n"
+                yield "id: " + bus.process_id+':'+str(cursor) + "\ndata: " + json.dumps(event, ensure_ascii=False, default=str) + "\n\n"
+            if batch or not gap: cursor = max(cursor,watermark)
             if run.done.is_set():
                 yield "event: result\ndata: " + json.dumps(run.snapshot(), ensure_ascii=False, default=str) + "\n\n"
                 break
             yield ": heartbeat\n\n"
             await asyncio.sleep(.2)
     return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@router.get('/runtime/domain-events')
+def domain_events(after: int = Query(0,ge=0),limit: int = Query(100,ge=1,le=500),run_id: UUID | None = None):
+    from core.domain_events import read
+    return {**read(after=after,limit=limit,run_id=str(run_id) if run_id else None),'guarantee':'transactional','executes_actions':False}
+
+
+@router.get('/runtime/diagnostics')
+def diagnostics(run_id: UUID | None = None,limit: int = Query(200,ge=1,le=500),before: UUID | None = None):
+    from core.observability import read
+    from core.domain_events import root_for
+    from core.database import db_connection
+    root = str(run_id) if run_id else None
+    if root:
+        with db_connection() as conn: root = root_for(conn,root)
+        if not root: raise HTTPException(404,'Run non trovato.')
+    try: return read(run_id=root,limit=limit,before=str(before) if before else None)
+    except ValueError as error: raise HTTPException(409,str(error)) from error
+
+
+@router.get('/runtime/event-contracts')
+def event_contracts():
+    from core.observability import PAYLOAD_FIELDS
+    from core.protocol import ComponentEvent
+    return {'version':1,'envelope':ComponentEvent.model_json_schema(),
+            'diagnostic_types':{key:sorted(fields) for key,fields in PAYLOAD_FIELDS.items()},
+            'critical_types':['run.committed','run.stop_requested','operation.committed','operation.reviewed'],
+            'transient_types':['chat.delta','chat.reset'],'critical_cursor':'committed global sequence',
+            'live_cursor':'process_id:sequence','commands':'TaskEnvelope via explicit ComponentBus.dispatch only'}
 
 @router.get("/approvals")
 def approvals():

@@ -130,6 +130,9 @@ export const api = {
     if (!Array.isArray(data) || !data.every(r => typeof r.id === "string" && typeof r.thread_id === "string" && Number.isFinite(Date.parse(r.started_at)) && Array.isArray(r.events) && r.events.every(e => typeof e.name === "string" && typeof e.kind === "string" && Number.isFinite(Date.parse(e.timestamp))))) throw new ApiError("Tracce non valide.", "invalid");
     return data;
   },
+  async executionRun(id:string): Promise<ExecutionRun> {
+    return request<ExecutionRun>("/api/v1/runs/"+encodeURIComponent(id));
+  },
   async toolInventory(): Promise<ToolInventory> {
     const data = await request<ToolInventory>("/tools/inventory");
     if (!data || !Array.isArray(data.entries) || !Array.isArray(data.errors) ||

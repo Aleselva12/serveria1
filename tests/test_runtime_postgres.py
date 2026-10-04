@@ -139,7 +139,7 @@ class RuntimePostgresTests(unittest.TestCase):
         # Runtime endpoints share the same global instance in real production.
         with patch('core.runtime_api.runtime',self.runtime):
             streamed=self.client.get('/api/v1/runtime/runs/'+run.id+'/events')
-        self.assertIn('chat.delta',streamed.text);self.assertIn('event: result',streamed.text)
+        self.assertIn('event: resync',streamed.text);self.assertIn('event: result',streamed.text)
         rows=self.client.get('/conversations/'+cid+'/messages').json()
         self.assertEqual([r['content'] for r in rows],['hello','Ciao'])
         with db_connection() as c:

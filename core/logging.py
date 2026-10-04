@@ -35,54 +35,36 @@ def log_event(
     duration_ms: float | None = None,
     data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Append one structured event to Cora's local JSONL log."""
-    LOG_ROOT.mkdir(parents=True, exist_ok=True)
+    """Compatibility adapter to the single metadata-only diagnostic event path."""
+    from core.event_bus import bus
+    from core.runtime import current_run
+    from core.runtime_context import current_runtime
+    from core.observability import metadata_event
+    run = current_run.get()
+    component_run, active_thread = current_runtime()
+    event_id, timestamp = str(uuid.uuid4()), _utc_now()
+    try:
+        selected = metadata_event({'type':'log.'+event_type,'payload':{**(data or {}),'status':status,
+            'duration_ms':round(duration_ms,2) if duration_ms is not None else None}})
+        published = bus.publish('log.'+event_type,component,run_id=run.id if run else component_run or None,
+            component_run_id=component_run or None,thread_id=thread_id or active_thread or None,payload=selected['payload'])
+        event_id, timestamp = published.id, published.timestamp
+    except Exception as error:
+        from core.observability import archive
+        with archive.lock:
+            archive.dropped += 1
+            archive.last_error = type(error).__name__
+        selected = {'payload':{}}
     event = {
-        "event_id": str(uuid.uuid4()),
-        "timestamp": _utc_now(),
+        "event_id": event_id,
+        "timestamp": timestamp,
         "event_type": event_type,
         "component": component,
         "status": status,
         "thread_id": thread_id,
         "duration_ms": round(duration_ms, 2) if duration_ms is not None else None,
-        "data": data or {},
+        "data": selected['payload'],
     }
-
-    line = json.dumps(event, ensure_ascii=False, default=str)
-    with _LOCK:
-        with LOG_FILE.open("a", encoding="utf-8") as handle:
-            handle.write(line + "\n")
-
-    # PostgreSQL is the authoritative structured store when available.
-    # JSONL remains a readable local copy and a fallback if the DB is offline.
-    try:
-        from core.database import db_connection
-
-        with db_connection() as connection:
-            connection.execute(
-                """
-                INSERT INTO agent_events (
-                    id, timestamp, event_type, component, status,
-                    thread_id, duration_ms, data
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)
-                """,
-                (
-                    event["event_id"],
-                    event["timestamp"],
-                    event["event_type"],
-                    event["component"],
-                    event["status"],
-                    event["thread_id"],
-                    event["duration_ms"],
-                    json.dumps(event["data"], ensure_ascii=False, default=str),
-                ),
-            )
-            connection.commit()
-    except Exception:
-        # Logging must never make the primary operation fail.
-        pass
-
     return event
 
 
@@ -99,14 +81,14 @@ def logged_operation(
     context: dict[str, Any] = {"result": None}
     try:
         yield context
-    except Exception as error:
+    except BaseException as error:
         log_event(
             event_type,
             component=component,
             status="error",
             thread_id=thread_id,
             duration_ms=(time.perf_counter() - started) * 1000,
-            data={**(data or {}), "error_type": type(error).__name__, "error": str(error)},
+            data={**(data or {}), "error_type": type(error).__name__},
         )
         raise
     else:
@@ -125,30 +107,12 @@ def logged_operation(
 
 
 def tail_events(limit: int = 50, event_type: str = "", component: str = "") -> list[dict[str, Any]]:
-    """Return recent log events without loading unbounded history into memory."""
-    if not LOG_FILE.exists():
-        return []
-
-    limit = max(1, min(int(limit), 500))
-    selected: list[dict[str, Any]] = []
-
-    with LOG_FILE.open("r", encoding="utf-8") as handle:
-        lines = deque(handle, maxlen=2000)
-
-    for line in reversed(lines):
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-
-        if event_type and event.get("event_type") != event_type:
-            continue
-        if component and event.get("component") != component:
-            continue
-
-        selected.append(event)
-        if len(selected) >= limit:
-            break
-
-    selected.reverse()
-    return selected
+    """SQL metadata diagnostics only; legacy full-content logs are not reimported."""
+    from core.database import db_connection
+    with db_connection() as connection:
+        rows = connection.execute('''SELECT event FROM diagnostic_events WHERE type LIKE 'log.%%'
+            AND (%s='' OR type=%s) AND (%s='' OR source=%s) ORDER BY timestamp DESC,id DESC LIMIT %s''',
+            (event_type,'log.'+event_type,component,component,max(1,min(limit,500)))).fetchall()
+    return [dict(event_id=e['id'],timestamp=e['timestamp'],event_type=e['type'][4:],component=e['source'],
+                 status=e['payload'].get('status'),thread_id=e['thread_id'],duration_ms=e['payload'].get('duration_ms'),data=e['payload'])
+            for e in reversed([r['event'] for r in rows])]

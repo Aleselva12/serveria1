@@ -249,10 +249,3 @@ def recover_interrupted():
     if database_configured():
         from core.run_lifecycle import recover
         recover()
-    from core.execution_traces import read_runs
-    for previous in read_runs(limit=10000):
-        if previous["status"] in {"queued", "running", "cancelling"}:
-            append_event(dict(run_id=previous["id"],thread_id=previous["thread_id"],
-                graph_version=previous["graph_version"], timestamp=datetime.now(timezone.utc).isoformat(),
-                kind="run",status="interrupted",name="Riavvio backend",span_id=None,parent_id=None,
-                duration_ms=None,error_type=None))
