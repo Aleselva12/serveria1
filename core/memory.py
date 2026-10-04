@@ -56,6 +56,7 @@ def save_memory(
     metadata: dict[str, Any] | None = None, thread_id: str | None = None,
     assertion: str = "user_statement", confidence: float | None = None,
     expected_version: int = 0, editor: str = "user", source_ref: str | None = None,
+    expected_memory_id: str | None = None,
 ) -> dict[str, Any]:
     """Versioned write. expected_version=0 creates; updates require a read version.
 
@@ -87,6 +88,10 @@ def save_memory(
                                       (normalized_type, normalized_key)).fetchone()
         if (previous["version"] if previous else 0) != expected_version:
             raise MemoryConflict("Memoria cambiata: rileggi la versione corrente prima di aggiornare.")
+        if previous and (not expected_memory_id or str(previous['id']) != str(uuid.UUID(expected_memory_id))):
+            raise MemoryConflict("Identità della memoria cambiata: rileggi ID e versione prima di aggiornare.")
+        if not previous and expected_memory_id:
+            raise MemoryConflict("La memoria letta è stata eliminata; la creazione richiede una nuova richiesta.")
         if previous and editor == "agent" and previous["owner_kind"] != "agent" and not _owner_update_approved():
             from core.governance import ApprovalRequired
             raise ApprovalRequired("supervisor", "remember_memory")

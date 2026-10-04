@@ -287,6 +287,7 @@ export const api = {
     confidence?: number | null;
     expires_at?: string | null;
     expected_version?: number;
+    expected_memory_id?: string;
   }): Promise<PersistentMemory> {
     return request<PersistentMemory>("/memory", {
       method: "POST",

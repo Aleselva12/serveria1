@@ -63,8 +63,8 @@ class MemoryPostgresTests(unittest.TestCase):
     def test_versioned_edit_and_stale_write_preserve_previous_content(self):
         with patch('core.memory.embed_text') as embed:
             first=save_memory(memory_type='fact',key='owner',content='Original')
-            second=save_memory(memory_type='fact',key='owner',content='Corrected',expected_version=1)
-            with self.assertRaises(MemoryConflict):save_memory(memory_type='fact',key='owner',content='Stale',expected_version=1)
+            second=save_memory(memory_type='fact',key='owner',content='Corrected',expected_version=1,expected_memory_id=str(first['id']))
+            with self.assertRaises(MemoryConflict):save_memory(memory_type='fact',key='owner',content='Stale',expected_version=1,expected_memory_id=str(first['id']))
             embed.assert_not_called()
         history=memory_history(str(first['id']))
         self.assertEqual([h['snapshot']['content'] for h in history],['Corrected','Original'])
@@ -76,7 +76,7 @@ class MemoryPostgresTests(unittest.TestCase):
         from core.governance import resolve
         first=save_memory(memory_type='fact',key='owner',content='Original')
         set_policy('supervisor','remember_memory','auto')
-        args={'memory_type':'fact','key':'owner','content':'Hypothesis','expected_version':1,'assertion':'inference','confidence':0.6}
+        args={'memory_type':'fact','key':'owner','content':'Hypothesis','expected_version':1,'expected_memory_id':str(first['id']),'assertion':'inference','confidence':0.6}
         proposal=json.loads(remember_tool.invoke(args))
         self.assertEqual(proposal['status'],'pending')
         self.assertEqual(memory_history(str(first['id']))[0]['snapshot']['content'],'Original')
@@ -92,8 +92,8 @@ class MemoryPostgresTests(unittest.TestCase):
         from core.governance import resolve
         first=save_memory(memory_type='fact',key='owner',content='Original')
         set_policy('supervisor','remember_memory','auto')
-        proposal=json.loads(remember_tool.invoke({'memory_type':'fact','key':'owner','content':'Outdated proposal','expected_version':1}))
-        save_memory(memory_type='fact',key='owner',content='New user edit',expected_version=1)
+        proposal=json.loads(remember_tool.invoke({'memory_type':'fact','key':'owner','content':'Outdated proposal','expected_version':1,'expected_memory_id':str(first['id'])}))
+        save_memory(memory_type='fact',key='owner',content='New user edit',expected_version=1,expected_memory_id=str(first['id']))
         with self.assertRaises(RuntimeError):resolve(proposal['approval_id'],True,'Ale')
         self.assertEqual(memory_history(str(first['id']))[0]['snapshot']['content'],'New user edit')
 
@@ -138,7 +138,7 @@ class MemoryPostgresTests(unittest.TestCase):
         from core.background_embeddings import index_pending_once,runtime
         first=save_memory(memory_type='note',key='embedding',content='Old')
         def changed(_):
-            save_memory(memory_type='note',key='embedding',content='New',expected_version=1)
+            save_memory(memory_type='note',key='embedding',content='New',expected_version=1,expected_memory_id=str(first['id']))
             return [[1.0,2.0]]
         with patch.object(runtime,'last_foreground',0),patch.object(runtime,'snapshot',return_value=[]),patch('core.background_embeddings.EMBEDDING_MODEL','test'),patch('core.background_embeddings.embed_batch',side_effect=changed):
             self.assertTrue(index_pending_once())
@@ -174,12 +174,25 @@ class MemoryPostgresTests(unittest.TestCase):
             self.assertEqual(first.json()['metadata']['editor'],'user')
             self.assertIsNone(first.json()['metadata']['source_ref'])
             self.assertEqual(client.post('/memory',json={**body,'content':'Unexpected'}).status_code,409)
-            second=client.post('/memory',json={**body,'content':'Explicit edit','expected_version':1})
+            second=client.post('/memory',json={**body,'content':'Explicit edit','expected_version':1,'expected_memory_id':first.json()['id']})
             self.assertEqual(second.status_code,200,second.text)
-            self.assertEqual(client.post('/memory',json={**body,'expected_version':1}).status_code,409)
+            self.assertEqual(client.post('/memory',json={**body,'expected_version':1,'expected_memory_id':first.json()['id']}).status_code,409)
             history=client.get('/memory/'+first.json()['id']+'/history').json()
             self.assertEqual([v['snapshot']['content'] for v in history],['Explicit edit','Original'])
             context=client.get('/memory/context').json()
             updated=client.put('/memory/context',json={'content':'Owner rules','expected_version':context['version']})
             self.assertEqual(updated.status_code,200,updated.text)
             self.assertEqual(client.put('/memory/context',json={'content':'Stale','expected_version':context['version']}).status_code,409)
+
+    def test_delete_and_recreate_same_key_cannot_retarget_a_previous_proposal(self):
+        from tools import remember_tool
+        from core.permissions import set_policy
+        from core.governance import resolve
+        from core.memory import delete_memory
+        first=save_memory(memory_type='note',key='recreated',content='Original')
+        set_policy('supervisor','remember_memory','auto')
+        proposal=json.loads(remember_tool.invoke({'memory_type':'note','key':'recreated','content':'Old correction','expected_version':1,'expected_memory_id':str(first['id'])}))
+        self.assertTrue(delete_memory(str(first['id'])))
+        replacement=save_memory(memory_type='note',key='recreated',content='Entirely new memory')
+        with self.assertRaises(RuntimeError):resolve(proposal['approval_id'],True,'Ale')
+        self.assertEqual(memory_history(str(replacement['id']))[0]['snapshot']['content'],'Entirely new memory')

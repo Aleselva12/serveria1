@@ -117,8 +117,9 @@ def remember_tool(
     assertion: str = "inference",
     confidence: float | None = None,
     expected_version: int = 0,
+    expected_memory_id: str = "",
 ) -> str:
-    """Annota memoria: user_statement, observation o inference. Per aggiornare leggi prima la versione con recall_memory_tool e passa expected_version; 0 crea. Correggere memorie dell'utente richiede approvazione."""
+    """Annota memoria: user_statement, observation o inference. Per aggiornare leggi ID e versione con recall_memory_tool e passa expected_memory_id e expected_version; 0 crea. Correggere memorie dell'utente richiede approvazione."""
     _require_supervisor_permission("remember_memory")
     result = save_memory(
         memory_type=memory_type,
@@ -131,6 +132,7 @@ def remember_tool(
         assertion=assertion,
         confidence=confidence,
         expected_version=expected_version,
+        expected_memory_id=expected_memory_id or None,
         editor="agent",
         thread_id=current_runtime()[1] or None,
         source_ref=current_runtime()[0] or None,

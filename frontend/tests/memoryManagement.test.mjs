@@ -22,7 +22,7 @@ test('editing carries the read version and a conflict retains the draft',async()
  await act(async()=>view.root.findAllByType('button').find(b=>text(b)==='Modifica').props.onClick());
  await act(async()=>view.root.findByType('textarea').props.onChange({target:{value:'My correction'}}));
  await act(async()=>await view.root.findAllByType('button').find(b=>text(b).includes('Salva versione 5')).props.onClick());
- assert.equal(sent.expected_version,4);assert.equal(sent.content,'My correction');assert.equal(sent.assertion,'inference');
+ assert.equal(sent.expected_version,4);assert.equal(sent.expected_memory_id,'one');assert.equal(sent.content,'My correction');assert.equal(sent.assertion,'inference');
  assert.equal(view.root.findByType('textarea').props.value,'My correction');
  assert.ok(view.root.findAllByProps({className:'connection-error'}).length);
  await act(async()=>view.unmount());

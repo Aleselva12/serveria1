@@ -119,6 +119,7 @@ export default function MemoryManagement({ registry, onBack }: Props) {
         confidence:confidence === "" ? null : Number(confidence),
         expires_at:expiry ? new Date(expiry).toISOString() : null,
         expected_version:editing?.version ?? 0,
+        expected_memory_id:editing?.id,
       });
       setMemoryDraft("");
       setMemoryTitle("");

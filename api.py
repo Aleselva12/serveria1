@@ -108,6 +108,7 @@ class MemoryWriteRequest(BaseModel):
     assertion: Literal['user_statement','observation','inference','unclassified'] = "user_statement"
     confidence: float | None = Field(default=None, ge=0, le=1)
     expected_version: int = Field(default=0, ge=0)
+    expected_memory_id: uuid.UUID | None = None
 
 
 class SystemContextRequest(BaseModel):
@@ -237,6 +238,7 @@ def write_memory(request: MemoryWriteRequest):
             metadata=request.metadata,
             assertion=request.assertion, confidence=request.confidence,
             expected_version=request.expected_version, editor="user",
+            expected_memory_id=str(request.expected_memory_id) if request.expected_memory_id else None,
         )
     except MemoryConflict as error:
         raise HTTPException(409,str(error)) from error
