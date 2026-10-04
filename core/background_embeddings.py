@@ -29,6 +29,19 @@ def index_pending_once():
             return True
         if not EMBEDDING_MODEL: return False
         with db_connection() as conn:
+            memories = conn.execute("""SELECT id,content,version FROM memories
+                WHERE embedding IS NULL AND embedding_model IS NULL
+                AND (expires_at IS NULL OR expires_at>NOW()) ORDER BY updated_at LIMIT 2""").fetchall()
+        if memories:
+            vectors = embed_batch([row['content'] for row in memories])
+            if _stop.is_set(): return False
+            with db_connection() as conn:
+                for row, vector in zip(memories,vectors):
+                    conn.execute("""UPDATE memories SET embedding=%s,embedding_model=%s,embedding_dimensions=%s
+                        WHERE id=%s AND version=%s AND embedding IS NULL""",
+                        (Vector(vector) if vector else None,EMBEDDING_MODEL,len(vector) if vector else None,row['id'],row['version']))
+            return True
+        with db_connection() as conn:
             rows = conn.execute("SELECT id,content FROM messages WHERE embedding IS NULL AND embedding_model IS NULL ORDER BY created_at LIMIT %s", (max(1,min(8,int(os.getenv("CORA_EMBEDDING_BATCH_SIZE", "2")))),)).fetchall()
         if not rows: return False
         started = time.perf_counter()

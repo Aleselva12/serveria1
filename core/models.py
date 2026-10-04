@@ -45,7 +45,8 @@ def get_chat_model(
     **kwargs,
 ) -> ChatOllama:
     """Create the local chat model assigned to a Cora role."""
-    kwargs.setdefault("num_ctx", int(os.getenv("CORA_CONTEXT_TOKENS", "16384")))
+    from core.context_budget import limit_tokens
+    kwargs.setdefault("num_ctx", limit_tokens())
     kwargs.setdefault("num_predict", int(os.getenv("CORA_OUTPUT_TOKENS", "1024")))
     kwargs.setdefault("client_kwargs", {"timeout": float(os.getenv("CORA_MODEL_TIMEOUT_SECONDS", "120")), "trust_env": False})
     kwargs.setdefault("metadata", {"cora_role": role})

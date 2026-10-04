@@ -30,7 +30,13 @@ export default function MemoryManagement({ registry, onBack }: Props) {
   const [memoryDraft, setMemoryDraft] = useState("");
   const [memoryTitle, setMemoryTitle] = useState("");
   const [memoryType, setMemoryType] = useState("note");
+  const [assertion, setAssertion] = useState<PersistentMemory["assertion"]>("user_statement");
+  const [confidence, setConfidence] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [editing, setEditing] = useState<PersistentMemory | null>(null);
+  const [history, setHistory] = useState<{id:string; rows:{version:number; snapshot:PersistentMemory; editor:string; created_at:string}[]} | null>(null);
   const [search, setSearch] = useState("");
+  const [includeExpired,setIncludeExpired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -64,7 +70,7 @@ export default function MemoryManagement({ registry, onBack }: Props) {
     setError("");
     try {
       const [memories, episodes, working] = await Promise.all([
-        api.memories(query, "", 100),
+        api.memories(query, "", 100,includeExpired),
         api.episodes(50),
         api.workingMemory(),
       ]);
@@ -85,7 +91,7 @@ export default function MemoryManagement({ registry, onBack }: Props) {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void api
-        .memories(search, "", 100)
+        .memories(search, "", 100,includeExpired)
         .then(setSemanticMemories)
         .catch((err) =>
           setError(
@@ -94,7 +100,7 @@ export default function MemoryManagement({ registry, onBack }: Props) {
         );
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [search]);
+  }, [search,includeExpired]);
 
   async function addSemanticMemory() {
     const content = memoryDraft.trim();
@@ -109,15 +115,32 @@ export default function MemoryManagement({ registry, onBack }: Props) {
         content,
         source: "user_explicit",
         importance: 4,
+        assertion,
+        confidence:confidence === "" ? null : Number(confidence),
+        expires_at:expiry ? new Date(expiry).toISOString() : null,
+        expected_version:editing?.version ?? 0,
       });
       setMemoryDraft("");
       setMemoryTitle("");
+      setEditing(null); setConfidence(""); setExpiry("");
       await refreshAll(search);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Salvataggio non riuscito.");
     } finally {
       setSaving(false);
     }
+  }
+
+  function editMemory(memory:PersistentMemory) {
+    setEditing(memory); setMemoryTitle(memory.key); setMemoryDraft(memory.content);
+    setMemoryType(memory.memory_type); setAssertion(memory.assertion);
+    setConfidence(memory.confidence === null ? "" : String(memory.confidence));
+    setExpiry(memory.expires_at ? new Date(new Date(memory.expires_at).getTime()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16) : "");
+  }
+
+  async function showHistory(memory:PersistentMemory) {
+    try { setHistory({id:memory.id, rows:await api.memoryHistory(memory.id)}); }
+    catch(err) { setError(err instanceof Error ? err.message : "Storico non disponibile."); }
   }
 
   async function removeMemory(id: string) {
@@ -192,6 +215,7 @@ export default function MemoryManagement({ registry, onBack }: Props) {
           </div>
 
           <div className="memory-toolbar">
+            <label><input type="checkbox" checked={includeExpired} onChange={event=>setIncludeExpired(event.target.checked)} /> Mostra anche le scadute</label>
             <label className="memory-search">
               <Search size={15} />
               <input
@@ -208,10 +232,12 @@ export default function MemoryManagement({ registry, onBack }: Props) {
                 value={memoryTitle}
                 onChange={(event) => setMemoryTitle(event.target.value)}
                 placeholder="Chiave / titolo breve"
+                disabled={!!editing}
               />
               <select
                 value={memoryType}
                 onChange={(event) => setMemoryType(event.target.value)}
+                disabled={!!editing}
               >
                 <option value="fact">Fatto</option>
                 <option value="preference">Preferenza</option>
@@ -222,6 +248,16 @@ export default function MemoryManagement({ registry, onBack }: Props) {
                 <option value="task_context">Contesto task</option>
               </select>
             </div>
+            <div className="manual-memory-row">
+              <select aria-label="Natura della memoria" value={assertion} onChange={event=>setAssertion(event.target.value as PersistentMemory["assertion"])}>
+                <option value="user_statement">Affermazione dell'utente</option>
+                <option value="observation">Osservazione</option>
+                <option value="inference">Deduzione / ipotesi</option>
+                <option value="unclassified">Non classificata</option>
+              </select>
+              <input aria-label="Confidenza da 0 a 1" type="number" min="0" max="1" step="0.05" placeholder="Confidenza (0–1), facoltativa" value={confidence} onChange={event=>setConfidence(event.target.value)} />
+            </div>
+            <label>Scadenza facoltativa <input type="datetime-local" value={expiry} onChange={event=>setExpiry(event.target.value)} /></label>
             <textarea
               value={memoryDraft}
               onChange={(event) => setMemoryDraft(event.target.value)}
@@ -233,8 +269,10 @@ export default function MemoryManagement({ registry, onBack }: Props) {
               onClick={() => void addSemanticMemory()}
               disabled={!memoryDraft.trim() || saving}
             >
-              <Plus size={15} /> {saving ? "Salvataggio…" : "Aggiungi memoria"}
+              <Plus size={15} /> {saving ? "Salvataggio…" : editing ? `Salva versione ${editing.version+1}` : "Aggiungi memoria"}
             </button>
+            {editing && <button className="text-button" onClick={()=>{setEditing(null);setMemoryTitle("");setMemoryDraft("");setConfidence("");setExpiry("");}}>Annulla modifica</button>}
+            <small>La confidenza è dichiarata dall'autore, non una probabilità verificata. Le deduzioni restano ipotesi.</small>
           </div>
 
           <div className="memory-list">
@@ -249,6 +287,8 @@ export default function MemoryManagement({ registry, onBack }: Props) {
                     <strong>{memory.key}</strong>
                     <div className="memory-entry-actions">
                       <span>{memory.memory_type}</span>
+                      <button onClick={()=>editMemory(memory)}>Modifica</button>
+                      <button onClick={()=>void showHistory(memory)}>Versioni</button>
                       <button
                         aria-label="Elimina memoria"
                         title="Elimina memoria"
@@ -260,9 +300,15 @@ export default function MemoryManagement({ registry, onBack }: Props) {
                   </div>
                   <p>{memory.content}</p>
                   <small>
-                    {memory.source} · importanza {memory.importance} ·{" "}
+                    {memory.assertion === 'inference' ? 'Ipotesi' : memory.assertion === 'observation' ? 'Osservazione' : memory.assertion === 'user_statement' ? "Affermazione utente" : 'Non classificata'} · v{memory.version} · {memory.source} · confidenza {memory.confidence ?? 'non indicata'} · importanza {memory.importance} ·{" "}
                     {new Date(memory.updated_at).toLocaleString("it-IT")}
                   </small>
+                  {!!memory.metadata.source_ref && <small>Riferimento: {String(memory.metadata.source_ref)}</small>}
+                  {memory.expires_at && <small>Scade: {new Date(memory.expires_at).toLocaleString('it-IT')}</small>}
+                  {history?.id === memory.id && <div>
+                    <button className="text-button" onClick={()=>setHistory(null)}>Chiudi storico</button>
+                    {history.rows.map(row=><div key={row.version}><small>v{row.version} · {row.editor} · {new Date(row.created_at).toLocaleString('it-IT')}</small><p>{row.snapshot.content}</p><small>{row.snapshot.assertion} · confidenza {row.snapshot.confidence ?? 'non indicata'}</small></div>)}
+                  </div>}
                 </article>
               ))
             )}

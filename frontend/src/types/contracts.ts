@@ -265,6 +265,10 @@ export type PersistentMemory = {
   key: string;
   content: string;
   source: string;
+  version: number;
+  assertion: "user_statement" | "observation" | "inference" | "unclassified";
+  confidence: number | null;
+  owner_kind: "user" | "agent" | "legacy";
   importance: number;
   created_at: string;
   updated_at: string;

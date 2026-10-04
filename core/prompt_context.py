@@ -12,11 +12,19 @@ def with_permanent_context(base_prompt: str) -> str:
     now = datetime.now(ZoneInfo("Europe/Rome"))
     base_prompt += "\n\nTOOL GOVERNANCE: Un risultato con status pending è una proposta, non un'azione eseguita. Indica che l'utente deve approvarla nella pagina Attività (le proposte calendario sono anche nel Calendario). Non dichiarare riuscita un'operazione con status error. Dopo l'approvazione si esegue solo l'azione confermata, senza continuazione automatica del ragionamento."
     base_prompt = base_prompt.strip() + "\n\nCURRENT SERVER TIME (Europe/Rome): " + now.isoformat(timespec="seconds")
-    try:
+    from core.runtime import current_run
+    run = current_run.get()
+    # One owner context snapshot per root run, shared by all delegated agents.
+    if run:
+        with run.lock:
+            context = getattr(run,"permanent_context",None)
+            if context is None:
+                context = get_system_context()
+                run.permanent_context = context
+                run.timings['permanent_context_version'] = context['version']
+    else:
         context = get_system_context()
-        content = (context.get("content") or "").strip()
-    except Exception:
-        content = ""
+    content = (context.get("content") or "").strip()
 
     if not content:
         return base_prompt.strip()

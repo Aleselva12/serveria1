@@ -1,23 +1,13 @@
 from __future__ import annotations
 
 import json
-import threading
 from typing import Any
 
 from core.database import db_connection
 from core.logging import log_event
 
 
-_CACHE_LOCK = threading.Lock()
-_CACHE: dict[str, Any] | None = None
-
-
 def get_system_context() -> dict[str, Any]:
-    global _CACHE
-    with _CACHE_LOCK:
-        if _CACHE is not None:
-            return dict(_CACHE)
-
     with db_connection() as connection:
         row = connection.execute(
             """
@@ -33,8 +23,6 @@ def get_system_context() -> dict[str, Any]:
         "updated_at": None,
         "metadata": {},
     }
-    with _CACHE_LOCK:
-        _CACHE = dict(result)
     return dict(result)
 
 
@@ -42,9 +30,14 @@ def update_system_context(
     content: str,
     *,
     metadata: dict[str, Any] | None = None,
+    expected_version: int | None = None,
 ) -> dict[str, Any]:
     normalized = content.strip()
     with db_connection() as connection:
+        previous = connection.execute('SELECT version FROM system_context WHERE id=1 FOR UPDATE').fetchone()
+        if expected_version is not None and (previous['version'] if previous else 0) != expected_version:
+            from core.memory import MemoryConflict
+            raise MemoryConflict('Contesto modificato altrove: rileggi la versione corrente.')
         row = connection.execute(
             """
             INSERT INTO system_context (id, content, version, updated_at, metadata)
@@ -59,11 +52,9 @@ def update_system_context(
             """,
             (normalized, json.dumps(metadata or {}, ensure_ascii=False)),
         ).fetchone()
+        connection.execute('INSERT INTO system_context_versions (version,content,metadata) VALUES (%s,%s,%s::jsonb)',
+                           (row['version'],row['content'],json.dumps(row['metadata'],ensure_ascii=False)))
         connection.commit()
-
-    global _CACHE
-    with _CACHE_LOCK:
-        _CACHE = dict(row)
 
     log_event(
         "system_context_update",

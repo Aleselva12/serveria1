@@ -12,12 +12,13 @@ from core.auth import AuthMiddleware, router as auth_router
 from core.database import close_pool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from typing import Literal
 
 from core.chat_store import conversation_stats, ensure_conversation, get_messages, list_conversations, recent_context, save_message, refresh_transcript
 from core.database import database_status
 from core.episodes import create_episode, list_episodes
 from core.logging import logged_operation
-from core.memory import delete_memory, memory_stats, save_memory, search_memories
+from core.memory import delete_memory, memory_stats, save_memory, search_memories, memory_history, MemoryConflict
 from core.system_context import get_system_context, update_system_context
 from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
 from core.calendar_api import router as calendar_router
@@ -98,17 +99,21 @@ class ChatResponse(BaseModel):
 
 class MemoryWriteRequest(BaseModel):
     memory_type: str
-    key: str
-    content: str
+    key: str = Field(min_length=1,max_length=200)
+    content: str = Field(min_length=1,max_length=12000)
     source: str = "user_explicit"
-    importance: int = 3
+    importance: int = Field(default=3,ge=1,le=5)
     expires_at: str | None = None
     metadata: dict = Field(default_factory=dict)
+    assertion: Literal['user_statement','observation','inference','unclassified'] = "user_statement"
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    expected_version: int = Field(default=0, ge=0)
 
 
 class SystemContextRequest(BaseModel):
-    content: str
+    content: str = Field(max_length=12000)
     metadata: dict = Field(default_factory=dict)
+    expected_version: int = Field(ge=1)
 
 
 class WorkingMemoryRequest(BaseModel):
@@ -177,10 +182,11 @@ def read_system_context():
 
 @app.put("/memory/context")
 def write_system_context(request: SystemContextRequest):
-    return update_system_context(
-        request.content,
-        metadata={**request.metadata, "source": "user_settings"},
-    )
+    try:
+        return update_system_context(request.content, expected_version=request.expected_version,
+            metadata={**request.metadata, "source": "user_settings"})
+    except MemoryConflict as error:
+        raise HTTPException(409,str(error)) from error
 
 
 @app.get("/memory/episodes")
@@ -209,8 +215,8 @@ def remove_working_memory(agent_id: str, thread_id: str):
 
 
 @app.get("/memory")
-def memories(query: str = "", memory_type: str = "", limit: int = 50):
-    return search_memories(query, memory_type=memory_type, limit=limit)
+def memories(query: str = "", memory_type: str = "", limit: int = 50, include_expired: bool = False):
+    return search_memories(query, memory_type=memory_type, limit=limit,include_expired=include_expired)
 
 
 @app.get("/memory/stats")
@@ -220,15 +226,27 @@ def memory_status():
 
 @app.post("/memory")
 def write_memory(request: MemoryWriteRequest):
-    return save_memory(
-        memory_type=request.memory_type,
-        key=request.key,
-        content=request.content,
-        source=request.source,
-        importance=request.importance,
-        expires_at=request.expires_at,
-        metadata=request.metadata,
-    )
+    try:
+        return save_memory(
+            memory_type=request.memory_type,
+            key=request.key,
+            content=request.content,
+            source="user_explicit",
+            importance=request.importance,
+            expires_at=request.expires_at,
+            metadata=request.metadata,
+            assertion=request.assertion, confidence=request.confidence,
+            expected_version=request.expected_version, editor="user",
+        )
+    except MemoryConflict as error:
+        raise HTTPException(409,str(error)) from error
+    except ValueError as error:
+        raise HTTPException(422,str(error)) from error
+
+
+@app.get("/memory/{memory_id}/history")
+def read_memory_history(memory_id: uuid.UUID, limit: int = 50):
+    return memory_history(str(memory_id),limit=limit)
 
 
 @app.delete("/memory/{memory_id}")
