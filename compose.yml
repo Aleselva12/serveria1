@@ -1,0 +1,76 @@
+name: cora
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cora
+      POSTGRES_USER: cora
+      POSTGRES_PASSWORD: ${CORA_POSTGRES_PASSWORD:?Run python deploy/manage.py init first}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U cora -d cora']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  api:
+    image: cora-api:${CORA_RELEASE:-local}
+    build:
+      context: .
+      target: api
+      args:
+        CORA_UID: ${CORA_UID:-1000}
+        CORA_GID: ${CORA_GID:-1000}
+    restart: unless-stopped
+    init: true
+    env_file: deploy.env
+    environment:
+      CORA_DATABASE_URL: postgresql://cora:${CORA_POSTGRES_PASSWORD}@postgres:5432/cora
+      CORA_KNOWLEDGE_ROOT: /state/knowledge
+      CORA_LIBRARY_ORIGINALS_ROOT: /state/library_originals
+      CORA_AUDIO_ROOT: /state/audio
+      CORA_TRANSCRIPT_ROOT: /state/audio/_transcripts
+      CORA_QUOTE_ROOT: /state/quotes
+      CORA_LOG_ROOT: /state/logs
+      CORA_CHAT_TRANSCRIPT_ROOT: /state/chat-transcripts
+      CORA_STRUCTURE_WORKSPACE: /state/structure_workspace
+      CORA_AUTOMATION_ROOT: /state/automation_drafts
+      CORA_GMAIL_CREDENTIALS_PATH: /state/gmail/credentials.json
+      CORA_GMAIL_TOKEN_PATH: /state/gmail/token.json
+    volumes:
+      - type: bind
+        source: ${CORA_STATE_ROOT:-./state}
+        target: /state
+        bind:
+          create_host_path: false
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stop_grace_period: 330s
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/auth/status',timeout=5)"]
+      interval: 15s
+      timeout: 6s
+      start_period: 60s
+      retries: 5
+  web:
+    image: cora-web:${CORA_RELEASE:-local}
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    ports:
+      - '${CORA_BIND_ADDRESS:-127.0.0.1}:${CORA_HTTP_PORT:-8080}:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1/backend/auth/status]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  postgres_data:

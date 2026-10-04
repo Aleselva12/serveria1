@@ -1,5 +1,8 @@
 # Environments
 .env
+deploy.env
+state/
+backups/
 .venv
 env/
 venv/

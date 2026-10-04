@@ -33,6 +33,9 @@ Modello predefinito: `gpt-oss:20b`, endpoint `http://localhost:11435`. Le variab
 
 ## Runtime e prestazioni
 
+Per il percorso Debian con Docker Compose, frontend compilato, Ollama esterno,
+backup e ripristino consultare [deploy/README.md](deploy/README.md).
+
 `core/runtime.py` ammette un'esecuzione del modello alla volta, con coda FIFO limitata e una sola richiesta attiva per conversazione. Lo streaming mostra sia Supervisor sia specialisti, distinguendo ogni nuova chiamata e sostituendo il testo provvisorio con il risultato salvato. Il nuovo ingresso chat è `POST /api/v1/chat/runs`; `POST /chat` conserva il contratto sincrono per i client precedenti. Il frontend riceve testo e stati attraverso SSE.
 
 Lifecycle: `queued → running → completed / failed / awaiting_approval`. Un annullamento avviato durante il lavoro passa per `cancelling` e termina come `cancelled` o `timed_out`. La mappa degli stati è unica in `core/run_states.py`. Stato, risultato finale, proposte e motivo dell’arresto sono persistenti in `runtime_runs`; le transizioni bloccano la riga e verificano lo stato precedente. Uno stato terminale non può essere riscritto o riaperto. Al riavvio i run incompiuti diventano `interrupted`; non vengono rieseguiti automaticamente. Le tracce tecniche sono diagnostiche e non determinano il lifecycle.

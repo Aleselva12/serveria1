@@ -114,6 +114,18 @@ class EventPostgresTests(unittest.TestCase):
         from core.database import close_pool
         close_pool()
 
+    def test_migration_checksum_prevents_silent_schema_rewrites(self):
+        from core import database
+        with db_connection() as conn:
+            version=conn.execute('SELECT checksum FROM cora_schema_migrations WHERE version=%s',('0001_baseline',)).fetchone()
+            self.assertIsNotNone(version)
+        with tempfile.TemporaryDirectory() as directory:
+            modified=Path(directory)/'schema.sql';modified.write_text('SELECT 1;')
+            with patch.object(database,'SCHEMA_FILE',modified),patch.object(database,'_schema_ready',False):
+                with self.assertRaisesRegex(RuntimeError,'Applied migration changed'):
+                    with db_connection():pass
+        self.assertEqual(get_run(str(create_run(thread_id='migration-check')['id']))['status'],'queued')
+
     @unittest.skipIf(os.getenv('CORA_DB_POOL_SIZE')=='1','Requires concurrent real PostgreSQL connections')
     def test_critical_cursor_follows_commit_order(self):
         from core.domain_events import append
