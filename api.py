@@ -336,6 +336,8 @@ def submit_chat(request):
         return runtime.submit(thread_id, lambda run: execute_chat(request, run).model_dump(), graph_version=architecture_graph()["version"])
     except ValueError as error:
         raise HTTPException(409, str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(503, "Runtime non disponibile; verifica Attività e riavvia il backend.") from error
 
 
 @app.post("/api/v1/chat/runs", status_code=202)

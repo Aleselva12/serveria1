@@ -265,3 +265,38 @@ CREATE TABLE IF NOT EXISTS context_jobs (
 ALTER TABLE action_approvals ADD COLUMN IF NOT EXISTS capability_id TEXT;
 ALTER TABLE action_approvals ADD COLUMN IF NOT EXISTS contract_version INTEGER;
 ALTER TABLE action_approvals ADD COLUMN IF NOT EXISTS contract_digest TEXT;
+
+-- Canonical outcomes survive the process; traces remain diagnostic only.
+ALTER TABLE runtime_runs ADD COLUMN IF NOT EXISTS result JSONB;
+ALTER TABLE runtime_runs ADD COLUMN IF NOT EXISTS approval_ids JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE runtime_runs ADD COLUMN IF NOT EXISTS revision INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE runtime_runs ADD COLUMN IF NOT EXISTS stop_reason TEXT;
+CREATE TABLE IF NOT EXISTS capability_operations (
+    id UUID PRIMARY KEY,
+    run_id UUID REFERENCES runtime_runs(id) ON DELETE SET NULL,
+    root_run_id UUID REFERENCES runtime_runs(id) ON DELETE SET NULL,
+    approval_id UUID REFERENCES action_approvals(id) ON DELETE SET NULL,
+    capability_id TEXT NOT NULL,
+    contract_version INTEGER NOT NULL,
+    contract_digest TEXT NOT NULL,
+    implementation_revision TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    effect TEXT NOT NULL CHECK(effect IN ('read','compute','write','delegate')),
+    retry TEXT NOT NULL CHECK(retry IN ('safe','never')),
+    payload JSONB NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('started','succeeded','pending','failed','uncertain')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    finished_at TIMESTAMPTZ,
+    result JSONB,
+    error_type TEXT,
+    review_outcome TEXT CHECK(review_outcome IN ('effect_verified','no_effect_verified')),
+    reviewed_at TIMESTAMPTZ,
+    reviewed_by TEXT,
+    review_note TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_capability_operations_run ON capability_operations(root_run_id,created_at);
+CREATE INDEX IF NOT EXISTS idx_capability_operations_status ON capability_operations(status,created_at DESC);
+ALTER TABLE capability_operations ADD COLUMN IF NOT EXISTS intent_digest TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_capability_operations_unresolved_intent
+    ON capability_operations(intent_digest)
+    WHERE effect IN ('write','delegate') AND status IN ('started','uncertain') AND review_outcome IS NULL;

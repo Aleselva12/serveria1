@@ -14,6 +14,7 @@ from core.registry import registry_json
 from core.run_lifecycle import RunCancelled, create_run, transition_run
 from core.runtime_context import RunTimedOut, bind_runtime, current_runtime
 from core.runtime import RunStopped, checkpoint, publish_text
+from core.run_states import DurabilityLost
 from core.working_memory import set_working_memory
 from local_tools import (
     calculator_tool as _calculator_tool,
@@ -179,6 +180,7 @@ def _delegate_agent(
     parent_runtime = current_run.get()
     if parent_runtime: parent_runtime.component_threads.add(effective_thread_id)
     transition_run(child_run_id, "running")
+    approval_offset = len(parent_runtime.approvals) if parent_runtime else 0
 
     envelope = TaskEnvelope(
         run_id=child_run_id,
@@ -225,12 +227,15 @@ def _delegate_agent(
             data={"query_chars": len(query), "run_id": child_run_id},
         ):
             result = component_bus.dispatch(envelope, handler)
-        transition_run(child_run_id, "completed")
+        child_approvals = parent_runtime.approvals[approval_offset:] if parent_runtime else []
+        if child_approvals: result = result.model_copy(update={"status":"waiting_approval"})
+        child_status = "awaiting_approval" if child_approvals else "completed"
+        transition_run(child_run_id,child_status,result=result.model_dump(mode="json"),approval_ids=child_approvals)
         set_working_memory(
             agent_id=target,
             thread_id=effective_thread_id,
             state={
-                "status": "completed",
+                "status": child_status,
                 "current_request": query,
                 "last_response": result.content[:1200],
                 "run_id": child_run_id,
@@ -239,14 +244,15 @@ def _delegate_agent(
         return result.content
     except BaseException as error:
         terminal_status = (
-            "cancelled" if isinstance(error, RunCancelled) or (isinstance(error,RunStopped) and parent_runtime and parent_runtime.reason == "cancelled")
-            else "timed_out" if isinstance(error, RunTimedOut) or (isinstance(error,RunStopped) and parent_runtime and parent_runtime.reason == "timed_out")
+            "cancelled" if isinstance(error, RunCancelled) or (isinstance(error,RunStopped) and error.reason == "cancelled")
+            else "timed_out" if isinstance(error, RunTimedOut) or (isinstance(error,RunStopped) and error.reason == "timed_out")
             else "failed"
         )
         try:
+            if terminal_status in {"cancelled","timed_out"}: transition_run(child_run_id,"cancelling")
             transition_run(child_run_id, terminal_status, error_type=type(error).__name__)
-        except Exception:
-            pass
+        except Exception as persistence_error:
+            raise DurabilityLost("ChildRunStateNotPersisted") from persistence_error
         set_working_memory(
             agent_id=target,
             thread_id=effective_thread_id,

@@ -1,6 +1,6 @@
 import { apiBaseUrl } from "./api";
 import { authenticatedFetch } from "./transport";
-export type RunSnapshot = { id: string; thread_id: string; status: string; output: string; elapsed_ms: number; error_type: string | null; result: { response: string; thread_id: string } | null; agents: Record<string,string>; timings: Record<string,unknown> };
+export type RunSnapshot = { cancel_requested?:boolean; stop_reason?:string|null; persistence_error?:string|null; created_at?:string; finished_at?:string|null; target?:string; parent_run_id?:string|null; approval_ids?:string[]; id: string; thread_id: string; status: string; output: string; elapsed_ms: number; error_type: string | null; result: { response: string; thread_id: string } | null; agents: Record<string,string>; timings: Record<string,unknown> };
 export async function runtimeRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await authenticatedFetch(apiBaseUrl + "/api/v1" + path, { ...init, headers: { "Content-Type": "application/json", ...init.headers }, signal: init.signal ?? AbortSignal.timeout(15000) });
   const data = await response.json();
@@ -39,3 +39,10 @@ export async function streamChat(message: string, threadId: string, onRun: (id:s
   if (!["completed", "awaiting_approval"].includes(final.status) || !final.result) throw new Error("Esecuzione " + final.status + ". Consulta Attività; la richiesta non viene ripetuta automaticamente.");
   return final.result;
 }
+
+export type CapabilityOperation = {
+  id:string; run_id:string|null; root_run_id:string|null; approval_id:string|null;
+  capability_id:string; contract_version:number; effect:string; retry:string;
+  status:string; payload:unknown; result:unknown; error_type:string|null;
+  review_outcome:string|null; review_note:string|null; reviewed_by:string|null;
+};

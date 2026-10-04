@@ -36,7 +36,11 @@ def agent_tool(actor, *, capability=None, actions, effect, retry, conditional_ac
         def guarded(*args, **kwargs):
             payload = dict(inspect.signature(fn).bind(*args, **kwargs).arguments)
             result = execute_capability(capability_id, payload)
-            if result.status == "error": raise CapabilityExecutionError(result.error.code, result.error.message)
+            if result.status == "error":
+                if result.error.code in {"EffectUncertain", "OperationConflict"}:
+                    from core.run_states import EffectUncertain
+                    raise EffectUncertain(result.error.message)
+                raise CapabilityExecutionError(result.error.code, result.error.message)
             return result.native
         wrapped = langchain_tool(guarded)
         schema = create_model(fn.__name__ + "Input", __base__=wrapped.args_schema,
@@ -102,6 +106,8 @@ def execute_capability(identifier, payload):
     contract = entry["contract"]
     result = CapabilityResult(capability_id=contract.id, contract_version=contract.version, status="ok")
     token = None
+    operation_id = None
+    escaped_error = None
     started = time.perf_counter()
     run = current_run.get()
     try:
@@ -116,6 +122,9 @@ def execute_capability(identifier, payload):
             rule = get_permission_rule(contract.actor, action)
             if contract.approval == "calendar" and rule and rule.policy.value == "confirm": continue
             require_permission(contract.actor, action)
+        from core.operation_journal import begin
+        operation_id = begin(entry, payload)
+        result.operation_id = operation_id
         native = entry["fn"](**payload)
         native = entry["output_adapter"].validate_python(native, strict=True)
         parsed = native
@@ -127,7 +136,11 @@ def execute_capability(identifier, payload):
             result.error = CapabilityError(code="ToolReportedError", message=str(parsed.get("error") or "Operazione non completata."))
         elif isinstance(parsed, dict) and parsed.get("status") == "pending":
             result.status = "pending"
-            result.approval_id = str(parsed.get("approval_id") or parsed.get("proposal_id") or parsed.get("id") or "") or None
+            proposal = parsed.get('proposal')
+            identity = parsed.get("approval_id") or parsed.get("proposal_id") or parsed.get("id") or (proposal.get('id') if isinstance(proposal,dict) else None)
+            result.approval_id = str(identity) if identity else None
+            if result.approval_id and contract.approval == 'calendar' and not result.approval_id.startswith('calendar:'):
+                result.approval_id = 'calendar:' + result.approval_id
         result.value = jsonable_encoder(parsed)
         result.native = native
     except ApprovalRequired as needed:
@@ -144,7 +157,8 @@ def execute_capability(identifier, payload):
     except Exception as error:
         result.status = "error"
         result.error = CapabilityError(code=type(error).__name__, message="Operazione non completata: " + type(error).__name__ + ".")
-    except BaseException:
+    except BaseException as error:
+        escaped_error = type(error).__name__
         result.status = "error"
         raise
     finally:
@@ -158,7 +172,14 @@ def execute_capability(identifier, payload):
                 result = wire
             except Exception as error:
                 result = CapabilityResult(capability_id=contract.id, contract_version=contract.version,
-                    status="error", error=CapabilityError(code=type(error).__name__, message="Risultato non conforme al contratto."))
+                    status="error", operation_id=operation_id, error=CapabilityError(code=type(error).__name__, message="Risultato non conforme al contratto."))
+        if run and result.status == 'pending' and result.approval_id:
+            with run.lock:
+                if result.approval_id not in run.approvals: run.approvals.append(result.approval_id)
+        from core.operation_journal import finish
+        operation_status = finish(operation_id, contract.effect, None if escaped_error else result, escaped_error)
+        if operation_status == 'uncertain' and not escaped_error:
+            result.error = CapabilityError(code='EffectUncertain',message='Esito dell’effetto non verificabile. Controlla l’operazione in Attività prima di ripetere.')
         bus.publish("tool.finished", contract.actor, run_id=run.id if run else None,
             payload={"tool_id":tool_id,"capability_id":contract.id,"contract_version":contract.version,"status":result.status,"duration_ms":round((time.perf_counter()-started)*1000,2)})
     return result
@@ -191,6 +212,10 @@ def resolve(identifier, approve, username):
             ("executing" if approve else "rejected",username,row["id"]))
     if not approve: return {"status": "rejected"}
     token = None
+    approval_token = None
+    escaped = None
+    from core.run_states import DurabilityLost, EffectUncertain
+    from core.runtime import RunStopped
     try:
         load_capabilities()
         entry = executables.get(row["tool_id"])
@@ -198,6 +223,8 @@ def resolve(identifier, approve, username):
         if (row["capability_id"],row["contract_version"],row["contract_digest"]) != (entry["contract"].id,entry["contract"].version,entry["contract_digest"]): raise PermissionError("Contratto della proposta non disponibile. Crea una nuova proposta.")
         normalized = entry["input_model"].model_validate(row["payload"]).model_dump()
         token = approved_action.set((row["actor"],frozenset(row["actions"] or [row["action"]]),row["tool_id"],normalized))
+        from core.operation_journal import current_approval
+        approval_token = current_approval.set(row['id'])
         outcome = execute_capability(entry["contract"].id,normalized)
         result = outcome.native if outcome.status != "error" else outcome.model_dump(mode="json")
         parsed = result
@@ -205,13 +232,25 @@ def resolve(identifier, approve, username):
             try: parsed = json.loads(result)
             except ValueError: pass
         status, error = ("failed", "ToolReportedError") if isinstance(parsed, dict) and parsed.get("status") in {"error", "pending"} else ("approved", None)
+        if outcome.error and outcome.error.code in {'EffectUncertain','OperationConflict'}:
+            status, error = 'uncertain', 'EffectUncertain'
+    except DurabilityLost:
+        raise
+    except (RunStopped, EffectUncertain) as exc:
+        escaped = exc
+        status, error, result = 'uncertain', type(exc).__name__, None
     except Exception as exc:
         status, error, result = "failed", type(exc).__name__, None
     finally:
         if token: approved_action.reset(token)
-    with db_connection() as conn:
-        conn.execute("UPDATE action_approvals SET status=%s,error_type=%s,result=%s WHERE id=%s", (status,error,Jsonb(result),row["id"]))
-    if status == "failed": raise RuntimeError(error)
+        if approval_token is not None: current_approval.reset(approval_token)
+    try:
+        with db_connection() as conn:
+            conn.execute("UPDATE action_approvals SET status=%s,error_type=%s,result=%s WHERE id=%s", (status,error,Jsonb(result),row["id"]))
+    except Exception as persistence_error:
+        raise DurabilityLost('ApprovalOutcomeNotPersisted') from persistence_error
+    if escaped: raise escaped
+    if status in {"failed", "uncertain"}: raise RuntimeError(error)
     return {"status": status, "result": result, "error_type": error}
 
 

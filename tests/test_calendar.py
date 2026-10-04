@@ -48,7 +48,7 @@ class CalendarValidationTests(unittest.TestCase):
         for tool in tools.values():
             self.assertNotIn("actor",tool.args)
             self.assertNotIn("user_approved",tool.args)
-        with patch.object(store,"propose_event",return_value={"status":"pending","id":str(uuid4())}) as proposal:
+        with patch.object(store,"propose_event",return_value={"status":"pending","id":str(uuid4())}) as proposal, patch("core.operation_journal.begin",return_value=None):
             result = tools["calendar_create_event"].invoke(DATA)
             self.assertEqual(result["status"],"pending")
             self.assertEqual(proposal.call_args.args[:2],("email_quotes_agent","create"))
