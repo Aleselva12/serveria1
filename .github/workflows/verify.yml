@@ -38,3 +38,14 @@ jobs:
           python smoke_check.py
       - run: npm ci && npm test && npm run build
         working-directory: frontend
+  deployment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CORA_DISPOSABLE_DEPLOY_TEST: 'yes'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python deploy/ci_verify.py
