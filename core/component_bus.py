@@ -34,6 +34,7 @@ class ComponentBus:
         parent = current_run.get()
         checkpoint()
         bus.publish("component.request", envelope.source, run_id=parent.id if parent else envelope.run_id, thread_id=envelope.thread_id,
+            component_run_id=envelope.run_id,parent_run_id=parent.id if parent else None,
             payload={"task_id":envelope.task_id,"target":envelope.target,"capability":envelope.capability})
         started = time.perf_counter()
         self._set_state(
@@ -66,6 +67,10 @@ class ComponentBus:
                 raise TypeError(f"Risultato componente non supportato: {type(raw).__name__}")
         except BaseException as error:
             self._set_state(envelope.target, status="error", error_type=type(error).__name__)
+            bus.publish('component.finished',envelope.target,run_id=parent.id if parent else envelope.run_id,
+                component_run_id=envelope.run_id,parent_run_id=parent.id if parent else None,thread_id=envelope.thread_id,
+                payload={'task_id':envelope.task_id,'status':'failed','error_type':type(error).__name__,
+                         'duration_ms':round((time.perf_counter()-started)*1000,2)})
             raise
 
         duration_ms = round((time.perf_counter() - started) * 1000, 2)
@@ -78,7 +83,8 @@ class ComponentBus:
             error_type=None,
         )
         bus.publish("component.finished", envelope.target, run_id=parent.id if parent else envelope.run_id, thread_id=envelope.thread_id,
-            payload={"task_id":envelope.task_id,"duration_ms":duration_ms})
+            component_run_id=envelope.run_id,parent_run_id=parent.id if parent else None,
+            payload={"task_id":envelope.task_id,"duration_ms":duration_ms,'status':result.status})
         return result
 
     def snapshot(self) -> dict[str, dict[str, Any]]:

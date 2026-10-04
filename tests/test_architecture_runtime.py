@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 import uuid
+import os
 from pathlib import Path
 from unittest.mock import patch
 from fastapi import FastAPI
@@ -12,11 +13,17 @@ from core.architecture_api import router, architecture_graph
 
 class RuntimeTests(unittest.TestCase):
     def setUp(self):
+        self.export = patch.dict(os.environ,{'CORA_DIAGNOSTIC_JSONL_EXPORT':'true'})
+        self.export.start()
+        self.database = patch('core.execution_traces.database_configured',return_value=False)
+        self.database.start()
         self.temp = tempfile.TemporaryDirectory()
         self.patch = patch.object(traces, 'TRACE_FILE', Path(self.temp.name) / 'traces.jsonl')
         self.patch.start()
 
     def tearDown(self):
+        self.export.stop()
+        self.database.stop()
         self.patch.stop()
         self.temp.cleanup()
 

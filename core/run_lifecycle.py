@@ -18,10 +18,13 @@ def cancel_requested(run_id):
 
 def create_run(*, thread_id, kind='chat', target='supervisor', parent_run_id=None, metadata=None, run_id=None):
     with db_connection() as conn:
-        return conn.execute('''INSERT INTO runtime_runs (id,thread_id,kind,target,parent_run_id,status,metadata)
+        row = conn.execute('''INSERT INTO runtime_runs (id,thread_id,kind,target,parent_run_id,status,metadata)
             VALUES (%s,%s,%s,%s,%s,'queued',%s::jsonb) RETURNING *''',
             (UUID(run_id) if run_id else uuid4(),thread_id,kind,target,UUID(parent_run_id) if parent_run_id else None,
              json.dumps(metadata or {},ensure_ascii=False))).fetchone()
+        from core.domain_events import run_state
+        run_state(conn,row)
+        return row
 
 
 def transition_run(run_id, status, *, error_type=None, metadata=None, expected_status=None, result=None, approval_ids=None):
@@ -45,6 +48,8 @@ def transition_run(run_id, status, *, error_type=None, metadata=None, expected_s
             (status,status,status in TERMINAL,error_type,json.dumps(metadata or {},default=str),
              json.dumps(result,default=str) if result is not None else None,
              json.dumps(approval_ids) if approval_ids is not None else None,current['id'])).fetchone()
+        from core.domain_events import run_state
+        run_state(conn,row,current['status'])
     if status in TERMINAL:
         with _cancel_lock: _cancelled.discard(str(run_id))
     return row
@@ -52,9 +57,12 @@ def transition_run(run_id, status, *, error_type=None, metadata=None, expected_s
 
 def mark_stop(run_id, reason):
     with db_connection() as conn:
-        conn.execute('''UPDATE runtime_runs SET cancel_requested=TRUE,stop_reason=%s,revision=revision+1
-            WHERE id=%s AND NOT cancel_requested AND status=ANY(%s)''',
-            (reason,UUID(run_id),[s for s in STATUSES if s not in TERMINAL]))
+        changed = conn.execute('''UPDATE runtime_runs SET cancel_requested=TRUE,stop_reason=%s,revision=revision+1
+            WHERE id=%s AND NOT cancel_requested AND status=ANY(%s) RETURNING *''',
+            (reason,UUID(run_id),[s for s in STATUSES if s not in TERMINAL])).fetchone()
+        if changed:
+            from core.domain_events import append
+            append(conn,type='run.stop_requested',source='runtime',aggregate_id=changed['id'],revision=changed['revision'],run_id=changed['id'],payload={'reason':reason})
         row = conn.execute('SELECT stop_reason,status FROM runtime_runs WHERE id=%s',(UUID(run_id),)).fetchone()
         if not row: raise KeyError(run_id)
     return row['stop_reason'] or reason
@@ -74,7 +82,10 @@ def request_cancel(run_id):
         ) SELECT id FROM descendants''',(row['id'],)).fetchall()
         ids = [r['id'] for r in family]
         marked = conn.execute('''UPDATE runtime_runs SET cancel_requested=TRUE,stop_reason=COALESCE(stop_reason,'cancelled'),revision=revision+1
-            WHERE id=ANY(%s) AND status=ANY(%s) RETURNING id''',(ids,[s for s in STATUSES if s not in TERMINAL])).fetchall()
+            WHERE id=ANY(%s) AND status=ANY(%s) RETURNING *''',(ids,[s for s in STATUSES if s not in TERMINAL])).fetchall()
+        from core.domain_events import append
+        for changed in marked:
+            append(conn,type='run.stop_requested',source='runtime',aggregate_id=changed['id'],revision=changed['revision'],run_id=changed['id'],payload={'reason':changed['stop_reason']})
     ids = [r["id"] for r in marked]
     with _cancel_lock: _cancelled.update(str(id) for id in ids)
     from core.runtime import runtime
@@ -114,10 +125,13 @@ def recover():
     # Single backend worker: call only at process startup, before accepting submissions.
     with db_connection() as conn:
         runs = conn.execute('''UPDATE runtime_runs SET status='interrupted',finished_at=NOW(),revision=revision+1,
-            error_type=COALESCE(error_type,'ProcessInterrupted') WHERE status=ANY(%s) RETURNING id''',
+            error_type=COALESCE(error_type,'ProcessInterrupted') WHERE status=ANY(%s) RETURNING *''',
             ([s for s in STATUSES if s not in TERMINAL],)).fetchall()
-        conn.execute('''UPDATE capability_operations SET status=CASE WHEN effect IN ('write','delegate') THEN 'uncertain' ELSE 'failed' END,
-            finished_at=NOW(),error_type='ProcessInterrupted' WHERE status='started' ''')
+        operations = conn.execute('''UPDATE capability_operations SET status=CASE WHEN effect IN ('write','delegate') THEN 'uncertain' ELSE 'failed' END,
+            finished_at=NOW(),error_type='ProcessInterrupted' WHERE status='started' RETURNING *''').fetchall()
+        from core.domain_events import run_state, operation_state
+        for row in runs: run_state(conn,row)
+        for row in operations: operation_state(conn,row,2)
         conn.execute("UPDATE action_approvals SET status='uncertain',error_type='ProcessInterrupted' WHERE status='executing'")
         if runs:
             conn.execute("UPDATE working_memory SET state=state || '{\"status\":\"interrupted\"}'::jsonb WHERE state->>'run_id'=ANY(%s)",

@@ -49,12 +49,13 @@ def graph_endpoint():
 
 @router.get("/runs")
 def runs(limit: int = Query(50, ge=1, le=100)):
-    return read_runs(limit)
+    return read_runs(limit,include_events=False)
 
 
 @router.get("/runs/{run_id}")
 def run_detail(run_id: str):
-    matches = read_runs(run_id=run_id)
+    try: matches = read_runs(run_id=run_id)
+    except (ValueError,KeyError) as error: raise HTTPException(404,'Esecuzione non trovata') from error
     if not matches:
         raise HTTPException(404, "Esecuzione non trovata")
     return matches[0]

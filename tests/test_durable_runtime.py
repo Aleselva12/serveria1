@@ -272,7 +272,7 @@ class DurablePostgresTests(unittest.TestCase):
             self.assertEqual(again.status_code,409)
 
     def test_trace_failure_does_not_change_canonical_success(self):
-        with tempfile.TemporaryDirectory() as directory, patch('core.execution_traces.TRACE_FILE',Path(directory)):
+        with tempfile.TemporaryDirectory() as directory, patch('core.execution_traces.TRACE_FILE',Path(directory)), patch.dict(os.environ,{'CORA_DIAGNOSTIC_JSONL_EXPORT':'true'}):
             run=self.runtime.submit('trace-lost',lambda run:{'response':'known result'})
             self.assertTrue(run.done.wait(3))
             self.assertEqual(run.status,'completed')

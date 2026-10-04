@@ -6,7 +6,7 @@ Stored in PostgreSQL:
 - conversations and messages;
 - semantic embeddings for messages and memories;
 - consolidated memories and their relations;
-- structured agent/runtime events;
+- transactional critical facts (`domain_events`, ordered by `domain_event_clock`) and bounded-retention metadata diagnostics (`diagnostic_events`);
 - JSONB metadata for conversations, messages, memories and events.
 
 Human-readable chat transcripts are generated under `CORA_CHAT_TRANSCRIPT_ROOT`.

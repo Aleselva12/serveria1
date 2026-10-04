@@ -51,10 +51,13 @@ async def lifespan(app):
     from core import background_embeddings
     from core.runtime import recover_interrupted
     recover_interrupted()
+    from core.observability import archive
+    archive.start()
     background_embeddings.start()
     yield
     runtime.shutdown()
     background_embeddings.stop()
+    archive.stop()
     close_pool()
 
 

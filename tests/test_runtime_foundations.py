@@ -18,6 +18,7 @@ from core.permissions import require_permission
 
 class RuntimeTests(unittest.TestCase):
     def setUp(self):
+        self.export = patch.dict(os.environ,{'CORA_DIAGNOSTIC_JSONL_EXPORT':'true'});self.export.start()
         self.temp = tempfile.TemporaryDirectory()
         self.file = patch('core.execution_traces.TRACE_FILE', Path(self.temp.name)/'traces.jsonl')
         self.file.start()
@@ -25,6 +26,7 @@ class RuntimeTests(unittest.TestCase):
         self.finish = patch('core.operation_journal.finish',return_value=None);self.finish.start()
         self.runtime = Runtime(persistent=False)
     def tearDown(self):
+        self.export.stop()
         self.runtime.shutdown(); self.journal.stop(); self.finish.stop(); self.file.stop(); self.temp.cleanup()
 
     def test_serial_fifo_and_per_conversation_exclusion(self):

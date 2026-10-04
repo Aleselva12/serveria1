@@ -37,10 +37,13 @@ def begin(entry, payload):
                 (id,run_id,root_run_id,approval_id,capability_id,contract_version,contract_digest,
                  implementation_revision,actor,effect,retry,payload,status,intent_digest)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'started',%s)
-                ON CONFLICT DO NOTHING RETURNING id''',
+                ON CONFLICT DO NOTHING RETURNING *''',
                 (identifier, UUID(run_id) if run_id else None, UUID(root_id) if root_id else None,
                  current_approval.get(),contract.id,contract.version,entry['contract_digest'],entry['revision'],
                  contract.actor,contract.effect,contract.retry,Jsonb(payload),intent)).fetchone()
+            if row:
+                from core.domain_events import operation_state
+                operation_state(conn,row,1)
     except Exception as error:
         raise DurabilityLost('OperationStartNotPersisted') from error
     if not row: raise OperationConflict('Esiste un’operazione identica in corso o con esito da verificare in Attività.')
@@ -55,10 +58,12 @@ def finish(identifier, effect, result=None, error_type=None):
     try:
         with db_connection() as conn:
             row = conn.execute('''UPDATE capability_operations SET status=%s,finished_at=NOW(),result=%s,error_type=%s
-                WHERE id=%s AND status='started' RETURNING id''',
+                WHERE id=%s AND status='started' RETURNING *''',
                 (status,Jsonb(result.model_dump(mode='json')) if result is not None else None,
                  error_type or (result.error.code if result and result.error else None),UUID(identifier))).fetchone()
             if not row: raise ValueError('Operation already finalized')
+            from core.domain_events import operation_state
+            operation_state(conn,row,2)
     except Exception as error:
         raise DurabilityLost('OperationOutcomeNotPersisted') from error
     return status
@@ -84,6 +89,10 @@ def review(identifier, outcome, note, username):
             WHERE id=%s AND status='uncertain' AND review_outcome IS NULL RETURNING *''',
             (outcome,username,note.strip(),UUID(identifier))).fetchone()
         if not row: raise ValueError('Operazione non verificabile o già verificata.')
+        from core.domain_events import append
+        append(conn,type='operation.reviewed',source='owner',aggregate_id=row['id'],revision=3,
+               run_id=row['run_id'],root_run_id=str(row['root_run_id']) if row['root_run_id'] else None,
+               payload={'operation_id':str(row['id']),'outcome':outcome})
     return row
 
 
