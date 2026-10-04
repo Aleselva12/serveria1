@@ -1,2 +1,2 @@
-faster-whisper
+-r requirements-audio-cpu.txt
 pyannote.audio

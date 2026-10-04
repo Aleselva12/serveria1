@@ -1,0 +1,4 @@
+# CPU transcription only. Speaker diarization is an independent optional engine.
+faster-whisper
+# Faster-Whisper 1.2.1 uses av.open(metadata_errors=...), removed in PyAV 19.
+av<19

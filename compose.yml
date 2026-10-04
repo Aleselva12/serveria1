@@ -15,10 +15,10 @@ services:
       timeout: 5s
       retries: 20
   api:
-    image: cora-api:${CORA_RELEASE:-local}
+    image: cora-api:${CORA_RELEASE:-local}-${CORA_API_BUILD_TARGET:-api}
     build:
       context: .
-      target: api
+      target: ${CORA_API_BUILD_TARGET:-api}
       args:
         CORA_UID: ${CORA_UID:-1000}
         CORA_GID: ${CORA_GID:-1000}
@@ -38,6 +38,12 @@ services:
       CORA_AUTOMATION_ROOT: /state/automation_drafts
       CORA_GMAIL_CREDENTIALS_PATH: /state/gmail/credentials.json
       CORA_GMAIL_TOKEN_PATH: /state/gmail/token.json
+      CORA_WHISPER_MODEL: /state/models/whisper
+      CORA_WHISPER_DEVICE: cpu
+      CORA_WHISPER_COMPUTE_TYPE: int8
+      CORA_WHISPER_LOCAL_ONLY: 'true'
+      HF_HUB_OFFLINE: '1'
+      HF_HUB_DISABLE_IMPLICIT_TOKEN: '1'
     volumes:
       - type: bind
         source: ${CORA_STATE_ROOT:-./state}

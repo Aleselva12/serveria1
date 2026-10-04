@@ -10,6 +10,13 @@ RUN groupadd --gid ${CORA_GID} cora && useradd --uid ${CORA_UID} --gid cora --cr
 USER cora
 CMD ["python", "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--timeout-graceful-shutdown", "310"]
 
+FROM api AS api-audio-cpu
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
+COPY requirements-deploy-audio.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements-deploy-audio.lock
+USER cora
+
 FROM node:22-bookworm-slim AS frontend
 WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./

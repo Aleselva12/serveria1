@@ -24,8 +24,28 @@ def main():
     import os
     if os.getenv('GITHUB_ACTIONS')!='true' or os.getenv('CORA_DISPOSABLE_DEPLOY_TEST')!='yes':
         raise RuntimeError('This fixture requires disposable GitHub Actions infrastructure')
-    manage.init();manage.compose('config','--quiet');manage.compose('up','-d','--build','--wait','--wait-timeout','180')
+    manage.init()
+    target=os.getenv('CORA_CI_API_TARGET','api')
+    if target not in {'api','api-audio-cpu'}:raise ValueError('Invalid CI build target')
+    def configure():
+        content=manage.ENV.read_text().replace('CORA_API_BUILD_TARGET=api\n','CORA_API_BUILD_TARGET='+target+'\n')
+        manage.ENV.write_text(content)
+    configure();manage.compose('config','--quiet');manage.compose('up','-d','--build','--wait','--wait-timeout','180')
     try:
+        if target=='api-audio-cpu':
+            manage.compose('run','--rm','--no-deps','-T','-e','HF_HUB_OFFLINE=0','api','python','-m','audio_agent.model_setup','--model','tiny')
+            manage.compose('exec','-T','api','python','-m','audio_agent.model_setup','--check')
+            inference="""import wave
+from pathlib import Path
+from audio_agent.audio_tools import _load_whisper_model
+path=Path('/state/audio/ci-silence.wav')
+with wave.open(str(path),'wb') as stream:
+    stream.setnchannels(1);stream.setsampwidth(2);stream.setframerate(16000);stream.writeframes(b'\\x00\\x00'*16000)
+segments,info=_load_whisper_model().transcribe(str(path),language='it',vad_filter=False)
+list(segments)
+print('CPU WHISPER OFFLINE INFERENCE: OK')
+"""
+            manage.compose('exec','-T','api','python','-',input=inference,text=True)
         source="""from pathlib import Path
 from core.auth import provision
 from core.run_lifecycle import create_run,transition_run
@@ -44,7 +64,7 @@ Path('/state/files/proof.txt').write_text(str(run['id']))
             stream=response.read().decode();assert 'event: result' in stream and 'fixture' in stream
         backup=ROOT/'backups/ci-proof';manage.backup(backup);manage.check_backup(backup)
         manage.compose('down','--volumes')
-        shutil.rmtree(ROOT/'state');manage.ENV.unlink();manage.init()
+        shutil.rmtree(ROOT/'state');manage.ENV.unlink();manage.init();configure()
         manage.restore(backup);manage.compose('up','-d','--wait','--wait-timeout','180')
         with request('/backend/auth/status',cookie=cookie) as response:assert not json.load(response)['authenticated']
         with request('/backend/auth/login',{'username':'ci-owner','password':'ci-private-password-123'}) as response:

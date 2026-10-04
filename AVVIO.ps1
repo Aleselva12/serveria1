@@ -1,4 +1,6 @@
-param([string]$FrontendPath = "", [switch]$ConAudio)
+param([string]$FrontendPath = "", [switch]$ConAudio, [switch]$ConDiarizzazione)
+
+if ($ConDiarizzazione) { $ConAudio = $true }
 
 $ErrorActionPreference = "Stop"
 
@@ -182,7 +184,8 @@ if (-not (Test-Url $OllamaUrl)) {
 
 $VenvPython = Join-Path $Root ".venv\Scripts\python.exe"
 $Requirements = Join-Path $Root "requirements-core.txt"
-$AudioRequirements = Join-Path $Root "requirements-audio.txt"
+$AudioRequirements = Join-Path $Root "requirements-audio-cpu.txt"
+$FullAudioRequirements = Join-Path $Root "requirements-audio.txt"
 $RequirementsStamp = Join-Path $Root ".cora_requirements.sha256"
 
 if (-not (Test-Path $VenvPython)) {
@@ -196,13 +199,16 @@ if (-not (Test-Path $VenvPython)) {
 
 $CurrentRequirementsHash = Get-HashText $Requirements
 if ($ConAudio) { $CurrentRequirementsHash += Get-HashText $AudioRequirements }
+if ($ConDiarizzazione) { $CurrentRequirementsHash += Get-HashText $FullAudioRequirements }
 $SavedRequirementsHash = if (Test-Path $RequirementsStamp) {
     (Get-Content $RequirementsStamp -Raw).Trim()
 } else {
     ""
 }
 
-& $VenvPython -c "import importlib.util; raise SystemExit(0 if all(importlib.util.find_spec(m) for m in ['fastapi','uvicorn','psycopg_pool']) else 1)"
+$RequiredModules = "['fastapi','uvicorn','psycopg_pool']"
+if ($ConAudio) { $RequiredModules = "['fastapi','uvicorn','psycopg_pool','faster_whisper']" }
+& $VenvPython -c "import importlib.util; raise SystemExit(0 if all(importlib.util.find_spec(m) for m in $RequiredModules) else 1)"
 $PythonReady = ($LASTEXITCODE -eq 0)
 if (-not $PythonReady -or $CurrentRequirementsHash -ne $SavedRequirementsHash) {
     Write-Host "Installo/aggiorno le dipendenze Python..."
@@ -211,7 +217,8 @@ if (-not $PythonReady -or $CurrentRequirementsHash -ne $SavedRequirementsHash) {
         Fail "Installazione dipendenze Python fallita."
     }
     if ($ConAudio) {
-        & $VenvPython -m pip install -r $AudioRequirements --disable-pip-version-check
+        $SelectedAudioRequirements = if ($ConDiarizzazione) { $FullAudioRequirements } else { $AudioRequirements }
+        & $VenvPython -m pip install -r $SelectedAudioRequirements --disable-pip-version-check
         if ($LASTEXITCODE -ne 0) { Fail "Installazione audio fallita." }
     }
     Set-Content -Path $RequirementsStamp -Value $CurrentRequirementsHash

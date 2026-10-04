@@ -75,6 +75,11 @@ def _load_whisper_model():
         ) from error
 
     model_name = os.getenv("CORA_WHISPER_MODEL", "small")
+    local_only = os.getenv('CORA_WHISPER_LOCAL_ONLY','false').lower()=='true'
+    if local_only and not Path(model_name).is_dir():
+        raise RuntimeError('Modello Whisper locale assente. Prepara il modello con deploy/manage.py audio-model prima della trascrizione.')
+    if local_only and any(not (Path(model_name)/name).is_file() for name in ('model.bin','config.json','tokenizer.json')):
+        raise RuntimeError('Modello Whisper locale incompleto: servono model.bin, config.json e tokenizer.json.')
     device = os.getenv("CORA_WHISPER_DEVICE", "cpu")
     compute_type = os.getenv(
         "CORA_WHISPER_COMPUTE_TYPE",
@@ -85,6 +90,9 @@ def _load_whisper_model():
         model_name,
         device=device,
         compute_type=compute_type,
+        cpu_threads=max(1,min(64,int(os.getenv('CORA_WHISPER_CPU_THREADS','4')))),
+        num_workers=1,
+        local_files_only=local_only,
     )
 
 
@@ -241,7 +249,10 @@ def transcribe_audio_file(
                 "error": "Formato audio non supportato.",
             }, ensure_ascii=False)
 
+        from core.runtime import checkpoint
+        checkpoint()
         model = _load_whisper_model()
+        checkpoint()
         segments_iter, info = model.transcribe(
             str(path),
             language=language or None,
@@ -252,6 +263,7 @@ def transcribe_audio_file(
 
         segments = []
         for segment in segments_iter:
+            checkpoint()
             text = segment.text.strip()
             if not text:
                 continue
@@ -261,6 +273,7 @@ def transcribe_audio_file(
                 "text": text,
             })
 
+        checkpoint()
         diarization_tracks = None
         diarization_warning = None
 
