@@ -21,9 +21,11 @@ class RuntimeTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.file = patch('core.execution_traces.TRACE_FILE', Path(self.temp.name)/'traces.jsonl')
         self.file.start()
-        self.runtime = Runtime()
+        self.journal = patch('core.operation_journal.begin',return_value=None);self.journal.start()
+        self.finish = patch('core.operation_journal.finish',return_value=None);self.finish.start()
+        self.runtime = Runtime(persistent=False)
     def tearDown(self):
-        self.runtime.shutdown(); self.file.stop(); self.temp.cleanup()
+        self.runtime.shutdown(); self.journal.stop(); self.finish.stop(); self.file.stop(); self.temp.cleanup()
 
     def test_serial_fifo_and_per_conversation_exclusion(self):
         release, started = threading.Event(), threading.Event()
@@ -106,7 +108,7 @@ class AuthTests(unittest.TestCase):
     def test_global_guard_does_not_accept_loopback_or_legacy_token(self):
         import api
         with patch('core.auth.session_user',return_value=None), TestClient(api.app) as client:
-            for path in ['/health','/capabilities','/memory','/conversations','/api/v1/runtime','/docs','/openapi.json']:
+            for path in ['/health','/capabilities','/memory','/conversations','/api/v1/runtime','/api/v1/runtime/operations','/api/v1/runtime/runs','/docs','/openapi.json']:
                 with self.subTest(path=path): self.assertEqual(client.get(path,headers={'Authorization':'Bearer old-token'}).status_code,401)
             self.assertEqual(client.post('/chat',json={'message':'test'},headers={'X-Cora-Client':'ui'}).status_code,401)
 

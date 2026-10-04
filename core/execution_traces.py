@@ -13,10 +13,24 @@ TRACE_FILE = LOG_ROOT / "executions.jsonl"
 _lock = threading.Lock()
 
 
+_write_error = None
+
 def append_event(event):
-    TRACE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with _lock, TRACE_FILE.open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps(event, ensure_ascii=False) + "\n")
+    # Diagnostic I/O cannot change a canonical run or operation outcome.
+    global _write_error
+    try:
+        TRACE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with _lock, TRACE_FILE.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(event, ensure_ascii=False) + "\n")
+        _write_error = None
+        return True
+    except OSError as error:
+        _write_error = type(error).__name__
+        return False
+
+
+def trace_status():
+    return {"write_error":_write_error}
 
 
 class ExecutionTrace(BaseCallbackHandler):

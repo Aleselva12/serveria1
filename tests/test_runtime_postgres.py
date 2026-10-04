@@ -182,7 +182,7 @@ class RuntimePostgresTests(unittest.TestCase):
         a=json.loads(test_report_error.invoke({'value':'test'}))['approval_id']
         with self.assertRaises(RuntimeError):resolve(a,True,'Ale')
         with db_connection() as c:row=c.execute('SELECT status,result FROM action_approvals WHERE id=%s',(a,)).fetchone()
-        self.assertEqual(row['status'],'failed');self.assertIn('error',row['result'])
+        self.assertEqual(row['status'],'uncertain');self.assertIn('error',row['result'])
 
     def test_empty_memory_skips_embedding_and_unrelated_memory_is_filtered(self):
         from core.memory import search_memories

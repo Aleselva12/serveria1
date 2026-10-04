@@ -10,16 +10,13 @@ from core.event_bus import bus
 from core.execution_traces import append_event
 from datetime import datetime, timezone
 
-TERMINAL = {"completed", "failed", "cancelled", "timed_out", "awaiting_approval", "interrupted"}
-TRANSITIONS = {
- "queued": {"running", "cancelled", "timed_out", "interrupted"},
- "running": {"cancelling", "completed", "failed", "awaiting_approval", "interrupted"},
- "cancelling": {"cancelled", "timed_out", "failed", "interrupted"},
-}
+from core.run_states import TERMINAL, TRANSITIONS, DurabilityLost, EffectUncertain
 current_run = contextvars.ContextVar("cora_run", default=None)
 
 class RunStopped(BaseException):
-    pass
+    def __init__(self, reason='cancelled'):
+        self.reason = reason
+        super().__init__(reason)
 
 @dataclass
 class Run:
@@ -42,20 +39,26 @@ class Run:
     output_span: object = None
     timeout: float = field(default_factory=lambda: max(1, float(os.getenv("CORA_RUN_TIMEOUT_SECONDS", "300"))))
     graph_version: str = "runtime-v1"
+    durable: bool = False
+    persistence_error: str | None = None
     lock: threading.RLock = field(default_factory=threading.RLock)
 
     def transition(self, status):
         with self.lock:
             if status not in TRANSITIONS.get(self.status, set()):
                 raise ValueError(f"Invalid run transition {self.status} -> {status}")
+            if self.durable:
+                from core.run_lifecycle import transition_run
+                try:
+                    transition_run(self.id,status,expected_status=self.status,error_type=self.error_type,
+                        result=self.result,approval_ids=self.approvals,
+                        metadata={"graph_version":self.graph_version,"metrics":self.timings})
+                except Exception as error:
+                    self.persistence_error = type(error).__name__
+                    raise DurabilityLost('RunStateNotPersisted') from error
             self.status = status
             if status == "running": self.started = time.monotonic()
             if status in TERMINAL: self.finished = time.monotonic()
-            try:
-                from core.run_lifecycle import persist_live_run
-                persist_live_run(self)
-            except Exception:
-                pass
             bus.publish("run.state", "runtime", run_id=self.id, thread_id=self.thread_id,
                         payload={"status": status})
             append_event(dict(run_id=self.id, thread_id=self.thread_id, graph_version=self.graph_version,
@@ -65,6 +68,15 @@ class Run:
     def stop(self, reason="cancelled"):
         with self.lock:
             if self.status in TERMINAL: return
+            if self.cancel.is_set(): return
+            if self.durable:
+                from core.run_lifecycle import mark_stop
+                try: reason = mark_stop(self.id, reason)
+                except Exception as error:
+                    self.persistence_error = type(error).__name__
+                    self.reason = 'interrupted'
+                    self.cancel.set()
+                    raise DurabilityLost('RunCancellationNotPersisted') from error
             self.reason = reason
             self.cancel.set()
             if self.status == "running": self.transition("cancelling")
@@ -78,11 +90,13 @@ class Run:
             return {"id": self.id, "thread_id": self.thread_id, "status": self.status,
                 "error_type": self.error_type, "result": self.result,
                 "agents": dict(self.agents), "timings": dict(self.timings), "output": self.output,
-                "approval_ids": list(self.approvals),
+                "approval_ids": list(self.approvals), "cancel_requested":self.cancel.is_set(),
+                "stop_reason":self.reason if self.cancel.is_set() else None, "persistence_error":self.persistence_error,
                 "elapsed_ms": round(((self.finished or time.monotonic())-self.created)*1000,2)}
 
 class Runtime:
-    def __init__(self):
+    def __init__(self, *, persistent=True):
+        self.persistent = persistent
         self.runs = OrderedDict()
         self.lock = threading.RLock()
         self.slot = threading.Lock()
@@ -99,9 +113,11 @@ class Runtime:
                 raise ValueError("Questa conversazione ha già un'esecuzione attiva.")
             self.last_foreground = time.monotonic()
             run = Run(thread_id, graph_version=graph_version)
+            run.durable = self.persistent
+            if run.durable:
+                from core.run_lifecycle import create_run
+                create_run(run_id=run.id, thread_id=thread_id,metadata={"graph_version":graph_version})
             self.runs[run.id] = run
-            from core.run_lifecycle import persist_live_run
-            persist_live_run(run)
             while len(self.runs) > 200:
                 old = next((key for key, r in self.runs.items() if r.status in TERMINAL), None)
                 if old is None: break
@@ -113,7 +129,9 @@ class Runtime:
             return run
 
     def _deadline(self, run):
-        if not run.done.wait(run.timeout): run.stop("timed_out")
+        if not run.done.wait(run.timeout):
+            try: run.stop("timed_out")
+            except DurabilityLost: pass  # Worker stops at the next safe boundary; it keeps the slot until then.
 
     def _work(self, run, execute):
         acquired = False
@@ -133,10 +151,15 @@ class Runtime:
             run.check()
             run.transition("awaiting_approval" if run.approvals else "completed")
         except RunStopped:
-            run.transition(run.reason)
+            self._finish(run, run.reason)
         except Exception as error:
             run.error_type = type(error).__name__
-            run.transition("failed")
+            self._finish(run, "failed")
+        except DurabilityLost:
+            self._durability_failure(run)
+        except EffectUncertain:
+            run.error_type = 'EffectUncertain'
+            self._finish(run, 'failed')
         finally:
             for actor in run.agents: run.agents[actor] = "idle"
             try:
@@ -152,18 +175,42 @@ class Runtime:
             current_run.reset(token)
             run.done.set()
 
+    def _finish(self, run, status):
+        try:
+            if status in {'cancelled','timed_out'} and run.status == 'running': run.transition('cancelling')
+            run.transition(status)
+        except DurabilityLost: self._durability_failure(run)
+
+    def _durability_failure(self, run):
+        # Local emergency state is explicitly distinct from a committed terminal state.
+        with run.lock:
+            run.status = 'interrupted'
+            run.finished = time.monotonic()
+            run.error_type = 'DurabilityLost'
+            run.persistence_error = run.persistence_error or 'OperationJournalUnavailable'
+        with self.lock:
+            self.closed = True
+            for other in self.runs.values():
+                if other is not run and other.status not in TERMINAL:
+                    try: other.stop('interrupted')
+                    except DurabilityLost: pass
+        bus.publish('run.persistence_failed','runtime',run_id=run.id,thread_id=run.thread_id,
+                    payload={'status':'interrupted','persisted':False})
+
     def get(self, identifier):
         with self.lock:
             return self.runs.get(identifier)
 
     def snapshot(self):
         with self.lock:
-            return [r.snapshot() for r in self.runs.values() if r.status not in TERMINAL]
+            return [r.snapshot() for r in self.runs.values() if r.status not in TERMINAL or r.persistence_error]
 
     def shutdown(self):
         with self.lock:
             self.closed = True
-            for r in self.runs.values(): r.stop()
+            for r in self.runs.values():
+                try: r.stop()
+                except DurabilityLost: pass
 
 runtime = Runtime()
 
@@ -187,18 +234,21 @@ def checkpoint():
         from core.runtime_context import _run_id, _deadline
         from core.run_lifecycle import cancel_requested
         child_id, child_deadline = _run_id.get(), _deadline.get()
-        if child_id and cancel_requested(child_id): run.stop("cancelled")
+        if cancel_requested(run.id) or (child_id and cancel_requested(child_id)): run.stop("cancelled")
         if child_deadline is not None and time.monotonic() >= child_deadline: run.stop("timed_out")
         run.check()
+    else:
+        from core.runtime_context import _run_id, _deadline
+        from core.run_lifecycle import cancel_requested
+        if _run_id.get() and cancel_requested(_run_id.get()): raise RunStopped('cancelled')
+        if _deadline.get() is not None and time.monotonic() >= _deadline.get(): raise RunStopped('timed_out')
 
 
 def recover_interrupted():
     from core.database import database_configured, db_connection
     if database_configured():
-        try:
-            with db_connection() as conn:
-                conn.execute("UPDATE runtime_runs SET status='interrupted',finished_at=NOW() WHERE status IN ('queued','running','cancelling','waiting_approval')")
-        except Exception: pass
+        from core.run_lifecycle import recover
+        recover()
     from core.execution_traces import read_runs
     for previous in read_runs(limit=10000):
         if previous["status"] in {"queued", "running", "cancelling"}:

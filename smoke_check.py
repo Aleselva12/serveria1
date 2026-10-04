@@ -20,6 +20,8 @@ load_dotenv(ROOT / ".env")
 MODULES = [
     "core.auth",
     "core.runtime",
+    "core.run_states",
+    "core.operation_journal",
     "core.protocol",
     "core.event_bus",
     "core.governance",

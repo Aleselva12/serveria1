@@ -49,7 +49,8 @@ class ProtocolBusTests(unittest.TestCase):
     def test_lifecycle_transition_map_has_no_terminal_escape(self):
         for status in ("completed", "failed", "cancelled", "timed_out"):
             self.assertEqual(TRANSITIONS[status], set())
-        self.assertIn("waiting_approval", TRANSITIONS["running"])
+        self.assertIn("awaiting_approval", TRANSITIONS["running"])
+        self.assertNotIn("waiting_approval", TRANSITIONS["running"])
         self.assertIn("completed", TRANSITIONS["running"])
 
 

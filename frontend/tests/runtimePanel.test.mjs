@@ -9,9 +9,12 @@ import {create,act} from 'react-test-renderer';
 const require=createRequire(import.meta.url);
 const external=n=>JSON.stringify(pathToFileURL(require.resolve(n)).href);
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
-let calls=[],policy='auto';
+let calls=[],policy='auto',unknownEffects=[],history=[],reviewCalls=[];
 globalThis.__panelRequest=async(path,init={})=>{
  calls.push(path);
+ if(path.startsWith('/runtime/runs?'))return history;
+ if(path.startsWith('/runtime/operations?'))return unknownEffects;
+ if(path.endsWith('/review')){const decision=JSON.parse(init.body);reviewCalls.push(decision);unknownEffects=[];return {status:'uncertain',review_outcome:decision.outcome};}
  if(path==='/runtime')return {runs:[],pool:{}};
  if(path==='/approvals')return {generic:[],calendar:[],history:[]};
  if(path==='/permissions')return {rules:[{actor:'supervisor',action:'calculate',policy,scope:'local'}]};
@@ -33,4 +36,24 @@ test('polling loads lightweight permissions once, skips hidden tabs and reloads 
   await act(async()=>r.root.findByType('select').props.onChange({target:{value:'confirm'}}));
   assert.equal(calls.filter(p=>p==='/permissions').length,2);assert.equal(r.root.findByType('select').props.value,'confirm');
  } finally {if(r)await act(async()=>r.unmount());globalThis.setInterval=original;globalThis.clearInterval=clear;globalThis.document=doc;}
+});
+
+test('uncertain effects require a recorded verification and review never replays an operation',async()=>{
+ calls=[];reviewCalls=[];
+ unknownEffects=[{id:'uncertain-op',capability_id:'supervisor.write',run_id:'old-run',payload:{file:'note.docx'},status:'uncertain',effect:'write',contract_version:1,error_type:'ProcessInterrupted',review_outcome:null}];
+ history=[{id:'old-run',status:'interrupted',target:'supervisor',approval_ids:[]}];
+ let r;
+ try {
+  await act(async()=>{r=create(React.createElement(Panel));});
+  let button=r.root.findAllByType('button').find(b=>b.children.includes('Effetto verificato'));
+  assert.equal(button.props.disabled,true);
+  assert.ok(JSON.stringify(r.toJSON()).includes('esito incerto'));
+  await act(async()=>r.root.findByType('textarea').props.onChange({target:{value:'Ho verificato il file sul server'}}));
+  button=r.root.findAllByType('button').find(b=>b.children.includes('Effetto verificato'));
+  assert.equal(button.props.disabled,false);
+  await act(async()=>button.props.onClick());
+  assert.deepEqual(reviewCalls,[{outcome:'effect_verified',note:'Ho verificato il file sul server'}]);
+  assert.ok(!calls.some(p=>p.includes('/resolve') || p.includes('/chat')));
+  assert.ok(JSON.stringify(r.toJSON()).includes('Nessun effetto da verificare'));
+ } finally {if(r)await act(async()=>r.unmount());unknownEffects=[];history=[];}
 });

@@ -155,9 +155,6 @@ def propose_event(actor, action, *, event_id=None, version=None, data=None, reas
             (id,actor,action,event_id,expected_version,payload,previous,reason) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *""",
             (uuid4(), actor, action, UUID(event_id) if event_id else None, version, Jsonb(normalized), Jsonb(previous), reason[:2000])).fetchone()
         conn.commit()
-        from core.runtime import current_run
-        run = current_run.get()
-        if run: run.approvals.append("calendar:" + str(row["id"]))
         return {"status": "pending", "proposal": json_row(row),
                 "message": "Proposta salvata: richiede approvazione dalla pagina Calendario. L'evento non è ancora stato modificato."}
 

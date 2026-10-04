@@ -32,6 +32,7 @@ class CapabilityResult(BaseModel):
     value: JsonValue = None
     error: CapabilityError | None = None
     approval_id: str | None = None
+    operation_id: str | None = None
     @model_validator(mode='after')
     def valid_outcome(self):
         if self.status == 'error' and self.error is None: raise ValueError('Errors need an error descriptor')

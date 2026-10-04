@@ -4,10 +4,15 @@ from unittest.mock import patch
 from core.capability_contracts import CapabilityResult
 from core.governance import agent_tool, execute_capability, executables, CapabilityExecutionError
 from core.permissions import require_permission
+from core.run_states import EffectUncertain
 
 class ContractTests(unittest.TestCase):
-    def setUp(self): self.keys=set(executables)
+    def setUp(self):
+        self.keys=set(executables)
+        self.begin = patch('core.operation_journal.begin',return_value=None);self.begin.start()
+        self.finish = patch('core.operation_journal.finish',return_value=None);self.finish.start()
     def tearDown(self):
+        self.begin.stop(); self.finish.stop()
         for key in set(executables)-self.keys: executables.pop(key)
 
     def test_input_is_strict_defaults_are_normalized_and_adapter_uses_same_service(self):
@@ -39,7 +44,7 @@ class ContractTests(unittest.TestCase):
             """An implementation cannot switch actor."""
             require_permission('structure_agent','inspect_runtime');effects.append(True);return 'ok'
         for tool in [undeclared,actor]:
-            with self.assertRaises(CapabilityExecutionError):tool.invoke({})
+            with self.assertRaises((CapabilityExecutionError,EffectUncertain)):tool.invoke({})
         self.assertEqual(effects,[])
 
     def test_tool_cannot_approve_itself_and_conditional_block_does_not_block_other_branch(self):
