@@ -1,7 +1,7 @@
 import { Activity, HardDrive, PlugZap, ShieldCheck, Wifi } from "lucide-react";
 import type { BackendHealth } from "../types/contracts";
 import { useHomeMonitoring } from "../services/useHomeMonitoring";
-import { missingConnections } from "../services/connections";
+import { homeRoadmap, missingConnections } from "../services/connections";
 
 const bytes = (value: number) =>
   (value / 1024 ** 3).toLocaleString("it-IT", { maximumFractionDigits: 1 }) +
@@ -63,16 +63,33 @@ export default function Home({
       <div className="system-card home-backlog">
         <div className="metric-head">
           <div>
-            <span>DA COMPLETARE</span>
-            <h2>Collegamenti e obiettivi futuri</h2>
+            <span>STATO DEL PROGETTO</span>
+            <h2>Prossimi passi</h2>
           </div>
           <span className="pill pending">
-            {Object.keys(missingConnections).length} da fare
+            {Object.keys(missingConnections).length} collegamenti da completare
           </span>
         </div>
         <p className="home-backlog-intro">
-          Promemoria dei collegamenti ancora da implementare, visibile subito dalla Home.
+          Stato del codice aggiornato al {homeRoadmap.updatedAt}. Le funzioni disponibili nel codice richiedono i servizi configurati e raggiungibili; lo stato live è mostrato nelle metriche e nei servizi.
         </p>
+        <details>
+          <summary>Già disponibile nel codice</summary>
+          {homeRoadmap.available.map((item) => (
+            <div className="settings-row" key={item.label}>
+              <div><strong>{item.label}</strong><p>{item.detail}</p></div>
+              <span className="pill success">Implementato</span>
+            </div>
+          ))}
+        </details>
+        <h3>Verifiche prioritarie</h3>
+        {homeRoadmap.next.map((item) => (
+          <div className="settings-row" key={item.label}>
+            <div><strong>{item.label}</strong><p>{item.detail}</p></div>
+            <span className="pill pending">Da verificare</span>
+          </div>
+        ))}
+        <h3>Collegamenti da completare</h3>
         {Object.entries(missingConnections).map(([id, item]) => (
           <div className="connection-backlog" key={id}>
             <div className="settings-row">
@@ -88,6 +105,15 @@ export default function Home({
             </details>
           </div>
         ))}
+        <details>
+          <summary>Obiettivi rinviati</summary>
+          {homeRoadmap.deferred.map((item) => (
+            <div className="settings-row" key={item.label}>
+              <div><strong>{item.label}</strong><p>{item.detail}</p></div>
+              <span className="pill">Rinviato</span>
+            </div>
+          ))}
+        </details>
       </div>
       {telemetryError && (
         <div className="connection-notice" role="alert">
