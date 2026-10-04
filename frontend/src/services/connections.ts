@@ -21,7 +21,7 @@ export const homeRoadmap = {
     { label: "Accesso, permessi e approvazioni", detail: "Login del proprietario, policy delle capability e proposte consultabili in Attività." },
     { label: "Runtime e diagnostica", detail: "Coda, stati persistenti, cancellazione cooperativa, registro operazioni, bus eventi e profilazione." },
     { label: "File, calendario e Tools", detail: "File server e Libreria IA con anteprime, ricerca ricorsiva, condivisioni private e upload riprendibili; calendario e bozze delle automazioni." },
-    { label: "Programmatore", detail: "Copilot, editor dei file isolati con protezione dei conflitti, tool/skill, contratti, test e build frontend Docker, registro componenti, consegne ZIP e vista Graphify opzionale. Nessuna applicazione o attivazione automatica." },
+    { label: "Programmatore", detail: "Copilot, workspace isolati, 14 strumenti, skill, registro componenti, consegne ZIP e verifiche Python/contratti/TypeScript/build frontend. Mappa Graphify opzionale con ricerca ed esplorazione. Integrazione e attivazione restano manuali." },
     { label: "Allegati chat e Audio", detail: "Documenti allegati alle richieste e pagina Audio per registrazioni salvate, trascrizione locale, correzioni ed esportazione." },
   ],
   next: [
