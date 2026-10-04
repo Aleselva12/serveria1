@@ -90,8 +90,8 @@ def programmer_template(workspace_id: str, name: str) -> str:
 
 @agent_tool(ACTOR, actions=('check_workspace',), conditional_actions=('execute_checks',), effect='write', retry='never')
 def programmer_check(workspace_id: str, profile: str = "syntax") -> dict:
-    """Verifica syntax (senza esecuzione) o python_tests (solo Docker isolato); salva il rapporto nel workspace."""
-    if profile == "python_tests":
+    """Verifica syntax/contracts senza esecuzione; python_tests/typescript/frontend_build solo in Docker isolato."""
+    if profile in {"python_tests", "typescript", "frontend_build"}:
         from core.permissions import require_permission
         require_permission(ACTOR, "execute_checks")
     return run_check(_workspace(workspace_id), profile)
@@ -113,9 +113,32 @@ def programmer_validate_automation(workspace_id: str, data: dict) -> dict:
     return {"draft": validate_graph(data, tool_ids=ids), "executes_actions": False}
 
 
+@agent_tool(ACTOR, actions=('read_workspace',), effect='read', retry='safe')
+def programmer_components(workspace_id: str) -> dict:
+    """Elenca componenti, versioni, verifiche mancanti e stati del workspace."""
+    from programmer_agent.components import listing
+    return {'components': listing(_workspace(workspace_id))}
+
+
+@agent_tool(ACTOR, actions=('write_workspace',), effect='write', retry='never')
+def programmer_register_component(workspace_id: str, title: str, kind: str, files: list[str], integration: str,
+                                  dependencies: list[str] = [], component_id: str = '') -> dict:
+    """Registra/revisiona una bozza tool/automation/frontend/other con file, test e istruzioni di integrazione."""
+    from programmer_agent.components import register
+    return register(_workspace(workspace_id), title, kind, files, dependencies, integration, component_id)
+
+
+@agent_tool(ACTOR, actions=('write_workspace',), effect='write', retry='never')
+def programmer_deliver_component(workspace_id: str, component_id: str) -> dict:
+    """Prepara ZIP immutabile con codice, patch completa, evidenze e HANDOFF.md; nessuna attivazione."""
+    from programmer_agent.components import deliver
+    return deliver(_workspace(workspace_id), component_id)
+
+
 PROGRAMMER_TOOLS = [
     programmer_list_files, programmer_read_file, programmer_search_code,
     programmer_write_file, programmer_diff, programmer_catalog,
     programmer_read_skill, programmer_template, programmer_check,
     programmer_graph, programmer_validate_automation,
+    programmer_components, programmer_register_component, programmer_deliver_component,
 ]

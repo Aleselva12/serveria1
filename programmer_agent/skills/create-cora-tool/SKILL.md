@@ -10,3 +10,5 @@ description: Creare un tool Cora con contratto, permessi e verifiche, mantenendo
 6. Scrivi test con dati sintetici in tests/test_generated_<nome>.py. Usa programmer_check("syntax"), poi python_tests se Docker è pronto.
 7. Leggi programmer_diff. Riferisci verifiche e integrazioni necessarie: regole permessi, bind_capabilities, catalogo.
 Un file scritto non è una capability attiva. Non importare o registrare dinamicamente codice generato nel server.
+
+Registra il risultato con programmer_register_component (kind tool o automation), includendo i test. Esegui il profilo contracts e le verifiche pertinenti; prepara programmer_deliver_component. Stati revisionato/integrato/attivo sono riservati all’utente.

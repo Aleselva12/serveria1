@@ -9,3 +9,5 @@ description: Creare bozze di automazioni compatibili con l'editor Tools, riutili
 5. Per nodi condizione completa i rami "sì" e "no"; usa tool collegati effettivamente disponibili. Documenta i prerequisiti.
 6. Salva automations/<nome>.json con programmer_write_file e valida con programmer_validate_automation.
 7. Riferisci warnings e stato bozza. L'importazione nell'editor richiede l'azione esplicita dell'utente; non attiva, pianifica o esegue nulla.
+
+Registra il risultato con programmer_register_component (kind tool o automation), includendo i test. Esegui il profilo contracts e le verifiche pertinenti; prepara programmer_deliver_component. Stati revisionato/integrato/attivo sono riservati all’utente.
