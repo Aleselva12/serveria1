@@ -195,6 +195,11 @@ PROGRAMMER_AGENT_RULES: tuple[ActionPermission, ...] = (
     ActionPermission("programmer_agent", "read_skills", PermissionLevel.READ, ApprovalPolicy.AUTO),
     ActionPermission("programmer_agent", "check_workspace", PermissionLevel.WRITE, ApprovalPolicy.AUTO, "programmer_workspace"),
     ActionPermission("programmer_agent", "execute_checks", PermissionLevel.EXECUTE, ApprovalPolicy.AUTO, "docker_checks"),
+    ActionPermission("programmer_agent", "commit_workspace", PermissionLevel.WRITE, ApprovalPolicy.AUTO, "programmer_git"),
+    ActionPermission("programmer_agent", "prepare_release", PermissionLevel.EXECUTE, ApprovalPolicy.AUTO, "release_candidate"),
+    ActionPermission("programmer_agent", "publish_release", PermissionLevel.ADMIN, ApprovalPolicy.CONFIRM, "cora_release"),
+    ActionPermission("programmer_agent", "apply_release", PermissionLevel.ADMIN, ApprovalPolicy.CONFIRM, "cora_release"),
+    ActionPermission("programmer_agent", "rollback_release", PermissionLevel.ADMIN, ApprovalPolicy.CONFIRM, "cora_release"),
     ActionPermission("programmer_agent", "modify_live_source", PermissionLevel.WRITE, ApprovalPolicy.BLOCKED),
     ActionPermission("programmer_agent", "activate_component", PermissionLevel.ADMIN, ApprovalPolicy.BLOCKED),
 )

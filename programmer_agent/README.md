@@ -1,6 +1,6 @@
 # Programmatore Cora
 
-Agente LangGraph nativo con modello Ollama (`CORA_MODEL_PROGRAMMER`, fallback globale), coda e lifecycle di Cora, tool governati e streaming SSE. È orientato alla creazione di tool e automazioni su richiesta. Non installa o attiva il codice prodotto.
+Agente LangGraph nativo con modello Ollama (`CORA_MODEL_PROGRAMMER`, fallback globale), coda e lifecycle di Cora, tool governati e streaming SSE. È orientato alla creazione di tool e automazioni su richiesta. Gli snapshot restano bozze; i workspace Git possono essere rilasciati su richiesta tramite il servizio host separato descritto in updater/README.md.
 
 ## Utilizzo
 
@@ -8,17 +8,17 @@ L’editor manuale permette **Nuovo file** e **Modifica file** nella copia isola
 
 In **Programma**, creare un workspace, selezionarlo e descrivere il componente nel Copilot. La pagina mostra sorgente, differenze, cronologia del workspace e verifiche. Le conversazioni sono salvate in PostgreSQL con identità `programmer_agent`; l'ID conversazione è l'ID workspace. Run e operazioni restano visibili in Attività, anche dopo un errore o un riavvio. Cambiare pagina interrompe soltanto la lettura dello stream: il lavoro prosegue nel backend e non viene ripetuto automaticamente. Il pulsante Ferma usa la cancellazione del runtime.
 
-I workspace sono snapshot **filtrati**, non checkout Git completi: escludono dati, credenziali, file nascosti, link, dipendenze e file oltre 256 KB. Sono ammessi fino a 4.000 file e 12 MB per snapshot. Un controllo sha256 impedisce sovrascritture di file cambiati dopo la lettura. Le scritture sono limitate al workspace; non c'è endpoint di merge/deploy o caricamento dinamico di Python. La cartella predefinita è `data/programmer`; nel deployment Compose è `/state/programmer`, già inclusa nel volume persistente e nei backup dello stato.
+I workspace sono snapshot **filtrati**, non checkout Git completi: escludono dati, credenziali, file nascosti, link, dipendenze e file oltre 1 MB. Sono ammessi fino a 6.000 file e 40 MB per snapshot. Un controllo sha256 impedisce sovrascritture di file cambiati dopo la lettura. Le scritture sono limitate al workspace; non c'è scrittura diretta sul sorgente attivo o caricamento dinamico di Python; l'applicazione di un commit usa il servizio updater. La cartella predefinita è `data/programmer`; nel deployment Compose è `/state/programmer`, già inclusa nel volume persistente e nei backup dello stato.
 
 Il Supervisor può delegare con `programmer_agent_tool(query, workspace_id)` quando l'utente fornisce un workspace esistente. Il Copilot chiama direttamente il programmatore senza un passaggio del Supervisor. La cronologia manuale nel Copilot viene recuperata dal database; le deleghe del Supervisor ricevono invece la richiesta delegata, come gli altri specialisti.
 
 ## Strumenti e skill
 
-Quattordici capability: elenco, lettura, ricerca e scrittura di file; differenze; catalogo dei contratti reali; caricamento di skill e template; verifiche; interrogazione Graphify; validazione delle bozze grafiche; registro componenti, revisioni e pacchetti di consegna. Sono registrate nel catalogo Tools e nel permission engine. La scrittura di codice attivo e l'attivazione di componenti restano capability bloccate senza percorso eseguibile.
+Venti capability: elenco, lettura, ricerca e scrittura di file; differenze; catalogo dei contratti reali; caricamento di skill e template; verifiche; interrogazione Graphify; validazione delle bozze grafiche; registro componenti, revisioni e pacchetti di consegna; eliminazione di file, commit Git, preparazione/stato/applicazione/ripristino dei rilasci. Sono registrate nel catalogo Tools e nel permission engine. La scrittura diretta di codice attivo resta bloccata; le applicazioni richieste passano dal servizio updater e da permessi dedicati.
 
-Le quattro skill sono risorse versionate di **Cora**, non skill installate in ChatGPT: creazione tool, creazione automazioni, verifica componenti e orientamento nel progetto. Il modello riceve soltanto descrizioni e carica le istruzioni quando necessarie. Template e skill sono nel repository e vengono inclusi nello snapshot.
+Le cinque skill sono risorse versionate di **Cora**, non skill installate in ChatGPT: creazione tool, creazione automazioni, verifica componenti e orientamento nel progetto. Il modello riceve soltanto descrizioni e carica le istruzioni quando necessarie. Template e skill sono nel repository e vengono inclusi nello snapshot.
 
-Una bozza JSON compatibile può essere importata esplicitamente nella pagina Tools con **Importa bozza in Tools**. Il validatore è lo stesso dell'editor. Questa operazione non esegue, pianifica o assegna l'automazione; l'esecutore delle bozze resta un lavoro successivo. Anche un nuovo file Python rimane da revisionare e collegare manualmente a contratti, permessi e agenti.
+Una bozza JSON compatibile può essere importata esplicitamente nella pagina Tools con **Importa bozza in Tools**. Il validatore è lo stesso dell'editor. Questa operazione non esegue, pianifica o assegna l'automazione; l'esecutore delle bozze resta un lavoro successivo. Un nuovo file Python va collegato a contratti, permessi e agenti nella copia del progetto prima di preparare un rilascio.
 
 ## Verifiche
 
@@ -48,7 +48,7 @@ L'adapter espone ricerche di nodi e vicini con risultati limitati, preservando m
 
 ## Limiti della prima versione
 
-Nessuna automodifica autonoma, applicazione al sorgente attivo, shell libera, installazione pacchetti da parte del modello, attivazione di tool generati. L’esploratore include lettura paginata e un editor manuale completo per singolo file, non un IDE con terminale o language server. La capacità reale del modello sul PC e il confronto fra motori vengono misurati successivamente; le verifiche automatiche del repository usano un modello simulato per provare il ciclo tool e non certificano la qualità del modello locale.
+Nessuna iniziativa autonoma o shell libera. L’aggiornamento richiesto del programma e delle dipendenze avviene tramite il servizio host separato; la prima installazione va predisposta sul server. L’esploratore include lettura paginata e un editor manuale completo per singolo file, non un IDE con terminale o language server. La capacità reale del modello sul PC e il confronto fra motori vengono misurati successivamente; le verifiche automatiche usano un modello simulato per provare il ciclo tool e non certificano la qualità del modello locale.
 
 
 ## Componenti e consegne
@@ -72,3 +72,7 @@ docker build -f programmer_agent/frontend-checks.Dockerfile -t cora-programmer-f
 ```
 
 L'immagine installa il package-lock del repository fidato con npm ci --ignore-scripts. Le dipendenze restano nell'immagine: i controlli non installano pacchetti dal workspace né usano la rete. Il frontend è copiato in /tmp per scrivere output e cache. Isolamento come Python, con 1 GB RAM e tmpfs 256 MB; limite massimo 120 secondi. Gli hash di package.json e package-lock.json devono corrispondere ai manifest nell’immagine; una modifica alle dipendenze richiede preparare manualmente una nuova immagine. Configurazione Node: CORA_PROGRAMMER_FRONTEND_CHECK_IMAGE. L'esecuzione Docker reale va verificata sul deployment; i test del runner usano simulazioni nell'ambiente di sviluppo.
+
+## Aggiornare Cora su richiesta
+
+Crea workspace Git abilita il progetto testuale completo. Il Programmatore può aggiornare codice, contratti, frontend, grafi e migrazioni; il rilascio conserva Git localmente, costruisce immagini e richiede applicazione esplicita. La pagina mostra commit, job e stati anche dopo il ritorno da un riavvio. Per setup host, recupero, limiti e collaudo leggere updater/README.md. I vecchi snapshot non vengono convertiti automaticamente in checkout rilasciabili.

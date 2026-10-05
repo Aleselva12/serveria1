@@ -16,10 +16,10 @@ from uuid import UUID, uuid4
 PROJECT = Path(__file__).resolve().parents[1]
 LOCK = threading.RLock()
 CURRENT = contextvars.ContextVar("programmer_workspace", default=None)
-MAX_FILE = 256_000
-MAX_FILES = 4000
-MAX_TOTAL = 12_000_000
-SUFFIXES = {".py", ".ts", ".tsx", ".js", ".mjs", ".json", ".md", ".txt", ".css", ".html", ".yml", ".yaml", ".toml", ".sql", ".ini", ".cfg", ".ps1", ".cmd", ".sh"}
+MAX_FILE = 1_000_000
+MAX_FILES = 6000
+MAX_TOTAL = 40_000_000
+SUFFIXES = {".py", ".ts", ".tsx", ".js", ".mjs", ".json", ".md", ".txt", ".css", ".html", ".yml", ".yaml", ".toml", ".sql", ".ini", ".cfg", ".ps1", ".cmd", ".sh", ".conf", ".lock", ".svg", ".example", ".service"}
 EXCLUDED = {"data", "state", "backups", "logs", "knowledge", "audio", "models", "quotes", "structure_workspace", "programmer_workspace", "node_modules", "dist", "venv", "env", "__pycache__"}
 
 
@@ -43,12 +43,12 @@ def safe_name(relative: str) -> str:
     if not isinstance(relative, str) or not relative or "\\" in relative or ":" in relative:
         raise ValueError("Usa un percorso relativo POSIX.")
     path = PurePosixPath(relative)
-    if path.is_absolute() or any(p in {"..", "."} or p.startswith(".") for p in path.parts):
+    if path.is_absolute() or any(p in {"..", "."} or p.startswith(".") and p not in {".github", ".gitignore", ".dockerignore", ".env.example"} for p in path.parts):
         raise ValueError("Percorso non autorizzato.")
     if any(p.lower() in EXCLUDED for p in path.parts):
         raise ValueError("Cartella privata o generata esclusa.")
     name = path.name.lower()
-    if any(word in name for word in ("credential", "token", "secret", ".env")) or path.suffix.lower() not in SUFFIXES and name not in {"dockerfile", "makefile"}:
+    if (name.endswith(".json") and any(word in name for word in ("credential", "token", "secret"))) or (".env" in name and not name.endswith(".env.example")) or path.suffix.lower() not in SUFFIXES and name not in {"dockerfile", "makefile", ".gitignore", ".dockerignore"} and not name.endswith(".dockerfile"):
         raise ValueError("Tipo di file o nome riservato.")
     return path.as_posix()
 
@@ -136,7 +136,7 @@ def create(title: str, project: Path = PROJECT) -> dict:
 
 
 def summary(manifest: dict) -> dict:
-    return {k: manifest[k] for k in ("id", "title", "created_at", "source_digest", "file_count", "status")}
+    return {k: manifest[k] for k in ("id", "title", "created_at", "source_digest", "file_count", "status", "mode", "base_commit", "commit") if k in manifest}
 
 
 def manifest(identifier: str) -> dict:
@@ -162,7 +162,7 @@ def list_files(identifier: str) -> list[str]:
     _no_links(base)
     files = []
     for folder, dirs, names in os.walk(base, followlinks=False):
-        dirs[:] = sorted(d for d in dirs if not d.startswith(".") and not (Path(folder) / d).is_symlink())
+        dirs[:] = sorted(d for d in dirs if (not d.startswith(".") or d == ".github") and not (Path(folder) / d).is_symlink())
         for name in sorted(names):
             try:
                 relative = safe_name((Path(folder) / name).relative_to(base).as_posix())
@@ -249,3 +249,12 @@ def current() -> str:
     if not identifier:
         raise ValueError("Il programmatore richiede un workspace selezionato nella pagina Programma.")
     return identifier
+
+
+def delete(identifier: str, relative: str, expected_sha256: str) -> dict:
+    with LOCK:
+        path=file_path(identifier,relative)
+        if digest(path.read_text(encoding="utf-8"))!=expected_sha256:
+            raise WorkspaceConflict("Il file è cambiato: rileggilo prima di eliminarlo.")
+        path.unlink()
+        return {"path":relative,"deleted":True,"status":"draft"}

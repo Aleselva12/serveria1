@@ -1,0 +1,18 @@
+[Unit]
+Description=Cora owner-requested updater
+After=docker.service network.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=ale
+SupplementaryGroups=docker
+WorkingDirectory=/srv/cora-updater/installed
+ExecStart=/usr/bin/python3 -m updater.service --root /srv/cora-updater
+Restart=on-failure
+RestartSec=3
+UMask=0077
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

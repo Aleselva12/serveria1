@@ -40,7 +40,7 @@ jobs:
         working-directory: frontend
   deployment:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:

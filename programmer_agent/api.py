@@ -266,3 +266,48 @@ def check_history(workspace_id: UUID):
 @router.get('/workspaces/{workspace_id}/graph/view')
 def graph_view(workspace_id: UUID, query: str = Query('', max_length=200), node_id: str = Query('', max_length=500)):
     return call(knowledge.graph_view, str(workspace_id), query, node_id)
+
+
+class GitWorkspaceCreate(WorkspaceCreate):
+    pass
+
+
+class GitCommitRequest(StrictRequest):
+    message: str = Field(min_length=1,max_length=200)
+
+
+class ReleaseRequest(StrictRequest):
+    expected_commit: str = Field(pattern=r'^[0-9a-f]{40}$')
+    release_id: UUID | None = None
+
+
+@router.get('/releases/status')
+def release_status():
+    from programmer_agent.releases import status
+    return call(status)
+
+
+@router.post('/git-workspaces',status_code=201)
+def git_workspace(data: GitWorkspaceCreate):
+    from programmer_agent.releases import create
+    return call(create,data.title)
+
+
+@router.post('/workspaces/{workspace_id}/git/commit')
+def git_commit(workspace_id: UUID,data: GitCommitRequest):
+    from programmer_agent.releases import commit
+    return call(commit,str(workspace_id),data.message)
+
+
+@router.post('/workspaces/{workspace_id}/releases/prepare',status_code=202)
+def prepare_release(workspace_id: UUID,data: ReleaseRequest):
+    from programmer_agent.releases import prepare
+    return call(prepare,str(workspace_id),data.expected_commit)
+
+
+@router.post('/workspaces/{workspace_id}/releases/{operation}',status_code=202)
+def activate_release(workspace_id: UUID,operation: str,data: ReleaseRequest):
+    from programmer_agent.releases import apply
+    if operation not in {'apply','rollback','publish'} or not data.release_id:
+        raise HTTPException(422,'Operazione o rilascio non valido.')
+    return call(apply,str(workspace_id),str(data.release_id),data.expected_commit,operation)

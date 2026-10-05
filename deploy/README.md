@@ -201,3 +201,7 @@ login, streaming e backup/ripristino su un'installazione sacrificabile. Il targe
 audio prepara un modello tiny di prova e verifica un'inferenza CPU offline su
 silenzio sintetico; non misura la qualità su parlato reale. Il collaudo sul server
 reale resta da eseguire, senza installazione automatica.
+
+### Aggiornamento richiesto dall’interfaccia
+
+Il servizio host separato in [updater/README.md](../updater/README.md) completa commit, build, backup, prova delle migrazioni su copia, applicazione e recupero da Programma. La prima installazione è manuale. Il normale `manage.py up` resta disponibile per il bootstrap e la manutenzione host; quando si usa l’updater, le immagini attive vengono gestite dal suo file di override privato: non eseguire in parallelo `manage.py up`, checkout o restore manuali.
