@@ -2,6 +2,8 @@
 import hashlib
 import json
 import os
+import re
+import math
 import secrets
 import shutil
 import time
@@ -10,7 +12,8 @@ from pathlib import Path
 
 from fastapi import File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from core.confined_paths import confined_path
 
 # Imported only when make_router finishes defining its basic routes.
 TEXT_SUFFIXES = {'.txt', '.md', '.json', '.csv', '.tsv', '.py', '.ts', '.tsx', '.js', '.css', '.yaml', '.yml', '.toml', '.log', '.xml'}
@@ -22,6 +25,14 @@ class UploadStart(BaseModel):
     filename: str = Field(min_length=1, max_length=240)
     size: int = Field(ge=0)
     sha256: str = Field(pattern=r'^[0-9a-f]{64}$')
+
+class UploadMetadata(UploadStart):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    area: str
+    created: float
+    publishing: bool = False
+    result: dict | None = None
+
 
 class ShareStart(BaseModel):
     root_id: str
@@ -149,18 +160,23 @@ def register_extras(router, root_provider, *, allow_upload):
             return FileResponse(target, filename=target.name, media_type='application/octet-stream', headers={'Cache-Control': 'private, no-store'})
 
     def staging(base):
-        area = base / '.cora-staging'
+        area = confined_path(base, base / '.cora-staging')
         if area.is_symlink(): raise HTTPException(403, 'Area temporanea non valida.')
         area.mkdir(exist_ok=True)
         return area
 
     def session(root_id, ident):
-        if len(ident) != 32 or any(c not in '0123456789abcdef' for c in ident): raise HTTPException(400, 'Identificativo upload non valido.')
+        if not re.fullmatch(r'[0-9a-f]{32}', ident): raise HTTPException(400, 'Identificativo upload non valido.')
         root, base = select(root_id, True)
-        slot = staging(base) / ('upload-' + ident)
+        area = staging(base)
+        slot = confined_path(area, area / ('upload-' + ident))
         if slot.is_symlink() or (slot / 'meta.json').is_symlink() or (slot / 'content').is_symlink(): raise HTTPException(403, 'Upload non valido.')
         exists(slot / 'meta.json')
-        try: meta = json.loads((slot / 'meta.json').read_text())
+        try:
+            meta = UploadMetadata.model_validate_json((slot / 'meta.json').read_text()).model_dump()
+            if not math.isfinite(meta['created']): raise ValueError('Invalid timestamp')
+            if len(parts(meta['filename'])) != 1: raise ValueError('Invalid filename')
+            parts(meta['path'])
         except (ValueError, OSError) as error: raise HTTPException(409, 'Metadati upload non leggibili. Verifica la destinazione.') from error
         if meta['area'] != router.prefix or meta['root_id'] != root_id: raise HTTPException(404, 'Upload non trovato.')
         if meta['created'] + 86400 < time.time():
@@ -184,16 +200,18 @@ def register_extras(router, root_provider, *, allow_upload):
             for slot in slots:
                 if slot.is_symlink() or not slot.is_dir(): continue
                 try:
-                    meta = json.loads((slot/'meta.json').read_text())
+                    slot = confined_path(area, slot)
+                    metadata = confined_path(slot, slot/'meta.json')
+                    meta = UploadMetadata.model_validate_json(metadata.read_text()).model_dump()
                     if meta['created']+86400 < time.time(): shutil.rmtree(slot)
                     elif meta.get('result') is None:
                         active_size += meta['size']
                         active_count += 1
-                except (OSError, ValueError, KeyError): continue
+                except (OSError, ValueError, KeyError, HTTPException): continue
             if active_count >= 8: raise HTTPException(429, 'Massimo otto upload in sospeso per risorsa.')
             if active_size + body.size > 2 * int(os.getenv('CORA_FILES_MAX_UPLOAD_BYTES', '1073741824')): raise HTTPException(429, 'Troppi upload in sospeso. Completa o annulla quelli precedenti.')
             ident = uuid.uuid4().hex
-            slot = area / ('upload-' + ident)
+            slot = confined_path(area, area / ('upload-' + ident))
             slot.mkdir()
             meta = {**body.model_dump(), 'area': router.prefix, 'created': time.time()}
             (slot/'meta.json').write_text(json.dumps(meta))
@@ -213,6 +231,7 @@ def register_extras(router, root_provider, *, allow_upload):
             if not data or len(data) > 8*1024*1024: raise HTTPException(413, 'Blocco upload non valido (massimo 8 MiB).')
             with operation():
                 _, _, slot, meta = session(root_id, ident)
+                if meta.get('result') is not None or meta.get('publishing'): raise HTTPException(409, 'Upload già completato o in pubblicazione.')
                 current = (slot/'content').stat().st_size
                 if offset != current: raise HTTPException(409, 'Offset cambiato. Riprendi dal punto confermato dal server.')
                 if current+len(data) > meta['size']: raise HTTPException(413, 'Blocco oltre la dimensione dichiarata.')

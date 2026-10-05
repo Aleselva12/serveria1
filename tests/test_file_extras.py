@@ -75,3 +75,34 @@ class FileExtrasTests(unittest.TestCase):
         self.assertEqual(self.client.get(self.prefix+'/preview',params={'root_id':'files','path':'link/report.txt'}).status_code,403)
     def test_no_auth_no_extras(self):
         self.assertEqual(self.client.get(self.prefix+'/search',params={'root_id':'files','query':'x'},headers={'Authorization':''}).status_code,401)
+
+    def test_resumable_metadata_cannot_redirect_publication_outside_root(self):
+        ident=self.start(data=b'new');self.chunk(ident,b'new')
+        metadata=self.data/'.cora-staging'/('upload-'+ident)/'meta.json'
+        original=json.loads(metadata.read_text())
+        for field,value in [('path','../outside'),('filename','../escape.txt'),('size','not-a-number'),('created','bad')]:
+            meta={**original,field:value};metadata.write_text(json.dumps(meta))
+            result=self.complete(ident)
+            self.assertIn(result.status_code,(400,409),(field,result.text))
+            self.assertFalse((self.base/'escape.txt').exists())
+        metadata.write_text(json.dumps(original))
+        self.assertEqual(self.complete(ident).status_code,200)
+        self.assertEqual(self.chunk(ident,b'x',3).status_code,409)
+
+    def test_upload_content_and_metadata_symlinks_never_access_external_files(self):
+        for name in ('meta.json','content'):
+            ident=self.start();slot=self.data/'.cora-staging'/('upload-'+ident)
+            external=self.base/('external-'+name);external.write_text('keep private')
+            (slot/name).unlink();(slot/name).symlink_to(external)
+            self.assertEqual(self.client.get(self.prefix+'/uploads/'+ident,params={'root_id':'files'}).status_code,403)
+            self.assertEqual(self.chunk(ident,b'bad').status_code,403)
+            self.assertEqual(self.complete(ident).status_code,403)
+            self.assertEqual(self.client.delete(self.prefix+'/uploads/'+ident,params={'root_id':'files'}).status_code,403)
+            self.assertEqual(external.read_text(),'keep private')
+
+    def test_stale_session_scan_does_not_read_symlinked_metadata(self):
+        slot=self.data/'.cora-staging'/('upload-'+'a'*32);slot.mkdir(parents=True)
+        external=self.base/'expired.json';external.write_text(json.dumps({'created':0}))
+        (slot/'meta.json').symlink_to(external)
+        self.start()
+        self.assertTrue(slot.exists());self.assertTrue(external.exists())

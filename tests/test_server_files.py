@@ -18,8 +18,11 @@ class ServerFilesTests(unittest.TestCase):
         self.data.mkdir()
         self.readonly = self.base / 'readonly'
         self.readonly.mkdir()
+        self.originals = self.base / 'originals'
+        self.originals.mkdir()
         self.env = patch.dict(os.environ, {
             'CORA_FILES_TOKEN': 'test-owner-token',
+            'CORA_LIBRARY_ORIGINALS_ROOT': str(self.originals),
             'CORA_FILE_ROOTS': json.dumps([
                 {'id': 'files', 'path': str(self.data), 'writable': True},
                 {'id': 'ro', 'path': str(self.readonly), 'writable': False},
@@ -170,6 +173,40 @@ class ServerFilesTests(unittest.TestCase):
         self.assertTrue(is_loopback('::1'))
         self.assertFalse(is_loopback('192.168.1.5'))
         self.assertFalse(is_loopback(''))
+
+    def test_same_prefix_sibling_and_all_public_path_inputs_are_confined(self):
+        sibling=self.base/'files-private';sibling.mkdir();secret=sibling/'secret.txt';secret.write_text('private')
+        (self.data/'source.txt').write_text('source')
+        for unsafe in ('../files-private/secret.txt', str(secret), 'nested/../../files-private/secret.txt'):
+            for route in ('/children','/download','/preview','/search'):
+                response=self.get(route,path=unsafe,query='secret')
+                self.assertEqual(response.status_code,400,(route,unsafe))
+            for route in ('/folders','/trash'):
+                self.assertEqual(self.post(route,path=unsafe).status_code,400)
+            for mode in ('copy','move'):
+                self.assertEqual(self.post('/transfer',path=unsafe,destination='copy',mode=mode).status_code,400)
+                self.assertEqual(self.post('/transfer',path='source.txt',destination=unsafe,mode=mode).status_code,400)
+            self.assertEqual(self.upload(path=unsafe).status_code,400)
+        self.assertEqual(secret.read_text(),'private');self.assertEqual((self.data/'source.txt').read_text(),'source')
+
+    def test_tampered_trash_destination_and_metadata_links_are_rejected(self):
+        self.upload();ident=self.post('/trash',path='hello.txt').json()['id']
+        slot=self.data/'.cora-trash'/ident;metadata=slot/'metadata.json'
+        data=json.loads(metadata.read_text());data['path']='../escape.txt';metadata.write_text(json.dumps(data))
+        self.assertEqual(self.post('/restore',id=ident).status_code,400)
+        self.assertFalse((self.base/'escape.txt').exists());self.assertTrue((slot/'content').exists())
+        metadata.unlink();outside=self.base/'metadata.json';outside.write_text(json.dumps({'path':'safe.txt'}));metadata.symlink_to(outside)
+        self.assertEqual(self.post('/restore',id=ident).status_code,403)
+        self.assertEqual(self.get('/trash').json()['items'],[])
+
+    def test_confined_path_rejects_sibling_prefix_and_internal_links(self):
+        from core.confined_paths import confined_path
+        from fastapi import HTTPException
+        sibling=self.base/'files-private';sibling.mkdir()
+        with self.assertRaises(HTTPException):confined_path(self.data,sibling/'secret')
+        (self.data/'folder').mkdir();(self.data/'alias').symlink_to(self.data/'folder',target_is_directory=True)
+        with self.assertRaises(HTTPException):confined_path(self.data,self.data/'alias/file')
+        self.assertEqual(confined_path(self.data,self.data),self.data)
 
 
 if __name__ == '__main__':
