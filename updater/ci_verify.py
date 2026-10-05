@@ -20,18 +20,22 @@ def verify(project_root):
         commit=engine.commit_workspace(workspace['id'],'CI requested change')['commit']
         prepare=engine.submit('prepare',workspace['id'],commit)
         engine.execute(engine.load(prepare['id']))
-        if engine.load(prepare['id'])['status'] != 'ready':
-            # Only this disposable CI fixture publishes candidate build/test output.
-            # Production HTTP responses keep the private host log out of the API.
-            log = root/'last-error.log'
-            if log.exists(): print(log.read_text(), flush=True)
-        assert engine.load(prepare['id'])['status']=='ready',engine.public(engine.load(prepare['id']))
+        assert_job(engine, prepare, 'ready')
         apply=engine.submit('apply',commit=commit,release_id=prepare['id'])
         engine.execute(engine.load(apply['id']))
-        assert engine.load(apply['id'])['status']=='completed',engine.public(engine.load(apply['id']))
+        assert_job(engine, apply, 'completed')
         assert engine.current()['commit']==commit
         rollback=engine.submit('rollback',commit=commit,release_id=prepare['id'])
         engine.execute(engine.load(rollback['id']))
-        assert engine.load(rollback['id'])['status']=='completed',engine.public(engine.load(rollback['id']))
+        assert_job(engine, rollback, 'completed')
         assert engine.current()['commit']==revision
         print('REQUESTED UPDATE: BUILD, MIGRATION COPY, APPLY AND FULL ROLLBACK: OK')
+
+
+def assert_job(engine, job, expected):
+    row = engine.load(job['id'])
+    if row['status'] != expected:
+        # Only disposable CI publishes command output; production APIs keep it private.
+        log = engine.root/'last-error.log'
+        if log.exists(): print(log.read_text(), flush=True)
+    assert row['status'] == expected, engine.public(row)

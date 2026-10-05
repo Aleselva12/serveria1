@@ -306,12 +306,14 @@ class Engine:
             import time
             deadline=time.monotonic()+60
             while True:
-                try:self.cmd(['docker','exec',container,'pg_isready','-U','cora','-d','cora'],timeout=5);break
+                # The entrypoint's temporary initialization server only listens on a
+                # Unix socket. Wait for TCP so restore cannot race its shutdown.
+                try:self.cmd(['docker','exec',container,'pg_isready','-h','127.0.0.1','-U','cora','-d','cora'],timeout=5);break
                 except RuntimeError:
                     if time.monotonic()>deadline:raise TimeoutError('Database di prova non pronto.')
                     time.sleep(.2)
             with (self.path(row['id'])/'backup'/'database.dump').open('rb') as source:
-                self.cmd(['docker','exec','-i',container,'pg_restore','-U','cora','-d','cora','--exit-on-error','--no-owner','--no-privileges'],stdin=source)
+                self.cmd(['docker','exec','-i','-e','PGPASSWORD='+password,container,'pg_restore','-h','127.0.0.1','-U','cora','-d','cora','--exit-on-error','--no-owner','--no-privileges'],stdin=source)
             self.cmd(['docker','run','--rm','--network',network,'--read-only','--cap-drop=ALL','--security-opt=no-new-privileges',
                       '--pids-limit=128','--memory=1g','--tmpfs=/tmp:rw,nosuid,size=128m',
                       '-e','CORA_DATABASE_URL=postgresql://cora:'+password+'@'+container+':5432/cora',

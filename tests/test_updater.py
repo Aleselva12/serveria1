@@ -89,6 +89,35 @@ class UpdaterTests(unittest.TestCase):
         for flag in ('--network=none','--read-only','--cap-drop=ALL'):self.assertIn(flag,run)
         self.assertEqual(self.engine.current()['commit'],self.base_commit)
 
+    def test_migration_copy_waits_for_final_tcp_server_before_restoring(self):
+        ready=self.ready()
+        job=self.engine.submit('apply',commit=ready['commit'],release_id=ready['id'])
+        row=self.engine.load(job['id'])
+        backup=self.engine.path(row['id'])/'backup';backup.mkdir()
+        (backup/'database.dump').write_bytes(b'database copy')
+        events=[];attempts=0
+        def command(args, **kwargs):
+            nonlocal attempts
+            if 'pg_isready' in args:
+                # The socket-only initialization server is already up, but TCP isn't.
+                if '-h' not in args: return ''
+                self.assertEqual(args[args.index('-h')+1], '127.0.0.1')
+                attempts+=1
+                if attempts==1:
+                    events.append('initializing')
+                    raise RuntimeError('TCP not ready')
+                events.append('ready')
+            elif 'pg_restore' in args:
+                events.append('restore')
+                self.assertEqual(kwargs['stdin'].read(), b'database copy')
+                self.assertEqual(args[args.index('-h')+1], '127.0.0.1')
+            elif '--entrypoint=python' in args: events.append('migrate')
+            return 'sha256:postgres' if 'inspect' in args else ''
+        with patch.object(self.engine,'compose',return_value='postgres-container'), patch.object(self.engine,'cmd',side_effect=command), patch('time.sleep'):
+            self.engine.migration_trial(row,ready['images']['api'])
+        self.assertEqual(events,['initializing','ready','restore','migrate'])
+        self.assertTrue(row['checks']['migration_copy'])
+
     def test_failed_activation_recovers_previous_images_and_data(self):
         ready=self.ready();public=self.engine.submit('apply',commit=ready['commit'],release_id=ready['id']);row=self.engine.load(public['id'])
         previous={'api':'sha256:old-api','web':'sha256:old-web'};restores=[]
