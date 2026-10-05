@@ -4,6 +4,7 @@ from __future__ import annotations
 import errno
 import json
 import mimetypes
+import re
 import os
 import shutil
 import tempfile
@@ -18,6 +19,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from core.confined_paths import confined_path
 from core.access import is_loopback, require_owner
 from core.file_paths import ORIGINALS_ID, original_resource
 
@@ -82,14 +84,7 @@ def parts(path: str):
 
 
 def resolve(base: Path, path: str):
-    target = base
-    for segment in parts(path):
-        target = target / segment
-        if target.is_symlink():
-            raise HTTPException(403, "I collegamenti simbolici non sono navigabili.")
-    if not target.resolve().is_relative_to(base.resolve()):
-        raise HTTPException(403, "Percorso esterno alla risorsa.")
-    return target
+    return confined_path(base, base.joinpath(*parts(path)))
 
 
 def exists(path: Path):
@@ -133,6 +128,7 @@ def iso(timestamp: float):
 
 
 def node(base: Path, target: Path, writable: bool):
+    target = confined_path(base, target, allow_leaf_link=True)
     stat = target.lstat()
     path = target.relative_to(base).as_posix()
     kind = "link" if target.is_symlink() else "folder" if target.is_dir() else "file" if target.is_file() else "special"
@@ -162,7 +158,7 @@ def upload_to(root: dict, base: Path, path: str, file: UploadFile):
         if not folder.is_dir():
             raise HTTPException(400, "Destinazione non valida.")
         vacant(resolve(base, "/".join(filter(None, [path, name]))))
-        staging = base / ".cora-staging"
+        staging = confined_path(base, base / ".cora-staging")
         if staging.is_symlink():
             raise HTTPException(403, "Area temporanea non valida.")
         staging.mkdir(exist_ok=True)
@@ -193,7 +189,7 @@ def upload_to(root: dict, base: Path, path: str, file: UploadFile):
 
 
 def trash_area(base: Path):
-    area = base / ".cora-trash"
+    area = confined_path(base, base / ".cora-trash")
     if area.is_symlink():
         raise HTTPException(403, "Cestino non valido.")
     area.mkdir(exist_ok=True)
@@ -305,7 +301,7 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
             if body.mode == "copy" and src.is_dir():
                 for directory, directories, files in os.walk(src, followlinks=False):
                     for name in directories + files:
-                        child = Path(directory) / name
+                        child = confined_path(base, Path(directory) / name)
                         if child.is_symlink() or (not child.is_dir() and not child.is_file()) or name.casefold() in RESERVED:
                             raise HTTPException(403, "La cartella contiene collegamenti, file speciali o aree riservate.")
             if body.mode == "move":
@@ -340,7 +336,8 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
             src = resolve(base, body.path)
             exists(src)
             item_id = uuid.uuid4().hex
-            slot = trash_area(base) / item_id
+            area = trash_area(base)
+            slot = confined_path(area, area / item_id)
             slot.mkdir()
             metadata = {"id": item_id, "path": body.path, "deletedAt": datetime.now(timezone.utc).isoformat()}
             try:
@@ -356,7 +353,7 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
     def list_trash(root_id: str):
         with operation():
             _, base = select_root(root_id)
-            area = base / ".cora-trash"
+            area = confined_path(base, base / ".cora-trash")
             if area.is_symlink():
                 raise HTTPException(403, "Cestino non valido.")
             items = []
@@ -381,10 +378,11 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
     @router.post("/restore")
     def restore(body: Restore):
         with operation():
-            if len(body.id) != 32 or any(c not in "0123456789abcdef" for c in body.id):
+            if not re.fullmatch(r"[0-9a-f]{32}", body.id):
                 raise HTTPException(400, "Identificativo cestino non valido.")
             root, base = select_root(body.root_id, write=True)
-            slot = trash_area(base) / body.id
+            area = trash_area(base)
+            slot = confined_path(area, area / body.id)
             if slot.is_symlink() or (slot / "metadata.json").is_symlink() or (slot / "content").is_symlink():
                 raise HTTPException(403, "Elemento cestino non valido.")
             exists(slot / "content")

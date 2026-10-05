@@ -8,6 +8,7 @@ from pathlib import Path
 from fastapi import File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
+from core.confined_paths import confined_path
 from core.file_paths import ORIGINALS_ID, knowledge_root, originals_root
 from core.server_files import (exists, make_router, node, operation, parts,
                                resolve, root_for, upload_to, vacant)
@@ -34,13 +35,14 @@ def library_base():
 
 
 def copy_document(source: Path, destination: Path, library: Path):
+    destination = confined_path(library, destination)
     exists(source)
     if not source.is_file():
         raise HTTPException(400, 'Seleziona un file normale da copiare.')
     if source.resolve().is_relative_to(library):
         raise HTTPException(400, 'Il file selezionato è già nella Libreria IA.')
     vacant(destination)
-    staging = library / '.cora-staging'
+    staging = confined_path(library, library / '.cora-staging')
     if staging.is_symlink():
         raise HTTPException(403, 'Area temporanea non valida.')
     staging.mkdir(exist_ok=True)
@@ -95,7 +97,7 @@ def upload_copy(path: str = Form(''), file: UploadFile = File(...)):
             (originals / folder).rmdir()
             raise
         try:
-            result = copy_document(originals / original['path'], destination, library)
+            result = copy_document(resolve(originals, original['path']), destination, library)
         except Exception as error:
             # Once saved, keep the original even if publishing the library copy fails.
             status = error.status_code if isinstance(error, HTTPException) else 503

@@ -20,6 +20,11 @@ def verify(project_root):
         commit=engine.commit_workspace(workspace['id'],'CI requested change')['commit']
         prepare=engine.submit('prepare',workspace['id'],commit)
         engine.execute(engine.load(prepare['id']))
+        if engine.load(prepare['id'])['status'] != 'ready':
+            # Only this disposable CI fixture publishes candidate build/test output.
+            # Production HTTP responses keep the private host log out of the API.
+            log = root/'last-error.log'
+            if log.exists(): print(log.read_text(), flush=True)
         assert engine.load(prepare['id'])['status']=='ready',engine.public(engine.load(prepare['id']))
         apply=engine.submit('apply',commit=commit,release_id=prepare['id'])
         engine.execute(engine.load(apply['id']))

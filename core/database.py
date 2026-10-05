@@ -140,5 +140,5 @@ def database_status() -> dict:
             "configured": True,
             "reachable": False,
             "backend": "postgresql+pgvector",
-            "error": f"{type(error).__name__}: {error}",
+            "error": "Database non raggiungibile o verifica dello schema non riuscita.",
         }
