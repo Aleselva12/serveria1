@@ -212,3 +212,5 @@ I file elencati sotto `frontend/src/components/` sono le schermate; sotto
 `frontend/src/services/` si trovano i relativi adapter HTTP. I router sono
 registrati in `api.py`; `core/server_files.py` aggiunge le funzioni avanzate a
 entrambi i router senza duplicare la gestione delle cartelle.
+
+Per modificare Cora dall’interno su richiesta del proprietario: workspace Git e servizio host separato di aggiornamento, descritti in [updater/README.md](updater/README.md). Le build vengono preparate mentre Cora funziona; applicazione, backup e recupero usano job persistenti fuori dal runtime applicativo.

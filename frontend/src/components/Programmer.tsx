@@ -11,6 +11,7 @@ import { api } from "../services/api";
 import { runtimeRequest } from "../services/runtimeApi";
 
 import ProgrammerArtifacts from "./ProgrammerArtifacts";
+import ProgrammerReleases from "./ProgrammerReleases";
 import WorkspaceEditor from "./WorkspaceEditor";
 
 export default function Programmer() {
@@ -104,12 +105,14 @@ export default function Programmer() {
       })
       .catch(() => {});
   }, [selected]);
-  async function create() {
+  async function create(git = false) {
     if (creating || busy || editing !== null || !title.trim()) return;
     setCreating(true);
     setError("");
     try {
-      const row = await programmerApi.create(title);
+      const row = await (git
+        ? programmerApi.createGit(title)
+        : programmerApi.create(title));
       if (mounted.current) {
         setWorkspaces((prev) => [row, ...prev]);
         setSelected(row.id);
@@ -276,6 +279,12 @@ export default function Programmer() {
           onClick={() => void create()}
         >
           {creating ? "Preparazione…" : "Crea workspace"}
+        </button>
+        <button
+          disabled={!online || busy || creating || editing !== null || !title.trim()}
+          onClick={() => void create(true)}
+        >
+          Crea workspace Git
         </button>
         <button
           disabled={busy || creating}
@@ -525,6 +534,16 @@ export default function Programmer() {
           </small>
         </aside>
       </div>
+      <ProgrammerReleases
+        workspaceId={selected}
+        gitWorkspace={current?.mode === "git"}
+        disabled={busy || creating || importing || editing !== null}
+        onRefresh={() => {
+          void connect();
+          if (selected)
+            void refresh(selected).catch((e) => setError(String(e)));
+        }}
+      />
       <ProgrammerArtifacts
         workspaceId={selected}
         revision={revision}

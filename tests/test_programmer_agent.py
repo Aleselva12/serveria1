@@ -144,7 +144,7 @@ class ProgrammerTests(unittest.TestCase):
         self.assertEqual(ws.read(self.identifier, "generated.py")["content"], "value = 42\n")
         self.assertFalse((self.source / "generated.py").exists())
         tools = [e for e in executables.values() if e["actor"] == "programmer_agent"]
-        self.assertEqual(len(tools), 14)
+        self.assertEqual(len(tools), 21)
         self.assertTrue(all(e["connected"] for e in tools))
 
     def test_docker_is_only_execution_path_and_cleanup_runs_on_cancellation(self):

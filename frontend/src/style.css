@@ -3291,6 +3291,12 @@ select:disabled {
 .programmer-graph svg g.unresolved circle { fill:#f2f0e5;stroke:#9b8c57;stroke-dasharray:5 4; }
 .programmer-graph svg text { fill:#294a43;font-size:13px; }
 @media(max-width:1100px) { .programmer-artifacts { grid-template-columns:1fr; } }
+.programmer-release-panel { margin-top:24px;padding:24px; }
+.programmer-release-panel code { overflow-wrap:anywhere; }
+.programmer-release-panel select { margin:8px;padding:10px;border:1px solid #d7e0df;border-radius:8px;max-width:100%; }
+.programmer-release-confirm { display:flex;gap:12px;align-items:flex-start;margin:16px 0;font-size:13px; }
+.programmer-release-confirm input { margin-top:3px; }
+.programmer-release-panel small { display:block;margin-top:14px;line-height:1.6; }
 .workspace-editor textarea {
   width: 100%; box-sizing: border-box; resize: vertical;
   font-family: monospace; tab-size: 2; white-space: pre;

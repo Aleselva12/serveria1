@@ -135,10 +135,60 @@ def programmer_deliver_component(workspace_id: str, component_id: str) -> dict:
     return deliver(_workspace(workspace_id), component_id)
 
 
+@agent_tool(ACTOR, actions=('write_workspace',), effect='write', retry='never')
+def programmer_delete_file(workspace_id: str, path: str, expected_sha256: str) -> dict:
+    """Elimina un file della copia dopo averne letto l'hash. Il sorgente attivo resta invariato."""
+    return ws.delete(_workspace(workspace_id),path,expected_sha256)
+
+
+@agent_tool(ACTOR, actions=('commit_workspace',), effect='write', retry='never')
+def programmer_git_commit(workspace_id: str, message: str) -> dict:
+    """Salva la versione corrente in Git locale; richiede un workspace Git creato dall'utente."""
+    from programmer_agent.releases import commit
+    return commit(_workspace(workspace_id),message)
+
+
+@agent_tool(ACTOR, actions=('prepare_release',), effect='write', retry='never')
+def programmer_prepare_release(workspace_id: str, expected_commit: str) -> dict:
+    """Prepara immagini e verifiche per un commit esatto, senza aggiornare Cora in esecuzione. Restituisce un job."""
+    from programmer_agent.releases import prepare
+    return prepare(_workspace(workspace_id),expected_commit)
+
+
+@agent_tool(ACTOR, actions=('read_workspace',), effect='read', retry='safe')
+def programmer_release_status(workspace_id: str, job_id: str) -> dict:
+    """Legge stato, commit e verifiche di un job del workspace selezionato."""
+    from programmer_agent.releases import job
+    return job(_workspace(workspace_id),job_id)
+
+
+@agent_tool(ACTOR, actions=('apply_release',), effect='write', retry='never')
+def programmer_apply_release(workspace_id: str, release_id: str, expected_commit: str) -> dict:
+    """Su richiesta esplicita dell'utente propone l'applicazione del commit pronto. Richiede approvazione; aggiorna e riavvia Cora con recupero."""
+    from programmer_agent.releases import apply
+    return apply(_workspace(workspace_id),release_id,expected_commit)
+
+
+@agent_tool(ACTOR, actions=('rollback_release',), effect='write', retry='never')
+def programmer_rollback_release(workspace_id: str, release_id: str, expected_commit: str) -> dict:
+    """Su richiesta dell'utente propone ripristino di codice E DATI al backup precedente; conserva anche un backup dei dati attuali. Richiede approvazione."""
+    from programmer_agent.releases import apply
+    return apply(_workspace(workspace_id),release_id,expected_commit,'rollback')
+
+
+@agent_tool(ACTOR, actions=('publish_release',), effect='write', retry='never')
+def programmer_publish_release(workspace_id: str, release_id: str, expected_commit: str) -> dict:
+    """Pubblica su richiesta il commit verificato nel branch GitHub Cora, senza force push o merge. Restituisce un job e poi il link per la PR."""
+    from programmer_agent.releases import apply
+    return apply(_workspace(workspace_id),release_id,expected_commit,'publish')
+
+
 PROGRAMMER_TOOLS = [
     programmer_list_files, programmer_read_file, programmer_search_code,
     programmer_write_file, programmer_diff, programmer_catalog,
     programmer_read_skill, programmer_template, programmer_check,
     programmer_graph, programmer_validate_automation,
     programmer_components, programmer_register_component, programmer_deliver_component,
+    programmer_delete_file, programmer_git_commit, programmer_prepare_release, programmer_release_status,
+    programmer_apply_release, programmer_rollback_release, programmer_publish_release,
 ]

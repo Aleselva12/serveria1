@@ -56,6 +56,7 @@ MODULES = [
     "programmer_agent.programmer_tools",
     "programmer_agent.programmer_graph",
     "programmer_agent.api",
+        "programmer_agent.releases",
     "tools",
     "prompt",
     "graph",

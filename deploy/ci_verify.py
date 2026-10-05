@@ -4,9 +4,11 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import urllib.request
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT))
 spec=importlib.util.spec_from_file_location('manage',ROOT/'deploy/manage.py')
 manage=importlib.util.module_from_spec(spec);spec.loader.exec_module(manage)
 
@@ -72,6 +74,8 @@ Path('/state/files/proof.txt').write_text(str(run['id']))
         restored=manage.compose('exec','-T','api','cat','/state/files/proof.txt',capture_output=True,text=True).stdout.strip()
         assert restored==run_id
         with request('/backend/api/v1/runtime/runs/'+run_id, cookie=cookie) as response:assert json.load(response)['status']=='completed'
+        from updater.ci_verify import verify as verify_updater
+        verify_updater(ROOT)
         print('DEPLOYMENT BUILD, LOGIN, SSE, BACKUP AND RESTORE: OK')
     finally:
         manage.compose('logs','--no-color','--tail','80')

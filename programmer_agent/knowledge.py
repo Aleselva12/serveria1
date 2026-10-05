@@ -6,6 +6,7 @@ from programmer_agent import workspace as ws
 
 BASE = Path(__file__).resolve().parent
 SKILLS = {
+    "request-cora-update": "Preparare e applicare un aggiornamento di Cora su richiesta del proprietario.",
     "create-cora-tool": "Creare tool con contratti, permessi ed esempi verificabili.",
     "create-cora-automation": "Comporre automazioni e produrre bozze grafiche compatibili.",
     "verify-component": "Verificare sintassi e comportamento, distinguendo gli esiti.",

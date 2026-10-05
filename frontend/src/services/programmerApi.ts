@@ -6,6 +6,9 @@ export type Workspace = {
   source_digest: string;
   file_count: number;
   status: string;
+  mode?: string;
+  commit?: string;
+  base_commit?: string;
 };
 export type CodeFile = {
   path: string;
@@ -35,6 +38,11 @@ export const programmerApi = {
       checks: { docker_cli: boolean };
     }>("/programmer/status"),
   workspaces: () => runtimeRequest<Workspace[]>("/programmer/workspaces"),
+  createGit: (title: string) =>
+    runtimeRequest<Workspace>("/programmer/git-workspaces", {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    }),
   create: (title: string) =>
     runtimeRequest<Workspace>("/programmer/workspaces", {
       method: "POST",
@@ -210,5 +218,50 @@ export const programmerArtifactsApi = {
     runtimeRequest<GraphView>(
       `/programmer/workspaces/${id}/graph/view?` +
         new URLSearchParams({ query, node_id: nodeId }),
+    ),
+};
+
+export type ReleaseJob = {
+  id: string;
+  workspace_id: string;
+  kind: string;
+  status: string;
+  phase: string;
+  commit: string;
+  base_commit: string;
+  error?: string;
+  rollback?: string;
+  backup_valid?: boolean;
+  branch?: string;
+  compare_url?: string;
+};
+export const programmerReleaseApi = {
+  status: () =>
+    runtimeRequest<{
+      available: boolean;
+      reason?: string;
+      active_commit?: string;
+      jobs: ReleaseJob[];
+    }>("/programmer/releases/status"),
+  commit: (id: string, message: string) =>
+    runtimeRequest<{ commit: string }>(
+      `/programmer/workspaces/${id}/git/commit`,
+      { method: "POST", body: JSON.stringify({ message }) },
+    ),
+  prepare: (id: string, expected_commit: string) =>
+    runtimeRequest<ReleaseJob>(
+      `/programmer/workspaces/${id}/releases/prepare`,
+      { method: "POST", body: JSON.stringify({ expected_commit }) },
+    ),
+  apply: (id: string, release: ReleaseJob, operation: "apply" | "rollback" | "publish") =>
+    runtimeRequest<ReleaseJob>(
+      `/programmer/workspaces/${id}/releases/${operation}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          release_id: release.id,
+          expected_commit: release.commit,
+        }),
+      },
     ),
 };
