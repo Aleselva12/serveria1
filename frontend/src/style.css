@@ -3303,3 +3303,10 @@ select:disabled {
   background: var(--panel, #171b23); color: inherit;
   border: 1px solid var(--border, #39404d); padding: 12px;
 }
+
+.settings-model { border-top:1px solid #eef2ee; border-bottom:1px solid #eef2ee; padding:18px 0; margin-top:18px; }
+.settings-model p { margin:5px 0 14px; color:#7c8980; font-size:12px; }
+.settings-model-controls { display:flex; gap:10px; align-items:center; }
+.settings-model-controls select { min-width:0; flex:1; border:1px solid #dfe8e1; border-radius:9px; padding:10px 12px; background:#fff; color:#26372e; }
+.settings-model small { display:block; margin-top:10px; color:#839188; }
+@media (max-width: 650px) { .settings-model-controls { align-items:stretch; flex-direction:column; } }
