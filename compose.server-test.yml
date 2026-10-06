@@ -1,0 +1,9 @@
+services:
+  api:
+    volumes:
+      - type: bind
+        source: /srv/nas/Dati/drive
+        target: /nas/drive
+        read_only: false
+        bind:
+          create_host_path: false
