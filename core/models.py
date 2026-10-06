@@ -109,6 +109,8 @@ def get_chat_model(
     kwargs.setdefault("keep_alive", get_model_keep_alive())
     kwargs.setdefault("client_kwargs", {"timeout": float(os.getenv("CORA_MODEL_TIMEOUT_SECONDS", "120")), "trust_env": False})
     kwargs.setdefault("metadata", {"cora_role": role})
+    # Ollama expects num_ctx/num_predict as model options; ChatOllama maps these fields.
+    # Keep tool-capable models on the native /api/chat path.
     return ChatOllama(
         model=get_model_name(role),
         base_url=get_ollama_base_url(),
