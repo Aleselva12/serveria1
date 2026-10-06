@@ -18,3 +18,14 @@ Le metriche del run registrano `context_pages`, `selected_tools` e
 
 È un prototipo. In futuro la selezione potrà combinare segnali UI, metadata,
 embedding delle descrizioni e pagine create in bozza/validate/publish.
+
+
+## Owner context on demand
+
+Il contenuto configurato in Gestione Memoria come contesto persistente non viene
+più concatenato a ogni prompt. La pagina `owner_context` espone
+`owner_context_tool`: il Supervisor carica quel contenuto solo quando il task
+dipende davvero dal profilo/contesto mantenuto dal proprietario o quando l'utente
+chiede esplicitamente di usarlo. Anche la memoria semantica non viene più
+recuperata automaticamente in ogni turno: la pagina `memory` espone i relativi
+tool quando il task lo richiede.

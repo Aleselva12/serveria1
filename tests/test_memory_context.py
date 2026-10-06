@@ -33,20 +33,21 @@ class ContextContractTests(unittest.TestCase):
         with patch.dict(os.environ,{'CORA_CONTEXT_TOKENS':'4096'}):
             with self.assertRaises(ContextOverflow):fit_messages([HumanMessage('x'*6000),AIMessage('',tool_calls=[{'id':'a','name':'read','args':{}}]),ToolMessage('small',tool_call_id='a')],reserve=1024)
 
-    def test_permanent_context_failure_does_not_silently_remove_owner_instructions(self):
+    def test_owner_context_is_not_injected_into_every_prompt(self):
         from core.prompt_context import with_permanent_context
-        with patch('core.prompt_context.get_system_context',side_effect=RuntimeError('DB unavailable')):
-            with self.assertRaises(RuntimeError):with_permanent_context('base')
+        rendered = with_permanent_context('base')
+        self.assertIn('base', rendered)
+        self.assertIn('CURRENT SERVER TIME', rendered)
+        self.assertNotIn('PERMANENT USER-CONFIGURED CONTEXT', rendered)
 
-    def test_permanent_context_snapshot_is_shared_across_agents(self):
-        from core.runtime import Run,current_run
-        from core.prompt_context import with_permanent_context
-        run=Run('thread');token=current_run.set(run)
-        try:
-            with patch('core.prompt_context.get_system_context',side_effect=[{'version':1,'content':'owner one'},{'version':2,'content':'owner two'}]) as get:
-                self.assertIn('owner one',with_permanent_context('supervisor'))
-                self.assertIn('owner one',with_permanent_context('specialist'));get.assert_called_once()
-        finally:current_run.reset(token)
+    def test_owner_context_is_loaded_only_through_explicit_tool(self):
+        import tools
+        with patch('tools.get_system_context', return_value={'version':3,'content':'owner one','updated_at':None}) as get:
+            with patch('tools._require_supervisor_permission'):
+                result = json.loads(tools.owner_context_tool.func())
+        self.assertEqual(result['version'],3)
+        self.assertEqual(result['content'],'owner one')
+        get.assert_called_once()
 
 
 @unittest.skipUnless(os.getenv('CORA_RUNTIME_TEST_DATABASE_URL'),'Requires disposable PostgreSQL+pgvector')
