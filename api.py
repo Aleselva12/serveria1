@@ -23,6 +23,7 @@ from core.system_context import get_system_context, update_system_context
 from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
 from core.calendar_api import router as calendar_router
 from core.models import get_model_name, list_ollama_models, save_runtime_model
+from core.runtime_profile import validate_runtime_profile, runtime_mode
 from core.monitoring import router as monitoring_router
 from core.server_files import router as files_router
 from core.ia_library import router as library_router
@@ -51,6 +52,7 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11435").rstrip(
 
 @asynccontextmanager
 async def lifespan(app):
+    validate_runtime_profile()
     from core import background_embeddings
     from core.runtime import recover_interrupted
     recover_interrupted()
@@ -151,7 +153,7 @@ def health():
         "status": "ok",
         "ollama_online": _ollama_online(),
         "model": get_model_name("supervisor"),
-        "runtime_mode": os.getenv("CORA_RUNTIME_MODE", "isolated").strip().lower(),
+        "runtime_mode": runtime_mode(),
         "agents": [agent["name"] for agent in get_agents()],
         "memory": memory_stats(),
         "database": database,
