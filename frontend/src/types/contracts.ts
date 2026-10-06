@@ -196,6 +196,7 @@ export type BackendHealth = {
   status: string;
   ollama_online: boolean;
   model: string;
+  runtime_mode?: "isolated" | "server";
   agents: string[];
   memory?: {
     total: number;
