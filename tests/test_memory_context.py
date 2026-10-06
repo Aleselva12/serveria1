@@ -40,13 +40,14 @@ class ContextContractTests(unittest.TestCase):
         self.assertIn('CURRENT SERVER TIME', rendered)
         self.assertNotIn('PERMANENT USER-CONFIGURED CONTEXT', rendered)
 
-    def test_owner_context_is_loaded_only_through_explicit_tool(self):
-        import tools
-        with patch('tools.get_system_context', return_value={'version':3,'content':'owner one','updated_at':None}) as get:
-            with patch('tools._require_supervisor_permission'):
-                result = json.loads(tools.owner_context_tool.func())
-        self.assertEqual(result['version'],3)
-        self.assertEqual(result['content'],'owner one')
+    def test_owner_context_is_loaded_only_when_selected(self):
+        from core.context_pages import resolve_context_pages, preload_context
+        selected = resolve_context_pages('Cosa sai di me?')
+        self.assertIn('owner_context',[page.id for page in selected])
+        with patch('core.system_context.get_system_context', return_value={'version':3,'content':'owner one','updated_at':None}) as get:
+            data, providers = preload_context(selected)
+        self.assertEqual(providers,['owner_context'])
+        self.assertIn('owner one',data)
         get.assert_called_once()
 
 
