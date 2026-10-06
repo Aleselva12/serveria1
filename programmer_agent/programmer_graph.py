@@ -31,8 +31,15 @@ class AgentState(MessagesState):
     system_prompt: str
 
 bind_capabilities("programmer_agent", PROGRAMMER_TOOLS)
-programmer_llm = get_chat_model("programmer", temperature=0.0)
-programmer_model_with_tools = programmer_llm.bind_tools(PROGRAMMER_TOOLS)
+_programmer_model_with_tools = None
+
+
+def programmer_model():
+    """Lazily build and then reuse the Programmer model/tool binding."""
+    global _programmer_model_with_tools
+    if _programmer_model_with_tools is None:
+        _programmer_model_with_tools = get_chat_model("programmer", temperature=0.0).bind_tools(PROGRAMMER_TOOLS)
+    return _programmer_model_with_tools
 
 
 def prepare_prompt(state: AgentState):
@@ -43,7 +50,7 @@ def prepare_prompt(state: AgentState):
 
 def call_llm(state: AgentState):
     ensure_runtime_active()
-    response = programmer_model_with_tools.invoke(
+    response = programmer_model().invoke(
         fit_messages(
             [SystemMessage(content=state["system_prompt"])] + list(state["messages"]),
             tools=PROGRAMMER_TOOLS,
