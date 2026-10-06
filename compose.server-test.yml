@@ -1,6 +1,7 @@
 services:
   api:
     environment:
+      CORA_RUNTIME_MODE: server
       # Primo benchmark: niente Whisper/audio; evita che il doctor richieda
       # un modello locale non installato nel target core.
       CORA_WHISPER_LOCAL_ONLY: 'false'
