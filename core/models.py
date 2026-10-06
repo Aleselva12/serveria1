@@ -9,7 +9,7 @@ from langchain_ollama import ChatOllama
 
 
 DEFAULT_MODEL = "gpt-oss:20b"
-DEFAULT_BASE_URL = "http://localhost:11435"
+DEFAULT_BASE_URL = "http://localhost:11434"
 
 RUNTIME_SETTINGS_PATH = Path(os.getenv("CORA_RUNTIME_SETTINGS_PATH", "./data/runtime-settings.json"))
 
