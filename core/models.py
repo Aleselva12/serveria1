@@ -53,12 +53,24 @@ def save_runtime_model(model: str) -> dict:
     return data
 
 
+def list_running_ollama_models() -> set[str]:
+    """Return models currently loaded in Ollama memory (/api/ps)."""
+    with urlopen(get_ollama_base_url().rstrip("/") + "/api/ps", timeout=3) as response:
+        payload = json.load(response)
+    return {str(item.get("name", "")) for item in payload.get("models", []) if item.get("name")}
+
+
 def list_ollama_models() -> list[dict]:
     """Return models physically available in the configured Ollama instance."""
     with urlopen(get_ollama_base_url().rstrip("/") + "/api/tags", timeout=3) as response:
         payload = json.load(response)
+    running = list_running_ollama_models()
     return [
-        {"name": str(item.get("name", "")), "size": int(item.get("size", 0) or 0)}
+        {
+            "name": str(item.get("name", "")),
+            "size": int(item.get("size", 0) or 0),
+            "running": str(item.get("name", "")) in running,
+        }
         for item in payload.get("models", [])
         if item.get("name")
     ]
