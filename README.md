@@ -6,7 +6,7 @@ Cora è un assistente locale con backend FastAPI, frontend React/Vite, agenti La
 
 1. Copiare `.env.example` in `.env` e impostare `CORA_DATABASE_URL`, percorsi autorizzati e configurazione Ollama.
 2. Avviare PostgreSQL + pgvector: `docker compose -f docker-compose.database.yml up -d`.
-3. Su Windows AVVIO prepara automaticamente `.venv` e le dipendenze principali. Installazione manuale: `python -m pip install -r requirements-core.txt`. Per sola trascrizione CPU aggiungere `requirements-audio-cpu.txt` oppure usare `AVVIO.cmd -ConAudio`. Per diarizzazione aggiungere `requirements-audio.txt` oppure usare `AVVIO.cmd -ConDiarizzazione`; `requirements.txt` installa tutto. Il profilo Docker offline è descritto in `deploy/README.md`.
+3. Su Windows AVVIO prepara automaticamente `.venv` e le dipendenze principali. Installazione manuale: `python -m pip install -r requirements-core.txt`. Per sola trascrizione CPU aggiungere `requirements-audio-cpu.txt` oppure usare `AVVIO.cmd -ConAudio`. Per diarizzazione aggiungere `requirements-audio.txt` oppure usare `AVVIO.cmd -ConDiarizzazione`; `requirements.txt` installa tutto. Il profilo Docker offline è descritto in `deploy/README.md`. Sul PC Windows Ollama resta nativo: i modelli non vengono duplicati in un container e Cora usa la GPU AMD tramite `localhost:11434`.
 4. AVVIO verifica PostgreSQL, tenta di avviare il container `cora-postgres` se esiste e chiede nome/password soltanto se manca il proprietario. Per crearlo manualmente o cambiare password, dalla radice della repository e con lo stesso ambiente Python del backend, eseguire `python -m core.auth`. Inserire nome e password, richiesti in modo interattivo. Su Windows con l'ambiente creato da AVVIO: `.\.venv\Scripts\python.exe -m core.auth`. Il comando crea il proprietario o cambia la sua password e revoca le sessioni precedenti. Non mettere la password nel codice o nelle variabili frontend.
 5. Avviare `AVVIO.cmd` su Windows oppure `uvicorn api:app --host 127.0.0.1 --port 8000` e, in `frontend`, `npm ci` seguito da `npm run dev`.
 6. Aprire `http://127.0.0.1:5173` e accedere. La sessione dura sette giorni; nelle Impostazioni sono disponibili logout e revoca di tutti i dispositivi.
@@ -30,7 +30,7 @@ Il Supervisor risponde o delega a cinque agenti distinti:
 
 Le azioni calendario sono tool assegnati agli agenti autorizzati, senza un agente calendario dedicato. PostgreSQL è la fonte degli eventi, con versioni, storico, eliminazione recuperabile e proposte.
 
-Modello predefinito: `gpt-oss:20b`, endpoint `http://localhost:11435`. Le variabili `CORA_MODEL_SUPERVISOR/STRUCTURE/RESEARCH/AUDIO/EMAIL/PROGRAMMER` consentono scelte per ruolo. La configurazione effettiva si trova in `core/models.py`; le richieste dei modelli non usano proxy di ambiente.
+Modello predefinito: `gpt-oss:20b`, endpoint DEV `http://localhost:11434` (Ollama nativo Windows, per conservare l'accelerazione AMD). Le variabili `CORA_MODEL_SUPERVISOR/STRUCTURE/RESEARCH/AUDIO/EMAIL/PROGRAMMER` consentono scelte per ruolo. La configurazione effettiva si trova in `core/models.py`; le richieste dei modelli non usano proxy di ambiente.
 
 ## Runtime e prestazioni
 
