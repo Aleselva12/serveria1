@@ -9,7 +9,7 @@ from langgraph.prebuilt import ToolNode
 from core.context_budget import fit_messages
 from core.governance import bind_capabilities, tool_contract
 from core.models import get_chat_model
-from core.context_pages import resolve_context_pages, selected_tool_names, render_pages
+from core.context_pages import resolve_context_pages, selected_tool_names, render_pages, preload_context
 from core.prompt_context import with_permanent_context
 from core.runtime_context import ensure_runtime_active
 from tools import supervisor_tools
@@ -54,6 +54,9 @@ def _runtime_system_prompt(messages) -> tuple[str, str, list[str], list[str]]:
     prompt = with_permanent_context(SUPERVISOR_BOOTSTRAP)
     if page_text:
         prompt += "\n\nTASK CONTEXT\n" + page_text
+
+    preload_started = time.perf_counter()
+    preloaded_context, preload_providers = preload_context(selected)
     tool_names = selected_tool_names(selected)
 
     run = current_run.get()
@@ -61,6 +64,9 @@ def _runtime_system_prompt(messages) -> tuple[str, str, list[str], list[str]]:
         run.timings["memory_ms"] = 0.0
         run.timings["memory_available"] = 1
         run.timings["context_pages"] = [page.id for page in selected]
+        run.timings["preloaded_context"] = preload_providers
+        run.timings["preloaded_context_chars"] = len(preloaded_context)
+        run.timings["preload_ms"] = round((time.perf_counter() - preload_started) * 1000, 2)
         run.timings["selected_tools"] = tool_names
         run.timings["selected_tool_count"] = len(tool_names)
         from core.event_bus import bus
@@ -69,9 +75,13 @@ def _runtime_system_prompt(messages) -> tuple[str, str, list[str], list[str]]:
             "context",
             run_id=run.id,
             thread_id=run.thread_id,
-            payload={"pages": [page.id for page in selected], "tools": tool_names},
+            payload={
+                "pages": [page.id for page in selected],
+                "preloaded": preload_providers,
+                "tools": tool_names,
+            },
         )
-    return prompt, "", [page.id for page in selected], tool_names
+    return prompt, preloaded_context, [page.id for page in selected], tool_names
 
 
 def prepare_turn(state: CoraState):
@@ -111,7 +121,7 @@ def call_model(state: CoraState):
         SystemMessage(content=state["system_prompt"])
     ]
     if state.get('memory_context'):
-        messages_for_llm.append(HumanMessage(content=state['memory_context'],name='persistent_memories'))
+        messages_for_llm.append(HumanMessage(content=state['memory_context'],name='context_data'))
     messages_for_llm += list(state["messages"])
 
     tool_map = {tool.name: tool for tool in supervisor_tools}

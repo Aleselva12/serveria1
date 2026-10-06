@@ -1,6 +1,6 @@
 import unittest
 
-from core.context_pages import resolve_context_pages, selected_tool_names
+from core.context_pages import resolve_context_pages, selected_tool_names, preload_context
 
 
 class ContextPageTests(unittest.TestCase):
@@ -22,6 +22,16 @@ class ContextPageTests(unittest.TestCase):
         ids = [page.id for page in selected]
         self.assertIn("programming", ids)
         self.assertIn("programmer_agent_tool", selected_tool_names(selected))
+
+    def test_owner_context_preloads_without_exposing_tool_schema(self):
+        from unittest.mock import patch
+        selected = resolve_context_pages("Cosa sai di me?")
+        self.assertIn("owner_context", [page.id for page in selected])
+        self.assertEqual(selected_tool_names(selected), [])
+        with patch("core.system_context.get_system_context", return_value={"content":"Owner facts","version":1}):
+            data, providers = preload_context(selected)
+        self.assertEqual(providers, ["owner_context"])
+        self.assertIn("Owner facts", data)
 
     def test_pages_can_compose(self):
         selected = resolve_context_pages("Cerca nel file del server il problema")

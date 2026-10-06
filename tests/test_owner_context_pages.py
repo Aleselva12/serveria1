@@ -10,7 +10,8 @@ class OwnerContextSelectionTests(unittest.TestCase):
     def test_explicit_owner_context_request_loads_only_when_relevant(self):
         selected=resolve_context_pages("Usa il contesto personale e dimmi cosa sai di me")
         self.assertIn("owner_context",[p.id for p in selected])
-        self.assertIn("owner_context_tool",selected_tool_names(selected))
+        self.assertEqual(selected_tool_names(selected),[])
+        self.assertEqual(selected[0].preload,("owner_context",))
 
 if __name__ == "__main__":
     unittest.main()
