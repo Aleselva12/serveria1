@@ -13,12 +13,24 @@ spec=importlib.util.spec_from_file_location('manage',ROOT/'deploy/manage.py')
 manage=importlib.util.module_from_spec(spec);spec.loader.exec_module(manage)
 
 
+def http_port():
+    if not manage.ENV.exists():
+        return 8080
+    for line in manage.ENV.read_text().splitlines():
+        if line.startswith('CORA_HTTP_PORT='):
+            return int(line.split('=',1)[1].strip())
+    return 8080
+
+
 def request(path,data=None,cookie=None):
     headers={'X-Cora-Client':'ui'}
     if cookie:headers['Cookie']=cookie
     body=json.dumps(data).encode() if data is not None else None
     if body is not None:headers['Content-Type']='application/json'
-    return urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8080'+path,body,headers),timeout=15)
+    return urllib.request.urlopen(
+        urllib.request.Request(f'http://127.0.0.1:{http_port()}'+path,body,headers),
+        timeout=15,
+    )
 
 
 def main():
