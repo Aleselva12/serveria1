@@ -24,6 +24,7 @@ import FileManager from "./components/FileManager";
 import Architecture from "./components/Architecture";
 import ArchitectureRuntime from "./components/ArchitectureRuntime";
 import MemoryManagement from "./components/MemoryManagement";
+import ModelSettings from "./components/ModelSettings";
 import { apiBaseUrl } from "./services/api";
 import { useBackend } from "./services/useBackend";
 import { useConversations } from "./services/useConversations";
@@ -571,6 +572,16 @@ export default function App() {
                         ? "Ollama raggiungibile"
                         : "Ollama offline"
                       : "Non verificato"}
+                  </span>
+                </div>
+                <ModelSettings onChanged={() => void backend.refresh()} />
+                <div className="settings-row">
+                  <div>
+                    <strong>Modalità runtime</strong>
+                    <p>{backend.health?.runtime_mode === "server" ? "Istanza server ufficiale" : "PC di prova · risorse server bloccate"}</p>
+                  </div>
+                  <span className={"pill " + (backend.health?.runtime_mode === "server" ? "success" : "pending")}>
+                    {backend.health?.runtime_mode === "server" ? "SERVER" : "DEV / ISOLATED"}
                   </span>
                 </div>
                 <div className="settings-row">
