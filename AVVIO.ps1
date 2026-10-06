@@ -16,7 +16,7 @@ $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Frontend = if ($FrontendPath) { (Resolve-Path $FrontendPath).Path } else { Join-Path $Root "frontend" }
 $UiUrl = "http://127.0.0.1:5173"
 $ApiHealthUrl = "http://127.0.0.1:8000/auth/status"
-$OllamaUrl = "http://127.0.0.1:11435"
+$OllamaUrl = "http://127.0.0.1:11434"
 
 function Test-Url($Url, $TimeoutSec = 2) {
     try {
@@ -122,63 +122,14 @@ if (-not (Test-Path (Join-Path $Root ".env")) -and (Test-Path (Join-Path $Root "
 }
 
 if (-not (Test-Url $OllamaUrl)) {
-    Write-Host "Ollama non risponde. Controllo Docker..."
-
-    $DockerReady = $false
-
-    if (Get-Command docker -ErrorAction SilentlyContinue) {
-        try {
-            docker info *> $null
-            if ($LASTEXITCODE -eq 0) {
-                $DockerReady = $true
-            }
-        } catch {
-            $DockerReady = $false
-        }
+    Write-Host "Ollama Windows non risponde su $OllamaUrl." -ForegroundColor Yellow
+    Write-Host "Avvio Ollama nativo per mantenere l'accelerazione AMD della GPU..."
+    $OllamaCommand = Get-Command ollama -ErrorAction SilentlyContinue
+    if ($OllamaCommand) {
+        try { Start-Process $OllamaCommand.Source -ArgumentList "serve" -WindowStyle Minimized | Out-Null } catch {}
     }
-
-    if (-not $DockerReady) {
-        $DockerCandidates = @(
-            (Join-Path $Env:ProgramFiles "Docker\Docker\Docker Desktop.exe"),
-            (Join-Path $Env:LOCALAPPDATA "Docker\Docker Desktop.exe")
-        )
-
-        $DockerDesktop = $DockerCandidates |
-            Where-Object { Test-Path $_ } |
-            Select-Object -First 1
-
-        if ($DockerDesktop) {
-            Write-Host "Avvio Docker Desktop..."
-            Start-Process $DockerDesktop
-
-            for ($i = 0; $i -lt 45; $i++) {
-                Start-Sleep -Seconds 1
-                try {
-                    docker info *> $null
-                    if ($LASTEXITCODE -eq 0) {
-                        $DockerReady = $true
-                        break
-                    }
-                } catch {
-                    $DockerReady = $false
-                }
-            }
-        }
-    }
-
-    if ($DockerReady) {
-        Write-Host "Avvio il container ia-ollama..."
-        try {
-            docker start ia-ollama | Out-Null
-        } catch {
-            Write-Host "Non riesco ad avviare ia-ollama automaticamente." -ForegroundColor Yellow
-        }
-    } else {
-        Write-Host "Docker non e' disponibile. Cora puo' aprirsi, ma il modello locale potrebbe restare offline." -ForegroundColor Yellow
-    }
-
-    if (-not (Wait-Url $OllamaUrl 25)) {
-        Write-Host "Attenzione: Ollama non e' ancora raggiungibile su $OllamaUrl" -ForegroundColor Yellow
+    if (-not (Wait-Url $OllamaUrl 20)) {
+        Write-Host "Ollama non e' raggiungibile. Avvialo da Windows prima di usare la chat." -ForegroundColor Yellow
     }
 }
 
