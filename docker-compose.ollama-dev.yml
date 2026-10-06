@@ -1,0 +1,17 @@
+services:
+  cora-ollama-dev:
+    image: ollama/ollama:latest
+    container_name: cora-ollama-dev
+    restart: unless-stopped
+    ports:
+      - "11435:11434"
+    volumes:
+      - cora_ollama_dev:/root/.ollama
+    # Docker Desktop/Windows does not currently expose Radeon GPU compute here.
+    # This profile is intentionally CPU + WSL system RAM for the experiment.
+    # On native Linux+ROCm, add /dev/kfd and /dev/dri instead.
+    environment:
+      OLLAMA_KEEP_ALIVE: "30m"
+
+volumes:
+  cora_ollama_dev:
