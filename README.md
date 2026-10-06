@@ -34,6 +34,26 @@ Modello predefinito: `gpt-oss:20b`, endpoint `http://localhost:11435`. Le variab
 
 ## Runtime e prestazioni
 
+### Profilo prova PC
+
+Per il primo confronto prestazionale PC/server usare un solo modello per tutti i
+ruoli, evitando che lo swap fra modelli renda il risultato ambiguo. Il file
+`profiles/performance-pc.env.example` contiene le sole impostazioni non sensibili
+da riportare nel proprio `.env`.
+
+`CORA_MODEL_KEEP_ALIVE` mantiene il modello Ollama residente durante la sessione
+(interattivo: `30m` predefinito). Ogni run salva insieme alle metriche il profilo,
+modello effettivo, context/output configurati, keep-alive, conteggio CPU e RAM
+totale. Le etichette `CORA_PERFORMANCE_HARDWARE_LABEL` e
+`CORA_PERFORMANCE_GPU_LABEL` sono facoltative e servono a rendere immediato il
+confronto fra macchine; non contengono telemetria segreta.
+
+Il Programmer riusa ora la stessa istanza ChatOllama/tool-binding per tutta la vita
+del processo, come gli altri specialisti. Questo evita ricostruzioni inutili fra
+cicli dello stesso servizio senza cambiare queue, lifecycle o permessi.
+
+
+
 Per il percorso Debian con Docker Compose, frontend compilato, Ollama esterno,
 backup e ripristino consultare [deploy/README.md](deploy/README.md).
 
