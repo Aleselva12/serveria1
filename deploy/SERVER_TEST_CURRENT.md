@@ -92,10 +92,10 @@ free -h
 
 ## 6. Accesso tramite Tailscale
 
-Il web resta legato a `127.0.0.1:8080`. Per evitare esposizione WAN/LAN aperta:
+Il web resta legato a `127.0.0.1:8090` perché la porta 8080 è già usata da Nextcloud AIO sul server attuale. Per evitare esposizione WAN/LAN aperta:
 
 ```sh
-sudo tailscale serve --bg http://127.0.0.1:8080
+sudo tailscale serve --bg http://127.0.0.1:8090
 tailscale serve status
 ```
 
