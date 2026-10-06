@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import os
+import json
+from pathlib import Path
+from urllib.request import urlopen, Request
 
 from langchain_ollama import ChatOllama
 
 
 DEFAULT_MODEL = "gpt-oss:20b"
 DEFAULT_BASE_URL = "http://localhost:11435"
+
+RUNTIME_SETTINGS_PATH = Path(os.getenv("CORA_RUNTIME_SETTINGS_PATH", "./data/runtime-settings.json"))
 
 ROLE_MODEL_ENV = {
     "supervisor": "CORA_MODEL_SUPERVISOR",
@@ -28,6 +33,37 @@ def get_model_keep_alive() -> str:
     return os.getenv("CORA_MODEL_KEEP_ALIVE", "30m").strip() or "30m"
 
 
+def _runtime_settings() -> dict:
+    try:
+        return json.loads(RUNTIME_SETTINGS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def save_runtime_model(model: str) -> dict:
+    """Persist the operator-selected Ollama model for this Cora instance."""
+    model = model.strip()
+    available = {item["name"] for item in list_ollama_models()}
+    if model not in available:
+        raise ValueError("Il modello non risulta installato nell'istanza Ollama configurata.")
+    data = _runtime_settings()
+    data["model"] = model
+    RUNTIME_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    RUNTIME_SETTINGS_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    return data
+
+
+def list_ollama_models() -> list[dict]:
+    """Return models physically available in the configured Ollama instance."""
+    with urlopen(get_ollama_base_url().rstrip("/") + "/api/tags", timeout=3) as response:
+        payload = json.load(response)
+    return [
+        {"name": str(item.get("name", "")), "size": int(item.get("size", 0) or 0)}
+        for item in payload.get("models", [])
+        if item.get("name")
+    ]
+
+
 def get_model_name(role: str = "default") -> str:
     """
     Resolve the model assigned to a role.
@@ -35,6 +71,10 @@ def get_model_name(role: str = "default") -> str:
     A role-specific CORA_MODEL_* variable wins. OLLAMA_MODEL remains the
     backwards-compatible global fallback.
     """
+    runtime_model = str(_runtime_settings().get("model", "")).strip()
+    if runtime_model:
+        return runtime_model
+
     env_key = ROLE_MODEL_ENV.get(role)
     if env_key:
         configured = os.getenv(env_key, "").strip()
