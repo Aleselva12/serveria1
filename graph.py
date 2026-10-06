@@ -27,6 +27,12 @@ class CoraState(MessagesState):
 
 
 llm = get_chat_model("supervisor", temperature=0.0)
+# "Connected" means the graph may expose these capabilities dynamically.
+# This does not bind all schemas to every model call.
+bind_capabilities("supervisor", supervisor_tools)
+# Compatibility hook for tests/instrumentation that replace the supervisor model.
+# Production keeps this None and uses the task-scoped binding below.
+model_with_tools = None
 PARALLEL_READ_TOOLS = {t.name for t in supervisor_tools if tool_contract(t).effect in {"read","compute"} and tool_contract(t).retry == "safe"}
 TERMINAL_DELEGATION_TOOLS = {t.name for t in supervisor_tools if tool_contract(t).response_mode == "final"}
 
@@ -137,8 +143,15 @@ def call_model(state: CoraState):
 
     tool_map = {tool.name: tool for tool in supervisor_tools}
     selected_tools = [tool_map[name] for name in state.get("selected_tool_names", []) if name in tool_map]
-    if selected_tools:
-        model = llm.bind_tools(bind_capabilities("supervisor", selected_tools))
+
+    # Tests/instrumentation can inject a model that already owns its tool binding.
+    # In production model_with_tools is None and only selected schemas are bound.
+    if model_with_tools is not None:
+        response = model_with_tools.invoke(
+            fit_messages(messages_for_llm, tools=selected_tools if selected_tools else None, reserve=128)
+        )
+    elif selected_tools:
+        model = llm.bind_tools(selected_tools)
         response = model.invoke(fit_messages(messages_for_llm, tools=selected_tools))
     else:
         response = llm.invoke(fit_messages(messages_for_llm, reserve=128))

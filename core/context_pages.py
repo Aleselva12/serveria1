@@ -42,7 +42,14 @@ def _parse(path: Path) -> ContextPage:
 def pages() -> tuple[ContextPage, ...]:
     if not ROOT.exists():
         return ()
-    return tuple(_parse(path) for path in sorted(ROOT.glob("*.md")))
+    result = []
+    for path in sorted(ROOT.glob("*.md")):
+        # Documentation may live beside pages; only files with TOML frontmatter
+        # are executable context definitions.
+        if not path.read_text(encoding="utf-8").startswith("+++\n"):
+            continue
+        result.append(_parse(path))
+    return tuple(result)
 
 
 def _tokens(text: str) -> set[str]:
