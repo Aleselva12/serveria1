@@ -18,6 +18,14 @@ _lock = threading.Lock()
 
 _write_error = None
 
+def _safe_error_detail(error):
+    """Bounded provider error only: never prompt, messages, tool args or model output."""
+    if error is None:
+        return None
+    detail = str(error).replace("\n", " ").strip()
+    return detail[:500] if detail else None
+
+
 def append_event(event):
     # Diagnostic I/O cannot change a canonical run or operation outcome.
     global _write_error
@@ -25,12 +33,12 @@ def append_event(event):
         from core.event_bus import bus
         published = bus.publish('trace.span','tracing',run_id=event.get('run_id'),thread_id=event.get('thread_id'),
             span_id=event.get('span_id'),parent_span_id=event.get('parent_id'),
-            payload={k:event.get(k) for k in ('kind','status','name','duration_ms','error_type','graph_version')})
+            payload={k:event.get(k) for k in ('kind','status','name','duration_ms','error_type','error_detail','graph_version')})
         # Optional metadata-only export. SQL remains the authoritative trace view.
         if os.getenv('CORA_DIAGNOSTIC_JSONL_EXPORT','').lower() != 'true': return True
         TRACE_FILE.parent.mkdir(parents=True, exist_ok=True)
         with _lock, TRACE_FILE.open("a", encoding="utf-8") as stream:
-            exported = {k:event.get(k) for k in ('run_id','thread_id','timestamp','kind','status','name','duration_ms','error_type','graph_version','span_id','parent_id')}
+            exported = {k:event.get(k) for k in ('run_id','thread_id','timestamp','kind','status','name','duration_ms','error_type','error_detail','graph_version','span_id','parent_id')}
             exported['event_id'] = published.id
             stream.write(json.dumps(exported, ensure_ascii=False) + "\n")
         _write_error = None
@@ -60,13 +68,13 @@ class ExecutionTrace(BaseCallbackHandler):
         self.started = {}
         self.lock = threading.Lock()
 
-    def event(self, kind, status, span_id=None, parent_id=None, name="", duration_ms=None, error_type=None):
+    def event(self, kind, status, span_id=None, parent_id=None, name="", duration_ms=None, error_type=None, error_detail=None):
         append_event(dict(run_id=self.id, thread_id=self.thread_id,
                           graph_version=self.graph_version,
                           timestamp=datetime.now(timezone.utc).isoformat(),
                           kind=kind, status=status, span_id=str(span_id) if span_id else None,
                           parent_id=str(parent_id) if parent_id else None,
-                          name=name, duration_ms=duration_ms, error_type=error_type))
+                          name=name, duration_ms=duration_ms, error_type=error_type, error_detail=error_detail))
 
     def start(self, kind, name, run_id, parent_run_id):
         if self.runtime_run: self.runtime_run.check()
@@ -84,7 +92,7 @@ class ExecutionTrace(BaseCallbackHandler):
                 self.runtime_run.timings[kind + "_ms"] += round((time.perf_counter()-start)*1000,2)
             self.event(kind, "error" if error else "completed", run_id, parent_run_id,
                        name, round((time.perf_counter() - start) * 1000, 2),
-                       type(error).__name__ if error else None)
+                       type(error).__name__ if error else None, _safe_error_detail(error))
 
     def on_chain_start(self, serialized, inputs, *, run_id, parent_run_id=None, **kwargs):
         self.start("node", kwargs.get("name") or (serialized or {}).get("name", "Graph"), run_id, parent_run_id)
