@@ -25,7 +25,6 @@ class CoraState(MessagesState):
     selected_tool_names: list[str]
 
 
-llm = get_chat_model("supervisor", temperature=0.0)
 # "Connected" means the graph may expose these capabilities dynamically.
 # This does not bind all schemas to every model call.
 bind_capabilities("supervisor", supervisor_tools)
@@ -134,10 +133,10 @@ def call_model(state: CoraState):
             fit_messages(messages_for_llm, tools=selected_tools if selected_tools else None, reserve=128)
         )
     elif selected_tools:
-        model = llm.bind_tools(selected_tools)
+        model = get_chat_model("supervisor", temperature=0.0).bind_tools(selected_tools)
         response = model.invoke(fit_messages(messages_for_llm, tools=selected_tools))
     else:
-        response = llm.invoke(fit_messages(messages_for_llm, reserve=128))
+        response = get_chat_model("supervisor", temperature=0.0).invoke(fit_messages(messages_for_llm, reserve=128))
     return {"messages": [_bounded_tool_calls(response)]}
 
 
