@@ -10,10 +10,11 @@ from core.memory import search_memories
 from core.context_budget import fit_messages
 from core.governance import bind_capabilities, tool_contract
 from core.models import get_chat_model
+from core.context_pages import resolve_context_pages, selected_tool_names, render_pages
 from core.prompt_context import with_permanent_context
 from core.runtime_context import ensure_runtime_active
 from tools import supervisor_tools
-from prompt import SUPERVISOR_PROMPT
+from prompt import SUPERVISOR_BOOTSTRAP
 
 load_dotenv()
 
@@ -21,11 +22,11 @@ load_dotenv()
 class CoraState(MessagesState):
     system_prompt: str
     memory_context: str
+    context_pages: list[str]
+    selected_tool_names: list[str]
 
 
 llm = get_chat_model("supervisor", temperature=0.0)
-model_with_tools = llm.bind_tools(bind_capabilities('supervisor', supervisor_tools))
-
 PARALLEL_READ_TOOLS = {t.name for t in supervisor_tools if tool_contract(t).effect in {"read","compute"} and tool_contract(t).retry == "safe"}
 TERMINAL_DELEGATION_TOOLS = {t.name for t in supervisor_tools if tool_contract(t).response_mode == "final"}
 
@@ -73,15 +74,33 @@ def _runtime_system_prompt(messages) -> tuple[str, str]:
             from core.event_bus import bus
             bus.publish('memory.selected','supervisor',run_id=run.id,thread_id=run.thread_id,
                         payload={'references':[{'id':str(m['id']),'version':m.get('version')} for m in records]})
-    return with_permanent_context(SUPERVISOR_PROMPT), memory_context
+    selected = resolve_context_pages(user_text)
+    page_text = render_pages(selected)
+    prompt = with_permanent_context(SUPERVISOR_BOOTSTRAP)
+    if page_text:
+        prompt += "\n\nTASK CONTEXT\n" + page_text
+    tool_names = selected_tool_names(selected)
+    if run:
+        run.timings["context_pages"] = [page.id for page in selected]
+        run.timings["selected_tools"] = tool_names
+        run.timings["selected_tool_count"] = len(tool_names)
+        from core.event_bus import bus
+        bus.publish(
+            "context.pages_selected",
+            "context",
+            run_id=run.id,
+            thread_id=run.thread_id,
+            payload={"pages": [page.id for page in selected], "tools": tool_names},
+        )
+    return prompt, memory_context, [page.id for page in selected], tool_names
 
 
 def prepare_turn(state: CoraState):
     started = time.perf_counter()
-    prompt, memory_context = _runtime_system_prompt(state["messages"])
+    prompt, memory_context, context_pages, tool_names = _runtime_system_prompt(state["messages"])
     run = current_run.get()
     if run: run.timings["prompt_ms"] = round((time.perf_counter()-started)*1000,2)
-    return {"system_prompt": prompt, "memory_context":memory_context}
+    return {"system_prompt": prompt, "memory_context":memory_context, "context_pages":context_pages, "selected_tool_names":tool_names}
 
 
 def _tool_name(call) -> str:
@@ -116,7 +135,13 @@ def call_model(state: CoraState):
         messages_for_llm.append(HumanMessage(content=state['memory_context'],name='persistent_memories'))
     messages_for_llm += list(state["messages"])
 
-    response = model_with_tools.invoke(fit_messages(messages_for_llm, tools=supervisor_tools))
+    tool_map = {tool.name: tool for tool in supervisor_tools}
+    selected_tools = [tool_map[name] for name in state.get("selected_tool_names", []) if name in tool_map]
+    if selected_tools:
+        model = llm.bind_tools(bind_capabilities("supervisor", selected_tools))
+        response = model.invoke(fit_messages(messages_for_llm, tools=selected_tools))
+    else:
+        response = llm.invoke(fit_messages(messages_for_llm, reserve=128))
     return {"messages": [_bounded_tool_calls(response)]}
 
 
