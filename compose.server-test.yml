@@ -1,5 +1,9 @@
 services:
   api:
+    environment:
+      # Primo benchmark: niente Whisper/audio; evita che il doctor richieda
+      # un modello locale non installato nel target core.
+      CORA_WHISPER_LOCAL_ONLY: 'false'
     volumes:
       - type: bind
         source: /srv/nas/Dati/drive
