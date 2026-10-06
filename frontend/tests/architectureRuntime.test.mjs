@@ -33,3 +33,20 @@ test('Ollama nanoseconds are converted to seconds and token rate, absent counts 
  assert.equal(rows['Token input elaborati'],undefined);
  assert.equal(Object.fromEntries(performanceRows({models:[{eval_duration:0}]},null))['Velocità di generazione'],undefined);
 });
+
+
+test("performance rows expose the effective PC/server profile used by the run",()=>{
+ const rows=Object.fromEntries(performanceRows({
+   configuration:{profile:"pc-max",model:"test-model",keep_alive:"30m",context_tokens:16384,output_tokens:1024,hardware_label:"PC test",gpu_label:"GPU test"},
+   host:{logical_cpu_count:16,ram_total_gib:32}
+ },1000));
+ assert.equal(rows["Profilo"],"pc-max");
+ assert.equal(rows["Modello"],"test-model");
+ assert.equal(rows["Keep-alive"],"30m");
+ assert.equal(rows["Context configurato"],"16384");
+ assert.equal(rows["Output massimo"],"1024");
+ assert.equal(rows["Hardware"],"PC test");
+ assert.equal(rows["GPU"],"GPU test");
+ assert.equal(rows["CPU logiche"],"16");
+ assert.equal(rows["RAM installata"],"32 GiB");
+});

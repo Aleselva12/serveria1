@@ -15,6 +15,21 @@ export function performanceRows(metrics: Record<string, unknown>, duration: numb
   ms("Chiamate ai modelli",metrics.model_ms);
   ms("Esecuzione tool",metrics.tool_ms);
   ms("Salvataggio risposta",metrics.result_save_ms);
+  const config = metrics.configuration && typeof metrics.configuration === "object" ? metrics.configuration as Record<string,unknown> : null;
+  const host = metrics.host && typeof metrics.host === "object" ? metrics.host as Record<string,unknown> : null;
+  if (config) {
+    if (typeof config.profile === "string") rows.push(["Profilo",config.profile]);
+    if (typeof config.model === "string") rows.push(["Modello",config.model]);
+    if (typeof config.keep_alive === "string") rows.push(["Keep-alive",config.keep_alive]);
+    if (typeof config.context_tokens === "number") rows.push(["Context configurato",String(config.context_tokens)]);
+    if (typeof config.output_tokens === "number") rows.push(["Output massimo",String(config.output_tokens)]);
+    if (typeof config.hardware_label === "string" && config.hardware_label) rows.push(["Hardware",config.hardware_label]);
+    if (typeof config.gpu_label === "string" && config.gpu_label) rows.push(["GPU",config.gpu_label]);
+  }
+  if (host) {
+    if (typeof host.logical_cpu_count === "number") rows.push(["CPU logiche",String(host.logical_cpu_count)]);
+    if (typeof host.ram_total_gib === "number") rows.push(["RAM installata",String(host.ram_total_gib) + " GiB"]);
+  }
   const models = Array.isArray(metrics.models) ? metrics.models.filter((m):m is Record<string,unknown> => Boolean(m) && typeof m === "object") : [];
   const sum = (key:string) => models.reduce((total,m) => total + (typeof m[key] === "number" && Number.isFinite(m[key]) && m[key] >= 0 ? m[key] : 0),0);
   if (models.length) {

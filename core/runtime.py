@@ -113,6 +113,18 @@ class Runtime:
                 raise ValueError("Questa conversazione ha già un'esecuzione attiva.")
             self.last_foreground = time.monotonic()
             run = Run(thread_id, graph_version=graph_version)
+            from core.models import performance_configuration
+            run.timings["configuration"] = performance_configuration(target)
+            try:
+                import psutil
+                memory = psutil.virtual_memory()
+                run.timings["host"] = {
+                    "logical_cpu_count": psutil.cpu_count() or 0,
+                    "physical_cpu_count": psutil.cpu_count(logical=False) or 0,
+                    "ram_total_gib": round(memory.total / 1024**3, 2),
+                }
+            except Exception:
+                run.timings["host"] = {}
             run.durable = self.persistent
             if run.durable:
                 from core.run_lifecycle import create_run

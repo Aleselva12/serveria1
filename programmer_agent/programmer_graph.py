@@ -31,6 +31,8 @@ class AgentState(MessagesState):
     system_prompt: str
 
 bind_capabilities("programmer_agent", PROGRAMMER_TOOLS)
+programmer_llm = get_chat_model("programmer", temperature=0.0)
+programmer_model_with_tools = programmer_llm.bind_tools(PROGRAMMER_TOOLS)
 
 
 def prepare_prompt(state: AgentState):
@@ -41,8 +43,12 @@ def prepare_prompt(state: AgentState):
 
 def call_llm(state: AgentState):
     ensure_runtime_active()
-    model = get_chat_model("programmer", temperature=0.0).bind_tools(PROGRAMMER_TOOLS)
-    response = model.invoke(fit_messages([SystemMessage(content=state["system_prompt"])] + list(state["messages"]), tools=PROGRAMMER_TOOLS))
+    response = programmer_model_with_tools.invoke(
+        fit_messages(
+            [SystemMessage(content=state["system_prompt"])] + list(state["messages"]),
+            tools=PROGRAMMER_TOOLS,
+        )
+    )
     # Serialize operations: do not race optimistic writes/checks within one turn.
     calls = list(getattr(response, "tool_calls", []) or [])
     if len(calls) > 1:
