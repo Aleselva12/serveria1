@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { authenticatedFetch } from "../services/transport";
 import { apiBaseUrl } from "../services/api";
 
-type ModelInfo = { name: string; size: number };
+type ModelInfo = { name: string; size: number; running: boolean };
 type ModelPayload = { active: string; models: ModelInfo[] };
 
 export default function ModelSettings({ onChanged }: { onChanged: () => void }) {
@@ -46,13 +46,13 @@ export default function ModelSettings({ onChanged }: { onChanged: () => void }) 
       <select value={selected} disabled={!data || saving} onChange={e => setSelected(e.target.value)}>
         {!data && <option>Caricamento…</option>}
         {data?.models.map(model => <option key={model.name} value={model.name}>
-          {model.name} · {(model.size / 1024 / 1024 / 1024).toFixed(1)} GB
+          {model.running ? "● " : "○ "}{model.name} · {(model.size / 1024 / 1024 / 1024).toFixed(1)} GB
         </option>)}
       </select>
       <button className="solid-button" disabled={!data || saving || selected === data.active} onClick={() => void save()}>
         {saving ? "Cambio…" : "Usa modello"}
       </button>
     </div>
-    {data && <small>Attivo: {data.active} · la scelta vale solo per questa istanza Cora.</small>}
+    {data && <small>● caricato in memoria · ○ installato ma spento &nbsp; | &nbsp; Selezionato: {data.active}</small>}
   </div>;
 }
