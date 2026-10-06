@@ -8,6 +8,7 @@ from core.governance import agent_tool
 from core.component_bus import component_bus
 from core.logging import logged_operation, tail_events
 from core.memory import delete_memory, save_memory, search_memories
+from core.system_context import get_system_context
 from core.permissions import require_permission
 from core.protocol import TaskEnvelope
 from core.registry import registry_json
@@ -104,6 +105,22 @@ def recent_system_events_tool(
         component=component.strip(),
     )
     return json.dumps(events, ensure_ascii=False, indent=2)
+
+
+@agent_tool('supervisor', capability='owner_context_tool', actions=('inspect_owner',), effect='read', retry='safe')
+def owner_context_tool() -> str:
+    """Carica su richiesta il contesto persistente mantenuto esplicitamente dal proprietario."""
+    _require_supervisor_permission("inspect_owner")
+    context = get_system_context()
+    return json.dumps(
+        {
+            "version": context.get("version"),
+            "content": context.get("content") or "",
+            "updated_at": context.get("updated_at"),
+        },
+        ensure_ascii=False,
+        default=str,
+    )
 
 
 @agent_tool('supervisor', capability='remember_tool', actions=('remember_memory',), effect='write', retry='never', version=2)
@@ -371,6 +388,7 @@ supervisor_tools = [
     read_project_file,
     structure_registry_tool,
     recent_system_events_tool,
+    owner_context_tool,
     recall_memory_tool,
     remember_tool,
     forget_memory_tool,

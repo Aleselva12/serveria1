@@ -240,7 +240,7 @@ class RuntimePostgresTests(unittest.TestCase):
         from core.event_bus import bus
         root=FakeMessagesListChatModel(responses=[AIMessage(content='',tool_calls=[{'name':'search_agent_tool','args':{'query':'read'},'id':'delegation','type':'tool_call'}])]).with_config(metadata={'cora_role':'supervisor'})
         child=FakeListChatModel(responses=['Risposta progressiva']).with_config(metadata={'cora_role':'research'})
-        with patch.object(supervisor,'model_with_tools',root),patch.object(specialist,'model_with_tools',child),patch.object(supervisor,'search_memories',return_value=[]):
+        with patch.object(supervisor,'model_with_tools',root),patch.object(specialist,'model_with_tools',child):
             response=self.client.post('/api/v1/chat/runs',json={'message':'read docs','thread_id':str(uuid4())})
             run=self.runtime.get(response.json()['id']);self.assertTrue(run.done.wait(5))
         self.assertEqual(run.status,'completed',run.error_type)

@@ -65,6 +65,7 @@ SUPERVISOR_RULES: tuple[ActionPermission, ...] = (
     ActionPermission("supervisor", "read_project_file", PermissionLevel.READ, ApprovalPolicy.AUTO),
     ActionPermission("supervisor", "inspect_structure", PermissionLevel.READ, ApprovalPolicy.AUTO),
     ActionPermission("supervisor", "inspect_events", PermissionLevel.READ, ApprovalPolicy.AUTO),
+    ActionPermission("supervisor", "inspect_owner", PermissionLevel.READ, ApprovalPolicy.AUTO, "owner_context"),
     ActionPermission("supervisor", "recall_memory", PermissionLevel.READ, ApprovalPolicy.AUTO),
     ActionPermission(
         "supervisor",
@@ -237,6 +238,7 @@ EXPECTED_ACTIONS: dict[str, set[str]] = {
         "read_project_file",
         "inspect_structure",
         "inspect_events",
+        "inspect_owner",
         "recall_memory",
         "remember_memory",
         "forget_memory",

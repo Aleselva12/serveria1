@@ -136,7 +136,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
             Capability("search_memory", "Cerca memorie persistenti per tipo, chiave e contenuto."),
             Capability("delete_memory", "Elimina una memoria per ID su richiesta esplicita."),
             Capability("memory_stats", "Espone statistiche sintetiche della memoria."),
-            Capability("system_context", "Gestisce il contesto permanente configurato dall’utente e caricato in ogni richiesta."),
+            Capability("system_context", "Gestisce il contesto persistente configurato dall’utente, caricato solo quando una capability lo richiede."),
             Capability("episodic_memory", "Registra e consulta episodi sintetici separati dai log tecnici."),
             Capability("working_memory", "Mantiene stato operativo temporaneo per agente e thread con scadenza."),
             Capability("memory_provenance", "Registra la provenienza delle memorie persistenti."),
