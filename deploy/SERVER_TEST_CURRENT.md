@@ -8,7 +8,7 @@ alla macchina Debian attuale.
 
 - modello unico: `qwen3:0.6b`;
 - inferenza CPU;
-- context 4096;
+- context 8192;
 - output massimo 512 token;
 - modello residente per 30 minuti;
 - PostgreSQL pool ridotto a 2;
@@ -122,3 +122,19 @@ In Attività → Profilazione annotare:
 - CPU/RAM osservate da Home e `docker stats`.
 
 Non giudicare la qualità linguistica del modello 0.6B come qualità finale del progetto.
+
+
+## Correzione dopo il primo run reale
+
+Il primo tentativo con context 4096 ha fallito prima dell'inferenza con
+`ContextOverflow`: prompt obbligatorio + schema delle capability del Supervisor
+non entravano nel budget dopo la riserva output/tool. Per mantenere l'intero set
+di capability nel test, il profilo server usa ora 8192 token invece di rimuovere
+tool dal Supervisor.
+
+La Home verifica inoltre i servizi già presenti sull'host tramite:
+- Immich: `http://host.docker.internal:2283`
+- Nextcloud: `http://host.docker.internal:11000`
+
+Docker resta intenzionalmente non verificato dal backend: il container API non
+riceve il socket Docker host solo per mostrare lo stato nella Home.
