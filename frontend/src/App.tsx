@@ -226,7 +226,7 @@ export default function App() {
       void history.refreshHistory();
     }
   }
-  const withSidebar = !["home", "files", "audio", "architecture", "code"].includes(page);
+  const withSidebar = !["home", "files", "audio", "architecture", "code", "calendar"].includes(page);
   return (
     <div
       className={"app app-" + page + " " + (withSidebar ? "has-sidebar" : "")}
