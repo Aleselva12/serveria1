@@ -31,15 +31,9 @@ class AgentState(MessagesState):
     system_prompt: str
 
 bind_capabilities("programmer_agent", PROGRAMMER_TOOLS)
-_programmer_model_with_tools = None
-
-
 def programmer_model():
-    """Lazily build and then reuse the Programmer model/tool binding."""
-    global _programmer_model_with_tools
-    if _programmer_model_with_tools is None:
-        _programmer_model_with_tools = get_chat_model("programmer", temperature=0.0).bind_tools(PROGRAMMER_TOOLS)
-    return _programmer_model_with_tools
+    """Resolve the operator-selected model on every call, like the supervisor."""
+    return get_chat_model("programmer", temperature=0.0).bind_tools(PROGRAMMER_TOOLS)
 
 
 def prepare_prompt(state: AgentState):

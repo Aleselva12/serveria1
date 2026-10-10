@@ -12,12 +12,15 @@ from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV = ROOT / 'deploy.env'
+COMPOSE_FILES = ()
 DIRECTORIES = ('chat_attachments','knowledge','library_originals','audio/_transcripts','quotes','logs','models',
                'chat-transcripts','structure_workspace','automation_drafts','gmail','files')
 
 
 def compose(*args, **kwargs):
-    return subprocess.run(['docker','compose','--env-file',str(ENV),'-f',str(ROOT/'compose.yml'),*args],
+    files = [ROOT/'compose.yml', *COMPOSE_FILES]
+    options = [part for path in files for part in ('-f', str(path))]
+    return subprocess.run(['docker','compose','--env-file',str(ENV),*options,*args],
                           cwd=ROOT,check=True,**kwargs)
 
 
@@ -103,7 +106,13 @@ def main():
     parser.add_argument('command',choices=('init','check','up','owner','backup','verify-backup','restore','audio-model','audio-check','doctor'))
     parser.add_argument('path',nargs='?',type=Path)
     parser.add_argument('--revision',help='Immutable model revision; defaults to resolving the current public revision once')
+    parser.add_argument('--compose-file', action='append', default=[], type=Path,
+                        help='Additional Compose override; repeat in order for every operation')
     args=parser.parse_args()
+    global COMPOSE_FILES
+    COMPOSE_FILES = tuple((path if path.is_absolute() else ROOT/path).resolve() for path in args.compose_file)
+    for path in COMPOSE_FILES:
+        if not path.is_file():parser.error('Compose file non trovato: '+str(path))
     if args.command=='init':return init()
     if args.command in {'backup','restore','verify-backup'}:
         if args.path is None:parser.error('Specificare la cartella backup.')

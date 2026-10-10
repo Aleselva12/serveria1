@@ -17,14 +17,14 @@ python3 deploy/manage.py up
 python3 deploy/manage.py owner
 ```
 
-Aprire `http://localhost:8080`. `owner` chiede le credenziali sul terminale e
+Aprire `http://localhost:8090`. `owner` chiede le credenziali sul terminale e
 non modifica un proprietario già configurato. Non mettere password applicative
 nei file versionati. `deploy.env` contiene invece una password PostgreSQL casuale,
 è privato e non viene incluso nella build. Non sostituire quella password dopo
 la creazione del volume PostgreSQL senza aggiornare anche il ruolo nel DB.
 
 Il bind predefinito è localhost: per accesso remoto usare un reverse proxy
-HTTPS/Tailscale verso `127.0.0.1:8080`, impostare `CORA_UI_ORIGINS` all'URL reale
+HTTPS/Tailscale verso `127.0.0.1:8090`, impostare `CORA_UI_ORIGINS` all'URL reale
 e `CORA_COOKIE_SECURE=true` con HTTPS. UI e API condividono la stessa origine.
 PostgreSQL e l'API non pubblicano porte sull'host; `/backend` passa dal proxy
 Nginx, che disabilita il buffering SSE. Un solo worker esegue il runtime.
@@ -205,3 +205,31 @@ reale resta da eseguire, senza installazione automatica.
 ### Aggiornamento richiesto dall’interfaccia
 
 Il servizio host separato in [updater/README.md](../updater/README.md) completa commit, build, backup, prova delle migrazioni su copia, applicazione e recupero da Programma. La prima installazione è manuale. Il normale `manage.py up` resta disponibile per il bootstrap e la manutenzione host; quando si usa l’updater, le immagini attive vengono gestite dal suo file di override privato: non eseguire in parallelo `manage.py up`, checkout o restore manuali.
+
+
+### Override e impostazioni persistenti
+
+Il Compose base imposta la modalità server e salva il modello selezionato in
+`/state/runtime-settings.json`. La selezione globale prevale sui modelli per ruolo;
+ogni nuova chiamata LLM, anche di un agente già caricato, usa la selezione corrente.
+Una chiamata già in corso termina con il modello precedente.
+
+Il Compose base espone soltanto i dati Cora. Per il NAS usare l'override che monta
+la directory reale. Passare gli stessi override, nello stesso ordine, a ogni
+operazione (anche backup, restore, doctor, owner e riavvio):
+
+```bash
+python3 deploy/manage.py check --compose-file compose.server-test.yml
+python3 deploy/manage.py up --compose-file compose.server-test.yml
+python3 deploy/manage.py backup /percorso/privato/snapshot --compose-file compose.server-test.yml
+```
+
+`--compose-file` è ripetibile; i percorsi relativi sono riferiti alla radice del
+repository. Il backup non include i dati NAS esterni né i file override:
+conservarne una copia e ripassarli sul nuovo host al ripristino.
+
+Installazioni già inizializzate: non ripetere `init` e non sovrascrivere
+`deploy.env`. Verificare `CORA_FILE_ROOTS`: `/nas/drive` richiede il relativo
+mount. Prima di ricreare un vecchio container, salvare l'eventuale selezione in
+`/app/data/runtime-settings.json` oppure riselezionare il modello dalla UI dopo
+l'aggiornamento. Il nuovo percorso persistente è incluso nel backup di `/state`.
