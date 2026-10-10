@@ -10,7 +10,7 @@ import tempfile
 import time
 from pathlib import Path
 from uuid import uuid4
-from core.runtime import checkpoint
+from core.runtime import checkpoint, RunStopped
 from programmer_agent import workspace as ws
 
 
@@ -31,6 +31,8 @@ def static_check(identifier: str) -> dict:
                 json.loads(text)
         except (SyntaxError, ValueError) as error:
             errors.append({"path": relative, "line": getattr(error, "lineno", None), "error": str(error)[:300]})
+    if checked == 0:
+        errors.append({"path": "", "error": "Nessun file Python o JSON: controllo di sintassi non applicabile."})
     return {"profile": "syntax", "passed": not errors, "checked": checked, "errors": errors[:50],
             "total_errors": len(errors), "executes_code": False,
             "scope": "Sintassi Python e JSON; non verifica import, tipi, build o comportamento."}
@@ -77,7 +79,11 @@ def docker_check(identifier: str, profile: str = "python_tests") -> dict:
               "if(r.error)throw r.error;if(r.status!==0)process.exit(r.status??1);")
     if profile == "frontend_build":
         script += "const b=cp.spawnSync('/opt/frontend/node_modules/.bin/vite',['build'],{cwd:'/tmp/project',stdio:'inherit'});if(b.error)throw b.error;process.exit(b.status??1);"
-    command = ["--entrypoint=node", image, "-e", script] if frontend else ["--entrypoint=python", image, "-B", "-m", "unittest", "discover", "-s", "tests", "-v"]
+    python_script = ("import shutil,subprocess,sys;"
+                     "shutil.copytree('/work','/tmp/project');"
+                     "result=subprocess.run([sys.executable,'-B','-m','unittest','discover','-s','tests','-v'],cwd='/tmp/project');"
+                     "sys.exit(result.returncode)")
+    command = ["--entrypoint=node", image, "-e", script] if frontend else ["--entrypoint=python", image, "-B", "-c", python_script]
     host_root = os.getenv("CORA_PROGRAMMER_DOCKER_WORKSPACE_ROOT", "")
     mount = Path(host_root) / identifier / "files" if host_root else files
     name = "cora-check-" + uuid4().hex
@@ -90,7 +96,7 @@ def docker_check(identifier: str, profile: str = "python_tests") -> dict:
                 "--user=65534:65534", "--cap-drop=ALL", "--security-opt=no-new-privileges",
                 "--pids-limit=128", "--memory=" + ("1g" if frontend else "512m"), "--cpus=1", "--log-driver=json-file",
                 "--log-opt=max-size=1m", "--log-opt=max-file=1",
-                "--tmpfs=/tmp:rw,noexec,nosuid,size=" + ("256m" if frontend else "64m"), "--mount", f"type=bind,src={mount},dst=/work,readonly",
+                "--tmpfs=/tmp:rw,noexec,nosuid,size=" + "256m", "--mount", f"type=bind,src={mount},dst=/work,readonly",
                 "--workdir=/work", "--env=PYTHONDONTWRITEBYTECODE=1", "--env=HOME=/tmp",
                 *command)
         created = True
@@ -151,8 +157,16 @@ def run_check(identifier: str, profile: str = "syntax") -> dict:
     if profile not in {"syntax", "contracts", "python_tests", "typescript", "frontend_build"}:
         raise ValueError("Profilo non consentito.")
     with ws.LOCK:
+        from programmer_agent.components import workspace_digest
+        before = workspace_digest(identifier)
         try:
             result = _run_check(identifier, profile)
+            if workspace_digest(identifier) != before:
+                raise ws.WorkspaceConflict("Workspace cambiato durante la verifica: risultato non attestato.")
+        except RunStopped:
+            _record_check(identifier, {"profile": profile, "passed": False, "completed": False,
+                                      "error": "Verifica interrotta.", "scope": "Verifica non completata."})
+            raise
         except (ValueError, OSError, RuntimeError, TimeoutError) as error:
             _record_check(identifier, {"profile": profile, "passed": False, "completed": False,
                                       "error": str(error)[:1000], "scope": "Verifica non completata."})

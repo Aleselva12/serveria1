@@ -14,6 +14,31 @@ from programmer_agent.checks import run_check, docker_check
 
 
 class ProgrammerTests(unittest.TestCase):
+    def test_empty_syntax_scope_is_not_success(self):
+        ws.delete(self.identifier, 'sample.py', ws.read(self.identifier, 'sample.py')['sha256'])
+        ws.write(self.identifier, 'readme.md', 'Documentation only')
+        result = run_check(self.identifier)
+        self.assertFalse(result['passed'])
+        self.assertEqual(result['checked'], 0)
+
+    def test_interrupted_check_supersedes_previous_success(self):
+        from core.runtime import RunStopped
+        from programmer_agent.components import check_history
+        self.assertTrue(run_check(self.identifier)['passed'])
+        with patch('programmer_agent.checks._run_check', side_effect=RunStopped()):
+            with self.assertRaises(RunStopped): run_check(self.identifier)
+        self.assertFalse(check_history(self.identifier)[-1]['passed'])
+        self.assertFalse(check_history(self.identifier)[-1]['completed'])
+
+    def test_external_workspace_change_cannot_receive_success(self):
+        from programmer_agent.components import check_history
+        def changed(*args):
+            ws.file_path(self.identifier, 'sample.py').write_text('invalid Python !!!')
+            return {'profile':'syntax','passed':True}
+        with patch('programmer_agent.checks._run_check', side_effect=changed):
+            with self.assertRaises(ws.WorkspaceConflict): run_check(self.identifier)
+        self.assertFalse(check_history(self.identifier)[-1]['passed'])
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -163,6 +188,8 @@ class ProgrammerTests(unittest.TestCase):
             result = docker_check(self.identifier)
         self.assertTrue(result["passed"])
         command = calls[0]
+        self.assertIn("shutil.copytree('/work','/tmp/project')", command[-1])
+        self.assertIn("cwd='/tmp/project'", command[-1])
         for flag in ("--network=none", "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges", "--pull=never"):
             self.assertIn(flag, command)
         self.assertEqual(calls[-1][0], 'rm')
