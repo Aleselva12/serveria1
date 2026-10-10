@@ -7,7 +7,7 @@ export const missingConnections = {
   },
   agentFileTools: {
     label: "Tool agenti per File Server e Libreria IA",
-    detail: "Da creare: esplorazione, lettura e ricerca nei file del server; gestione di cartelle, copie, cestino e ripristino; importazione delle copie nella libreria. Il catalogo Tools segnala le API con integrazione agenti prevista.",
+    detail: "Cora può elencare, leggere e cercare per nome/contenuto nella sola Libreria IA. Restano da definire l’accesso agentico al File Server e le policy per cartelle, copie, cestino, ripristino e importazione. Non sono abilitati da questo intervento.",
     endpoints: "Contratti tool, radici autorizzate e policy per azione da implementare",
   },
   graphEdit: {
@@ -18,10 +18,11 @@ export const missingConnections = {
 } as const;
 export type ConnectionKey = keyof typeof missingConnections;
 
-/** Stato del codice verificato su main; distinto dalla disponibilità dei servizi. */
+/** Stato delle funzionalità nel codice; distinto dal collaudo sul server. */
 export const homeRoadmap = {
   updatedAt: "10/10/2026",
   available: [
+    { label: "Consultazione agentica Libreria IA", detail: "Tre tool di sola lettura disponibili durante le richieste automatiche, ricerca lessicale per nome e contenuto, percorsi delle fonti e pannello attività in chat. La selezione manuale dei tool prevale. Nessuna ricerca in background." },
     { label: "Chat e memoria persistenti", detail: "Cronologia, streaming, gestione e versioni della memoria e contesto permanente." },
     { label: "Accesso, permessi e approvazioni", detail: "Login del proprietario, policy delle capability e proposte consultabili in Attività." },
     { label: "Runtime e diagnostica", detail: "Coda, stati persistenti, cancellazione cooperativa, registro operazioni, bus eventi e profilazione." },
@@ -30,11 +31,13 @@ export const homeRoadmap = {
     { label: "Allegati chat, selezione tool e Audio", detail: "Documenti allegati alle richieste, tool automatici o selezionati manualmente per il singolo invio e pagina Audio per registrazioni salvate, trascrizione locale, correzioni ed esportazione." },
   ],
   next: [
+    { label: "Collaudare Libreria IA con Ollama", detail: "Verificare scelta autonoma dei tool, permessi, fonti e streaming con documenti reali sul server. I test simulati non certificano il comportamento del modello." },
     { label: "Collaudare il Programmatore sul server", detail: "Preparare le immagini Docker Python e frontend, verificare percorsi e isolamento ed eseguire una richiesta reale con il modello Ollama. I test del repository non certificano il modello o il deployment." },
     { label: "Misurare la latenza sul PC reale", detail: "Usare la profilazione in Attività per distinguere attesa, contesto, modello e tool prima di scegliere gli interventi." },
     { label: "Verificare il deploy sul server", detail: "Il profilo Docker Debian e le istruzioni di backup/ripristino sono presenti; verificare percorsi, modelli locali, accesso via Tailscale e ripristino sulla macchina finale." },
   ],
   deferred: [
+    { label: "Storico delle consultazioni e ricerca estesa", detail: "Il pannello conserva fino a 200 passaggi dell’ultima richiesta nella sessione: ricaricamento e perdita di eventi non sono recuperabili. Da progettare uno storico privato per conversazione, ricerca indicizzata e OCR dei PDF scansionati. La ricerca attuale è lessicale, limitata a 2000 file esaminati e ai limiti di lettura per documento." },
     { label: "IDE avanzato e integrazione del codice attivo", detail: "L’editor del workspace e le consegne revisionabili sono disponibili. Linguaggio assistito, terminale e applicazione delle modifiche al server non fanno parte del flusso attuale; l’integrazione resta manuale." },
     { label: "Orchestratore autonomo", detail: "La delega del Supervisor è disponibile; l’orchestrazione autonoma resta rinviata." },
     { label: "Automodifica e attivazione autonoma", detail: "Il Programmatore è disponibile per bozze in workspace. L’applicazione autonoma al codice attivo e l’attivazione dei componenti restano rinviate." },

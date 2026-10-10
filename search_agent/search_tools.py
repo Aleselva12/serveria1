@@ -10,6 +10,9 @@ from pypdf import PdfReader
 
 from core.permissions import require_permission
 from core.file_paths import knowledge_root
+from core.confined_paths import confined_path
+from core.runtime_context import ensure_runtime_active, RunTimedOut
+from core.run_lifecycle import RunCancelled
 
 
 load_dotenv()
@@ -35,10 +38,9 @@ def _require_permission(action: str) -> None:
 
 
 def _safe_path(relative_path: str) -> Path:
-    candidate = (KNOWLEDGE_ROOT / relative_path).resolve()
-
-    if candidate != KNOWLEDGE_ROOT and KNOWLEDGE_ROOT not in candidate.parents:
-        raise ValueError("Accesso esterno alla cartella documenti vietato.")
+    if Path(relative_path).is_absolute() or "\\" in relative_path or ".." in Path(relative_path).parts:
+        raise ValueError("Usa un percorso relativo alla Libreria IA.")
+    candidate = confined_path(KNOWLEDGE_ROOT, KNOWLEDGE_ROOT / relative_path)
 
     relative = candidate.relative_to(KNOWLEDGE_ROOT)
     if any(part in BLOCKED_PARTS for part in relative.parts):
@@ -53,18 +55,34 @@ def _safe_path(relative_path: str) -> Path:
 def _iter_documents(directory: str = ".", recursive: bool = True) -> Iterable[Path]:
     base = _safe_path(directory)
     if not base.exists() or not base.is_dir():
-        return []
+        raise ValueError("Cartella della Libreria IA non disponibile.")
 
-    iterator = base.rglob("*") if recursive else base.glob("*")
-    return (
-        path for path in iterator
-        if path.is_file()
-        and not path.is_symlink()
-        and path.resolve().is_relative_to(KNOWLEDGE_ROOT)
-        and path.suffix.lower() in SUPPORTED_EXTENSIONS
-        and not any(part in BLOCKED_PARTS for part in path.relative_to(KNOWLEDGE_ROOT).parts)
-        and path.name.lower() not in BLOCKED_NAMES
-    )
+    def walk():
+        visited = 0
+        for folder, dirs, files in os.walk(base, followlinks=False):
+            ensure_runtime_active()
+            dirs[:] = sorted(d for d in dirs if d not in BLOCKED_PARTS and not (Path(folder)/d).is_symlink())
+            for name in sorted(files):
+                visited += 1
+                if visited > 2000:
+                    raise ValueError("Limite di scansione raggiunto: restringi la cartella.")
+                path = Path(folder)/name
+                if path.is_symlink() or name.lower() in BLOCKED_NAMES or path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+                    continue
+                yield _safe_path(path.relative_to(KNOWLEDGE_ROOT).as_posix())
+            if not recursive:
+                break
+    return walk()
+
+
+def _activity(action: str, *, path: str = ".", query: str = ""):
+    # Content-bearing progress stays in the authenticated live stream, not diagnostics.
+    from core.runtime import current_run
+    from core.event_bus import bus
+    run = current_run.get()
+    if run:
+        bus.publish("library.activity", "library", run_id=run.id, thread_id=run.thread_id,
+                    payload={"action": action, "path": path[:500], "query": query[:300]})
 
 
 def _read_docx(path: Path) -> str:
@@ -95,6 +113,7 @@ def _read_pdf(path: Path) -> str:
 
     parts = []
     for page_index, page in enumerate(reader.pages[:MAX_PDF_PAGES], start=1):
+        ensure_runtime_active()
         text = (page.extract_text() or "").strip()
         if text:
             parts.append(f"[PAGINA {page_index}]\n{text}")
@@ -108,6 +127,11 @@ def _read_pdf(path: Path) -> str:
 
 
 def _read_document(path: Path) -> str:
+    path = _safe_path(path.relative_to(KNOWLEDGE_ROOT).as_posix())
+    if not path.is_file():
+        raise ValueError("Il percorso non è un file normale.")
+    ensure_runtime_active()
+    _activity("read", path=path.relative_to(KNOWLEDGE_ROOT).as_posix())
     if path.stat().st_size > MAX_FILE_BYTES:
         raise ValueError(
             f"File troppo grande: limite {MAX_FILE_BYTES} byte."
@@ -138,6 +162,8 @@ def list_local_documents(
     """Elenca i documenti locali accessibili al Local Research Agent."""
     try:
         _require_permission("list_documents")
+        _safe_path(directory)
+        _activity("list", path=directory)
         normalized_extension = extension.strip().lower()
         if normalized_extension and not normalized_extension.startswith("."):
             normalized_extension = "." + normalized_extension
@@ -159,10 +185,12 @@ def list_local_documents(
                 break
 
         return json.dumps({
-            "knowledge_root": str(KNOWLEDGE_ROOT),
+            "library": "Libreria IA",
             "count": len(results),
             "documents": results,
         }, ensure_ascii=False, indent=2)
+    except (RunCancelled, RunTimedOut):
+        raise
     except Exception as error:
         return json.dumps({"status":"error","error":f"Errore durante l'elenco dei documenti: {error}"}, ensure_ascii=False)
 
@@ -186,6 +214,8 @@ def read_local_document(relative_path: str) -> str:
             f"SOURCE_TYPE: {path.suffix.lower()}\n"
             f"--- DOCUMENT CONTENT ---\n{text}"
         )
+    except (RunCancelled, RunTimedOut):
+        raise
     except Exception as error:
         return json.dumps({"status":"error","error":f"Errore durante la lettura del documento: {error}"}, ensure_ascii=False)
 
@@ -197,24 +227,34 @@ def search_local_documents(
     max_results: int = 10,
 ) -> str:
     """
-    Cerca parole o frasi nei documenti locali e restituisce estratti con il percorso
+    Cerca parole nei nomi e nei contenuti della Libreria IA e restituisce estratti con il percorso
     della fonte. È una ricerca lessicale locale, non usa Internet.
     """
     try:
         _require_permission("search_documents")
+        _safe_path(directory)
+        _activity("search", path=directory, query=query)
         terms = [term.casefold() for term in query.split() if len(term.strip()) >= 2]
         if not terms:
             return json.dumps({"status":"error","error":"La query non contiene termini utili."}, ensure_ascii=False)
 
         matches = []
+        skipped = 0
+        scanned = 0
         for path in _iter_documents(directory, recursive=True):
+            ensure_runtime_active()
+            scanned += 1
             try:
                 text = _read_document(path)
+            except (RunCancelled, RunTimedOut):
+                raise
             except Exception:
-                continue
+                skipped += 1
+                text = ""
 
             folded = text.casefold()
-            score = sum(folded.count(term) for term in terms)
+            name = path.relative_to(KNOWLEDGE_ROOT).as_posix().casefold()
+            score = sum(folded.count(term) + 5 * name.count(term) for term in terms)
             if score <= 0:
                 continue
 
@@ -233,13 +273,15 @@ def search_local_documents(
         matches.sort(key=lambda item: item["score"], reverse=True)
         matches = matches[:max(1, min(max_results, 30))]
 
-        if not matches:
-            return "Nessun documento locale contiene i termini cercati."
-
         return json.dumps({
             "query": query,
+            "scanned": scanned,
+            "skipped_contents": skipped,
             "results": matches,
+            "scope": "Libreria IA; ricerca lessicale nei nomi e nei contenuti leggibili",
         }, ensure_ascii=False, indent=2)
+    except (RunCancelled, RunTimedOut):
+        raise
     except Exception as error:
         return json.dumps({"status":"error","error":f"Errore durante la ricerca locale: {error}"}, ensure_ascii=False)
 

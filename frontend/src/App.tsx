@@ -1,5 +1,5 @@
 import { usePermanentContext } from "./services/usePermanentContext";
-import { streamChat, runtimeRequest } from "./services/runtimeApi";
+import { streamChat, runtimeRequest, type LibraryActivity } from "./services/runtimeApi";
 import { authenticatedFetch } from "./services/transport";
 import RuntimePanel from "./components/RuntimePanel";
 import { useEffect, useRef, useState } from "react";
@@ -78,6 +78,7 @@ export default function App() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [liveText, setLiveText] = useState("");
+  const [libraryActivity, setLibraryActivity] = useState<{threadId:string; items:LibraryActivity[]}>({threadId:"", items:[]});
   const [runState, setRunState] = useState("");
   const [activeRun, setActiveRun] = useState("");
   const [chatError, setChatError] = useState("");
@@ -174,7 +175,8 @@ export default function App() {
       ...prev,
     ]);
     try {
-      const result = await streamChat(content, threadId, setActiveRun, setLiveText, setRunState, attachments.map(a=>a.id), manualTools);
+      setLibraryActivity({threadId, items:[]});
+      const result = await streamChat(content, threadId, setActiveRun, setLiveText, setRunState, attachments.map(a=>a.id), manualTools, item => setLibraryActivity(previous => ({threadId, items:[...previous.items.slice(-199), item]})));
       setChats((prev) =>
         prev.map((c) =>
           c.id === conversationId
@@ -390,6 +392,7 @@ export default function App() {
                     </div>
                   </div>
                 ))}
+                {libraryActivity.threadId === currentChat.threadId && libraryActivity.items.length > 0 && <details className="message assistant" open><summary>Consultazione Libreria IA · ultima richiesta</summary><div className="message-body"><small>Attività della sessione corrente, fino a 200 passaggi. Non conservata dopo il ricaricamento.</small><ul>{libraryActivity.items.map((item, index) => <li key={index}>{item.action === "search" ? `Ricerca «${item.query}»` : item.action === "list" ? "Elenco documenti" : "Lettura"} · {item.path === "." ? "Libreria IA" : item.path}</li>)}</ul></div></details>}
                 {sending && <div className="message assistant"><div className="message-body"><p>{liveText || (runState === "queued" ? "In coda…" : runState === "cancelling" ? "Annullamento in corso…" : runState.startsWith("Agente:") ? runState : "Cora sta lavorando…")}</p>{activeRun && <button className="text-button" disabled={runState === "cancelling"} onClick={() => void runtimeRequest("/runtime/runs/" + activeRun + "/cancel", { method: "POST" }).then(() => setRunState("cancelling")).catch(e => setChatError(e.message))}>Annulla esecuzione</button>}</div></div>}
                 <div ref={messagesEnd} />
               </div>
