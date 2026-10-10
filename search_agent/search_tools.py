@@ -1,4 +1,6 @@
 import json
+import hashlib
+import io
 import os
 from pathlib import Path
 from typing import Iterable
@@ -212,6 +214,7 @@ def read_local_document(relative_path: str) -> str:
         return (
             f"SOURCE_PATH: {path.relative_to(KNOWLEDGE_ROOT)}\n"
             f"SOURCE_TYPE: {path.suffix.lower()}\n"
+            f"SOURCE_SHA256: {hashlib.sha256(path.read_bytes()).hexdigest()}\n"
             f"--- DOCUMENT CONTENT ---\n{text}"
         )
     except (RunCancelled, RunTimedOut):
@@ -326,7 +329,13 @@ def create_word_document(
             if text:
                 document.add_paragraph(text)
 
-        document.save(str(output_path))
+        from core.library_tools import publish_bytes
+        buffer = io.BytesIO()
+        document.save(buffer)
+        if len(buffer.getvalue()) > MAX_FILE_BYTES:
+            raise ValueError("Documento oltre il limite di dimensione.")
+        # Exclusive publication prevents overwriting a file created since the check.
+        publish_bytes(output_path, buffer.getvalue(), replace=False)
         return json.dumps({
             "status": "ok",
             "path": str(output_path.relative_to(KNOWLEDGE_ROOT)),
@@ -343,9 +352,10 @@ def append_word_document(
     relative_path: str,
     content: str,
     heading: str = "",
+    expected_sha256: str = "",
 ) -> str:
     """
-    Aggiunge contenuto a un Word esistente senza cancellare il contenuto precedente.
+    Propone aggiunta a un Word: richiede conferma e SHA256 restituito dalla lettura.
     """
     try:
         _require_permission("append_word_document")
@@ -363,7 +373,10 @@ def append_word_document(
                 "error": "L'aggiornamento è consentito solo per file .docx.",
             }, ensure_ascii=False)
 
-        document = Document(path)
+        from core.library_tools import checked_file, archive_previous, publish_bytes
+        from core.server_files import operation
+        path, before = checked_file(relative_path, expected_sha256)
+        document = Document(io.BytesIO(before))
         if heading.strip():
             document.add_heading(heading.strip(), level=2)
 
@@ -380,7 +393,14 @@ def append_word_document(
                 "error": "Nessun contenuto da aggiungere.",
             }, ensure_ascii=False)
 
-        document.save(str(path))
+        buffer = io.BytesIO()
+        document.save(buffer)
+        if len(buffer.getvalue()) > MAX_FILE_BYTES:
+            raise ValueError("Documento oltre il limite di dimensione.")
+        with operation():
+            path, before = checked_file(relative_path, expected_sha256)
+            archive_previous(path, before)
+            publish_bytes(path, buffer.getvalue(), replace=True)
         return json.dumps({
             "status": "ok",
             "path": str(path.relative_to(KNOWLEDGE_ROOT)),
