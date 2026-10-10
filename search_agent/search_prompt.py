@@ -62,3 +62,5 @@ SECURITY
 
 from core.calendar_tools import CALENDAR_INSTRUCTIONS
 SEARCH_AGENT_PROMPT += "\n" + CALENDAR_INSTRUCTIONS
+
+SEARCH_AGENT_PROMPT += "\nOgni modifica a un Word esistente richiede conferma in Attività: leggi prima il documento, passa SOURCE_SHA256 come expected_sha256, mostra contenuto e percorso della proposta. Un risultato pending non è una modifica eseguita."

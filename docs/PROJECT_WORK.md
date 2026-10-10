@@ -162,3 +162,33 @@ Verifiche di questo lotto: 26 test backend mirati (8 Libreria IA, 4 selezione
 tool, 6 inventario, 8 context pages), 87 test frontend, build TypeScript/Vite e
 smoke check superati. Dipendenze backend ripristinate in un virtualenv dedicato.
 Da collaudare sul server con Ollama reale; nessun deploy eseguito.
+
+
+## FILE-02 — copie, modifiche e cestino controllati
+
+Decisioni: copie libere soltanto all’interno della Libreria IA, modifica e
+spostamento nel cestino dopo conferma, nessuna eliminazione definitiva.
+
+Implementati tool di copia con nome libero e pubblicazione esclusiva, metadati
+SHA256, sostituzione puntuale di testo UTF-8 e cestino compatibile con la pagina
+File. Conferma tramite il flusso esistente in Attività, con parametri esatti e
+controllo della versione prima dell’effetto. La versione precedente alle modifiche
+viene conservata nel cestino. Il ripristino manuale richiede percorso libero.
+
+Controlli circostanti: il vecchio append Word era automatico; ora richiede
+conferma e SHA256, conserva la versione precedente e pubblica atomicamente.
+La creazione Word non può più sovrascrivere un file comparso dopo il controllo.
+Nessun nuovo accesso a originali o File Server. Copie limitate alla dimensione
+configurata; modifica strutturale PDF/Word, cartelle, importazioni esterne e
+ripristino agentico restano futuri e sono riportati nella Home.
+
+Le policy sono configurabili dal proprietario in Attività: i default di questo
+lotto sono copia automatica, modifica/cestino con conferma. Nessun deploy.
+Come i percorsi preesistenti, i lock serializzano gli accessi in processo ma non
+impediscono race da writer esterni al servizio.
+
+Verifiche del lotto FILE-02: 34 test backend mirati (9 scritture, 8 letture,
+7 contratti, 4 chat tool, 6 inventario), 87 test frontend, build TypeScript/Vite,
+smoke check e diff check riusciti. Proposte/permessi testati con persistenza
+simulata; il ciclo di approvazione PostgreSQL e il collaudo con Ollama/server
+reale restano da verificare nell'ambiente finale.

@@ -7,7 +7,7 @@ export const missingConnections = {
   },
   agentFileTools: {
     label: "Tool agenti per File Server e Libreria IA",
-    detail: "Cora può elencare, leggere e cercare per nome/contenuto nella sola Libreria IA. Restano da definire l’accesso agentico al File Server e le policy per cartelle, copie, cestino, ripristino e importazione. Non sono abilitati da questo intervento.",
+    detail: "Cora può elencare, leggere e cercare per nome/contenuto nella sola Libreria IA. Copie interne alla Libreria automatiche; sostituzioni testuali, aggiunte Word e cestino con conferma. Restano accesso al File Server, importazione, gestione cartelle e ripristino agentico. Il ripristino manuale è disponibile dalla pagina File.",
     endpoints: "Contratti tool, radici autorizzate e policy per azione da implementare",
   },
   graphEdit: {
@@ -22,6 +22,7 @@ export type ConnectionKey = keyof typeof missingConnections;
 export const homeRoadmap = {
   updatedAt: "10/10/2026",
   available: [
+    { label: "Copie e modifiche controllate nella Libreria IA", detail: "Copie senza sovrascrittura; modifiche testuali e aggiunte Word approvate in Attività e legate alla versione letta. Cestino solo dopo conferma, senza eliminazione definitiva. Versione precedente conservata nel cestino prima della modifica." },
     { label: "Consultazione agentica Libreria IA", detail: "Tre tool di sola lettura disponibili durante le richieste automatiche, ricerca lessicale per nome e contenuto, percorsi delle fonti e pannello attività in chat. La selezione manuale dei tool prevale. Nessuna ricerca in background." },
     { label: "Chat e memoria persistenti", detail: "Cronologia, streaming, gestione e versioni della memoria e contesto permanente." },
     { label: "Accesso, permessi e approvazioni", detail: "Login del proprietario, policy delle capability e proposte consultabili in Attività." },
@@ -37,6 +38,7 @@ export const homeRoadmap = {
     { label: "Verificare il deploy sul server", detail: "Il profilo Docker Debian e le istruzioni di backup/ripristino sono presenti; verificare percorsi, modelli locali, accesso via Tailscale e ripristino sulla macchina finale." },
   ],
   deferred: [
+    { label: "Gestione avanzata documenti IA", detail: "Da progettare modifica strutturale Word/PDF, importazione da radici esterne autorizzate e ripristino agentico. Il ripristino della versione precedente richiede una destinazione libera: spostare prima il file corrente con la pagina File." },
     { label: "Storico delle consultazioni e ricerca estesa", detail: "Il pannello conserva fino a 200 passaggi dell’ultima richiesta nella sessione: ricaricamento e perdita di eventi non sono recuperabili. Da progettare uno storico privato per conversazione, ricerca indicizzata e OCR dei PDF scansionati. La ricerca attuale è lessicale, limitata a 2000 file esaminati e ai limiti di lettura per documento." },
     { label: "IDE avanzato e integrazione del codice attivo", detail: "L’editor del workspace e le consegne revisionabili sono disponibili. Linguaggio assistito, terminale e applicazione delle modifiche al server non fanno parte del flusso attuale; l’integrazione resta manuale." },
     { label: "Orchestratore autonomo", detail: "La delega del Supervisor è disponibile; l’orchestrazione autonoma resta rinviata." },

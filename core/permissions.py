@@ -59,6 +59,9 @@ class PermissionDecision:
 # Verranno raffinate insieme alle pagine/approval UI. L'obiettivo attuale è che
 # ogni azione esistente passi comunque da un allowlist deterministico.
 SUPERVISOR_RULES: tuple[ActionPermission, ...] = (
+    ActionPermission("supervisor", "library_copy", PermissionLevel.WRITE, ApprovalPolicy.AUTO, "knowledge_root"),
+    ActionPermission("supervisor", "library_modify", PermissionLevel.WRITE, ApprovalPolicy.CONFIRM, "knowledge_root"),
+    ActionPermission("supervisor", "library_trash", PermissionLevel.WRITE, ApprovalPolicy.CONFIRM, "knowledge_root"),
     ActionPermission("supervisor", "library_read", PermissionLevel.READ, ApprovalPolicy.AUTO, "knowledge_root"),
     ActionPermission("supervisor", "calculate", PermissionLevel.OBSERVE, ApprovalPolicy.AUTO),
     ActionPermission("supervisor", "inspect_runtime", PermissionLevel.OBSERVE, ApprovalPolicy.AUTO),
@@ -131,7 +134,7 @@ RESEARCH_AGENT_RULES: tuple[ActionPermission, ...] = (
         "local_research_agent",
         "append_word_document",
         PermissionLevel.WRITE,
-        ApprovalPolicy.AUTO,
+        ApprovalPolicy.CONFIRM,
         "knowledge_root",
         "Aggiornamento non distruttivo: aggiunge contenuto senza riscrivere il documento.",
     ),
