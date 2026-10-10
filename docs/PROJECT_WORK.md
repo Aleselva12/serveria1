@@ -132,3 +132,33 @@ Verifica locale: 4 test deploy, 4 test runtime model (inclusi tutti i cinque
 specialisti), 3 test grafo superati. Inferenza simulata nei test; nessuna prova
 su Ollama reale, Docker, NAS, telefono o ripristino completo. Nessun deploy o
 merge su main. OBS-01, FILE-01 e gli altri lotti restano aperti.
+
+## FILE-01 — Libreria IA in sola lettura
+
+Decisione utente: soltanto la Libreria IA, ricerca per nome e contenuto,
+consultazione anche senza invito esplicito se pertinente alla richiesta.
+I tre tool `library_list`, `library_search`, `library_read` sono disponibili in
+modalità automatica; una selezione manuale li può escludere. Nessun nuovo accesso
+al File Server, nessuna scrittura e nessun processo autonomo in background.
+
+La chat mostra query, cartella e tentativi di lettura nel flusso autenticato.
+Il pannello è transitorio (ultimi 200 passaggi, ultima richiesta della sessione),
+non uno storico persistente: può perdere eventi se il bus esaurisce il buffer.
+Query e percorsi di questo evento non entrano nell'archivio diagnostico.
+
+Controlli circostanti: traversal e symlink respinti, directory non disponibile
+distinta da zero risultati, documenti corrotti conteggiati come non leggibili,
+cancellazione/timeout propagati. Limiti esistenti di byte, caratteri e pagine
+restano attivi; la scansione si ferma con errore oltre 2000 file.
+I reader non costituiscono una sandbox per parser di documenti ostili; come gli
+altri accessi filesystem del progetto, non escludono race con writer esterni.
+
+Home aggiornata con collaudo Ollama/server e promemoria su storico privato,
+indicizzazione e OCR. Scritture, sincronizzazione, accesso server e OCR restano
+lotti distinti. `python-dotenv` era già in requirements-test.txt: era assente
+nell'ambiente di test ripristinato, non nel manifesto delle dipendenze.
+
+Verifiche di questo lotto: 26 test backend mirati (8 Libreria IA, 4 selezione
+tool, 6 inventario, 8 context pages), 87 test frontend, build TypeScript/Vite e
+smoke check superati. Dipendenze backend ripristinate in un virtualenv dedicato.
+Da collaudare sul server con Ollama reale; nessun deploy eseguito.

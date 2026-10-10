@@ -24,7 +24,7 @@ SAFE_LOG_FIELDS = {'memory_id','message_id','user_message_id','assistant_message
 
 
 def metadata_event(event):
-    if event['type'] in {'chat.delta','chat.reset'}: return None
+    if event['type'] in {'chat.delta','chat.reset','library.activity'}: return None
     result = dict(event)
     allowed = SAFE_LOG_FIELDS | {'duration_ms','status'} if event['type'].startswith('log.') else PAYLOAD_FIELDS.get(event['type'],set())
     result['payload'] = {k:v for k,v in event['payload'].items() if k in allowed}

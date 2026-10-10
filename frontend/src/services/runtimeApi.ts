@@ -7,12 +7,13 @@ export async function runtimeRequest<T>(path: string, init: RequestInit = {}): P
   if (!response.ok) throw new Error(data.detail || "Operazione non riuscita.");
   return data as T;
 }
-export async function streamChat(message: string, threadId: string, onRun: (id:string)=>void, onText: (text:string)=>void, onState:(state:string)=>void, attachmentIds:string[] = [], manualTools:string[]|null = null) {
+export type LibraryActivity = { action: string; path: string; query: string };
+export async function streamChat(message: string, threadId: string, onRun: (id:string)=>void, onText: (text:string)=>void, onState:(state:string)=>void, attachmentIds:string[] = [], manualTools:string[]|null = null, onLibrary?:(activity:LibraryActivity)=>void) {
   const run = await runtimeRequest<RunSnapshot>("/chat/runs", { method: "POST", body: JSON.stringify({ message, thread_id: threadId, ...(attachmentIds.length ? {attachment_ids:attachmentIds} : {}), ...(manualTools !== null ? {manual_tools:manualTools} : {}) }) });
   onRun(run.id); onState(run.status);
-  return streamRun(run, onText, onState);
+  return streamRun(run, onText, onState, undefined, onLibrary);
 }
-export async function streamRun(run: RunSnapshot, onText: (text:string)=>void, onState:(state:string)=>void, signal?: AbortSignal) {
+export async function streamRun(run: RunSnapshot, onText: (text:string)=>void, onState:(state:string)=>void, signal?: AbortSignal, onLibrary?:(activity:LibraryActivity)=>void) {
   const response = await authenticatedFetch(apiBaseUrl + "/api/v1/runtime/runs/" + run.id + "/events", { signal });
   if (!response.ok || !response.body) throw new Error("Streaming non disponibile. Consulta Attività per l'esito.");
   const reader = response.body.getReader();
@@ -31,6 +32,7 @@ export async function streamRun(run: RunSnapshot, onText: (text:string)=>void, o
         const event = JSON.parse(line.slice(6));
         if (frame.includes("event: result")) final = event as RunSnapshot;
         else if (frame.includes("event: resync")) { text = event.output || ""; onText(text); onState(event.status); }
+        else if (event.type === "library.activity") onLibrary?.(event.payload);
         else if (event.type === "chat.reset") { text = ""; onText(text); }
         else if (event.type === "chat.delta") { text += event.payload.text; onText(text); }
         else if (event.type === "run.state") onState(event.payload.status);

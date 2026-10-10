@@ -59,6 +59,7 @@ class PermissionDecision:
 # Verranno raffinate insieme alle pagine/approval UI. L'obiettivo attuale è che
 # ogni azione esistente passi comunque da un allowlist deterministico.
 SUPERVISOR_RULES: tuple[ActionPermission, ...] = (
+    ActionPermission("supervisor", "library_read", PermissionLevel.READ, ApprovalPolicy.AUTO, "knowledge_root"),
     ActionPermission("supervisor", "calculate", PermissionLevel.OBSERVE, ApprovalPolicy.AUTO),
     ActionPermission("supervisor", "inspect_runtime", PermissionLevel.OBSERVE, ApprovalPolicy.AUTO),
     ActionPermission("supervisor", "list_project_files", PermissionLevel.READ, ApprovalPolicy.AUTO),

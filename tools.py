@@ -402,3 +402,27 @@ supervisor_tools = [
 
 from core.calendar_tools import calendar_tools_for
 supervisor_tools += calendar_tools_for("supervisor")
+
+
+@agent_tool('supervisor', capability='library_list', actions=('library_read',), effect='read', retry='safe')
+def library_list(directory: str = ".", recursive: bool = True) -> str:
+    """Elenca documenti nella sola Libreria IA, per scoprire i percorsi da leggere."""
+    from search_agent.search_tools import list_local_documents
+    return list_local_documents.invoke({"directory": directory, "recursive": recursive})
+
+
+@agent_tool('supervisor', capability='library_search', actions=('library_read',), effect='read', retry='safe')
+def library_search(query: str, directory: str = ".", max_results: int = 10) -> str:
+    """Cerca parole nei nomi e nei contenuti testuali/PDF/Word della sola Libreria IA."""
+    from search_agent.search_tools import search_local_documents
+    return search_local_documents.invoke({"query": query, "directory": directory, "max_results": max_results})
+
+
+@agent_tool('supervisor', capability='library_read', actions=('library_read',), effect='read', retry='safe')
+def library_read(relative_path: str) -> str:
+    """Legge un documento della sola Libreria IA usando il percorso relativo trovato."""
+    from search_agent.search_tools import read_local_document
+    return read_local_document.invoke({"relative_path": relative_path})
+
+
+supervisor_tools += [library_list, library_search, library_read]
