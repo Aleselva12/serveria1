@@ -426,3 +426,6 @@ def library_read(relative_path: str) -> str:
 
 
 supervisor_tools += [library_list, library_search, library_read]
+
+from core.library_tools import LIBRARY_WRITE_TOOLS
+supervisor_tools += LIBRARY_WRITE_TOOLS
