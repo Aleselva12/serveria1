@@ -16,6 +16,7 @@ import {
   Save,
 } from "lucide-react";
 import Audio from "./components/Audio";
+import ChatToolPicker from "./components/ChatToolPicker";
 import { uploadAttachment, type Attachment } from "./services/mediaApi";
 import Home from "./components/Home";
 import Programmer from "./components/Programmer";
@@ -83,6 +84,7 @@ export default function App() {
   const sendLock = useRef(false);
   const attachmentInput = useRef<HTMLInputElement>(null);
   const [attachmentDrafts,setAttachmentDrafts] = useState<Record<string,Attachment[]>>({});
+  const [toolDrafts,setToolDrafts] = useState<Record<string,string[]|null>>({});
   const [attachmentBusy,setAttachmentBusy] = useState(false);
   const attachmentLock = useRef(false);
   const messagesEnd = useRef<HTMLDivElement>(null);
@@ -123,6 +125,7 @@ export default function App() {
     finally{attachmentLock.current=false;setAttachmentBusy(false);}
   }
   async function send() {
+    const manualTools = toolDrafts[currentChat.threadId] ?? null;
     const attachments = attachmentDrafts[currentChat.threadId]||[];
     const content = draft.trim() || (attachments.length ? "Analizza i file allegati." : "");
     if (!content || attachmentLock.current || sendLock.current || history.messagesLoading || history.historyLoading || history.messagesError || !backend.health?.ollama_online) return;
@@ -134,6 +137,7 @@ export default function App() {
     setChatError("");
     setDraft("");
     setAttachmentDrafts(prev=>({...prev,[currentChat.threadId]:[]}));
+    setToolDrafts(prev=>({...prev,[currentChat.threadId]:null}));
     const conversationId = currentChat.id,
       threadId = currentChat.threadId,
       requestId = uid(),
@@ -170,7 +174,7 @@ export default function App() {
       ...prev,
     ]);
     try {
-      const result = await streamChat(content, threadId, setActiveRun, setLiveText, setRunState, attachments.map(a=>a.id));
+      const result = await streamChat(content, threadId, setActiveRun, setLiveText, setRunState, attachments.map(a=>a.id), manualTools);
       setChats((prev) =>
         prev.map((c) =>
           c.id === conversationId
@@ -218,6 +222,7 @@ export default function App() {
       );
       setDraft((prev) => prev || content);
       setAttachmentDrafts(prev=>({...prev,[threadId]:[...attachments,...(prev[threadId]||[])]}));
+      setToolDrafts(prev=>({...prev,[threadId]:manualTools}));
     } finally {
       sendLock.current = false;
       setSending(false);
@@ -395,11 +400,12 @@ export default function App() {
                   </div>
                 )}
                 {attachmentBusy&&<p role="status">Caricamento degli allegati…</p>}
+                <ChatToolPicker key={currentChat.threadId} selection={toolDrafts[currentChat.threadId]??null} onChange={names=>setToolDrafts(prev=>({...prev,[currentChat.threadId]:names}))} disabled={sending||attachmentBusy} available={Boolean(backend.health)} />
                 <div className="attachment-drafts">{(attachmentDrafts[currentChat.threadId]||[]).map(a=><span className="attachment-chip" key={a.id}>{a.name}{a.truncated?" · estratto limitato":""}<button disabled={sending||attachmentBusy} aria-label={"Rimuovi allegato "+a.name} onClick={()=>setAttachmentDrafts(prev=>({...prev,[currentChat.threadId]:(prev[currentChat.threadId]||[]).filter(x=>x.id!==a.id)}))}>×</button></span>)}</div>
                 <div className="composer">
                   <input ref={attachmentInput} type="file" multiple hidden accept=".txt,.md,.csv,.tsv,.json,.pdf,.docx,.py,.ts,.tsx,.js,.css,.yaml,.yml,.toml,.log" onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value="";void attach(files);}}/>
                   <button disabled={sending||attachmentBusy||!backend.health} title="Allega documenti alla richiesta" aria-label="Allega file" onClick={()=>attachmentInput.current?.click()}>
-                    <Paperclip size={19} />
+                    <Paperclip size={19} /><span>Allega</span>
                   </button>
                   <textarea
                     disabled={history.historyLoading || history.messagesLoading}
@@ -431,6 +437,7 @@ export default function App() {
                     <Send size={17} />
                   </button>
                 </div>
+                <small>Allegati: testo, PDF e Word · massimo 6 file da 5 MB. Per le registrazioni usa la pagina Audio. Gli estratti limitati sono segnalati.</small>
                 <p>
                   {backend.health
                     ? backend.health.ollama_online

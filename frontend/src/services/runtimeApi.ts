@@ -7,8 +7,8 @@ export async function runtimeRequest<T>(path: string, init: RequestInit = {}): P
   if (!response.ok) throw new Error(data.detail || "Operazione non riuscita.");
   return data as T;
 }
-export async function streamChat(message: string, threadId: string, onRun: (id:string)=>void, onText: (text:string)=>void, onState:(state:string)=>void, attachmentIds:string[] = []) {
-  const run = await runtimeRequest<RunSnapshot>("/chat/runs", { method: "POST", body: JSON.stringify({ message, thread_id: threadId, ...(attachmentIds.length ? {attachment_ids:attachmentIds} : {}) }) });
+export async function streamChat(message: string, threadId: string, onRun: (id:string)=>void, onText: (text:string)=>void, onState:(state:string)=>void, attachmentIds:string[] = [], manualTools:string[]|null = null) {
+  const run = await runtimeRequest<RunSnapshot>("/chat/runs", { method: "POST", body: JSON.stringify({ message, thread_id: threadId, ...(attachmentIds.length ? {attachment_ids:attachmentIds} : {}), ...(manualTools !== null ? {manual_tools:manualTools} : {}) }) });
   onRun(run.id); onState(run.status);
   return streamRun(run, onText, onState);
 }

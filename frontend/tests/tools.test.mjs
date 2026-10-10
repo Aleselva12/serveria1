@@ -67,6 +67,19 @@ const rows = r => r.root.findAll(n=>n.type==='button' && n.props.className?.star
 async function choose(r,index) { await act(async()=>rows(r)[index].props.onClick()); }
 async function unmount(r){await act(async()=>r.unmount());}
 
+test('direct interface APIs are separate and integration gaps remain actionable',async()=>{
+ const previous=response;
+ response=async()=>({...fixture,entries:[...fixture.entries,{id:'direct-api',name:'GET /auth/session',group:'Accesso',kind:'api',status:'direct',description:'Sessione',detail:'API diretta',agents:[],parameters:[],source:'API'},{id:'missing-api',name:'GET /api/v1/server/files/children',group:'File server',kind:'api',status:'integration_needed',description:'Cartelle',detail:'Manca server_list_files',agents:[],parameters:[],source:'API'}]});
+ const r=await mount(Tools);
+ const sections=r.root.findAllByProps({className:'tools-catalog-section'});
+ assert.equal(sections.length,2);
+ assert.equal(sections[1].findAllByType('strong').filter(n=>n.children.includes('GET /auth/session')).length,1);
+ assert.equal(sections[0].findAllByType('strong').filter(n=>n.children.includes('GET /auth/session')).length,0);
+ assert.equal(sections[0].findAllByType('strong').filter(n=>n.children.includes('GET /api/v1/server/files/children')).length,1);
+ assert.ok(JSON.stringify(r.toJSON()).includes('solo bozze'));
+ await unmount(r);response=previous;
+});
+
 test('Tools remains reachable without registry and starts with an empty viewer',async()=>{
   const r=await mount(Architecture,{registry:null,health:null,selectedNode:'',onSelect:()=>{}});
   await click(r,'Tools');

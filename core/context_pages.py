@@ -58,24 +58,42 @@ def _tokens(text: str) -> set[str]:
     return set(re.findall(r"[\wÀ-ÿ]+", text.casefold()))
 
 
+def routing_text(current: str, messages=()) -> str:
+    """Carry the last user topic only for an explicit short continuation.
+
+    Attachment extracts are data and never decide which tools to expose.
+    """
+    normalized = " ".join(re.findall(r"[\wÀ-ÿ]+", current.casefold()))
+    continuations = {"sì", "si", "ok", "sì procedi", "si procedi", "procedi", "continua",
+                     "fallo", "vai avanti", "sì fallo", "si fallo", "ok procedi", "confermo"}
+    if normalized not in continuations:
+        return current
+    users = [str(m.get("content", "")) if isinstance(m, dict) else str(getattr(m, "content", ""))
+             for m in messages if (m.get("role") if isinstance(m, dict) else getattr(m, "type", None)) in {"human", "user"}]
+    # History ends with the current turn. Walk back through short continuations.
+    for previous in reversed(users[:-1]):
+        previous = previous.split("\nAllegati forniti dall’utente", 1)[0]
+        if " ".join(re.findall(r"[\wÀ-ÿ]+", previous.casefold())) not in continuations:
+            return current + "\n" + previous
+    return current
+
+
 def resolve_context_pages(user_text: str, *, max_pages: int = 3) -> list[ContextPage]:
     """Select only pages with explicit lexical evidence.
 
     A casual/unknown message intentionally selects no page and no tool schema.
     """
-    normalized = user_text.casefold()
+    normalized = " " + " ".join(re.findall(r"[\wÀ-ÿ]+", user_text.casefold())) + " "
     words = _tokens(user_text)
     scored: list[tuple[int, int, ContextPage]] = []
     for page in pages():
         score = 0
         for trigger in page.triggers:
             if " " in trigger:
-                if trigger in normalized:
+                if " " + trigger + " " in normalized:
                     score += 4
             elif trigger in words:
                 score += 3
-            elif len(trigger) >= 5 and trigger in normalized:
-                score += 1
         if score:
             scored.append((score, page.priority, page))
     scored.sort(key=lambda item: (item[0], item[1]), reverse=True)

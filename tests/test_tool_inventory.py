@@ -20,9 +20,24 @@ class InventoryTest(unittest.TestCase):
         self.assertGreaterEqual(len(baseline), 40)
         self.assertTrue(all(e["status"] == "connected" and e["agents"] for e in baseline))
         upload = next(e for e in result["entries"] if e["kind"] == "api")
-        self.assertEqual(upload["status"], "unconnected")
+        self.assertEqual(upload["status"], "direct")
         self.assertEqual(upload["group"], "File server")
         self.assertEqual(upload["agents"], [])
+
+    def test_api_integration_intentions_and_existing_wrappers_are_separate(self):
+        from core.tool_backlog import api_integration
+        self.assertEqual(api_integration('/api/v1/server/files/children', 'GET', set())[0], 'integration_needed')
+        self.assertEqual(api_integration('/api/v1/server/files/children', 'GET', {'server_list_files'})[0], 'direct')
+        for path, method in (('/auth/login','POST'),('/api/v1/server/files/upload','POST'),('/api/v1/calendar/events','GET'),('/tools/drafts','POST')):
+            self.assertEqual(api_integration(path, method, set())[0], 'direct')
+        self.assertEqual(api_integration('/api/v1/library/files/import','POST',set())[1], 'library_import_file')
+
+    def test_attachment_support_is_not_still_planned_and_file_tools_have_reminders(self):
+        result = module.inventory()
+        planned = {e['name'] for e in result['entries'] if e['status'] == 'planned'}
+        self.assertNotIn('Allegati della chat', planned)
+        self.assertIn('server_read_file', planned)
+        self.assertIn('library_import_file', planned)
 
     def test_executable_catalog_uses_registry_not_source_inference(self):
         from core.governance import capability_registry, find_capability
