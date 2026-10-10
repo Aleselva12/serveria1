@@ -6,8 +6,8 @@ export const missingConnections = {
     endpoints: "Contratto di sincronizzazione e gestione conflitti da definire",
   },
   agentFileTools: {
-    label: "Tool agenti per File Server e Libreria IA",
-    detail: "Cora può elencare, leggere e cercare per nome/contenuto nella sola Libreria IA. Copie interne alla Libreria automatiche; sostituzioni testuali, aggiunte Word e cestino con conferma. Restano accesso al File Server, importazione, gestione cartelle e ripristino agentico. Il ripristino manuale è disponibile dalla pagina File.",
+    label: "Accesso File Server e gestione avanzata Libreria",
+    detail: "Restano da definire accesso agentico al File Server, importazione di originali, gestione cartelle e ripristino agentico. Le funzioni di lettura, copia, modifica e cestino della Libreria sono elencate tra quelle disponibili.",
     endpoints: "Contratti tool, radici autorizzate e policy per azione da implementare",
   },
   graphEdit: {
