@@ -76,3 +76,14 @@ L'immagine installa il package-lock del repository fidato con npm ci --ignore-sc
 ## Aggiornare Cora su richiesta
 
 Crea workspace Git abilita il progetto testuale completo. Il Programmatore può aggiornare codice, contratti, frontend, grafi e migrazioni; il rilascio conserva Git localmente, costruisce immagini e richiede applicazione esplicita. La pagina mostra commit, job e stati anche dopo il ritorno da un riavvio. Per setup host, recupero, limiti e collaudo leggere updater/README.md. I vecchi snapshot non vengono convertiti automaticamente in checkout rilasciabili.
+
+
+### Attendibilità dei controlli
+
+Il profilo sintassi controlla solo Python/JSON e non passa se non ci sono file
+applicabili. Interruzioni e cambiamenti del workspace durante una verifica
+vengono registrati come controlli non completati, mai come successo.
+I test Python Docker lavorano su `/tmp/project`, copia temporanea del mount
+read-only `/work`: possono creare i propri file temporanei senza scrivere nel
+workspace originale. La rete resta disabilitata. L'esito richiede comunque
+l'immagine di verifica preparata e il collaudo sul server reale.

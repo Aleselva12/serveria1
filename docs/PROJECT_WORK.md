@@ -37,14 +37,12 @@ entrano nella lista prima di estendere lo scopo del lotto.
 “Decisione da prendere” non va convertito automaticamente in un bug.
 Le attività rinviate non impediscono di usare il server per i casi d'uso concordati.
 
-## Inventario iniziale
+## Attività aperte (aggiornate dopo i lotti implementati)
 
 ### Utilità quotidiana
 
-| ID | Lavoro | Priorità | Tipo | Stato iniziale |
+| ID | Lavoro | Priorità | Tipo | Stato |
 |---|---|---|---|---|
-| DEP-01 | Avvio server e persistenza del selettore | P1 | Correzione | Preparato in locale |
-| DEP-02 | Manutenzione con gli stessi override | P1 | Correzione | Preparato in locale |
 | REM-01 | Telefono tramite Tailscale | P1 | Collaudo | Da collaudare |
 | BKP-01 | Ripristino completo su ambiente sacrificabile | P1 | Collaudo | Da collaudare |
 | AUTH-01 | Login dei dispositivi dietro il proxy | P2 | Correzione | Da fare |
@@ -55,15 +53,13 @@ Le attività rinviate non impediscono di usare il server per i casi d'uso concor
 
 ### Funzioni
 
-| ID | Lavoro | Priorità | Tipo | Stato iniziale |
+| ID | Lavoro | Priorità | Tipo | Stato |
 |---|---|---|---|---|
-| MOD-01 | Cambio modello per tutti gli agenti | P1 | Correzione | Da fare |
 | OBS-01 | Errori Ollama utili e riservati | P1 | Correzione | Da fare |
 | DOC-01 | Descrizioni coerenti con ciò che esiste | P2 | Correzione | Da fare |
 | PRG-01 | Verifiche del Programmatore nel server | P2 | Funzione | Da fare |
 | PRG-02 | Ciclo release e recupero | P2 | Collaudo | Da collaudare |
-| FILE-01 | Cora esplora, legge e cerca nei file autorizzati | P2 | Funzione | Da fare |
-| FILE-02 | Cora gestisce file e copie IA | P2 | Funzione | Da fare |
+| FILE-02 | Estensioni residue: cartelle, importazione e ripristino agentico | P2 | Funzione | Da fare |
 | SYNC-01 | Originali e copie IA | P3 | Decisione | Decisione da prendere |
 | AUTO-01 | Esecutore delle automazioni grafiche | P3 | Funzione | Da fare |
 | OCR-01 | Leggere PDF scansionati | P3 | Funzione | Da fare |
@@ -73,7 +69,7 @@ Le attività rinviate non impediscono di usare il server per i casi d'uso concor
 
 ### Efficienza
 
-| ID | Lavoro | Priorità | Tipo | Stato iniziale |
+| ID | Lavoro | Priorità | Tipo | Stato |
 |---|---|---|---|---|
 | MEM-01 | Contesto e memoria dopo le ottimizzazioni | P2 | Decisione | Decisione da prendere |
 | PERF-01 | Misurare la latenza prima di ottimizzare | P2 | Collaudo | Da collaudare |
@@ -192,3 +188,22 @@ Verifiche del lotto FILE-02: 34 test backend mirati (9 scritture, 8 letture,
 smoke check e diff check riusciti. Proposte/permessi testati con persistenza
 simulata; il ciclo di approvazione PostgreSQL e il collaudo con Ollama/server
 reale restano da verificare nell'ambiente finale.
+
+
+## Pulizia attività e verifiche Programmatore
+
+DEP-01, DEP-02, MOD-01 e FILE-01 rimossi dalla tabella del lavoro aperto; FILE-02 conserva solo
+le estensioni non implementate. Lo storico dei lotti resta sopra. Il catalogo
+riconosce il tool del cestino della Libreria e la Home distingue funzioni fatte
+ed estensioni residue. I collaudi server restano aperti.
+
+Programmatore: sintassi senza file applicabili non più attestata come successo;
+interruzioni registrate come verifica non completata; controllo dell'impronta
+prima/dopo la verifica per non attribuire un successo a sorgenti diversi.
+Test Python in copia temporanea nel container, con mount originale read-only,
+rete disabilitata e limiti invariati salvo spazio temporaneo portato a 256 MB.
+Docker reale e installazione server rimangono da collaudare (PRG-01).
+
+Verifiche di questo intervento: 22 test Programmatore passati e uno Graphify
+opzionale saltato, 6 test inventario passati; 87 test frontend e build riusciti.
+Test Docker simulati: non attestano daemon, immagini o deploy reali.
