@@ -23,6 +23,8 @@ export const homeRoadmap = {
   updatedAt: "10/10/2026",
   available: [
     { label: "Copie e modifiche controllate nella Libreria IA", detail: "Copie senza sovrascrittura; modifiche testuali e aggiunte Word approvate in Attività e legate alla versione letta. Cestino solo dopo conferma, senza eliminazione definitiva. Versione precedente conservata nel cestino prima della modifica." },
+
+    { label: "Diagnostica Ollama riservata", detail: "Le tracce mostrano categorie di errore riconosciute: timeout, connessione, modello non trovato, memoria, compatibilità tool e risposta del servizio. Nessun dettaglio grezzo delle eccezioni viene conservato come descrizione diagnostica." },
     { label: "Consultazione agentica Libreria IA", detail: "Tre tool di sola lettura disponibili durante le richieste automatiche, ricerca lessicale per nome e contenuto, percorsi delle fonti e pannello attività in chat. La selezione manuale dei tool prevale. Nessuna ricerca in background." },
     { label: "Chat e memoria persistenti", detail: "Cronologia, streaming, gestione e versioni della memoria e contesto permanente." },
     { label: "Accesso, permessi e approvazioni", detail: "Login del proprietario, policy delle capability e proposte consultabili in Attività." },

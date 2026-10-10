@@ -58,7 +58,6 @@ Le attività rinviate non impediscono di usare il server per i casi d'uso concor
 | ID | Lavoro | Priorità | Tipo | Stato iniziale |
 |---|---|---|---|---|
 | MOD-01 | Cambio modello per tutti gli agenti | P1 | Correzione | Da fare |
-| OBS-01 | Errori Ollama utili e riservati | P1 | Correzione | Da fare |
 | DOC-01 | Descrizioni coerenti con ciò che esiste | P2 | Correzione | Da fare |
 | PRG-01 | Verifiche del Programmatore nel server | P2 | Funzione | Da fare |
 | PRG-02 | Ciclo release e recupero | P2 | Collaudo | Da collaudare |
@@ -192,3 +191,20 @@ Verifiche del lotto FILE-02: 34 test backend mirati (9 scritture, 8 letture,
 smoke check e diff check riusciti. Proposte/permessi testati con persistenza
 simulata; il ciclo di approvazione PostgreSQL e il collaudo con Ollama/server
 reale restano da verificare nell'ambiente finale.
+
+## OBS-01 — diagnostica provider riservata
+
+Implementata classificazione di errori Ollama e trasporto in messaggi fissi,
+limitati ai passaggi modello. Nessun testo grezzo di eccezioni, URL o risposta
+provider viene conservato come error_detail. Messaggi non riconosciuti restano
+generici. Il filtro dell’archivio conserva soltanto i messaggi ammessi, e la
+vista tracce li mostra. Anche letture di vecchi export JSONL filtrano i dettagli
+non ammessi; i vecchi file non vengono riscritti o eliminati.
+
+OBS-01 rimosso dalla tabella dei lavori aperti; resta il collaudo su Ollama e
+PostgreSQL reali. Nessun deploy. Il selettore modello e gli altri percorsi API
+non sono modificati da questo lotto.
+
+Verifiche OBS-01: 17 test backend mirati passati, 8 integrazioni PostgreSQL
+saltate senza DB; 87 test frontend e build passati. Controllati callback, bus,
+filtro archivio, payload SQL simulato, lettura della vista e rendering UI.

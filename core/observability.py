@@ -16,7 +16,7 @@ PAYLOAD_FIELDS = {
     'component.finished': {'task_id','duration_ms','status','error_type'},
     'context.selected': {'estimated_tokens','input_budget','tool_reserve','dropped_turns','optional_included'},
     'memory.selected': {'references'},
-    'trace.span': {'kind','status','name','duration_ms','error_type','graph_version'},
+    'trace.span': {'kind','status','name','duration_ms','error_type','error_detail','graph_version'},
 }
 SAFE_LOG_FIELDS = {'memory_id','message_id','user_message_id','assistant_message_id','episode_id','run_id','task_id',
                    'version','assertion','action','memory_type','result_count','query_chars','message_chars',
@@ -28,6 +28,9 @@ def metadata_event(event):
     result = dict(event)
     allowed = SAFE_LOG_FIELDS | {'duration_ms','status'} if event['type'].startswith('log.') else PAYLOAD_FIELDS.get(event['type'],set())
     result['payload'] = {k:v for k,v in event['payload'].items() if k in allowed}
+    if 'error_detail' in result['payload']:
+        from core.provider_errors import safe_detail
+        result['payload']['error_detail'] = safe_detail(result['payload']['error_detail']) if result['payload'].get('kind') == 'model' else None
     if 'references' in result['payload']:
         references = []
         for reference in result['payload']['references'][:20]:

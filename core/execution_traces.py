@@ -11,6 +11,7 @@ from pathlib import Path
 from langchain_core.callbacks import BaseCallbackHandler
 from core.logging import LOG_ROOT
 from core.database import database_configured
+from core.provider_errors import provider_detail, safe_detail
 
 TRACE_FILE = LOG_ROOT / "executions.jsonl"
 _lock = threading.Lock()
@@ -19,16 +20,14 @@ _lock = threading.Lock()
 _write_error = None
 
 def _safe_error_detail(error):
-    """Bounded provider error only: never prompt, messages, tool args or model output."""
-    if error is None:
-        return None
-    detail = str(error).replace("\n", " ").strip()
-    return detail[:500] if detail else None
+    return provider_detail(error)
 
 
 def append_event(event):
     # Diagnostic I/O cannot change a canonical run or operation outcome.
     global _write_error
+    event = dict(event)
+    event["error_detail"] = safe_detail(event.get("error_detail")) if event.get("kind") == "model" else None
     try:
         from core.event_bus import bus
         published = bus.publish('trace.span','tracing',run_id=event.get('run_id'),thread_id=event.get('thread_id'),
@@ -92,7 +91,7 @@ class ExecutionTrace(BaseCallbackHandler):
                 self.runtime_run.timings[kind + "_ms"] += round((time.perf_counter()-start)*1000,2)
             self.event(kind, "error" if error else "completed", run_id, parent_run_id,
                        name, round((time.perf_counter() - start) * 1000, 2),
-                       type(error).__name__ if error else None, _safe_error_detail(error))
+                       type(error).__name__ if error else None, _safe_error_detail(error) if kind == "model" else None)
 
     def on_chain_start(self, serialized, inputs, *, run_id, parent_run_id=None, **kwargs):
         self.start("node", kwargs.get("name") or (serialized or {}).get("name", "Graph"), run_id, parent_run_id)
@@ -181,7 +180,8 @@ def read_runs(limit=50, run_id=None,include_events=True):
             events = []
             for event in page['events']:
                 if event['type'] != 'trace.span' or (row['parent_run_id'] and event.get('component_run_id') != str(row['id'])): continue
-                payload = event['payload']
+                payload = dict(event['payload'])
+                payload["error_detail"] = safe_detail(payload.get("error_detail")) if payload.get("kind") == "model" else None
                 events.append(dict(timestamp=event['timestamp'],span_id=event.get('span_id'),parent_id=event.get('parent_span_id'),
                                    component_run_id=event.get('component_run_id'),**payload))
             result.append(dict(id=snapshot['id'],thread_id=snapshot['thread_id'],graph_version=row['metadata'].get('graph_version','unknown'),
@@ -196,6 +196,7 @@ def read_runs(limit=50, run_id=None,include_events=True):
                 try:
                     event = json.loads(line)
                     identifier = event["run_id"]
+                    event["error_detail"] = safe_detail(event.get("error_detail")) if event.get("kind") == "model" else None
                 except (ValueError, KeyError):
                     continue
                 if run_id and identifier != run_id:
