@@ -8,7 +8,7 @@ import AutomationEditor from "./AutomationEditor";
 import "./architecture-tools.css";
 import "./tool-flow.css";
 
-const states = { connected: "Collegato agli agenti", unconnected: "Implementato · non collegato", planned: "Predisposto · da implementare" };
+const states = { connected: "Collegato agli agenti", unconnected: "Tool da collegare", integration_needed: "API da integrare con gli agenti", direct: "API diretta · interfaccia e servizi", planned: "Da implementare" };
 export default function ArchitectureTools() {
   const [data, setData] = useState<ToolInventory | null>(null);
   const [error, setError] = useState("");
@@ -67,13 +67,13 @@ export default function ArchitectureTools() {
         <aside className="tools-detail" aria-live="polite"><div><div className="eyebrow">PASSAGGIO SELEZIONATO</div>
           {step ? <><h3>{step.label}</h3><p className="flow-step-detail">{step.detail}</p></> : <p>Seleziona un passaggio del flusso per i dettagli.</p>}
           </div><div className="tool-attributes">{selected && <><div className="eyebrow">CARATTERISTICHE DEL TOOL</div><span className={`tools-badge ${selected.status}`}>{states[selected.status]}</span>
-            <p>{selected.description}</p><dl><dt>Funzione</dt><dd>{selected.group}</dd><dt>Agenti collegati</dt><dd>{selected.agents.join(", ") || "Nessuno"}</dd><dt>Origine</dt><dd>{selected.source}</dd><dt>Output dichiarato</dt><dd>{definition?.output_type || "Non disponibile"}</dd></dl></>}
+            <p>{selected.description}</p><p>{selected.detail}</p><dl><dt>Funzione</dt><dd>{selected.group}</dd><dt>Agenti collegati</dt><dd>{selected.agents.join(", ") || (selected.status === "direct" ? "Non richiesti per questa API" : "Nessuno")}</dd><dt>Origine</dt><dd>{selected.source}</dd><dt>Output dichiarato</dt><dd>{definition?.output_type || "Non disponibile"}</dd></dl></>}
           </div></aside>
       </div>
       {definition && <><p className="tools-scope">{definition.note}</p>
         {definition.entry.capabilities?.length ? <section className="section-card"><h3>Contratti eseguibili</h3><p>Gli stessi contratti sono usati dagli agenti e dal servizio di esecuzione. Il diagramma illustra il funzionamento; le automazioni restano bozze separate.</p>
           {definition.entry.capabilities.map(c=><article key={c.id} className="capability-contract"><h4>{c.actor} · versione {c.version}</h4><p><code>{c.id}</code></p>
-            <dl><dt>Operazione</dt><dd>{{read:"Lettura",compute:"Calcolo",write:"Scrittura",delegate:"Delega"}[c.effect]}</dd><dt>Ripetizione</dt><dd>{c.retry === "safe" ? "Dichiarata sicura · nessun ritentativo automatico" : "Non ripetere automaticamente"}</dd><dt>Approvazione</dt><dd>{c.approval === "calendar" ? "Transazione calendario" : "Azione e parametri esatti"}</dd></dl>
+            <dl><dt>Operazione</dt><dd>{{read:"Lettura",compute:"Calcolo",write:"Scrittura",delegate:"Delega"}[c.effect]}</dd><dt>Ripetizione</dt><dd>{c.retry === "safe" ? "Dichiarata sicura · nessun ritentativo automatico" : "Non ripetere automaticamente"}</dd><dt>Approvazione</dt><dd>{c.permissions.some(p => p.policy === "confirm") ? (c.approval === "calendar" ? "Proposta calendario da confermare" : "Conferma solo per le azioni indicate") : c.permissions.some(p => p.policy === "blocked") ? "Contiene azioni bloccate dalla policy" : "Automatica · nessuna conferma utente"}</dd></dl>
             <table><thead><tr><th>Permesso</th><th>Quando</th><th>Policy</th></tr></thead><tbody>{c.permissions.map(p=><tr key={p.action}><td>{p.action}</td><td>{c.conditional_actions.includes(p.action) ? "Solo nel ramo che lo richiede" : "Prima dell’esecuzione"}</td><td>{p.policy === "auto" ? "Automatico" : p.policy === "confirm" ? "Conferma" : "Bloccato"}</td></tr>)}</tbody></table>
             <details><summary>Schemi input, risultato e revisione</summary><pre>{JSON.stringify({input:c.input_schema,result:c.output_schema,native_output:c.native_output_schema,contract_digest:c.contract_digest,implementation_revision:c.implementation_revision},null,2)}</pre></details>
           </article>)}
@@ -85,6 +85,7 @@ export default function ArchitectureTools() {
         <details className="tool-source-details"><summary>Operazioni chiamate e controlli interni</summary><div><h4>Operazioni nel codice</h4>{definition.operations.length ? <ul>{definition.operations.map(c => <li key={c}>{c}</li>)}</ul> : <p>Nessuna chiamata diretta rilevata.</p>}
           <h4>Controlli espliciti</h4><ul>{[...definition.checks, ...definition.conditions].map((c, i) => <li key={i}>{c}</li>)}</ul></div></details></>}
     </div>
+    <p className="panel-note">Automazioni grafiche: solo bozze. Salvataggio e modifica sono disponibili; esecuzione, pianificazione e collegamento agli agenti sono da implementare.</p>
     <div hidden={mode !== "draft"}><AutomationEditor entries={entries} /></div>
     {error && <div className="connection-error" role="alert">{error}</div>}
     {data?.errors.length ? <div className="connection-error" role="alert">Inventario parziale: {data.errors.join("; ")}</div> : null}
@@ -96,10 +97,11 @@ export default function ArchitectureTools() {
         <select aria-label="Filtra per stato" value={status} onChange={e => setStatus(e.target.value)}><option value="all">Tutti gli stati</option>{Object.entries(states).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
       {loading && <p className="tools-empty" role="status">Caricamento dell’inventario…</p>}
       {!loading && !error && !filtered.length && <p className="tools-empty">Nessuno strumento corrisponde ai filtri.</p>}
-      {groups.filter(g => filtered.some(e => e.group === g)).map(g => <section className="tools-function" key={g}><h3>{g}<span>{filtered.filter(e => e.group === g).length}</span></h3>
-        {filtered.filter(e => e.group === g).map(e => <button key={e.id} className={`tools-list-row ${selectedId === e.id ? "selected" : ""}`} onClick={() => select(e)} aria-pressed={selectedId === e.id}>
+      {[{id:"agent",title:"Tool, integrazioni e promemoria"},{id:"direct",title:"API dirette dell’interfaccia e dei servizi · nessun collegamento agenti richiesto"}].map(section => <div key={section.id} className="tools-catalog-section"><h3>{section.title}</h3>
+      {groups.filter(g => filtered.some(e => e.group === g && (e.status === "direct") === (section.id === "direct"))).map(g => <section className="tools-function" key={g}><h4>{g}<span>{filtered.filter(e => e.group === g && (e.status === "direct") === (section.id === "direct")).length}</span></h4>
+        {filtered.filter(e => e.group === g && (e.status === "direct") === (section.id === "direct")).map(e => <button key={e.id} className={`tools-list-row ${selectedId === e.id ? "selected" : ""}`} onClick={() => select(e)} aria-pressed={selectedId === e.id}>
           <Wrench size={16} /><div><strong>{e.name}</strong><p>{e.description}</p><small>{e.agents.join(", ") || (e.kind === "api" ? "Operazione backend / frontend" : "Nessun agente collegato")}</small></div><span className={`tools-badge ${e.status}`}>{states[e.status]}</span></button>)}
-      </section>)}
+      </section>)}</div>)}
     </div><p className="tools-scope">{data?.scope}</p>
   </div>;
 }

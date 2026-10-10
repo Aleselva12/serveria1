@@ -45,3 +45,15 @@ src/
 
 I contratti completi, i limiti e la migrazione SQL sono descritti nel README
 principale. I link condivisi richiedono login e accesso alla rete privata.
+
+## Chat: allegati e tool per richiesta
+
+`POST /api/v1/chat/attachments` carica documenti della conversazione; l’invio chat contiene `attachment_ids`. Il pulsante Allega è visibile e gli estratti limitati sono segnalati. Per gli audio usare la pagina Audio.
+
+`GET /api/v1/chat/tools` restituisce i tool del Supervisor, comprese le deleghe agli specialisti e le policy correnti. Il selettore manuale invia `manual_tools` a `POST /api/v1/chat/runs`; la scelta vale per il singolo invio, torna automatica dopo l’invio riuscito e viene recuperata con la bozza in caso di errore. `null` usa il routing automatico, `[]` esclude gli strumenti. La selezione non esegue azioni direttamente e non concede approvazioni. Nessuna conferma per policy `auto`; conferme solo dove previste.
+
+## Catalogo Tools: API dirette e integrazioni mancanti
+
+Le API dirette di interfaccia/servizio sono elencate a parte, con stato `direct`. Le operazioni File Server/Libreria IA con wrapper agenti previsto ma assente hanno stato `integration_needed` e indicano il tool da creare. I tool dichiarati ma non assegnati hanno stato `unconnected`; i promemoria di implementazione sono `planned`. L’intenzione di integrazione è dichiarata in `core/tool_backlog.py`, non dedotta dal fatto che un endpoint esista. Vedere `docs/TOOLS_BACKLOG.md`.
+
+Le automazioni grafiche restano bozze: nessuna esecuzione, pianificazione o assegnazione agli agenti. Gli allegati chat sono implementati; il microfono live è opzionale e rinviato.

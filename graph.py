@@ -9,7 +9,7 @@ from langgraph.prebuilt import ToolNode
 from core.context_budget import fit_messages
 from core.governance import bind_capabilities, tool_contract
 from core.models import get_chat_model
-from core.context_pages import resolve_context_pages, selected_tool_names, render_pages, preload_context
+from core.context_pages import resolve_context_pages, selected_tool_names, render_pages, preload_context, routing_text
 from core.prompt_context import with_permanent_context
 from core.runtime_context import ensure_runtime_active
 from tools import supervisor_tools
@@ -19,6 +19,8 @@ load_dotenv()
 
 
 class CoraState(MessagesState):
+    request_text: str
+    manual_tools: list[str] | None
     system_prompt: str
     memory_context: str
     context_pages: list[str]
@@ -45,9 +47,9 @@ def _latest_user_text(messages) -> str:
     return ""
 
 
-def _runtime_system_prompt(messages) -> tuple[str, str, list[str], list[str]]:
+def _runtime_system_prompt(messages, request_text=None, manual_tools=None) -> tuple[str, str, list[str], list[str]]:
     """Assemble only task-relevant context; owner/memory data is loaded on call."""
-    user_text = _latest_user_text(messages)
+    user_text = routing_text(request_text if request_text is not None else _latest_user_text(messages), messages)
     selected = resolve_context_pages(user_text)
     page_text = render_pages(selected)
     prompt = with_permanent_context(SUPERVISOR_BOOTSTRAP)
@@ -56,7 +58,11 @@ def _runtime_system_prompt(messages) -> tuple[str, str, list[str], list[str]]:
 
     preload_started = time.perf_counter()
     preloaded_context, preload_providers = preload_context(selected)
-    tool_names = selected_tool_names(selected)
+    from core.chat_tools import validate_selection
+    manual = validate_selection(manual_tools, supervisor_tools)
+    tool_names = manual if manual is not None else selected_tool_names(selected)
+    if manual is not None:
+        prompt += "\n\nL’utente ha selezionato i tool disponibili per questa richiesta: " + (", ".join(manual) or "nessuno") + ". Usali se pertinenti; non inventare risultati e non eseguire operazioni non richieste. La selezione non sostituisce le approvazioni previste dalle policy."
 
     run = current_run.get()
     if run:
@@ -67,6 +73,7 @@ def _runtime_system_prompt(messages) -> tuple[str, str, list[str], list[str]]:
         run.timings["preloaded_context_chars"] = len(preloaded_context)
         run.timings["preload_ms"] = round((time.perf_counter() - preload_started) * 1000, 2)
         run.timings["selected_tools"] = tool_names
+        run.timings["tool_selection"] = "manual" if manual is not None else "automatic"
         run.timings["selected_tool_count"] = len(tool_names)
         from core.event_bus import bus
         bus.publish(
@@ -85,7 +92,7 @@ def _runtime_system_prompt(messages) -> tuple[str, str, list[str], list[str]]:
 
 def prepare_turn(state: CoraState):
     started = time.perf_counter()
-    prompt, memory_context, context_pages, tool_names = _runtime_system_prompt(state["messages"])
+    prompt, memory_context, context_pages, tool_names = _runtime_system_prompt(state["messages"], state.get("request_text"), state.get("manual_tools"))
     run = current_run.get()
     if run: run.timings["prompt_ms"] = round((time.perf_counter()-started)*1000,2)
     return {"system_prompt": prompt, "memory_context":memory_context, "context_pages":context_pages, "selected_tool_names":tool_names}
@@ -137,6 +144,8 @@ def call_model(state: CoraState):
         response = model.invoke(fit_messages(messages_for_llm, tools=selected_tools))
     else:
         response = get_chat_model("supervisor", temperature=0.0).invoke(fit_messages(messages_for_llm, reserve=128))
+    from core.chat_tools import validate_manual_calls
+    validate_manual_calls(state.get("manual_tools"), list(getattr(response, "tool_calls", []) or []))
     return {"messages": [_bounded_tool_calls(response)]}
 
 

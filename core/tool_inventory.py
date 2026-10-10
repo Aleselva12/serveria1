@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from core.tool_backlog import FILE_TOOL_BACKLOG, api_integration
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = (
@@ -157,7 +158,8 @@ def inventory(routes=(), root: Path = ROOT):
         except (OSError, SyntaxError) as error:
             errors.append(f"{relative}: {type(error).__name__}")
 
-    # Registered routes are backend operations, not agent tools.
+    connected_names = {e["name"] for e in entries if e["kind"] == "tool" and e["status"] == "connected"}
+    # Explicit integration backlog distinguishes missing wrappers from direct UI APIs.
     for route in routes:
         path = getattr(route, "path", "")
         if path in {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/tools/inventory", "/tools/definition"}:
@@ -171,10 +173,11 @@ def inventory(routes=(), root: Path = ROOT):
         for method in sorted(getattr(route, "methods", ()) or ()):
             if method in {"HEAD", "OPTIONS"}:
                 continue
+            status, required_tool, integration_detail = api_integration(path, method, connected_names)
             entries.append(dict(id=f"api:{method}:{path}", name=f"{method} {path}",
                 description=getattr(route, "summary", None) or (getattr(route, "name", "Operazione backend").replace("_", " ")),
-                group=group, kind="api", status="unconnected", agents=[], source="API registrata",
-                parameters=[], detail="Endpoint disponibile al frontend; non costituisce un tool direttamente assegnato agli agenti."))
+                group=group, kind="api", status=status, agents=[], source="API registrata",
+                parameters=[], detail=integration_detail, required_tool=required_tool))
 
     planned = [
         ("calendar_list_events", "Calendario", "Elenco eventi in un intervallo di date."),
@@ -185,12 +188,15 @@ def inventory(routes=(), root: Path = ROOT):
         ("Esecuzione e pubblicazione delle automazioni", "Automazioni", "Editor grafico e salvataggio bozze disponibili; esecutore, pianificazione e assegnazione agli agenti ancora da implementare."),
 
         ("Allegati della chat", "Documenti", "Controllo UI predisposto; caricamento e associazione ai messaggi da implementare."),
-        ("Microfono dalla UI", "Audio", "Controllo UI predisposto; acquisizione e invio al backend da implementare."),
+        ("Microfono live opzionale", "Audio", "Funzione rinviata e non implementata. Le registrazioni salvate si caricano già dalla pagina Audio."),
     ]
     names = {e["name"] for e in entries}
+    if (root / "core/chat_attachments.py").is_file() or any(getattr(r, "path", "").startswith("/api/v1/chat/attachments") for r in routes):
+        planned = [p for p in planned if p[0] != "Allegati della chat"]
+    planned.extend(FILE_TOOL_BACKLOG)
     for name, group, description in planned:
         if name not in names:
             entries.append(dict(id=f"planned:{name}", name=name, description=description,
                 group=group, kind="planned", status="planned", agents=[], source="Predisposizione / lavoro in corso",
                 parameters=[], detail="Non utilizzabile nella versione di codice osservata. Non è una funzione operativa."))
-    return {"entries": entries, "errors": errors, "scope": "Capability dal registry eseguibile, API registrate e predisposizioni separate; nessuna operazione eseguita."}
+    return {"entries": entries, "errors": errors, "scope": "Tool agenti, integrazioni mancanti e API dirette dell’interfaccia sono distinti. Le automazioni grafiche restano bozze non eseguibili. Nessuna operazione eseguita dall’inventario."}

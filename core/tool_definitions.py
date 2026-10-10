@@ -51,7 +51,7 @@ def _flow(entry, fn):
 
     current = add("trigger", "Ingresso", ", ".join(a["name"] for a in _signature(fn)) or "Nessun parametro", 50)
     if permission or conditions:
-        ident = add("condition", "Permessi e controlli", "\n".join(permission + conditions), 330)
+        ident = add("condition", "Controlli di accesso e dati" if permission else "Controlli dei dati", "\n".join(permission + conditions), 330)
         edges.append(dict(id=f"edge-{len(edges)}", source=current, target=ident, label="parametri"))
         current = ident
     action_x = 610 if permission or conditions else 330
@@ -103,9 +103,15 @@ def definition(tool_id, routes=(), root: Path = ROOT):
     if capabilities:
         declared = sorted({a for c in capabilities for a in c["required_actions"]+c["conditional_actions"]})
         checks = declared
+        needs_confirmation = any(p["policy"] == "confirm" for c in capabilities for p in c["permissions"])
+        policy_detail = "Conferma solo per le azioni con policy confirm; le altre sono automatiche o bloccate." if needs_confirmation else "Controllo automatico del contratto e delle policy; nessuna conferma utente per le azioni auto."
+        for node in flow["nodes"]:
+            if node["kind"] == "condition":
+                node["label"] = "Policy e controlli" if needs_confirmation else "Validazione automatica"
+                node["detail"] += "\n" + policy_detail
         if not any(n["kind"] == "condition" for n in flow["nodes"]):
             for node in flow["nodes"][1:]: node["x"] += 280
-            flow["nodes"].insert(1,dict(id="contract-check",kind="condition",label="Contratto e permessi",detail=", ".join(declared),x=330,y=160,config={}))
+            flow["nodes"].insert(1,dict(id="contract-check",kind="condition",label="Policy e controlli" if needs_confirmation else "Validazione automatica",detail=", ".join(declared)+"\n"+policy_detail,x=330,y=160,config={}))
             first = flow["edges"][0]
             source = first["source"];first["source"]="contract-check"
             flow["edges"].insert(0,dict(id="contract-edge",source=source,target="contract-check",label="validazione"))

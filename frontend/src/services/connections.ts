@@ -5,6 +5,11 @@ export const missingConnections = {
     detail: "Anteprime, ricerca nelle sottocartelle, link privati revocabili e upload riprendibili sono collegati. La sincronizzazione bidirezionale fra originali e copie IA resta un lavoro futuro.",
     endpoints: "Contratto di sincronizzazione e gestione conflitti da definire",
   },
+  agentFileTools: {
+    label: "Tool agenti per File Server e Libreria IA",
+    detail: "Da creare: esplorazione, lettura e ricerca nei file del server; gestione di cartelle, copie, cestino e ripristino; importazione delle copie nella libreria. Il catalogo Tools segnala le API con integrazione agenti prevista.",
+    endpoints: "Contratti tool, radici autorizzate e policy per azione da implementare",
+  },
   graphEdit: {
     label: "Esecuzione delle automazioni grafiche",
     detail: "La mappa agentica è consultabile e Tools permette di modificare bozze grafiche. Mancano esecuzione e pianificazione delle bozze e modifica operativa dell’architettura.",
@@ -15,14 +20,14 @@ export type ConnectionKey = keyof typeof missingConnections;
 
 /** Stato del codice verificato su main; distinto dalla disponibilità dei servizi. */
 export const homeRoadmap = {
-  updatedAt: "04/10/2026",
+  updatedAt: "10/10/2026",
   available: [
     { label: "Chat e memoria persistenti", detail: "Cronologia, streaming, gestione e versioni della memoria e contesto permanente." },
     { label: "Accesso, permessi e approvazioni", detail: "Login del proprietario, policy delle capability e proposte consultabili in Attività." },
     { label: "Runtime e diagnostica", detail: "Coda, stati persistenti, cancellazione cooperativa, registro operazioni, bus eventi e profilazione." },
     { label: "File, calendario e Tools", detail: "File server e Libreria IA con anteprime, ricerca ricorsiva, condivisioni private e upload riprendibili; calendario e bozze delle automazioni." },
-    { label: "Programmatore", detail: "Copilot, workspace isolati, 14 strumenti, skill, registro componenti, consegne ZIP e verifiche Python/contratti/TypeScript/build frontend. Mappa Graphify opzionale con ricerca ed esplorazione. Integrazione e attivazione restano manuali." },
-    { label: "Allegati chat e Audio", detail: "Documenti allegati alle richieste e pagina Audio per registrazioni salvate, trascrizione locale, correzioni ed esportazione." },
+    { label: "Programmatore", detail: "Copilot, workspace isolati, 21 strumenti, skill, registro componenti, consegne ZIP e verifiche Python/contratti/TypeScript/build frontend. Preparazione, pubblicazione, applicazione e rollback delle release seguono i controlli previsti; nessuna attivazione autonoma." },
+    { label: "Allegati chat, selezione tool e Audio", detail: "Documenti allegati alle richieste, tool automatici o selezionati manualmente per il singolo invio e pagina Audio per registrazioni salvate, trascrizione locale, correzioni ed esportazione." },
   ],
   next: [
     { label: "Collaudare il Programmatore sul server", detail: "Preparare le immagini Docker Python e frontend, verificare percorsi e isolamento ed eseguire una richiesta reale con il modello Ollama. I test del repository non certificano il modello o il deployment." },

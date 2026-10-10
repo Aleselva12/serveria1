@@ -10,9 +10,10 @@ export type AgentStatus = "ready" | "busy" | "offline" | "error" | "unknown";
 export type ToolEntry = {
   id: string; name: string; description: string; group: string;
   kind: "tool" | "api" | "planned";
-  status: "connected" | "unconnected" | "planned";
+  status: "connected" | "unconnected" | "planned" | "direct" | "integration_needed";
   agents: string[]; source: string; parameters: string[]; detail: string;
   capabilities?: CapabilityContract[];
+  required_tool?: string | null;
 };
 export type ToolInventory = { entries: ToolEntry[]; errors: string[]; scope: string };
 export type FlowNode = {

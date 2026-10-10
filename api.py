@@ -101,6 +101,7 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=24000)
     thread_id: uuid.UUID | None = None
     attachment_ids: list[uuid.UUID] = Field(default_factory=list, max_length=6)
+    manual_tools: list[str] | None = Field(default=None, max_length=30)
 
 
 class ChatResponse(BaseModel):
@@ -339,7 +340,7 @@ def execute_chat(request: ChatRequest, run):
         context = prepare_context(thread_id, callbacks=[trace])
         run.timings["context_ms"] = round((time.perf_counter()-phase)*1000,2)
         result = None
-        for mode, chunk in graph.stream({"messages": context}, config={"callbacks": [trace], "recursion_limit": 50}, stream_mode=["messages", "values"]):
+        for mode, chunk in graph.stream({"messages": context, "request_text": message, "manual_tools": request.manual_tools}, config={"callbacks": [trace], "recursion_limit": 50}, stream_mode=["messages", "values"]):
             checkpoint()
             if mode == "values": result = chunk
             elif mode == "messages":
@@ -390,6 +391,12 @@ def execute_chat(request: ChatRequest, run):
 
 
 def submit_chat(request):
+    from core.chat_tools import validate_selection
+    from tools import supervisor_tools
+    try:
+        validate_selection(request.manual_tools, supervisor_tools)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
     thread_id = str(request.thread_id) if request.thread_id else str(uuid.uuid4())
     if request.attachment_ids:
         attachment_rows(thread_id, request.attachment_ids)
@@ -399,6 +406,12 @@ def submit_chat(request):
         raise HTTPException(409, str(error)) from error
     except RuntimeError as error:
         raise HTTPException(503, "Runtime non disponibile; verifica Attività e riavvia il backend.") from error
+
+
+@app.get("/api/v1/chat/tools")
+def chat_tools_endpoint():
+    from core.chat_tools import chat_tool_options
+    return chat_tool_options()
 
 
 @app.post("/api/v1/chat/runs", status_code=202)

@@ -10,6 +10,15 @@ const {streamChat,runtimeRequest}=await import(url(source));
 const original=globalThis.fetch;
 afterEach(()=>globalThis.fetch=original);
 const json=body=>new Response(JSON.stringify(body),{headers:{'Content-Type':'application/json'}});
+test('manual tools and attachments travel together; explicit empty never becomes automatic',async()=>{
+ for(const manual of [['calculator_tool'],[]]){
+  let calls=0;globalThis.fetch=async(url,init)=>{
+   if(++calls===1){assert.deepEqual(JSON.parse(init.body),{message:'Leggi',thread_id:'thread',attachment_ids:['attachment-id'],manual_tools:manual});return json({id:'run',status:'queued'});}
+   return stream('event: result\ndata: '+JSON.stringify({status:'completed',result:{response:'done',thread_id:'thread'}})+'\n\n');
+  };
+  await streamChat('Leggi','thread',()=>{},()=>{},()=>{},['attachment-id'],manual);assert.equal(calls,2);
+ }
+});
 function stream(frames) {
   const bytes=new TextEncoder().encode(frames);
   return new Response(new ReadableStream({start(c){ for(let i=0;i<bytes.length;i+=7)c.enqueue(bytes.slice(i,i+7));c.close(); }}),{headers:{'Content-Type':'text/event-stream'}});
