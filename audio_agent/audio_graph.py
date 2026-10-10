@@ -17,8 +17,9 @@ class AgentState(MessagesState):
     system_prompt: str
 
 
-llm = get_chat_model("audio", temperature=0.0)
-model_with_tools = llm.bind_tools(bind_capabilities('audio_agent', AUDIO_TOOLS))
+bind_capabilities("audio_agent", AUDIO_TOOLS)
+# Optional injected model for integration tests; production resolves each call.
+model_with_tools = None
 
 
 def prepare_prompt(state: AgentState):
@@ -28,7 +29,8 @@ def prepare_prompt(state: AgentState):
 def call_llm(state: AgentState):
     ensure_runtime_active()
     messages = [SystemMessage(content=state["system_prompt"])] + list(state["messages"])
-    response = model_with_tools.invoke(fit_messages(messages, tools=AUDIO_TOOLS))
+    model = model_with_tools if model_with_tools is not None else get_chat_model("audio", temperature=0.0).bind_tools(AUDIO_TOOLS)
+    response = model.invoke(fit_messages(messages, tools=AUDIO_TOOLS))
     return {"messages": [response]}
 
 

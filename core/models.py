@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import json
+import tempfile
 from pathlib import Path
 from urllib.request import urlopen, Request
 
@@ -35,7 +36,8 @@ def get_model_keep_alive() -> str:
 
 def _runtime_settings() -> dict:
     try:
-        return json.loads(RUNTIME_SETTINGS_PATH.read_text(encoding="utf-8"))
+        data = json.loads(RUNTIME_SETTINGS_PATH.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
     except (OSError, ValueError, TypeError):
         return {}
 
@@ -49,7 +51,18 @@ def save_runtime_model(model: str) -> dict:
     data = _runtime_settings()
     data["model"] = model
     RUNTIME_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    RUNTIME_SETTINGS_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    # Publish a complete JSON file so concurrent readers never see partial settings.
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=RUNTIME_SETTINGS_PATH.parent, delete=False) as stream:
+            temporary = Path(stream.name)
+            json.dump(data, stream, indent=2, ensure_ascii=False)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, RUNTIME_SETTINGS_PATH)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
     return data
 
 
@@ -80,7 +93,8 @@ def get_model_name(role: str = "default") -> str:
     """
     Resolve the model assigned to a role.
 
-    A role-specific CORA_MODEL_* variable wins. OLLAMA_MODEL remains the
+    The persisted operator selection wins for every role, then CORA_MODEL_*.
+    OLLAMA_MODEL remains the
     backwards-compatible global fallback.
     """
     runtime_model = str(_runtime_settings().get("model", "")).strip()

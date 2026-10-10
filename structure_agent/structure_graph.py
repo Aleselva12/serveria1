@@ -17,8 +17,9 @@ class AgentState(MessagesState):
     system_prompt: str
 
 
-llm = get_chat_model("structure", temperature=0.0)
-model_with_tools = llm.bind_tools(bind_capabilities('structure_agent', STRUCTURE_TOOLS))
+bind_capabilities("structure_agent", STRUCTURE_TOOLS)
+# Optional injected model for integration tests; production resolves each call.
+model_with_tools = None
 
 
 def prepare_prompt(state: AgentState):
@@ -28,7 +29,8 @@ def prepare_prompt(state: AgentState):
 def call_llm(state: AgentState):
     ensure_runtime_active()
     messages = [SystemMessage(content=state["system_prompt"])] + list(state["messages"])
-    response = model_with_tools.invoke(fit_messages(messages, tools=STRUCTURE_TOOLS))
+    model = model_with_tools if model_with_tools is not None else get_chat_model("structure", temperature=0.0).bind_tools(STRUCTURE_TOOLS)
+    response = model.invoke(fit_messages(messages, tools=STRUCTURE_TOOLS))
     return {"messages": [response]}
 
 

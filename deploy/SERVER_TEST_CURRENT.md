@@ -138,3 +138,9 @@ La Home verifica inoltre i servizi già presenti sull'host tramite:
 
 Docker resta intenzionalmente non verificato dal backend: il container API non
 riceve il socket Docker host solo per mostrare lo stato nella Home.
+
+
+Per la manutenzione usare sempre lo stesso override:
+`python3 deploy/manage.py doctor --compose-file compose.server-test.yml` e
+`python3 deploy/manage.py backup /percorso/privato/snapshot --compose-file compose.server-test.yml`.
+Il riavvio finale del backup mantiene così il mount NAS.

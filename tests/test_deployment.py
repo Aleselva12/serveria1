@@ -43,3 +43,23 @@ class HostDeploymentTests(unittest.TestCase):
                 self.assertEqual(compose.call_count,2)
                 self.assertEqual(compose.call_args_list[0].args,('stop','web','api'))
             self.assertFalse((path/'manifest.json').exists())
+
+    def test_backup_preserves_override_order_through_restart(self):
+        from subprocess import CompletedProcess
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            env = root/'deploy.env'; env.write_text('example')
+            overrides = (root/'nas.yml', root/'local.yml')
+            commands = []
+            def run(command, **kwargs):
+                commands.append(command)
+                if 'stdout' in kwargs:
+                    kwargs['stdout'].write(b'backup')
+                return CompletedProcess(command, 0, stdout='[]')
+            with patch.object(manage, 'ENV', env), patch.object(manage, 'COMPOSE_FILES', overrides), patch.object(manage.subprocess, 'run', side_effect=run):
+                manage.backup(root/'backup')
+            docker = [cmd for cmd in commands if cmd[0] == 'docker']
+            for command in docker:
+                self.assertEqual([command[i+1] for i, arg in enumerate(command) if arg == '-f'], [str(manage.ROOT/'compose.yml'), *map(str, overrides)])
+            self.assertEqual(docker[-1][-5:], ['up', '-d', '--wait', 'api', 'web'])
+            manage.check_backup(root/'backup')
