@@ -12,6 +12,14 @@ from core.server_files import router as server_router
 
 
 class LibraryCopiesTests(unittest.TestCase):
+    def make_symlink(self, link, target, **kwargs):
+        try:
+            link.symlink_to(target, **kwargs)
+        except OSError as error:
+            if os.name == "nt" and (getattr(error, "winerror", None) == 1314 or error.errno in {1, 13}):
+                self.skipTest("Windows requires Developer Mode or symlink privileges for this test")
+            raise
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.base = Path(self.temp.name)
@@ -109,7 +117,7 @@ class LibraryCopiesTests(unittest.TestCase):
         self.assertEqual(self.client.get('/api/v1/server/files/children', params={'root_id': 'library'}).status_code, 404)
         self.assertEqual(self.import_file(source='../outside').status_code, 400)
         self.assertEqual(self.import_file(destination='../outside').status_code, 400)
-        (self.server / 'link').symlink_to(self.base)
+        self.make_symlink(self.server / 'link', self.base)
         self.assertEqual(self.import_file(source='link').status_code, 403)
 
     def test_same_or_nested_originals_and_library_are_refused(self):

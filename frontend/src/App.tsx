@@ -610,9 +610,9 @@ export default function App() {
                     <div>
                       <strong>Contesto permanente di Cora</strong>
                       <p>
-                        Informazioni fondamentali che Cora riceverà all’inizio di
-                        ogni conversazione e che non verranno modificate
-                        automaticamente.
+                        Informazioni sul proprietario che Cora può consultare quando
+                        servono alla richiesta. Non vengono inserite in ogni turno
+                        né modificate automaticamente.
                       </p>
                     </div>
                     <span className={"pill " + (contextUpdatedAt ? "success" : "pending")}>

@@ -26,6 +26,8 @@ def handler(engine, token):
                     if not 0<length<=20000: raise ValueError('Richiesta troppo grande o vuota.')
                     data=json.loads(self.rfile.read(length))
                     if not isinstance(data,dict): raise ValueError('Richiesta non valida.')
+                    if len(parts)==3 and parts[0]=='workspaces' and parts[2]=='check' and set(data)=={'profile','workspace_digest'}:
+                        return self.reply(200,engine.check_workspace(parts[1],data['profile'],data['workspace_digest']))
                     if parts==['workspaces'] and set(data)=={'title'}: return self.reply(201,engine.create_workspace(data['title']))
                     if len(parts)==3 and parts[0]=='workspaces' and parts[2]=='commit' and set(data)=={'message'}:
                         return self.reply(200,engine.commit_workspace(parts[1],data['message']))

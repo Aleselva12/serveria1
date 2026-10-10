@@ -8,7 +8,7 @@ ARG CORA_UID=1000
 ARG CORA_GID=1000
 RUN groupadd --gid ${CORA_GID} cora && useradd --uid ${CORA_UID} --gid cora --create-home cora
 USER cora
-CMD ["python", "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--timeout-graceful-shutdown", "310"]
+CMD ["python", "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-proxy-headers", "--timeout-graceful-shutdown", "310"]
 
 FROM api AS api-audio-cpu
 USER root

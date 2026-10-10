@@ -11,6 +11,14 @@ from core.server_files import router
 
 
 class ServerFilesTests(unittest.TestCase):
+    def make_symlink(self, link, target, **kwargs):
+        try:
+            link.symlink_to(target, **kwargs)
+        except OSError as error:
+            if os.name == "nt" and (getattr(error, "winerror", None) == 1314 or error.errno in {1, 13}):
+                self.skipTest("Windows requires Developer Mode or symlink privileges for this test")
+            raise
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.base = Path(self.temp.name)
@@ -79,7 +87,7 @@ class ServerFilesTests(unittest.TestCase):
             self.assertEqual(self.get('/children', path=path).status_code, 400, path)
         outside = self.base / 'secret'
         outside.write_text('secret')
-        (self.data / 'link').symlink_to(outside)
+        self.make_symlink(self.data / 'link', outside)
         self.assertEqual(self.get('/download', path='link').status_code, 403)
         self.assertEqual(self.get('/children').json()['items'][0]['kind'], 'link')
 
@@ -117,7 +125,7 @@ class ServerFilesTests(unittest.TestCase):
     def test_copy_tree_does_not_follow_embedded_links(self):
         folder = self.data / 'folder'
         folder.mkdir()
-        (folder / 'escape').symlink_to(self.base)
+        self.make_symlink(folder / 'escape', self.base)
         self.assertEqual(self.post('/transfer', path='folder', destination='copy', mode='copy').status_code, 403)
         self.assertFalse((self.data / 'copy').exists())
 
@@ -195,7 +203,7 @@ class ServerFilesTests(unittest.TestCase):
         data=json.loads(metadata.read_text());data['path']='../escape.txt';metadata.write_text(json.dumps(data))
         self.assertEqual(self.post('/restore',id=ident).status_code,400)
         self.assertFalse((self.base/'escape.txt').exists());self.assertTrue((slot/'content').exists())
-        metadata.unlink();outside=self.base/'metadata.json';outside.write_text(json.dumps({'path':'safe.txt'}));metadata.symlink_to(outside)
+        metadata.unlink();outside=self.base/'metadata.json';outside.write_text(json.dumps({'path':'safe.txt'}));self.make_symlink(metadata, outside)
         self.assertEqual(self.post('/restore',id=ident).status_code,403)
         self.assertEqual(self.get('/trash').json()['items'],[])
 
@@ -204,7 +212,7 @@ class ServerFilesTests(unittest.TestCase):
         from fastapi import HTTPException
         sibling=self.base/'files-private';sibling.mkdir()
         with self.assertRaises(HTTPException):confined_path(self.data,sibling/'secret')
-        (self.data/'folder').mkdir();(self.data/'alias').symlink_to(self.data/'folder',target_is_directory=True)
+        (self.data/'folder').mkdir();self.make_symlink(self.data / 'alias', self.data / 'folder', target_is_directory=True)
         with self.assertRaises(HTTPException):confined_path(self.data,self.data/'alias/file')
         self.assertEqual(confined_path(self.data,self.data),self.data)
 

@@ -10,6 +10,7 @@ from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import urlopen
+from core.ollama_transport import get_ollama_base_url, urlopen as ollama_urlopen
 
 import psutil
 from fastapi import APIRouter
@@ -195,7 +196,7 @@ def service_status():
         (
             "ollama",
             "Ollama",
-            os.getenv("OLLAMA_BASE_URL", "http://localhost:11435").rstrip("/")
+            get_ollama_base_url()
             + "/api/tags",
         )
     ]
@@ -211,7 +212,7 @@ def service_status():
         status, detail = "unknown", "Indirizzo di controllo non configurato"
         if url:
             try:
-                with urlopen(url, timeout=1) as response:
+                with (ollama_urlopen if identifier == "ollama" else urlopen)(url, timeout=1) as response:
                     status = "ready" if 200 <= response.status < 400 else "error"
                 detail = "Endpoint HTTP raggiungibile"
             except (OSError, ValueError):

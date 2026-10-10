@@ -4,13 +4,13 @@ import os
 import json
 import tempfile
 from pathlib import Path
-from urllib.request import urlopen, Request
+from core.ollama_transport import DEFAULT_BASE_URL, get_ollama_base_url, urlopen
 
 from langchain_ollama import ChatOllama
 
 
 DEFAULT_MODEL = "gpt-oss:20b"
-DEFAULT_BASE_URL = "http://localhost:11434"
+
 
 RUNTIME_SETTINGS_PATH = Path(os.getenv("CORA_RUNTIME_SETTINGS_PATH", "./data/runtime-settings.json"))
 
@@ -22,11 +22,6 @@ ROLE_MODEL_ENV = {
     "structure": "CORA_MODEL_STRUCTURE",
     "programmer": "CORA_MODEL_PROGRAMMER",
 }
-
-
-def get_ollama_base_url() -> str:
-    """Return the configured local Ollama endpoint."""
-    return os.getenv("OLLAMA_BASE_URL", DEFAULT_BASE_URL)
 
 
 def get_model_keep_alive() -> str:
@@ -42,27 +37,36 @@ def _runtime_settings() -> dict:
         return {}
 
 
-def save_runtime_model(model: str) -> dict:
+class RuntimeSettingsError(OSError):
+    """The provider was reached, but the selected model could not be persisted."""
+
+
+def save_runtime_model(model: str, *, models: list[dict] | None = None) -> dict:
     """Persist the operator-selected Ollama model for this Cora instance."""
     model = model.strip()
-    available = {item["name"] for item in list_ollama_models()}
+    available = {item["name"] for item in (models if models is not None else list_ollama_models())}
     if model not in available:
         raise ValueError("Il modello non risulta installato nell'istanza Ollama configurata.")
     data = _runtime_settings()
     data["model"] = model
-    RUNTIME_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     # Publish a complete JSON file so concurrent readers never see partial settings.
     temporary = None
     try:
+        RUNTIME_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=RUNTIME_SETTINGS_PATH.parent, delete=False) as stream:
             temporary = Path(stream.name)
             json.dump(data, stream, indent=2, ensure_ascii=False)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, RUNTIME_SETTINGS_PATH)
+    except OSError as error:
+        raise RuntimeSettingsError("Impossibile salvare il modello: verifica spazio e permessi dello stato persistente.") from error
     finally:
         if temporary is not None:
-            temporary.unlink(missing_ok=True)
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
     return data
 
 

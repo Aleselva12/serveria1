@@ -1,4 +1,5 @@
 from __future__ import annotations
+from core.ollama_transport import get_ollama_base_url
 
 import importlib.util
 import json
@@ -281,7 +282,7 @@ def _module_available(module_name: str | None) -> bool:
 
 def _dependency_status(name: str) -> bool | None:
     checks = {
-        "ollama": bool(os.getenv("OLLAMA_BASE_URL", "http://localhost:11435")),
+        "ollama": bool(get_ollama_base_url()),
         "faster_whisper": importlib.util.find_spec("faster_whisper") is not None,
         "pypdf": importlib.util.find_spec("pypdf") is not None,
     }

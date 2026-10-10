@@ -6,7 +6,8 @@ import threading
 import time
 from collections import OrderedDict
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
+from core.ollama_transport import urlopen
 
 from core.models import get_ollama_base_url
 

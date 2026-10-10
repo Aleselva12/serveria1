@@ -12,6 +12,14 @@ def native(name, **kwargs):
 
 
 class LibraryResearchTests(unittest.TestCase):
+    def make_symlink(self, link, target, **kwargs):
+        try:
+            link.symlink_to(target, **kwargs)
+        except OSError as error:
+            if os.name == "nt" and (getattr(error, "winerror", None) == 1314 or error.errno in {1, 13}):
+                self.skipTest("Windows requires Developer Mode or symlink privileges for this test")
+            raise
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -55,9 +63,9 @@ class LibraryResearchTests(unittest.TestCase):
 
     def test_escape_symlink_and_protected_files_are_rejected(self):
         (self.root.parent/'outside.txt').write_text('secret')
-        (self.root/'link.txt').symlink_to(self.root.parent/'outside.txt')
+        self.make_symlink(self.root / 'link.txt', self.root.parent / 'outside.txt')
         (self.root/'inside.txt').write_text('content')
-        (self.root/'alias.txt').symlink_to(self.root/'inside.txt')
+        self.make_symlink(self.root / 'alias.txt', self.root / 'inside.txt')
         for path in ('../outside.txt', str(self.root.parent/'outside.txt'), 'link.txt', 'alias.txt', '.env'):
             with self.subTest(path=path):
                 self.assertEqual(json.loads(native('read_local_document', relative_path=path))['status'], 'error')

@@ -37,33 +37,24 @@ entrano nella lista prima di estendere lo scopo del lotto.
 “Decisione da prendere” non va convertito automaticamente in un bug.
 Le attività rinviate non impediscono di usare il server per i casi d'uso concordati.
 
-## Inventario iniziale
+## Attività aperte (collaudi e funzioni future fuori dalla chiusura audit)
 
 ### Utilità quotidiana
 
-| ID | Lavoro | Priorità | Tipo | Stato iniziale |
+| ID | Lavoro | Priorità | Tipo | Stato |
 |---|---|---|---|---|
-| DEP-01 | Avvio server e persistenza del selettore | P1 | Correzione | Preparato in locale |
-| DEP-02 | Manutenzione con gli stessi override | P1 | Correzione | Preparato in locale |
 | REM-01 | Telefono tramite Tailscale | P1 | Collaudo | Da collaudare |
 | BKP-01 | Ripristino completo su ambiente sacrificabile | P1 | Collaudo | Da collaudare |
-| AUTH-01 | Login dei dispositivi dietro il proxy | P2 | Correzione | Da fare |
-| SHR-01 | Aprire un link condiviso dopo il login | P2 | Funzione | Da fare |
-| SEC-01 | Dipendenze e confini di accesso | P2 | Correzione | Da fare |
 | FILE-03 | Upload e foto da telefono | P2 | Collaudo | Da collaudare |
 | EXT-01 | Programmi remoti non IA | P3 | Decisione | Successivamente |
 
 ### Funzioni
 
-| ID | Lavoro | Priorità | Tipo | Stato iniziale |
+| ID | Lavoro | Priorità | Tipo | Stato |
 |---|---|---|---|---|
-| MOD-01 | Cambio modello per tutti gli agenti | P1 | Correzione | Da fare |
-| OBS-01 | Errori Ollama utili e riservati | P1 | Correzione | Da fare |
-| DOC-01 | Descrizioni coerenti con ciò che esiste | P2 | Correzione | Da fare |
-| PRG-01 | Verifiche del Programmatore nel server | P2 | Funzione | Da fare |
+| PRG-01 | Bridge verifiche Programmatore, immagini e isolamento | P2 | Collaudo | Da collaudare |
 | PRG-02 | Ciclo release e recupero | P2 | Collaudo | Da collaudare |
-| FILE-01 | Cora esplora, legge e cerca nei file autorizzati | P2 | Funzione | Da fare |
-| FILE-02 | Cora gestisce file e copie IA | P2 | Funzione | Da fare |
+| FILE-02 | Estensioni residue: cartelle, importazione e ripristino agentico | P2 | Funzione | Da fare |
 | SYNC-01 | Originali e copie IA | P3 | Decisione | Decisione da prendere |
 | AUTO-01 | Esecutore delle automazioni grafiche | P3 | Funzione | Da fare |
 | OCR-01 | Leggere PDF scansionati | P3 | Funzione | Da fare |
@@ -73,12 +64,9 @@ Le attività rinviate non impediscono di usare il server per i casi d'uso concor
 
 ### Efficienza
 
-| ID | Lavoro | Priorità | Tipo | Stato iniziale |
+| ID | Lavoro | Priorità | Tipo | Stato |
 |---|---|---|---|---|
-| MEM-01 | Contesto e memoria dopo le ottimizzazioni | P2 | Decisione | Decisione da prendere |
 | PERF-01 | Misurare la latenza prima di ottimizzare | P2 | Collaudo | Da collaudare |
-| OLL-01 | Un solo endpoint e trasporto Ollama | P2 | Correzione | Da fare |
-| TEST-01 | Suite affidabile su PC e Linux | P2 | Correzione | Da fare |
 
 ## Primo lotto preparato
 
@@ -192,3 +180,65 @@ Verifiche del lotto FILE-02: 34 test backend mirati (9 scritture, 8 letture,
 smoke check e diff check riusciti. Proposte/permessi testati con persistenza
 simulata; il ciclo di approvazione PostgreSQL e il collaudo con Ollama/server
 reale restano da verificare nell'ambiente finale.
+
+## OBS-01 — diagnostica provider riservata
+
+Implementata classificazione di errori Ollama e trasporto in messaggi fissi,
+limitati ai passaggi modello. Nessun testo grezzo di eccezioni, URL o risposta
+provider viene conservato come error_detail. Messaggi non riconosciuti restano
+generici. Il filtro dell’archivio conserva soltanto i messaggi ammessi, e la
+vista tracce li mostra. Anche letture di vecchi export JSONL filtrano i dettagli
+non ammessi; i vecchi file non vengono riscritti o eliminati.
+
+OBS-01 rimosso dalla tabella dei lavori aperti; resta il collaudo su Ollama e
+PostgreSQL reali. Nessun deploy. Il selettore modello e gli altri percorsi API
+non sono modificati da questo lotto.
+
+Verifiche OBS-01: 17 test backend mirati passati, 8 integrazioni PostgreSQL
+saltate senza DB; 87 test frontend e build passati. Controllati callback, bus,
+filtro archivio, payload SQL simulato, lettura della vista e rendering UI.
+
+## Pulizia attività e verifiche Programmatore
+
+DEP-01, DEP-02, MOD-01 e FILE-01 rimossi dalla tabella del lavoro aperto; FILE-02 conserva solo
+le estensioni non implementate. Lo storico dei lotti resta sopra. Il catalogo
+riconosce il tool del cestino della Libreria e la Home distingue funzioni fatte
+ed estensioni residue. I collaudi server restano aperti.
+
+Programmatore: sintassi senza file applicabili non più attestata come successo;
+interruzioni registrate come verifica non completata; controllo dell'impronta
+prima/dopo la verifica per non attribuire un successo a sorgenti diversi.
+Test Python in copia temporanea nel container, con mount originale read-only,
+rete disabilitata e limiti invariati salvo spazio temporaneo portato a 256 MB.
+Docker reale e installazione server rimangono da collaudare (PRG-01).
+
+Verifiche di questo intervento: 22 test Programmatore passati e uno Graphify
+opzionale saltato, 6 test inventario passati; 87 test frontend e build riusciti.
+Test Docker simulati: non attestano daemon, immagini o deploy reali.
+
+
+## Chiusura delle correzioni dell’audit del 10 ottobre
+
+I 14 rilievi sono riconciliati in [AUDIT_CLOSURE.md](AUDIT_CLOSURE.md), con
+riferimenti al codice e un’unica checklist dell’ambiente reale. Le voci concluse
+sono rimosse dal lavoro aperto, conservando lo storico. La memoria rimane
+selettiva: questa scelta è confermata, non una decisione ancora sospesa.
+
+Corretti endpoint/trasporto Ollama, distinzione errori filesystem, link condivisi
+attraverso il login, identità del client dal solo proxy fidato e source-map-js
+1.2.2. Il bridge host ora esegue i controlli del workspace su copia verificata;
+la sua installazione conserva tutti gli override Compose. Documentazione e Home
+sono allineate. I test con link simbolici indicano il prerequisito Windows
+quando manca; il test UID/GID Debian è esplicitamente POSIX. Il caso percorso
+troppo lungo Windows è mappato a 400.
+
+Il branch riporta anche le correzioni Programmatore della PR #33, confluite
+soltanto nel precedente branch Libreria e non in main, e la diagnostica della
+PR #34. Nessun merge o deploy eseguito durante questo lotto.
+
+L’esecuzione delle automazioni, OCR, sincronizzazione e gestione agentica
+avanzata dei documenti restano estensioni future: non sono bug residui dei
+14 rilievi. I collaudi richiedono server, modelli e dati di prova reali.
+
+Verifica finale: 223 test backend passati, 57 saltati per prerequisiti; 90 test
+frontend passati, build riuscita e npm audit senza vulnerabilità segnalate.

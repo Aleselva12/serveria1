@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import secrets
 import shutil
+import stat
 import subprocess
 import tarfile
 import threading
@@ -104,6 +105,7 @@ class Engine:
 
     def scan(self, files):
         result = {}
+        total = 0
         for folder, dirs, names in os.walk(files, followlinks=False):
             dirs[:] = [d for d in dirs if d != '.git']
             for name in dirs+names:
@@ -111,8 +113,14 @@ class Engine:
             for name in names:
                 if name == '.git' and Path(folder) == files: continue
                 path = Path(folder)/name; relative = source_name(path.relative_to(files).as_posix())
-                if path.stat().st_size > MAX_FILE: raise ValueError('File oltre 1 MB: '+relative)
-                data = path.read_bytes(); data.decode('utf-8')
+                info = path.stat()
+                if not stat.S_ISREG(info.st_mode): raise ValueError('Sorgente non regolare.')
+                total += info.st_size
+                if len(result) >= 6000 or total > MAX_TOTAL: raise ValueError('Sorgenti oltre il limite (6000 file / 40 MB).')
+                if info.st_size > MAX_FILE: raise ValueError('File oltre 1 MB: '+relative)
+                with path.open('rb') as stream: data = stream.read(MAX_FILE + 1)
+                if len(data) > MAX_FILE: raise ValueError('File oltre 1 MB: '+relative)
+                data.decode('utf-8')
                 result[relative] = sha(data)
         if len(result)>6000 or sum((files/p).stat().st_size for p in result)>MAX_TOTAL:
             raise ValueError('Sorgenti oltre il limite (6000 file / 40 MB).')
@@ -184,6 +192,55 @@ class Engine:
             manifest['commit']=commit; manifest['committed_files']=hashes
             atomic(path/'manifest.json',manifest)
             return {'workspace_id':key,'commit':commit,'branch':'cora/'+key,'base_commit':manifest['base_commit']}
+
+    def check_workspace(self, key, profile, expected_digest):
+        """Run a fixed profile against a private immutable copy, never caller paths."""
+        from updater.check_runner import run
+        import tempfile
+        import stat
+        if profile not in {"python_tests", "typescript", "frontend_build"}:
+            raise ValueError('Profilo non consentito.')
+        if not isinstance(expected_digest, str) or not re.fullmatch(r'[a-f0-9]{64}', expected_digest):
+            raise ValueError('Impronta workspace non valida.')
+        if not self.lock.acquire(blocking=False):
+            raise ValueError('Servizio occupato: riprova dopo il controllo corrente.')
+        try:
+            if self.closed.is_set() or any(j['status'] in BUSY | {'recovery_required'} for j in self.list_jobs()):
+                raise ValueError('Attendi il job di aggiornamento in corso.')
+            path = self.workspaces / str(UUID(key))
+            for item in (path, path/'files', path/'manifest.json', self.workspaces, self.state):
+                if item.is_symlink(): raise ValueError('Link non ammesso nel workspace.')
+            if not (path/'manifest.json').is_file(): raise ValueError('Workspace non disponibile.')
+            files = path/'files'
+            hashes = self.scan(files)
+            # The copy lives outside the API-mounted state and contains no Git metadata.
+            with tempfile.TemporaryDirectory(prefix='check-', dir=self.root) as temporary:
+                snapshot = Path(temporary)
+                digest_rows = []
+                for relative in hashes:
+                    source = files/relative
+                    if not stat.S_ISREG(source.stat().st_mode): raise ValueError('Sorgente non regolare.')
+                    with source.open('rb') as stream: data = stream.read(MAX_FILE + 1)
+                    if len(data) > MAX_FILE or sha(data) != hashes[relative]:
+                        raise ValueError('Workspace cambiato durante la copia.')
+                    # Match Python read_text newline normalization used by workspace_digest.
+                    text = data.decode('utf-8').replace('\r\n', '\n').replace('\r', '\n')
+                    digest_rows.append((relative, sha(text.encode('utf-8'))))
+                    target = snapshot/relative; target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(data); target.chmod(0o644)
+                    # systemd uses UMask=0077; UID 65534 must traverse the mounted copy.
+                    parent = target.parent
+                    while parent != snapshot:
+                        parent.chmod(0o755)
+                        parent = parent.parent
+                if sha(json.dumps(digest_rows).encode()) != expected_digest or self.scan(files) != hashes:
+                    raise ValueError('Workspace cambiato: ripeti la verifica.')
+                snapshot.chmod(0o755)
+                result = run(snapshot, list(hashes), profile)
+                result['environment'] = 'docker-host'
+                return result
+        finally:
+            self.lock.release()
 
     def submit(self, kind, key='', commit='', release_id=''):
         with self.lock:

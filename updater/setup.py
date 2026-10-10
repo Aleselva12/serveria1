@@ -9,11 +9,13 @@ import subprocess
 from updater.engine import atomic
 
 
-def initialize(root, project_root, active_commit, listen='', port=9021, github_repository='', github_branch='main'):
+def initialize(root, project_root, active_commit, listen='', port=9021, github_repository='', github_branch='main', compose_files=()):
     import re
     if github_repository and not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',github_repository):raise ValueError('Usa owner/repository per GitHub.')
     subprocess.run(['git','check-ref-format','refs/heads/'+github_branch],check=True)
     root=Path(root).resolve();project_root=Path(project_root).resolve()
+    overrides = [(Path(file) if Path(file).is_absolute() else project_root/Path(file)).resolve() for file in compose_files]
+    if any(not file.is_file() for file in overrides): raise ValueError('Override Compose non trovato.')
     if root.exists(): raise ValueError('Directory updater già presente; non viene sovrascritta.')
     deploy=project_root/'deploy.env'
     settings={}
@@ -40,7 +42,9 @@ def initialize(root, project_root, active_commit, listen='', port=9021, github_r
         bridge='http://host.docker.internal:'+str(port)
         updated=original+'\nCORA_UPDATER_URL='+bridge+'\nCORA_UPDATER_TOKEN='+token+'\n'
         deploy.write_text(updated);deploy.chmod(0o600)
-        resolved=subprocess.check_output(['docker','compose','--env-file',str(deploy),'-f',str(project_root/'compose.yml'),'config','--format','json'],cwd=project_root,text=True)
+        flags = ['docker','compose','--env-file',str(deploy),'-f',str(project_root/'compose.yml')]
+        for file in overrides: flags += ['-f', str(file)]
+        resolved=subprocess.check_output(flags+['config','--format','json'],cwd=project_root,text=True)
         config=json.loads(resolved)
         # Resolve before installation; runtime changes to compose.yml do not change host authority.
         atomic(root/'compose.json',config);(root/'compose.json').chmod(0o600)
@@ -58,7 +62,7 @@ def initialize(root, project_root, active_commit, listen='', port=9021, github_r
 
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--root',required=True);p.add_argument('--project-root',default='.');p.add_argument('--active-commit',required=True);p.add_argument('--listen',default='');p.add_argument('--port',type=int,default=9021);p.add_argument('--github-repository',default='');p.add_argument('--github-branch',default='main');args=p.parse_args()
-    initialize(args.root,args.project_root,args.active_commit,args.listen,args.port,args.github_repository,args.github_branch)
+    p=argparse.ArgumentParser();p.add_argument('--root',required=True);p.add_argument('--project-root',default='.');p.add_argument('--active-commit',required=True);p.add_argument('--listen',default='');p.add_argument('--port',type=int,default=9021);p.add_argument('--github-repository',default='');p.add_argument('--github-branch',default='main');p.add_argument('--compose-file',action='append',default=[]);args=p.parse_args()
+    initialize(args.root,args.project_root,args.active_commit,args.listen,args.port,args.github_repository,args.github_branch,args.compose_file)
 
 if __name__=='__main__':main()
