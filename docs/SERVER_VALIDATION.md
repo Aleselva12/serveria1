@@ -1,6 +1,6 @@
 # Registro delle verifiche prioritarie
 
-Aggiornato l'11 ottobre 2026. Baseline del codice: `68f1125` su main.
+Aggiornato il 12 ottobre 2026. Baseline del server: `68f1125` su main.
 Questo registro distingue riscontri della sessione di installazione, preparazione
 nel repository e prove ancora da eseguire. Non abbiamo una sessione SSH dal
 workspace di sviluppo al server: gli esiti reali vanno raccolti dal suo terminale.
@@ -43,7 +43,7 @@ pulsante insieme alle immagini di Cora.
 | REM-01 | Riscontrato | Login da telefono via Tailscale; upload resta FILE-03 |
 | DEP-01 | Parziale | Inventario reale: servizi sani, mount/permessi storage, database/pgvector e modelli disponibili; bridge e commit registrato concordi. Restano BKP-01 e PRG-02 |
 | PRG-01 | Check Docker completati; modello da collaudare | Isolamento Python, riconoscimento del test fallito, TypeScript e build frontend superati sul server. Runner corretto installato nel bridge. Resta la richiesta reale Ollama in Programma |
-| PERF-01 | Preparato, da misurare | Tre richieste Ollama sintetiche e esportazione delle metriche di un run Cora; nessuna misura reale ancora disponibile |
+| PERF-01 | Parziale | Tre campioni diretti Ollama raccolti; resta confronto con richiesta reale Cora (coda, contesto, modello e tool) |
 | BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
 | PRG-02 | Da collaudare | Preparare/applicare una nuova release, confrontare commit e immagini, provare recupero in ambiente separato. Apertura del pulsante o aggiornamento senza novità non attestano il ciclo |
 | PRG-03 | Nuovo, da configurare | La deploy key di lettura non può pubblicare branch. Definire credenziale dedicata di scrittura solo se si vuole usare “Pubblica” in Programma; aggiornamenti in lettura restano possibili |
@@ -137,6 +137,34 @@ I quattro check Docker previsti sono ora riscontrati sul server. La prima
 build fallita resta nella cronologia, seguita dal nuovo esito positivo.
 PRG-01 rimane parziale per la prova reale del Programmatore con Ollama;
 PERF-01 rimane aperto fino alla misura del modello e del percorso Cora.
+
+### Ollama diretto, 12 ottobre ore 00:34 italiane
+
+Rapporto `sampled_at: 2026-10-11T22:34:01.204593+00:00`, modello
+`qwen3:0.6b`, commit server ancora `68f1125`. Inventario e probe positivi;
+hash runner installato `e782e9a0e3ee70936cd8e6c18035f0cfd1d3b06692c9d090ba7b84bcbe27d847`.
+
+| Campione | Totale esterno | Primo token* | Caricamento | Prompt | Generazione | Token generati |
+|---|---|---|---|---|---|---|
+| 1 | 13.603 s | 8.923 s | 7.388 s | 1.308 s | 4.819 s | 64 |
+| 2 | 4.908 s | 0.259 s | 0.001 s | 0.068 s | 4.785 s | 64 |
+| 3 | 5.826 s | 0.342 s | 0.002 s | 0.090 s | 5.661 s | 64 |
+
+*Il collector considera sia testo sia ragionamento: non è necessariamente il
+primo testo visibile all'utente. Prompt di 25 token per ogni campione.
+Tutti terminano con `done_reason: length`: il limite di 64 token è stato
+raggiunto, quindi il completamento semantico della risposta non è attestato.
+Il primo campione include 7.388 s di caricamento; i successivi lo riducono a
+circa 1–2 ms. I tempi sono diretti API-container → Ollama e non misurano il
+runtime Cora, la memoria, i tool o la UI. Nessuna diagnosi hardware è ancora
+supportata da questi soli dati.
+
+Prossima prova: workspace minimo nuovo (README e cartella tests), richiesta
+reale del Programmatore per `sum_numbers.py` e due test unittest. Non usare
+il workspace di isolamento che conserva il fallimento deliberato, e non
+duplicare l'intera suite del repository per questa prova minima. Registrare
+workspace e ID run, esito dei file/check e metriche di Attività senza
+pubblicazione/applicazione della bozza.
 
 Non assegnare “completato” ai collaudi finché manca il rapporto del server.
 Conservare gli esiti con data, commit attivo e immagini. Quando emerge un
