@@ -63,7 +63,7 @@ PR per eseguire questo primo passo.
 ```bash
 cd /srv/cora-server-test
 mkdir -p -m 700 "$HOME/cora-checks"
-git fetch origin verify/server-priorities
+git fetch git@github.com:Aleselva12/serveria1.git verify/server-priorities
 git show FETCH_HEAD:deploy/priority_checks.py > "$HOME/cora-checks/priority_checks.py"
 python3 "$HOME/cora-checks/priority_checks.py" inspect \
   --compose-file compose.server-test.yml --compose-file compose.files.yml \
@@ -94,7 +94,7 @@ dipendenze. Le prove successive sono offline.
 
 ```bash
 cd /srv/cora-server-test
-git fetch origin main
+git fetch git@github.com:Aleselva12/serveria1.git main
 ACTIVE_COMMIT=$(python3 -c 'import json; print(json.load(open("/srv/cora-tools/updater/current.json"))["commit"])')
 CHECK_SOURCE="$HOME/cora-checks/source-$ACTIVE_COMMIT"
 git worktree add --detach "$CHECK_SOURCE" "$ACTIVE_COMMIT"
