@@ -6,10 +6,10 @@ La revisione continua durante gli interventi: non è una certificazione di ogni
 percorso né del server installato.
 
 La lista visualizzata dalla Home è in
-[project-work.json](../frontend/src/services/project-work.json).
-Ogni voce ha ID stabile, categoria, priorità, tipo, stato, criterio di completamento
-e sorgenti da riesaminare. Questa tabella è una fotografia del primo lotto;
-per lo stato corrente fare riferimento alla lista della Home.
+[connections.ts](../frontend/src/services/connections.ts).
+Le verifiche prioritarie hanno ID e stato. Le tabelle storiche sotto sono una
+fotografia del primo lotto; il registro corrente dei collaudi e dei percorsi è
+[SERVER_VALIDATION.md](SERVER_VALIDATION.md), aggiornato all'11 ottobre 2026.
 
 ## Come dividere il lavoro
 
@@ -43,7 +43,7 @@ Le attività rinviate non impediscono di usare il server per i casi d'uso concor
 
 | ID | Lavoro | Priorità | Tipo | Stato |
 |---|---|---|---|---|
-| REM-01 | Telefono tramite Tailscale | P1 | Collaudo | Da collaudare |
+| REM-01 | Telefono tramite Tailscale | P1 | Collaudo | Accesso riscontrato; upload resta FILE-03 |
 | BKP-01 | Ripristino completo su ambiente sacrificabile | P1 | Collaudo | Da collaudare |
 | FILE-03 | Upload e foto da telefono | P2 | Collaudo | Da collaudare |
 | EXT-01 | Programmi remoti non IA | P3 | Decisione | Successivamente |

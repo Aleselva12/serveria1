@@ -20,7 +20,12 @@ export type ConnectionKey = keyof typeof missingConnections;
 
 /** Stato delle funzionalità nel codice; distinto dal collaudo sul server. */
 export const homeRoadmap = {
-  updatedAt: "10/10/2026",
+  updatedAt: "11/10/2026",
+  serverEvidence: [
+    { label: "Accesso dal telefono", detail: "Accesso a Cora tramite Tailscale riscontrato nella sessione di installazione." },
+    { label: "Servizi del server", detail: "API, web e database risultavano avviati e sani durante l’installazione. Le metriche sotto mostrano lo stato corrente." },
+    { label: "Servizi di aggiornamento", detail: "Bridge host e pulsante installati e avviati; lettura della repository GitHub verificata. Resta da collaudare il ciclo completo con una nuova release." },
+  ],
   available: [
     { label: "Accesso e configurazione allineati", detail: "Link condivisi attraverso il login, tentativi distinti per client dal proxy fidato, endpoint Ollama unico e messaggi separati per errori di salvataggio. Richiedono ricostruzione API/web e collaudo sul server." },
     { label: "Copie e modifiche controllate nella Libreria IA", detail: "Copie senza sovrascrittura; modifiche testuali e aggiunte Word approvate in Attività e legate alla versione letta. Cestino solo dopo conferma, senza eliminazione definitiva. Versione precedente conservata nel cestino prima della modifica." },
@@ -35,10 +40,10 @@ export const homeRoadmap = {
     { label: "Allegati chat, selezione tool e Audio", detail: "Documenti allegati alle richieste, tool automatici o selezionati manualmente per il singolo invio e pagina Audio per registrazioni salvate, trascrizione locale, correzioni ed esportazione." },
   ],
   next: [
-    { label: "Collaudare Libreria IA con Ollama", detail: "Verificare scelta autonoma dei tool, permessi, fonti e streaming con documenti reali sul server. I test simulati non certificano il comportamento del modello." },
-    { label: "Collaudare il Programmatore sul server", detail: "Installare o aggiornare il bridge host con i controlli workspace; preparare le immagini Docker Python e frontend, verificare percorsi e isolamento ed eseguire una richiesta reale con il modello Ollama. I test del repository non certificano il modello o il deployment." },
-    { label: "Misurare la latenza sul PC reale", detail: "Usare la profilazione in Attività per distinguere attesa, contesto, modello e tool prima di scegliere gli interventi." },
-    { label: "Verificare il deploy sul server", detail: "Il profilo Docker Debian e le istruzioni di backup/ripristino sono presenti; verificare percorsi, modelli locali, accesso via Tailscale e ripristino sulla macchina finale." },
+    { id: "LIB-01", state: "Da collaudare", label: "Collaudare Libreria IA con Ollama", detail: "Verificare scelta autonoma dei tool, permessi, fonti e streaming con un documento di prova sul server. Registrare il risultato in Attività; i test simulati non certificano il modello." },
+    { id: "PRG-01", state: "Parziale", label: "Collaudare il Programmatore sul server", detail: "Bridge installato. Sono preparati controlli per immagini Python/frontend, isolamento e riconoscimento dei test falliti; vanno eseguiti sul server, seguiti da una richiesta reale in Programma. La chiave GitHub configurata è di sola lettura: la pubblicazione delle bozze resta da configurare e collaudare." },
+    { id: "PERF-01", state: "Da misurare", label: "Misurare la latenza sul PC reale", detail: "Preparati tre campioni diretti di Ollama e l’esportazione delle sole metriche di una richiesta Cora. Raccogliere anche la profilazione in Attività: coda, contesto, modello e tool. Nessun tempo reale è ancora registrato." },
+    { id: "DEP-01", state: "Parziale", label: "Verificare il deploy sul server", detail: "Servizi, accesso Tailscale e lettura GitHub riscontrati. Preparato l’inventario di percorsi, mount, modelli e bridge. Restano verifica dei backup, ripristino in ambiente separato e ciclo completo di una nuova release; il NAS richiede un backup distinto." },
   ],
   deferred: [
     { label: "Gestione avanzata documenti IA", detail: "Da progettare modifica strutturale Word/PDF, importazione da radici esterne autorizzate e ripristino agentico. Il ripristino della versione precedente richiede una destinazione libera: spostare prima il file corrente con la pagina File." },
