@@ -35,7 +35,7 @@ export const programmerApi = {
     runtimeRequest<{
       model: string;
       skills: Record<string, string>;
-      checks: { docker_cli: boolean };
+      checks: { docker_cli: boolean; graphify_cli?: boolean };
     }>("/programmer/status"),
   workspaces: () => runtimeRequest<Workspace[]>("/programmer/workspaces"),
   createGit: (title: string) =>

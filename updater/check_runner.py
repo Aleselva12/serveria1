@@ -34,7 +34,13 @@ def run(files, paths, profile, *, checkpoint=lambda: None, docker=_docker, mount
               "for(const f of ['package.json','package-lock.json']){const h=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');"
               "if(h('/work/frontend/'+f)!==h('/opt/frontend/'+f))throw new Error('Dependency manifest changed: rebuild trusted check image');}"
               "fs.cpSync('/work/frontend','/tmp/project',{recursive:true});"
-              "fs.symlinkSync('/opt/frontend/node_modules','/tmp/project/node_modules','dir');"
+              # Own the module root in tmpfs: Vite writes .vite-temp beside its
+              # imports. Each installed dependency still points to the read-only
+              # image, so only caches/build outputs can be written by the check.
+              "fs.mkdirSync('/tmp/project/node_modules');"
+              "for(const name of fs.readdirSync('/opt/frontend/node_modules')){"
+              "if(name==='.vite'||name==='.vite-temp')continue;"
+              "fs.symlinkSync('/opt/frontend/node_modules/'+name,'/tmp/project/node_modules/'+name);}"
               "const r=cp.spawnSync('/opt/frontend/node_modules/.bin/tsc',['-b'],{cwd:'/tmp/project',stdio:'inherit'});"
               "if(r.error)throw r.error;if(r.status!==0)process.exit(r.status??1);")
     if profile == "frontend_build":

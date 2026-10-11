@@ -20,10 +20,10 @@ export type ConnectionKey = keyof typeof missingConnections;
 
 /** Stato delle funzionalità nel codice; distinto dal collaudo sul server. */
 export const homeRoadmap = {
-  updatedAt: "11/10/2026",
+  updatedAt: "12/10/2026",
   serverEvidence: [
     { label: "Accesso dal telefono", detail: "Accesso a Cora tramite Tailscale riscontrato nella sessione di installazione." },
-    { label: "Servizi del server", detail: "API, web e database risultavano avviati e sani durante l’installazione. Le metriche sotto mostrano lo stato corrente." },
+    { label: "Servizi e percorsi del server", detail: "Inventario dell’11 ottobre: API, web e database sani; storage accessibile, bridge raggiungibile e workspace allineati. Le metriche sotto mostrano lo stato corrente." },
     { label: "Servizi di aggiornamento", detail: "Bridge host e pulsante installati e avviati; lettura della repository GitHub verificata. Resta da collaudare il ciclo completo con una nuova release." },
   ],
   available: [
@@ -41,9 +41,9 @@ export const homeRoadmap = {
   ],
   next: [
     { id: "LIB-01", state: "Da collaudare", label: "Collaudare Libreria IA con Ollama", detail: "Verificare scelta autonoma dei tool, permessi, fonti e streaming con un documento di prova sul server. Registrare il risultato in Attività; i test simulati non certificano il modello." },
-    { id: "PRG-01", state: "Parziale", label: "Collaudare il Programmatore sul server", detail: "Bridge installato. Sono preparati controlli per immagini Python/frontend, isolamento e riconoscimento dei test falliti; vanno eseguiti sul server, seguiti da una richiesta reale in Programma. La chiave GitHub configurata è di sola lettura: la pubblicazione delle bozze resta da configurare e collaudare." },
-    { id: "PERF-01", state: "Da misurare", label: "Misurare la latenza sul PC reale", detail: "Preparati tre campioni diretti di Ollama e l’esportazione delle sole metriche di una richiesta Cora. Raccogliere anche la profilazione in Attività: coda, contesto, modello e tool. Nessun tempo reale è ancora registrato." },
-    { id: "DEP-01", state: "Parziale", label: "Verificare il deploy sul server", detail: "Servizi, accesso Tailscale e lettura GitHub riscontrati. Preparato l’inventario di percorsi, mount, modelli e bridge. Restano verifica dei backup, ripristino in ambiente separato e ciclo completo di una nuova release; il NAS richiede un backup distinto." },
+    { id: "PRG-01", state: "Parziale", label: "Collaudare il Programmatore sul server", detail: "Check Docker completati sul server: isolamento Python, riconoscimento dei test falliti, TypeScript e build frontend. Correzione della cache Vite installata nel bridge e verificata. Resta una richiesta reale con qwen3:0.6b. Pubblicazione GitHub ancora da configurare: la chiave attuale è di sola lettura." },
+    { id: "PERF-01", state: "Parziale", label: "Misurare la latenza sul PC reale", detail: "Ollama qwen3:0.6b misurato: 13,60 s al primo campione (7,39 s di caricamento), poi 4,91 e 5,83 s. Tutti hanno raggiunto il limite di 64 token: risposta completa non attestata. Resta il confronto con una richiesta reale Cora e la profilazione di coda, contesto, modello e tool." },
+    { id: "DEP-01", state: "Parziale", label: "Verificare il deploy sul server", detail: "Inventario superato per servizi, storage, database, disponibilità modelli e bridge. Restano verifica dei backup, ripristino in ambiente separato e ciclo completo di una nuova release; il NAS richiede un backup distinto. L’accesso ai file di sistema in sola lettura va collaudato separatamente." },
   ],
   deferred: [
     { label: "Gestione avanzata documenti IA", detail: "Da progettare modifica strutturale Word/PDF, importazione da radici esterne autorizzate e ripristino agentico. Il ripristino della versione precedente richiede una destinazione libera: spostare prima il file corrente con la pagina File." },
