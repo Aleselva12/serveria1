@@ -43,6 +43,7 @@ pulsante insieme alle immagini di Cora.
 | REM-01 | Riscontrato | Login da telefono via Tailscale; upload resta FILE-03 |
 | DEP-01 | Parziale | Inventario reale: servizi sani, mount/permessi storage, database/pgvector e modelli disponibili; bridge e commit registrato concordi. Restano BKP-01 e PRG-02 |
 | DB-01 | Nuovo, da diagnosticare | Recupero PostgreSQL terminato, servizi tornati sani. Checkpointer uscito con codice 2 il 12/10: raccogliere errori completi e causa prima di chiudere l'episodio |
+| DEP-02 | Nuovo, da verificare | Il 12/10 ore 01:12 updater registra ancora commit iniziale 68f1125 e images null, mentre main contiene PR #38. Verificare immagini/UI effettive e stato release; non modificare manualmente current.json |
 | PRG-01 | Check Docker completati; modello da collaudare | Isolamento Python, riconoscimento del test fallito, TypeScript e build frontend superati sul server. Runner corretto installato nel bridge. Resta la richiesta reale Ollama in Programma |
 | PERF-01 | Parziale | Tre campioni diretti Ollama raccolti; resta confronto con richiesta reale Cora (coda, contesto, modello e tool) |
 | BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
@@ -219,6 +220,16 @@ checkpointer. Lo stato healthy attuale chiude il blocco di disponibilità,
 non la diagnosi DB-01. Raccogliere log recenti filtrati per ERROR/PANIC/FATAL,
 checkpointer e problemi di file/accesso; confermare `pg_is_in_recovery()`
 e versione attiva registrata. Non ripetere aggiornamenti durante la diagnosi.
+
+Alle 01:12 `SELECT pg_is_in_recovery()` restituisce `f`. Il log filtrato
+ribadisce recupero concluso, senza spiegazione del checkpointer. Servono le
+righe complete del breve intervallo di avvio 23:05:54–23:06:02 UTC.
+Il registro updater è ancora `68f112515a89cb16a26e4365f45b6c1f8fa9eb03`,
+`updated_at: 2026-10-11T18:04:03.821063Z`, `images: null`: non attesta una
+nuova release completata. Questo dato non identifica da solo il codice nei
+container, che potrebbe essere stato ricostruito fuori dal bridge. Verificare
+immagini API/web e presenza della nuova UI (`copilot-send-status`) prima di
+proseguire la prova del modello. Non riallineare il registro a mano.
 
 Non assegnare “completato” ai collaudi finché manca il rapporto del server.
 Conservare gli esiti con data, commit attivo e immagini. Quando emerge un
