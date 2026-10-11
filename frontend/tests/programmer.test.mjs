@@ -71,3 +71,24 @@ test('failed run keeps the prompt editable and exposes its ID without retrying',
   assert.equal(calls.filter(c=>c[0]==='run').length,1);
  } finally {if(r)await act(async()=>r.unmount());globalThis.__programmerApi.run=original;}
 });
+test('minimal workspace cannot start inapplicable checks; generated tests enable Python checks',async()=>{
+ const originalFiles=globalThis.__programmerApi.files,originalRun=globalThis.__programmerApi.run;
+ let paths=['README.md','tests/__init__.py'],r;
+ globalThis.__programmerApi.files=async()=>({files:paths});
+ globalThis.__programmerApi.run=async()=>{paths=[...paths,'sum_numbers.py','tests/test_sum_numbers.py'];return {response:'File creati'};};
+ try {
+  await act(async()=>{r=create(React.createElement(Programmer));});
+  await act(async()=>button(r,'Crea workspace').props.onClick());
+  for(const name of ['Test Docker','Verifica TypeScript','Build frontend Docker','Costruisci mappa Graphify'])
+   assert.equal(button(r,name).props.disabled,true,name);
+  assert.equal(button(r,'Verifica sintassi').props.disabled,false);
+  assert.ok(JSON.stringify(r.toJSON()).includes('non contiene test eseguibili'));
+  await act(async()=>r.root.findByProps({'aria-label':'Messaggio al Copilot'}).props.onChange({target:{value:'Crea funzione e test'}}));
+  await act(async()=>r.root.findByProps({'aria-label':'Invia messaggio al Copilot'}).props.onClick());
+  assert.equal(button(r,'Test Docker').props.disabled,false);
+  assert.equal(button(r,'Build frontend Docker').props.disabled,true);
+ } finally {
+  if(r)await act(async()=>r.unmount());
+  globalThis.__programmerApi.files=originalFiles;globalThis.__programmerApi.run=originalRun;
+ }
+});

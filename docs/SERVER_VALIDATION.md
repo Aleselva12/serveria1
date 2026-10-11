@@ -47,7 +47,7 @@ pulsante insieme alle immagini di Cora.
 | BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
 | PRG-02 | Da collaudare | Preparare/applicare una nuova release, confrontare commit e immagini, provare recupero in ambiente separato. Apertura del pulsante o aggiornamento senza novità non attestano il ciclo |
 | PRG-03 | Nuovo, da configurare | La deploy key di lettura non può pubblicare branch. Definire credenziale dedicata di scrittura solo se si vuole usare “Pubblica” in Programma; aggiornamenti in lettura restano possibili |
-| PRG-04 | Correzione UI preparata, diagnosi run aperta | Copilot sempre scrivibile per preparare una bozza; invio resta vincolato a connessione/workspace/operazioni. Prompt conservato dopo errore e ID run visibile. Installazione UI e causa dell'esecuzione fallita da verificare |
+| PRG-04 | Correzione UI preparata, da installare | Copilot sempre scrivibile, prompt conservato e ID run visibile. Controlli Python/frontend disabilitati quando mancano i relativi file; mappa disabilitata senza Graphify. Run ricevuti identificati come check/mappa, nessuna prova modello attestata |
 | BKP-02 | Nuovo, da verificare | Il backup Cora copre database e `/state`, non il NAS esterno. Verificare disponibilità e ripristino del backup NAS |
 | LIB-01 | Da collaudare | Un documento sintetico in Libreria: ricerca autonoma, fonti corrette, streaming e rispetto dei permessi |
 | FILE-03 | Da collaudare | Upload e foto da telefono; separato dal solo login |
@@ -183,6 +183,24 @@ del blocco invio e l'ID run, conserva il prompt su errore senza ripetere richies
 Tre test UI mirati superati; build TypeScript/Vite riuscita.
 Occorre raccogliere kind/stato/error_type e diagnostica sicura dei run della
 stessa bozza. Nessuna richiesta viene rieseguita per raccogliere questi dati.
+
+### Diagnostica ricevuta, 12 ottobre ore 00:56
+
+Gli ultimi cinque run della bozza sono uno `programmer_graph` fallito,
+tre `programmer_check` falliti con `ValueError`, uno `programmer_check`
+completato; nessuno di questi è una richiesta `programmer` al modello.
+Run mappa `b29b9ab6-abd1-401e-b12a-a8fde8b395d4`; nessun dettaglio di errore
+presente nel campione diagnostico ricevuto. Non attribuire questi errori a Ollama.
+
+La bozza iniziale non contiene `tests/test*.py` o `frontend/tsconfig.json`:
+Python test runner e frontend runner rifiutano questi prerequisiti mancanti.
+La UI ora disabilita i rispettivi pulsanti e spiega cosa serve; i test Python
+si abilitano dopo la creazione di un file di test. La disponibilità Graphify
+proviene da `/programmer/status`; senza CLI il pulsante mappa è disabilitato.
+La causa precisa del singolo run Graphify non è presente nel rapporto ricevuto.
+Quattro test UI mirati passati, inclusa riabilitazione dei check dopo creazione
+dei file. Queste correzioni successive alla PR #37 sono nella PR #38;
+richiedono integrazione in main e aggiornamento del frontend installato.
 
 Non assegnare “completato” ai collaudi finché manca il rapporto del server.
 Conservare gli esiti con data, commit attivo e immagini. Quando emerge un

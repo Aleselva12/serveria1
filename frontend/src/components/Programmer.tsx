@@ -39,6 +39,7 @@ export default function Programmer() {
     [error, setError] = useState(""),
     [viewDiff, setViewDiff] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [graphifyAvailable, setGraphifyAvailable] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null),
     selection = useRef(""),
@@ -54,6 +55,7 @@ export default function Programmer() {
       if (!mounted.current) return;
       setOnline(true);
       setModel(status.model);
+      setGraphifyAvailable(status.checks.graphify_cli === true);
       setWorkspaces(rows);
       setError("");
     } catch (e) {
@@ -249,6 +251,8 @@ export default function Programmer() {
     }
   }
   const current = workspaces.find((w) => w.id === selected);
+  const hasPythonTests = files.some((path) => path.startsWith("tests/test") && path.endsWith(".py"));
+  const hasFrontend = files.includes("frontend/tsconfig.json");
   const sendBlocked = !online
     ? "Backend non disponibile. Puoi preparare il messaggio; ricollega il Programmatore per inviarlo."
     : !selected
@@ -431,19 +435,22 @@ export default function Programmer() {
                   Verifica contratti
                 </button>
                 <button
-                  disabled={!selected || busy || importing || editing !== null}
+                  disabled={!selected || busy || importing || editing !== null || !hasFrontend}
+                  title={hasFrontend ? undefined : "Richiede frontend/tsconfig.json nel workspace."}
                   onClick={() => void execute("typescript")}
                 >
                   Verifica TypeScript
                 </button>
                 <button
-                  disabled={!selected || busy || importing || editing !== null}
+                  disabled={!selected || busy || importing || editing !== null || !hasFrontend}
+                  title={hasFrontend ? undefined : "Richiede frontend/tsconfig.json nel workspace."}
                   onClick={() => void execute("frontend_build")}
                 >
                   Build frontend Docker
                 </button>
                 <button
-                  disabled={!selected || busy || importing || editing !== null}
+                  disabled={!selected || busy || importing || editing !== null || !hasPythonTests}
+                  title={hasPythonTests ? undefined : "Richiede almeno un file tests/test*.py nel workspace."}
                   onClick={() => void execute("python_tests")}
                 >
                   Test Docker
@@ -457,12 +464,15 @@ export default function Programmer() {
                   </button>
                 )}
               </div>
+              {selected && !hasPythonTests && <p>I test Docker richiedono almeno un file <code>tests/test*.py</code>. Il solo <code>tests/__init__.py</code> non contiene test eseguibili.</p>}
+              {selected && !hasFrontend && <p>Le verifiche frontend non si applicano a questa bozza: manca <code>frontend/tsconfig.json</code>.</p>}
               <button
-                disabled={!selected || busy || importing || editing !== null}
+                disabled={!selected || busy || importing || editing !== null || !graphifyAvailable}
                 onClick={() => void execute("graph")}
               >
                 Costruisci mappa Graphify
               </button>
+              {!graphifyAvailable && <p>Graphify non risulta installato nel backend. La mappa non è necessaria per creare la funzione e provarne i test.</p>}
               <p>
                 Graphify:{" "}
                 {graph?.available
