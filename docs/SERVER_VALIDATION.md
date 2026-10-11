@@ -47,6 +47,7 @@ pulsante insieme alle immagini di Cora.
 | BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
 | PRG-02 | Da collaudare | Preparare/applicare una nuova release, confrontare commit e immagini, provare recupero in ambiente separato. Apertura del pulsante o aggiornamento senza novità non attestano il ciclo |
 | PRG-03 | Nuovo, da configurare | La deploy key di lettura non può pubblicare branch. Definire credenziale dedicata di scrittura solo se si vuole usare “Pubblica” in Programma; aggiornamenti in lettura restano possibili |
+| PRG-04 | Correzione UI preparata, diagnosi run aperta | Copilot sempre scrivibile per preparare una bozza; invio resta vincolato a connessione/workspace/operazioni. Prompt conservato dopo errore e ID run visibile. Installazione UI e causa dell'esecuzione fallita da verificare |
 | BKP-02 | Nuovo, da verificare | Il backup Cora copre database e `/state`, non il NAS esterno. Verificare disponibilità e ripristino del backup NAS |
 | LIB-01 | Da collaudare | Un documento sintetico in Libreria: ricerca autonoma, fonti corrette, streaming e rispetto dei permessi |
 | FILE-03 | Da collaudare | Upload e foto da telefono; separato dal solo login |
@@ -165,6 +166,23 @@ il workspace di isolamento che conserva il fallimento deliberato, e non
 duplicare l'intera suite del repository per questa prova minima. Registrare
 workspace e ID run, esito dei file/check e metriche di Attività senza
 pubblicazione/applicazione della bozza.
+
+### Blocco UI e run fallito, 12 ottobre ore 00:51
+
+Workspace minimo creato: `ad47686e-4820-42c0-935f-660d34d6dbda`, titolo
+`Collaudo Ollama - somma`, due file iniziali. Lo screenshot successivo mostra
+selezione corretta del workspace, zero modifiche e banner generico
+“Esecuzione failed”. L'utente segnala che il campo chat non è scrivibile e
+che un pulsante genera l'errore. Lo screenshot non identifica quale azione
+abbia prodotto il run; non attesta ancora un errore del modello.
+
+Nel codice il textarea era disabilitato per backend offline, nessuna selezione,
+run in corso o editor aperto. La correzione consente sempre di preparare un
+messaggio, mantiene i controlli sull'invio (anche nel gestore), mostra il motivo
+del blocco invio e l'ID run, conserva il prompt su errore senza ripetere richieste.
+Tre test UI mirati superati; build TypeScript/Vite riuscita.
+Occorre raccogliere kind/stato/error_type e diagnostica sicura dei run della
+stessa bozza. Nessuna richiesta viene rieseguita per raccogliere questi dati.
 
 Non assegnare “completato” ai collaudi finché manca il rapporto del server.
 Conservare gli esiti con data, commit attivo e immagini. Quando emerge un

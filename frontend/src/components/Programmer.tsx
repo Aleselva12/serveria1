@@ -141,7 +141,7 @@ export default function Programmer() {
     }
   }
   async function execute(profile?: string) {
-    if (busy || editing !== null || !selected || (!profile && !draft.trim())) return;
+    if (!online || busy || editing !== null || !selected || (!profile && !draft.trim())) return;
     const id = selected,
       message = draft.trim();
     setBusy(true);
@@ -195,6 +195,7 @@ export default function Programmer() {
       if (mounted.current) {
         setError(String(e));
         setState("Esito da verificare in Attività");
+        if (!profile) setDraft((current) => current || message);
       }
     } finally {
       if (mounted.current) setBusy(false);
@@ -248,6 +249,15 @@ export default function Programmer() {
     }
   }
   const current = workspaces.find((w) => w.id === selected);
+  const sendBlocked = !online
+    ? "Backend non disponibile. Puoi preparare il messaggio; ricollega il Programmatore per inviarlo."
+    : !selected
+      ? "Seleziona un workspace per inviare il messaggio."
+      : busy
+        ? "Esecuzione in corso. Puoi preparare il prossimo messaggio."
+        : editing !== null
+          ? "Salva o chiudi l’editor del file prima di inviare."
+          : "";
   return (
     <section className="content-page code-page">
       <div className="page-heading">
@@ -513,18 +523,21 @@ export default function Programmer() {
               rows={3}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              disabled={!online || !selected || busy || editing !== null}
               placeholder="Descrivi il tool o l’automazione…"
               aria-label="Messaggio al Copilot"
+              aria-describedby={sendBlocked ? "copilot-send-status" : undefined}
             />
             <button
               disabled={!online || !selected || busy || editing !== null || !draft.trim()}
               onClick={() => void execute()}
               aria-label="Invia messaggio al Copilot"
+              title={sendBlocked || "Invia messaggio al Copilot"}
             >
               <Send size={16} />
             </button>
           </div>
+          {sendBlocked && <small id="copilot-send-status">{sendBlocked}</small>}
+          {runId && <small>ID esecuzione: <code>{runId}</code></small>}
           {busy && runId && (
             <button onClick={() => void stop()}>Ferma esecuzione</button>
           )}
