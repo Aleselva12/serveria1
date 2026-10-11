@@ -42,7 +42,7 @@ pulsante insieme alle immagini di Cora.
 |---|---|---|
 | REM-01 | Riscontrato | Login da telefono via Tailscale; upload resta FILE-03 |
 | DEP-01 | Parziale | Inventario reale: servizi sani, mount/permessi storage, database/pgvector e modelli disponibili; bridge e commit registrato concordi. Restano BKP-01 e PRG-02 |
-| PRG-01 | Parziale, correzione da provare | Immagini costruite; isolamento Python, riconoscimento del test fallito e TypeScript superati sul server. Errore cache Vite identificato e corretto nel runner; installare il solo runner host e riprovare la build. Richiesta reale Ollama ancora da collaudare |
+| PRG-01 | Check Docker completati; modello da collaudare | Isolamento Python, riconoscimento del test fallito, TypeScript e build frontend superati sul server. Runner corretto installato nel bridge. Resta la richiesta reale Ollama in Programma |
 | PERF-01 | Preparato, da misurare | Tre richieste Ollama sintetiche e esportazione delle metriche di un run Cora; nessuna misura reale ancora disponibile |
 | BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
 | PRG-02 | Da collaudare | Preparare/applicare una nuova release, confrontare commit e immagini, provare recupero in ambiente separato. Apertura del pulsante o aggiornamento senza novità non attestano il ciclo |
@@ -121,6 +121,22 @@ Non rieseguire `updater.setup` e non modificare token, Compose o stato.
 Riprovare `frontend_build` nello stesso workspace
 `b28adf9e-ae8b-44da-b463-5d1f6b8a59ba`; mantenere la prima prova fallita
 nella cronologia. Non ricostruire le immagini di check per questa correzione.
+
+### Correzione installata e build superata, ore 20:57
+
+Lo screenshot ricevuto conferma installazione del solo runner dal commit
+`e423fba1197996720c9a342bc48e26cafb442ae8`, copia del file precedente e riavvio
+del bridge con `systemctl is-active` → `active`.
+Nel workspace frontend originale, nuova prova `frontend_build`:
+`passed: true`, `exit_code: 0`, `duration_ms: 30062`.
+Vite 6.4.3 ha compilato 1623 moduli, completando la propria build in 9.62 s.
+I 30.062 s comprendono l'intero controllo (TypeScript, Vite e gestione Docker),
+non soltanto Vite e non una richiesta al modello.
+
+I quattro check Docker previsti sono ora riscontrati sul server. La prima
+build fallita resta nella cronologia, seguita dal nuovo esito positivo.
+PRG-01 rimane parziale per la prova reale del Programmatore con Ollama;
+PERF-01 rimane aperto fino alla misura del modello e del percorso Cora.
 
 Non assegnare “completato” ai collaudi finché manca il rapporto del server.
 Conservare gli esiti con data, commit attivo e immagini. Quando emerge un
