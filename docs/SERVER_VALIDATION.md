@@ -13,9 +13,10 @@ La Home usa gli stessi ID in `frontend/src/services/connections.ts`.
 | Server Debian 13 | `ServerAle`, utente `ale`, `ssh ale@serverale` | Sessione di installazione dell'utente |
 | Checkout Cora | `/srv/cora-server-test` | Non indica necessariamente il codice attivo dopo una release |
 | Compose, in ordine | `compose.yml`, `compose.server-test.yml`, `compose.files.yml` | Terzo file locale: contenuto non ancora esaminato; conservarlo |
-| Stato persistente | Mount API `/state` | Percorso host effettivo ancora da rilevare; confrontarlo con updater |
-| NAS | `/srv/nas/Dati/drive` → `/nas/drive` | Previsto dal profilo server; verificare mount effettivo e permessi |
-| Workspace Programmatore | API `/state/programmer`; host `<state_root>/programmer` | Le due viste devono identificare la stessa directory |
+| Stato persistente | `/srv/cora-server-test/state` → API `/state`, lettura/scrittura | Inventario reale 11/10, allineato allo stato updater |
+| NAS | `/srv/nas/Dati/drive` → `/nas/drive`, lettura/scrittura | Mount rilevato; doctor storage superato |
+| File del sistema host | `/` → API `/host`, sola lettura | Rilevato nell'inventario; collaudo policy/accessi separato FILE-04 |
+| Workspace Programmatore | API `/state/programmer`; host `/srv/cora-server-test/state/programmer` | Allineamento e scrivibilità confermati |
 | Updater | `/srv/cora-tools/updater` | Servizio `cora-updater`, codice fidato sotto `installed/updater` |
 | Versione attiva registrata | `/srv/cora-tools/updater/current.json` | Confrontare anche gli ID delle immagini in esecuzione |
 | Configurazione updater | `config.json`, `compose.json`, `bridge.token` sotto root updater | File privati; non allegare né pubblicare il contenuto |
@@ -40,8 +41,8 @@ pulsante insieme alle immagini di Cora.
 | ID | Stato | Fatto / criterio di chiusura |
 |---|---|---|
 | REM-01 | Riscontrato | Login da telefono via Tailscale; upload resta FILE-03 |
-| DEP-01 | Parziale | API, web e PostgreSQL sani all'installazione; inventario ripetibile preparato. Chiudere dopo conferma dei mount, permessi, modelli, versione attiva e BKP-01 |
-| PRG-01 | Parziale | Bridge installato. Preparato collaudo API → bridge → Docker: isolamento Python, test fallito riconosciuto, TypeScript e build. Eseguirlo e aggiungere richiesta reale in Programma |
+| DEP-01 | Parziale | Inventario reale: servizi sani, mount/permessi storage, database/pgvector e modelli disponibili; bridge e commit registrato concordi. Restano BKP-01 e PRG-02 |
+| PRG-01 | Blocco individuato | Bridge e workspace verificati. Mancano entrambe le immagini Docker di check: costruirle, eseguire isolamento/test fallito/TypeScript/build e richiesta reale in Programma |
 | PERF-01 | Preparato, da misurare | Tre richieste Ollama sintetiche e esportazione delle metriche di un run Cora; nessuna misura reale ancora disponibile |
 | BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
 | PRG-02 | Da collaudare | Preparare/applicare una nuova release, confrontare commit e immagini, provare recupero in ambiente separato. Apertura del pulsante o aggiornamento senza novità non attestano il ciclo |
@@ -49,6 +50,29 @@ pulsante insieme alle immagini di Cora.
 | BKP-02 | Nuovo, da verificare | Il backup Cora copre database e `/state`, non il NAS esterno. Verificare disponibilità e ripristino del backup NAS |
 | LIB-01 | Da collaudare | Un documento sintetico in Libreria: ricerca autonoma, fonti corrette, streaming e rispetto dei permessi |
 | FILE-03 | Da collaudare | Upload e foto da telefono; separato dal solo login |
+| FILE-04 | Nuovo, da collaudare | La radice host è montata su `/host` in sola lettura: verificare radici autorizzate, confini di lettura e accessibilità dei socket host. L'assenza di `/var/run/docker.sock` nell'API non verifica `/host/run/docker.sock` |
+
+## Inventario reale ricevuto il 11 ottobre, ore 20:38 italiane
+
+Rapporto `inspect`, `sampled_at: 2026-10-11T18:38:53.077650+00:00`.
+`ok: false` è spiegato dalle sole immagini di check mancanti:
+`cora-programmer-checks:local` e `cora-programmer-frontend:local`.
+Gli altri requisiti del collector risultano superati.
+
+- API, web e PostgreSQL in esecuzione e `healthy`; updater e pulsante `active`.
+- API UID/GID 1000/1000, workspace scrivibile, mount allineato al bridge,
+  nessun socket presente nel percorso API `/var/run/docker.sock` verificato.
+- Database con pgvector e 2 migrazioni; doctor storage e Ollama superati.
+- Tutti i sei ruoli selezionano `qwen3:0.6b`: disponibilità verificata,
+  generazione e comportamento del Programmatore ancora da collaudare.
+- Audio disabilitato nell'installazione osservata: nessun collaudo Whisper attestato.
+- Commit updater e bridge `68f112515a89cb16a26e4365f45b6c1f8fa9eb03`.
+  Il registro iniziale non contiene ID immagini; conserviamo quelli effettivi:
+  API `sha256:236e7965f7b3635b5926092f9a9478e6419092c579f0a974f906871e1eecffb7`,
+  web `sha256:0c96d6f2db318a80f0ed1c09512ae20fea60a78bb0795db97974c520b8e1043c`,
+  PostgreSQL `sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a`.
+
+Nessun tempo di risposta o ripristino è misurato da questo inventario.
 
 Non assegnare “completato” ai collaudi finché manca il rapporto del server.
 Conservare gli esiti con data, commit attivo e immagini. Quando emerge un
