@@ -1,0 +1,214 @@
+# Registro delle verifiche prioritarie
+
+Aggiornato l'11 ottobre 2026. Baseline del codice: `68f1125` su main.
+Questo registro distingue riscontri della sessione di installazione, preparazione
+nel repository e prove ancora da eseguire. Non abbiamo una sessione SSH dal
+workspace di sviluppo al server: gli esiti reali vanno raccolti dal suo terminale.
+La Home usa gli stessi ID in `frontend/src/services/connections.ts`.
+
+## Percorsi e accessi
+
+| Risorsa | Percorso o accesso | Evidenza / limite |
+|---|---|---|
+| Server Debian 13 | `ServerAle`, utente `ale`, `ssh ale@serverale` | Sessione di installazione dell'utente |
+| Checkout Cora | `/srv/cora-server-test` | Non indica necessariamente il codice attivo dopo una release |
+| Compose, in ordine | `compose.yml`, `compose.server-test.yml`, `compose.files.yml` | Terzo file locale: contenuto non ancora esaminato; conservarlo |
+| Stato persistente | Mount API `/state` | Percorso host effettivo ancora da rilevare; confrontarlo con updater |
+| NAS | `/srv/nas/Dati/drive` → `/nas/drive` | Previsto dal profilo server; verificare mount effettivo e permessi |
+| Workspace Programmatore | API `/state/programmer`; host `<state_root>/programmer` | Le due viste devono identificare la stessa directory |
+| Updater | `/srv/cora-tools/updater` | Servizio `cora-updater`, codice fidato sotto `installed/updater` |
+| Versione attiva registrata | `/srv/cora-tools/updater/current.json` | Confrontare anche gli ID delle immagini in esecuzione |
+| Configurazione updater | `config.json`, `compose.json`, `bridge.token` sotto root updater | File privati; non allegare né pubblicare il contenuto |
+| Pulsante | `/srv/cora-tools/pulsante-aggiorna` | Servizio `pulsante-aggiorna` |
+| Stato pulsante | `/srv/cora-tools/pulsante-aggiorna-state` | Separato dal checkout |
+| Cora | `https://serverale.tail7b83c3.ts.net` → localhost `8090` | Accesso dal telefono riscontrato nella sessione |
+| Pulsante | `https://serverale.tail7b83c3.ts.net:8443` → localhost `9030` | Tailscale Serve e servizio riscontrati |
+| Bridge interno | `http://host.docker.internal:9021` | Autenticato con token; non esporlo tramite Tailscale |
+| GitHub Cora | `Aleselva12/serveria1`, branch `main` | `git ls-remote` riuscito; deploy key di sola lettura |
+| GitHub pulsante | `Aleselva12/pulsante-aggiorna` | Installazione separata dal codice Cora |
+| Backup iniziale | `$HOME/cora-backups/prima-updater-<data>` | Sequenza con backup proseguita; checksum e ripristino ancora da attestare |
+
+Tre file Compose sono livelli della stessa configurazione: base, profilo del
+server e override locale. Non sono tre server. Ogni comando che usa Compose
+deve conservare lo stesso ordine. L'updater congela la configurazione risolta
+all'installazione: cambiare un override sul checkout non aggiorna quel contratto.
+Il codice dell'updater è installato separatamente e non viene aggiornato dal
+pulsante insieme alle immagini di Cora.
+
+## Lavori fatti e da fare
+
+| ID | Stato | Fatto / criterio di chiusura |
+|---|---|---|
+| REM-01 | Riscontrato | Login da telefono via Tailscale; upload resta FILE-03 |
+| DEP-01 | Parziale | API, web e PostgreSQL sani all'installazione; inventario ripetibile preparato. Chiudere dopo conferma dei mount, permessi, modelli, versione attiva e BKP-01 |
+| PRG-01 | Parziale | Bridge installato. Preparato collaudo API → bridge → Docker: isolamento Python, test fallito riconosciuto, TypeScript e build. Eseguirlo e aggiungere richiesta reale in Programma |
+| PERF-01 | Preparato, da misurare | Tre richieste Ollama sintetiche e esportazione delle metriche di un run Cora; nessuna misura reale ancora disponibile |
+| BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
+| PRG-02 | Da collaudare | Preparare/applicare una nuova release, confrontare commit e immagini, provare recupero in ambiente separato. Apertura del pulsante o aggiornamento senza novità non attestano il ciclo |
+| PRG-03 | Nuovo, da configurare | La deploy key di lettura non può pubblicare branch. Definire credenziale dedicata di scrittura solo se si vuole usare “Pubblica” in Programma; aggiornamenti in lettura restano possibili |
+| BKP-02 | Nuovo, da verificare | Il backup Cora copre database e `/state`, non il NAS esterno. Verificare disponibilità e ripristino del backup NAS |
+| LIB-01 | Da collaudare | Un documento sintetico in Libreria: ricerca autonoma, fonti corrette, streaming e rispetto dei permessi |
+| FILE-03 | Da collaudare | Upload e foto da telefono; separato dal solo login |
+
+Non assegnare “completato” ai collaudi finché manca il rapporto del server.
+Conservare gli esiti con data, commit attivo e immagini. Quando emerge un
+problema aggiungere ID, evidenza, prossimo intervento e nuova prova richiesta.
+
+## Primo passo: inventario senza aggiornare il server
+
+Dal terminale del server, come `ale`. Il fetch e `git show` recuperano soltanto
+lo strumento; non cambiano checkout, servizi o immagini. Non serve integrare la
+PR per eseguire questo primo passo.
+
+```bash
+cd /srv/cora-server-test
+mkdir -p -m 700 "$HOME/cora-checks"
+git fetch git@github.com:Aleselva12/serveria1.git verify/server-priorities
+git show FETCH_HEAD:deploy/priority_checks.py > "$HOME/cora-checks/priority_checks.py"
+python3 "$HOME/cora-checks/priority_checks.py" inspect \
+  --compose-file compose.server-test.yml --compose-file compose.files.yml \
+  --output "$HOME/cora-checks/inventario-$(date +%Y%m%d-%H%M%S).json"
+```
+
+Lo strumento usa solo Python standard sul server e le dipendenze già presenti
+nell'API. Legge health, ID immagini, mount effettivi, UID, disponibilità immagini
+check, modello assegnato ai ruoli, doctor e bridge. Confronta commit bridge,
+registro updater e immagini registrate quando presenti; confronta il mount
+`/state` con `state_root` e verifica accesso workspace. Registra hash del codice
+fidato installato per confronti successivi, senza copiarne la configurazione.
+
+Non stampa ambienti Docker, token, password, prompt, risposte o log dei test.
+Gli errori sono categorie/codici, non output grezzo. I rapporti nuovi hanno
+permessi `0600` e non sovrascrivono file esistenti. Sono appunti privati con
+percorsi e identificativi: conservarli sul server, condividere qui il JSON,
+non committarli nel repository. Un exit code `1` segnala una verifica incompleta
+o fallita: leggere le voci, non reinstallare automaticamente i servizi.
+
+## Programmatore: immagini e collaudo
+
+Prima esaminare l'inventario. I check richiedono le immagini Docker fidate;
+costruirle da uno snapshot del commit effettivamente attivo, non da un checkout
+che può essere rimasto indietro dopo un aggiornamento. Eseguire senza release o
+altre verifiche in corso; questi build consumano CPU/disco e possono scaricare
+dipendenze. Le prove successive sono offline.
+
+```bash
+cd /srv/cora-server-test
+git fetch git@github.com:Aleselva12/serveria1.git main
+ACTIVE_COMMIT=$(python3 -c 'import json; print(json.load(open("/srv/cora-tools/updater/current.json"))["commit"])')
+CHECK_SOURCE="$HOME/cora-checks/source-$ACTIVE_COMMIT"
+git worktree add --detach "$CHECK_SOURCE" "$ACTIVE_COMMIT"
+docker build -f "$CHECK_SOURCE/programmer_agent/checks.Dockerfile" \
+  -t cora-programmer-checks:local "$CHECK_SOURCE"
+docker build -f "$CHECK_SOURCE/programmer_agent/frontend-checks.Dockerfile" \
+  -t cora-programmer-frontend:local "$CHECK_SOURCE"
+python3 "$HOME/cora-checks/priority_checks.py" programmer \
+  --compose-file compose.server-test.yml --compose-file compose.files.yml \
+  --output "$HOME/cora-checks/programmatore-$(date +%Y%m%d-%H%M%S).json"
+```
+
+Se il worktree esiste già, riutilizzare quello stesso percorso dopo averne
+verificato il commit, senza rieseguire `worktree add`. Se il commit non è
+disponibile nel checkout, fermarsi e controllare il rapporto; non sostituirlo
+con `HEAD`. Se i manifest frontend differiscono dall'immagine di check, il
+runner rifiuta la prova: ricostruire dall'esatto snapshot, non forzare il controllo.
+
+La prova crea due workspace nuovi in Programma, senza toccare il codice attivo.
+Il primo verifica UID 65534, filesystem root e sorgenti in sola lettura,
+capability assenti, no-new-privileges, sola interfaccia loopback, assenza di
+socket Docker e variabili Cora/credenziali, scrittura solo nell'area temporanea.
+Poi aggiunge un test deliberatamente fallito: `passed: false` con
+`expected_pass: false` e `ok: true` è il risultato atteso di quella singola
+prova. Il workspace mantiene quel test per permettere la revisione; non è una
+bozza da rilasciare. Il secondo snapshot verifica TypeScript e build frontend.
+Gli ID dei workspace e i tempi sono nel rapporto; i log restano nei workspace.
+Questo verifica il percorso di check, non login HTTP, ragionamento o tool del
+modello: tali prove seguono dalla UI.
+
+In Programma creare una bozza dedicata e chiedere: “Aggiungi una funzione che
+somma due numeri e un test; lavora solo in questa bozza, esegui la verifica Python
+e indicami i file modificati”. Verificare richiesta reale Ollama, diff confinato
+alla bozza, check e registro in Attività. Non pubblicare/applicare questa fixture.
+
+## Latenza: stesso modello, due percorsi distinti
+
+Quando Cora è libera da altre richieste:
+
+```bash
+python3 "$HOME/cora-checks/priority_checks.py" ollama \
+  --compose-file compose.server-test.yml --compose-file compose.files.yml \
+  --output "$HOME/cora-checks/ollama-$(date +%Y%m%d-%H%M%S).json"
+```
+
+Tre richieste sequenziali al modello effettivo del Programmatore, temperatura 0,
+massimo 64 token. Non cambia la selezione e non scarica modelli; può caricare
+quello scelto in RAM/VRAM. Non scarica dalla memoria il modello prima del primo
+campione: non chiamarlo “a freddo” senza evidenza. Registra tempo al primo token
+(anche ragionamento), tempo totale, caricamento, elaborazione del prompt,
+generazione e conteggi. `done_reason: length` significa limite raggiunto; non
+attesta una risposta utile. Questi tempi non includono la coda e i tool Cora.
+
+Dopo la prova reale in Programma, prendere l'UUID completo del run dalla
+profilazione/diagnostica in Attività e usare:
+
+```bash
+python3 "$HOME/cora-checks/priority_checks.py" trace --run-id <UUID_COMPLETO> \
+  --compose-file compose.server-test.yml --compose-file compose.files.yml \
+  --output "$HOME/cora-checks/run-$(date +%Y%m%d-%H%M%S).json"
+```
+
+Esporta un solo run, senza conversazione, argomenti tool, risultati o eventi.
+Mantiene configurazione effettiva limitata a modello/profilo/target/token/keep-alive,
+tempi di coda, contesto, tool e singoli span modello. Tempi Cora in millisecondi;
+campi provider `*_duration` della traccia in nanosecondi. Non sommare ingenuamente
+span annidati al totale e non chiamare il tempo residuo “rete” senza misura.
+
+| Campione | Modello e commit | Coda | Contesto | Primo token | Modello / tool | Totale |
+|---|---|---|---|---|---|---|
+| Ollama 1, 2, 3 | Da raccogliere | Non applicabile | Non applicabile | Da raccogliere | Da raccogliere | Da raccogliere |
+| Programma reale | Da raccogliere | Da raccogliere | Da raccogliere | Da raccogliere | Da raccogliere | Da raccogliere |
+
+Ripetere almeno tre richieste comparabili dalla UI prima di ottimizzare.
+Per LIB-01 usare un documento sintetico con una frase riconoscibile e chiedere
+a Cora di trovarla senza selezionare manualmente i tool. Controllare fonti e
+permessi; registrare ID del run ed eventuale errore, evitando documenti sensibili.
+
+## Backup e ripristino: prova separata
+
+Il controllo iniziale non ferma Cora:
+
+```bash
+cd /srv/cora-server-test
+python3 deploy/manage.py verify-backup "$HOME/cora-backups/<CARTELLA_BACKUP>"
+```
+
+I checksum attestano integrità, non ripristinabilità. Scegliere il backup
+effettivo dopo aver elencato le cartelle; non usare un percorso inventato.
+Il NAS esterno non è incluso nell'archivio `/state`.
+
+BKP-01 richiede una seconda macchina/VM vuota: checkout del commit del backup
+(correlato alle immagini salvate; `revision` può essere il checkout, non la
+release attiva), Docker, directory state vuota e nessun servizio Cora
+preesistente. Su quella macchina usare `manage.py init`, configurare il nuovo
+`deploy.env`, porta/origine e Ollama, poi `manage.py restore <backup>` e
+`manage.py up`. Non copiare gli override NAS o i token updater dell'host attuale.
+Ripristinare l'API target corretto, specialmente se il backup include Audio.
+Non eseguire `deploy/ci_verify.py` sulla macchina attuale: è una fixture CI che
+elimina volumi e state del proprio ambiente.
+
+Chiudere BKP-01 solo dopo health, login proprietario, un dato database noto,
+un file noto in `/state`, sessione precedente rifiutata e prova delle funzioni
+necessarie. Annotare durata, dimensioni, commit/immagini e checksum prima/dopo.
+Per PRG-02 collaudare il recupero delle release nella stessa macchina separata;
+sul server operativo confrontare nuova versione attiva, immagini e accesso dopo
+l'aggiornamento. La chiave GitHub di sola lettura basta per scaricare main.
+
+## Verifica del lotto nel repository
+
+- 91 test frontend superati; build TypeScript/Vite riuscita.
+- 6 test del collector (riservatezza, errore reale, niente sovrascrittura,
+  compilazione probe, filtro metriche, niente creazione di directory durante
+  l'inventario) e 4 test deploy superati.
+- 15 test updater superati, compresi override, commit verificato e recupero.
+- Nessun daemon Docker o modello/server reale disponibile nel workspace:
+  isolamento reale, tempi, restore e release non sono certificati dai test locali.

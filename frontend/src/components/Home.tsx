@@ -82,11 +82,21 @@ export default function Home({
             </div>
           ))}
         </details>
+        <details>
+          <summary>Riscontri sul server · {homeRoadmap.updatedAt}</summary>
+          <p>Esiti della sessione di installazione, distinti dallo stato live e dai collaudi ancora aperti.</p>
+          {homeRoadmap.serverEvidence.map((item) => (
+            <div className="settings-row" key={item.label}>
+              <div><strong>{item.label}</strong><p>{item.detail}</p></div>
+              <span className="pill success">Riscontrato</span>
+            </div>
+          ))}
+        </details>
         <h3>Verifiche prioritarie</h3>
         {homeRoadmap.next.map((item) => (
-          <div className="settings-row" key={item.label}>
-            <div><strong>{item.label}</strong><p>{item.detail}</p></div>
-            <span className="pill pending">Da verificare</span>
+          <div className="settings-row" key={item.id}>
+            <div><strong>{item.label}</strong><p>{item.detail}</p><small>{item.id}</small></div>
+            <span className="pill pending">{item.state}</span>
           </div>
         ))}
         <h3>Collegamenti da completare</h3>
