@@ -48,6 +48,7 @@ pulsante insieme alle immagini di Cora.
 | PERF-01 | Parziale | Tre campioni diretti Ollama raccolti; resta confronto con richiesta reale Cora (coda, contesto, modello e tool) |
 | BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
 | PRG-02 | Da collaudare | Preparare/applicare una nuova release, confrontare commit e immagini, provare recupero in ambiente separato. Apertura del pulsante o aggiornamento senza novità non attestano il ciclo |
+| DEP-03 | Correzione preparata, da collaudare | Aggiornamento fermato prima dell'applicazione: test non avviabili per PermissionError su /app/tests. Normalizzazione dei permessi in Dockerfile API; riprovare suite completa tramite pulsante dopo integrazione |
 | PRG-03 | Nuovo, da configurare | La deploy key di lettura non può pubblicare branch. Definire credenziale dedicata di scrittura solo se si vuole usare “Pubblica” in Programma; aggiornamenti in lettura restano possibili |
 | PRG-04 | Correzione UI preparata, da installare | Copilot sempre scrivibile, prompt conservato e ID run visibile. Controlli Python/frontend disabilitati quando mancano i relativi file; mappa disabilitata senza Graphify. Run ricevuti identificati come check/mappa, nessuna prova modello attestata |
 | BKP-02 | Nuovo, da verificare | Il backup Cora copre database e `/state`, non il NAS esterno. Verificare disponibilità e ripristino del backup NAS |
@@ -243,6 +244,30 @@ seguito da terminazione degli altri processi; checkpointer esce alle
 23:05:58.657Z. Non attribuire la causa primaria al solo checkpointer.
 DB-01 resta aperto per la causa dell'uscita del processo server; database
 attualmente sano e fuori dal recovery. Evitare riavvii aggiuntivi non necessari.
+
+### Aggiornamento dal pulsante, 12 ottobre ore 01:23–01:25
+
+Job `5b607d71-a8d4-4888-a424-d95b86f1d019`, versione richiesta
+`15afb22` (main, merge PR #38), fallito in fase `testing`.
+Versione attiva ancora `68f1125`. La fase è raggiunta dopo build/inspect delle
+immagini candidate e prima dell'applicazione: nessuna nuova versione applicata.
+Il log privato attesta che unittest discovery non parte per
+`PermissionError: [Errno 13] Permission denied: '/app/tests'`.
+
+L'updater usa umask 0077 e `tarfile.extractall(..., filter='data')`:
+le directory estratte possono mantenere 0700. Docker COPY mantiene i modi,
+ma assegna i file a root; l'API/test gira come utente Cora. La correzione nel
+Dockerfile normalizza lettura/traversal di `/app` con `chmod -R a+rX`,
+senza cambiare proprietario, concedere scrittura pubblica, eseguire i test
+come root o rimuovere la sola lettura del container di test.
+
+Test locale: riprodotta estrazione con umask 0077 e directory tests 0700;
+eseguito il comando di permessi effettivo del Dockerfile, verificati directory
+0755, file leggibile senza scrittura per gruppo/altri e proprietario invariato,
+poi discovery di una fixture. La verifica Docker non root della suite completa
+resta al prossimo aggiornamento: nel workspace non è disponibile Docker e il
+cambio UID nel subprocess non è consentito dalla mappatura dell'ambiente.
+La correzione non richiede modifiche al servizio updater installato o ai token.
 
 Non assegnare “completato” ai collaudi finché manca il rapporto del server.
 Conservare gli esiti con data, commit attivo e immagini. Quando emerge un

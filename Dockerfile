@@ -6,7 +6,9 @@ RUN pip install --no-cache-dir --require-hashes -r requirements-deploy.lock
 COPY . .
 ARG CORA_UID=1000
 ARG CORA_GID=1000
-RUN groupadd --gid ${CORA_GID} cora && useradd --uid ${CORA_UID} --gid cora --create-home cora
+# Host updater extracts sources under umask 0077. COPY retains those modes:
+# root-owned directories must be traversable by the non-root API/test process.
+RUN chmod -R a+rX /app && groupadd --gid ${CORA_GID} cora && useradd --uid ${CORA_UID} --gid cora --create-home cora
 USER cora
 CMD ["python", "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-proxy-headers", "--timeout-graceful-shutdown", "310"]
 
