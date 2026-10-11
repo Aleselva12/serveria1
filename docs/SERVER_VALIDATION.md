@@ -42,7 +42,7 @@ pulsante insieme alle immagini di Cora.
 |---|---|---|
 | REM-01 | Riscontrato | Login da telefono via Tailscale; upload resta FILE-03 |
 | DEP-01 | Parziale | Inventario reale: servizi sani, mount/permessi storage, database/pgvector e modelli disponibili; bridge e commit registrato concordi. Restano BKP-01 e PRG-02 |
-| PRG-01 | Blocco individuato | Bridge e workspace verificati. Mancano entrambe le immagini Docker di check: costruirle, eseguire isolamento/test fallito/TypeScript/build e richiesta reale in Programma |
+| PRG-01 | Parziale, build da correggere | Immagini costruite; isolamento Python, riconoscimento del test fallito e TypeScript superati sul server. Build frontend fallita: raccogliere il log, correggere e riprovare. Richiesta reale Ollama ancora da collaudare |
 | PERF-01 | Preparato, da misurare | Tre richieste Ollama sintetiche e esportazione delle metriche di un run Cora; nessuna misura reale ancora disponibile |
 | BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
 | PRG-02 | Da collaudare | Preparare/applicare una nuova release, confrontare commit e immagini, provare recupero in ambiente separato. Apertura del pulsante o aggiornamento senza novità non attestano il ciclo |
@@ -73,6 +73,29 @@ Gli altri requisiti del collector risultano superati.
   PostgreSQL `sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a`.
 
 Nessun tempo di risposta o ripristino è misurato da questo inventario.
+
+## Collaudo Programmatore ricevuto il 11 ottobre, ore 20:46 italiane
+
+Rapporto `programmer`, `sampled_at: 2026-10-11T18:46:07.667021+00:00`.
+Inventario `ok: true`: entrambe le immagini di check sono ora disponibili.
+Il risultato complessivo della prova resta negativo per la build frontend.
+
+| Prova | Risultato | Tempo |
+|---|---|---|
+| Python: isolamento | Superata | 4.278 s |
+| Python: fallimento deliberato | Riconosciuto correttamente | 2.916 s |
+| TypeScript | Superata | 21.559 s |
+| Build frontend | Fallita, log da raccogliere | 21.666 s |
+
+Workspace isolamento/fallimento: `4b785b82-669d-4c43-b47c-c3f4a2989324`.
+Workspace frontend: `b28adf9e-ae8b-44da-b463-5d1f6b8a59ba`.
+Immagine Python `sha256:ca02087e2df4d04fe85b0478362fae6b7926ba80b47854431dda759aaf473765`;
+frontend `sha256:caf7c888bc1dbb93f756897a37990d8b169878fc5030e5a813bd7dd341d134ac`.
+Commit attivo, immagini applicative e servizi invariati rispetto all'inventario.
+Questi tempi misurano i check Docker e non la latenza di Ollama o della chat.
+Nessun timeout segnalato: la build è terminata con `passed: false`.
+Il passo successivo è leggere l'ultima voce `frontend_build` del `checks.json`
+del workspace frontend. La causa non è ancora attestata dal rapporto ricevuto.
 
 Non assegnare “completato” ai collaudi finché manca il rapporto del server.
 Conservare gli esiti con data, commit attivo e immagini. Quando emerge un
