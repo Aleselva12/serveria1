@@ -43,7 +43,7 @@ pulsante insieme alle immagini di Cora.
 | REM-01 | Riscontrato | Login da telefono via Tailscale; upload resta FILE-03 |
 | DEP-01 | Parziale | Inventario reale: servizi sani, mount/permessi storage, database/pgvector e modelli disponibili; bridge e commit registrato concordi. Restano BKP-01 e PRG-02 |
 | DB-01 | Nuovo, da diagnosticare | Recupero PostgreSQL terminato, servizi tornati sani. Checkpointer uscito con codice 2 il 12/10: raccogliere errori completi e causa prima di chiudere l'episodio |
-| DEP-02 | Nuovo, da verificare | Il 12/10 ore 01:12 updater registra ancora commit iniziale 68f1125 e images null, mentre main contiene PR #38. Verificare immagini/UI effettive e stato release; non modificare manualmente current.json |
+| DEP-02 | Diagnosi completata; aggiornamento da eseguire | Ore 01:14 confermati ID immagini iniziali e correzione Copilot assente. Registro 68f1125 coerente: nuova versione non applicata. Aggiornare tramite pulsante e verificare commit/immagini dopo esito positivo |
 | PRG-01 | Check Docker completati; modello da collaudare | Isolamento Python, riconoscimento del test fallito, TypeScript e build frontend superati sul server. Runner corretto installato nel bridge. Resta la richiesta reale Ollama in Programma |
 | PERF-01 | Parziale | Tre campioni diretti Ollama raccolti; resta confronto con richiesta reale Cora (coda, contesto, modello e tool) |
 | BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
@@ -230,6 +230,19 @@ nuova release completata. Questo dato non identifica da solo il codice nei
 container, che potrebbe essere stato ricostruito fuori dal bridge. Verificare
 immagini API/web e presenza della nuova UI (`copilot-send-status`) prima di
 proseguire la prova del modello. Non riallineare il registro a mano.
+
+Alle 01:14 confermati gli stessi ID API/web dell'inventario iniziale:
+API `236e7965…`, web `0c96d6f2…`; probe statico “Correzione Copilot assente”.
+DEP-02 è quindi chiarito: codice remoto aggiornato, container applicativi
+ancora iniziali, registro updater coerente. La nuova release non è attestata;
+usare il pulsante per applicare main e registrare esito/versione/immagini.
+
+Il breve log di avvio aggiunge un evento precedente al checkpointer:
+`2026-10-11T23:05:58.025Z`, `server process (PID 13) exited with exit code 2`,
+seguito da terminazione degli altri processi; checkpointer esce alle
+23:05:58.657Z. Non attribuire la causa primaria al solo checkpointer.
+DB-01 resta aperto per la causa dell'uscita del processo server; database
+attualmente sano e fuori dal recovery. Evitare riavvii aggiuntivi non necessari.
 
 Non assegnare “completato” ai collaudi finché manca il rapporto del server.
 Conservare gli esiti con data, commit attivo e immagini. Quando emerge un
