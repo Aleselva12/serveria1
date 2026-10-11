@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import App from "../App";
+import SharedFile from "./SharedFile";
+import { sharedDownloadPath } from "../services/sharedFiles";
 import { apiBaseUrl } from "../services/api";
 import { authenticatedFetch } from "../services/transport";
 
@@ -28,7 +30,9 @@ export default function AuthGate() {
     window.addEventListener("cora:unauthorized", expire);
     return () => window.removeEventListener("cora:unauthorized", expire);
   }, []);
-  if (authenticated || offline) return <App />;
+  const sharedPath = sharedDownloadPath(window.location.hash);
+  if (authenticated) return sharedPath ? <SharedFile path={sharedPath} /> : <App />;
+  if (offline && !sharedPath) return <App />;
   return <main className="auth-page"><form className="section-card auth-card" onSubmit={async e => {
     e.preventDefault(); setBusy(true); setError("");
     try {

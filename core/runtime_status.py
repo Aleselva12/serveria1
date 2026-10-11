@@ -4,7 +4,7 @@ import importlib.util
 import os
 from pathlib import Path
 from urllib.error import URLError
-from urllib.request import urlopen
+from core.ollama_transport import urlopen, get_ollama_base_url
 
 from core.component_bus import component_bus
 from core.database import database_status

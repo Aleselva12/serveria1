@@ -3,11 +3,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
-from urllib.request import build_opener,ProxyHandler
-
-
-def urlopen(url,timeout):
-    return build_opener(ProxyHandler({})).open(url,timeout=timeout)
+from core.ollama_transport import urlopen, get_ollama_base_url
 
 
 def model_available(name,names):
@@ -24,11 +20,11 @@ def inspect():
         checks['database']={'ok':bool(row['vector'] and migrations),'migrations':migrations}
     except Exception as error:checks['database']={'ok':False,'error_type':type(error).__name__}
     try:
-        from core.models import get_model_name
-        endpoint=os.getenv('OLLAMA_BASE_URL','http://localhost:11435').rstrip('/')
+        from core.models import get_model_name, ROLE_MODEL_ENV
+        endpoint=get_ollama_base_url()
         with urlopen(endpoint+'/api/tags',timeout=5) as response:data=json.load(response)
         names={model['name'] for model in data.get('models',[])}
-        requested={get_model_name(role) for role in ('supervisor','structure','research','audio','email')}
+        requested={get_model_name(role) for role in ROLE_MODEL_ENV}
         embedding=os.getenv('CORA_EMBEDDING_MODEL','').strip()
         if embedding:requested.add(embedding)
         missing=sorted(name for name in requested if not model_available(name,names))

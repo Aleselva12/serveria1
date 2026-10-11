@@ -69,3 +69,43 @@ La configurazione host/Compose e il software updater installato restano fidati e
 Le migrazioni già applicate restano immutabili: aggiungerne nuove secondo database/migrations/README.md. Il backup riguarda il database dedicato Cora e state, non mount NAS esterni o modelli Ollama. Non eseguire altri processi che scrivano questi dati durante lo snapshot.
 
 Le verifiche di codice e migrazioni non certificano la qualità del modello, la correttezza funzionale di ogni richiesta o l'assenza di errori semantici. Nel workspace di sviluppo Git/HTTP vengono provati realmente; operazioni Docker/deployment sono simulate. Il ciclo reale va collaudato su un'installazione sacrificabile prima del server personale.
+
+## Verifiche del workspace dal backend Docker
+
+I profili `python_tests`, `typescript` e `frontend_build` usano il bridge host
+quando `CORA_UPDATER_URL` è configurato. Il servizio accetta solo ID workspace,
+profilo predefinito e impronta del contenuto, mai comandi, immagini o percorsi
+scelti dal browser/modello. Verifica l'impronta, copia i sorgenti fuori dallo
+state montato nell'API e avvia un container senza rete, senza privilegi e con
+sorgenti in sola lettura. Il controllo restituisce l'esito solo dopo la rimozione
+del container. Non può sovrapporsi a un job di rilascio già accettato.
+
+Dal checkout fidato, prima del collaudo:
+
+```sh
+docker build -f programmer_agent/checks.Dockerfile -t cora-programmer-checks:local .
+docker build -f programmer_agent/frontend-checks.Dockerfile -t cora-programmer-frontend:local .
+```
+
+Ricostruire l'immagine frontend dopo modifiche a package.json/package-lock.json.
+Il servizio non scarica automaticamente immagini durante i controlli. Il tempo
+massimo del container è 120 secondi (60 predefiniti); se l'API viene interrotta
+il controllo host già accettato termina entro il proprio limite, mentre il run
+API interrotto non registra un successo. In assenza del bridge, Docker locale
+rimane disponibile per lo sviluppo; il container API base non lo contiene.
+
+Per una nuova installazione che usa override, passarli nello stesso ordine:
+
+```sh
+python3 -m updater.setup --root /srv/cora-updater --active-commit COMMIT_COMPLETO_INSTALLATO --github-repository Aleselva12/serveria1 --compose-file compose.server-test.yml --compose-file compose.local.yml
+```
+
+Omettere gli override non usati. La configurazione risultante viene congelata
+nel servizio host e non viene modificata dal modello.
+
+Per un updater **già installato**, fermare il servizio, conservare una copia
+della directory `installed/updater` e copiarvi il pacchetto `updater/` del nuovo
+checkout fidato, quindi riavviare il servizio. Non rieseguire il setup sulla
+directory esistente e non sovrascrivere token, configurazione, Git, job o backup.
+Questa installazione host richiede l'operatore. Se cambia Compose, revisionare
+anche la configurazione host congelata prima dei rilasci successivi.

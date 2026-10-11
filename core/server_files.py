@@ -110,7 +110,7 @@ def guard():
     except (FileNotFoundError, NotADirectoryError):
         raise HTTPException(404, "File o cartella non trovato.") from None
     except OSError as error:
-        if error.errno == errno.ENAMETOOLONG:
+        if error.errno == errno.ENAMETOOLONG or getattr(error, "winerror", None) == 206:
             raise HTTPException(400, "Nome o percorso troppo lungo.") from None
         if error.errno in {errno.ENOSPC, errno.EDQUOT}:
             raise HTTPException(507, "Spazio insufficiente sul filesystem del server.") from None

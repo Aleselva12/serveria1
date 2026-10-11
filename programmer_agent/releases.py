@@ -5,7 +5,7 @@ import httpx
 from programmer_agent import workspace as ws
 
 
-def request(method, path, data=None):
+def request(method, path, data=None, *, timeout=60):
     base=os.getenv('CORA_UPDATER_URL','').rstrip('/')
     token=os.getenv('CORA_UPDATER_TOKEN','')
     parsed=urlparse(base)
@@ -13,7 +13,7 @@ def request(method, path, data=None):
     if parsed.scheme not in {'http','https'} or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError('URL updater non valido.')
     try:
-        with httpx.Client(timeout=60,trust_env=False,follow_redirects=False) as client:
+        with httpx.Client(timeout=timeout,trust_env=False,follow_redirects=False) as client:
             response=client.request(method,base+path,json=data,headers={'Authorization':'Bearer '+token})
         value=response.json()
         if response.status_code>=400:raise ValueError(value.get('detail','Operazione updater non riuscita.'))

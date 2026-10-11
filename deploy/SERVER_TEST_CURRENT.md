@@ -1,8 +1,8 @@
 # Prova Cora sul server attuale
 
-Questa branch è **sperimentale** e non va mergiata in `main` durante il confronto.
-Deriva dalla stessa versione PC usata come riferimento, ma adatta il deployment
-alla macchina Debian attuale.
+Questo profilo descrive il collaudo Debian con modello piccolo. Registrare
+il commit effettivamente installato e tutti gli override Compose usati;
+la presenza del profilo in `main` non certifica il collaudo sul server.
 
 ## Scelte del profilo
 

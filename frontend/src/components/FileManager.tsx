@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 import FilePreview from "./FilePreview";
-import { apiBaseUrl } from "../services/api";
+import { sharePageUrl } from "../services/sharedFiles";
 import { filesApi } from "../services/filesApi";
 import type {
   BrowserListing,
@@ -525,7 +525,7 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
     return (
       <div className="file-actions">
         {item.kind==="file"&&<><button disabled={busy} title="Anteprima" aria-label={"Anteprima "+item.name} onClick={()=>setPreview(item)}>Anteprima</button>
-        <button disabled={busy} title="Condividi per 24 ore (richiede accesso)" onClick={()=>void run(async()=>{const share=await filesApi.share(area,rootId,item.path);setShareLink(new URL(apiBaseUrl+share.url,window.location.origin).href);},"Collegamento creato: valido 24 ore, richiede accesso al server.")}>Condividi</button></>}
+        <button disabled={busy} title="Condividi per 24 ore (richiede accesso)" onClick={()=>void run(async()=>{const share=await filesApi.share(area,rootId,item.path);setShareLink(sharePageUrl(share.url,window.location.origin));},"Collegamento creato: valido 24 ore, richiede accesso al server.")}>Condividi</button></>}
 
         {item.capabilities.includes("download") && (
           <button

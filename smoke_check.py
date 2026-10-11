@@ -12,6 +12,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from core.permissions import validate_permission_configuration
+from core.ollama_transport import get_ollama_base_url
 
 
 ROOT = Path(__file__).resolve().parent
@@ -106,7 +107,7 @@ def check_permissions() -> bool:
 def check_configuration() -> None:
     print("[4/4] Configurazione rilevata...")
     print(f"  OLLAMA_MODEL={os.getenv('OLLAMA_MODEL', 'gpt-oss:20b')}")
-    print(f"  OLLAMA_BASE_URL={os.getenv('OLLAMA_BASE_URL', 'http://localhost:11435')}")
+    print(f"  OLLAMA_BASE_URL={get_ollama_base_url()}")
 
     optional = {
         "CORA_OWNER_TOKEN": "compatibilita router isolati; non sostituisce login",

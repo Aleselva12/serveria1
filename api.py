@@ -3,7 +3,7 @@ import uuid
 import time
 import asyncio
 from urllib.error import URLError
-from urllib.request import urlopen
+from core.ollama_transport import urlopen, get_ollama_base_url
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -22,7 +22,7 @@ from core.memory import delete_memory, memory_stats, save_memory, search_memorie
 from core.system_context import get_system_context, update_system_context
 from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
 from core.calendar_api import router as calendar_router
-from core.models import get_model_name, list_ollama_models, save_runtime_model
+from core.models import get_model_name, list_ollama_models, save_runtime_model, RuntimeSettingsError
 from core.runtime_profile import validate_runtime_profile, runtime_mode
 from core.monitoring import router as monitoring_router
 from core.server_files import router as files_router
@@ -48,7 +48,7 @@ from fastapi import HTTPException, Request
 load_dotenv()
 
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gpt-oss:20b")
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11435").rstrip("/")
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -141,7 +141,7 @@ class WorkingMemoryRequest(BaseModel):
 
 def _ollama_online() -> bool:
     try:
-        with urlopen(f"{OLLAMA_BASE_URL}/api/tags", timeout=1.5):
+        with urlopen(f"{get_ollama_base_url()}/api/tags", timeout=1.5):
             return True
     except (URLError, TimeoutError, OSError):
         return False
@@ -177,12 +177,15 @@ def runtime_models():
 @app.put("/runtime/model")
 def select_runtime_model(request: ModelSelectionRequest):
     try:
-        save_runtime_model(request.model)
+        models = list_ollama_models()
+        save_runtime_model(request.model, models=models)
+    except RuntimeSettingsError as error:
+        raise HTTPException(500, str(error)) from error
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
     except Exception as error:
         raise HTTPException(503, "Ollama non raggiungibile.") from error
-    return {"active": get_model_name("supervisor"), "models": list_ollama_models()}
+    return {"active": get_model_name("supervisor"), "models": models}
 
 
 @app.get("/tools/inventory")

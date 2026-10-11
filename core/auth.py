@@ -126,9 +126,35 @@ def status(request: Request):
     return {"authenticated": bool(user), "username": user["username"] if user else None}
 
 
+def client_address(request):
+    """Use the overwritten proxy header only from explicitly trusted peers."""
+    import ipaddress
+    import socket
+    peer = request.client.host if request.client else "unknown"
+    trusted = set()
+    for name in os.getenv("CORA_TRUSTED_PROXY_HOSTS", "").split(","):
+        name = name.strip()
+        if not name or name == "*":
+            continue
+        try:
+            trusted.add(str(ipaddress.ip_address(name)))
+        except ValueError:
+            try:
+                trusted.update(row[4][0] for row in socket.getaddrinfo(name, None))
+            except OSError:
+                continue
+    if peer in trusted:
+        try:
+            # One address only: never accept caller-controlled forwarding chains.
+            return str(ipaddress.ip_address(request.headers.get("x-forwarded-for", "")))
+        except ValueError:
+            pass
+    return peer
+
+
 @router.post("/login")
 def login(data: Login, request: Request, response: Response):
-    host = request.client.host if request.client else "unknown"
+    host = client_address(request)
     now = time.monotonic()
     with _lock:
         for key in list(_attempts):

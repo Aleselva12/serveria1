@@ -12,6 +12,7 @@ manage=importlib.util.module_from_spec(spec);spec.loader.exec_module(manage)
 
 
 class HostDeploymentTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "posix", "Debian deployment checks POSIX UID/GID and permissions")
     def test_init_creates_private_unique_credentials_and_never_overwrites(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary);(root/'deploy').mkdir()

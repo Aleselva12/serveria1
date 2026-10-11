@@ -10,6 +10,14 @@ from search_agent import search_tools as research
 
 
 class LibraryWriteTests(unittest.TestCase):
+    def make_symlink(self, link, target, **kwargs):
+        try:
+            link.symlink_to(target, **kwargs)
+        except OSError as error:
+            if os.name == "nt" and (getattr(error, "winerror", None) == 1314 or error.errno in {1, 13}):
+                self.skipTest("Windows requires Developer Mode or symlink privileges for this test")
+            raise
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)/'library'; self.root.mkdir()
@@ -72,7 +80,7 @@ class LibraryWriteTests(unittest.TestCase):
 
     def test_traversal_symlinks_and_directories_are_rejected(self):
         outside=self.root.parent/'outside.txt';outside.write_text('outside')
-        (self.root/'link.txt').symlink_to(outside)
+        self.make_symlink(self.root / 'link.txt', outside)
         for path in ('../outside.txt','link.txt','.'):
             self.assertEqual(self.invoke('library_copy',{'relative_path':path,'destination':'copy.txt'}).status,'error')
         self.assertEqual(self.invoke('library_copy',{'relative_path':'note.txt','destination':'../copy.txt'}).status,'error')

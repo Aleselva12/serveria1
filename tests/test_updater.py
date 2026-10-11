@@ -55,6 +55,21 @@ class UpdaterTests(unittest.TestCase):
         self.assertEqual(deploy.read_text(),original)
         self.assertEqual(deploy.stat().st_mode & 0o777,0o640)
 
+    def test_setup_keeps_all_compose_overrides_in_order(self):
+        from updater.setup import initialize
+        project=Path(self.temp.name)/'project'
+        (project/'deploy.env').write_text('CORA_STATE_ROOT='+str(self.engine.state)+'\nCORA_UID='+str(os.getuid())+'\n')
+        (project/'nas.yml').write_text('services: {}')
+        (project/'local.yml').write_text('services: {}')
+        commands=[]
+        def output(command, **kwargs):
+            commands.append(command)
+            return self.base_commit if command[0]=='git' else '{"services":{}}'
+        with patch('updater.setup.subprocess.check_output',side_effect=output), patch('updater.setup.subprocess.run'):
+            initialize(Path(self.temp.name)/'new-control',project,'HEAD',listen='127.0.0.1',compose_files=['nas.yml','local.yml'])
+        command=next(c for c in commands if c[0]=='docker')
+        self.assertEqual([command[i+1] for i,arg in enumerate(command) if arg=='-f'],[str(project/name) for name in ['compose.yml','nas.yml','local.yml']])
+
     def test_git_workspace_is_full_and_commit_forces_ignored_sources_without_secrets(self):
         self.assertTrue((self.files/'.dockerignore').is_file())
         self.assertFalse((self.files/'.env').exists())

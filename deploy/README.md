@@ -233,3 +233,14 @@ Installazioni già inizializzate: non ripetere `init` e non sovrascrivere
 mount. Prima di ricreare un vecchio container, salvare l'eventuale selezione in
 `/app/data/runtime-settings.json` oppure riselezionare il modello dalla UI dopo
 l'aggiornamento. Il nuovo percorso persistente è incluso nel backup di `/state`.
+
+### Identità client del proxy
+
+Nginx sovrascrive `X-Forwarded-For` con l'indirizzo della connessione ricevuta.
+L'API usa quell'indirizzo per i tentativi di login solo se il peer appartiene a
+`CORA_TRUSTED_PROXY_HOSTS` (nel Compose: servizio `web`, risolto via DNS Docker).
+Non accetta catene di indirizzi o wildcard; Uvicorn non riscrive il peer dagli
+header. Ricostruire API **e** web per applicare questa configurazione. Non
+pubblicare direttamente la porta API. Se si aggiunge un ulteriore reverse proxy
+prima di Nginx, il suo indirizzo sarà condiviso dai client finché non si configura
+e verifica esplicitamente la catena fidata; non fidarsi di header Internet.
