@@ -1,6 +1,8 @@
 # Environments
 .env
 deploy.env
+deploy.env.before-tailscale-*
+.tailscale-env-*
 state/
 backups/
 .venv

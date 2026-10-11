@@ -51,3 +51,21 @@ test('private download stays behind login and survives authentication and expiry
     assert.equal(view.root.findAllByType('form').length,1);
   } finally {await act(async()=>view?.unmount());globalThis.window=previousWindow;}
 });
+
+test('Tailscale owner enters automatically and rejected identities get no password form',async()=>{
+  const previousWindow=globalThis.window;
+  globalThis.window={location:{hash:''},addEventListener(){},removeEventListener(){}};
+  let view;
+  try {
+    globalThis.__shareFetch=async()=>({ok:true,json:async()=>({authenticated:true,mode:'tailscale'})});
+    await act(async()=>{view=create(React.createElement(AuthGate));});
+    assert.equal(view.root.findAllByProps({id:'app'}).length,1);
+    assert.equal(view.root.findAllByType('input').length,0);
+    await act(async()=>view.unmount());
+    globalThis.__shareFetch=async()=>({ok:true,json:async()=>({authenticated:false,mode:'tailscale'})});
+    await act(async()=>{view=create(React.createElement(AuthGate));});
+    assert.equal(view.root.findAllByProps({id:'app'}).length,0);
+    assert.equal(view.root.findAllByType('form').length,0);
+    assert.match(JSON.stringify(view.toJSON()),/Attiva Tailscale/);
+  } finally {await act(async()=>view?.unmount());globalThis.window=previousWindow;}
+});

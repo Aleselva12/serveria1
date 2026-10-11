@@ -19,7 +19,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         capabilities=(Capability("execute_capability", "Valida input, permessi e risultato prima di restituire un esito comune."),
                       Capability("capability_registry", "Espone i contratti effettivi usati dagli agenti e dal catalogo Tools."))),
     ComponentDefinition(id="app_auth", name="Accesso personale", kind="core", module="core.auth",
-        description="Login del proprietario, sessioni revocabili di sette giorni e protezione globale API.",
+        description="Accesso proprietario con sessioni di sette giorni o identità Tailscale Serve e protezione globale API.",
         capabilities=(Capability("owner_login", "Autentica il proprietario prima di accedere alle API."),)),
     ComponentDefinition(
         id="calendar", name="Calendario", kind="core",

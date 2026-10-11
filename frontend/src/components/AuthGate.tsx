@@ -6,6 +6,7 @@ import { apiBaseUrl } from "../services/api";
 import { authenticatedFetch } from "../services/transport";
 
 export default function AuthGate() {
+  const [mode, setMode] = useState("password");
   const [authenticated, setAuthenticated] = useState(false);
   const [checking, setChecking] = useState(true);
   const [username, setUsername] = useState("");
@@ -19,6 +20,7 @@ export default function AuthGate() {
       const response = await authenticatedFetch(apiBaseUrl + "/auth/status");
       if (!response.ok) throw new Error("Backend non disponibile.");
       const data = await response.json();
+      setMode(data.mode || "password");
       setAuthenticated(data.authenticated === true);
       setError("");
     } catch { setError("Collegamento non riuscito. Avvia il backend e riprova."); }
@@ -31,8 +33,15 @@ export default function AuthGate() {
     return () => window.removeEventListener("cora:unauthorized", expire);
   }, []);
   const sharedPath = sharedDownloadPath(window.location.hash);
-  if (authenticated) return sharedPath ? <SharedFile path={sharedPath} /> : <App />;
-  if (offline && !sharedPath) return <App />;
+  if (authenticated) return sharedPath ? <SharedFile path={sharedPath} /> : <App authMode={mode} />;
+  if (offline && !sharedPath) return <App authMode={mode} />;
+  if (checking) return <main className="auth-page"><section className="section-card auth-card" aria-live="polite"><div className="eyebrow">CORA</div><h1>Verifica accesso…</h1></section></main>;
+  if (mode === "tailscale") return <main className="auth-page"><section className="section-card auth-card">
+    <div className="eyebrow">CORA · TAILSCALE</div><h1>Collega il tuo dispositivo</h1>
+    <p>Attiva Tailscale con l’account autorizzato e apri l’indirizzo HTTPS privato del server. L’accesso a Cora è automatico.</p>
+    {error ? <p role="alert">{error}</p> : <p role="alert">Identità Tailscale assente o non autorizzata.</p>}
+    <button className="file-tool" type="button" onClick={() => void refresh()}>Riprova accesso</button>
+  </section></main>;
   return <main className="auth-page"><form className="section-card auth-card" onSubmit={async e => {
     e.preventDefault(); setBusy(true); setError("");
     try {

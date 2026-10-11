@@ -26,5 +26,5 @@ ENV VITE_API_BASE_URL=/backend
 RUN npm run build
 
 FROM nginx:1.28-alpine AS web
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=frontend /build/dist /usr/share/nginx/html
