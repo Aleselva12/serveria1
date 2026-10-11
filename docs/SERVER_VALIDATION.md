@@ -42,6 +42,7 @@ pulsante insieme alle immagini di Cora.
 |---|---|---|
 | REM-01 | Riscontrato | Login da telefono via Tailscale; upload resta FILE-03 |
 | DEP-01 | Parziale | Inventario reale: servizi sani, mount/permessi storage, database/pgvector e modelli disponibili; bridge e commit registrato concordi. Restano BKP-01 e PRG-02 |
+| DB-01 | Nuovo, da diagnosticare | Recupero PostgreSQL terminato, servizi tornati sani. Checkpointer uscito con codice 2 il 12/10: raccogliere errori completi e causa prima di chiudere l'episodio |
 | PRG-01 | Check Docker completati; modello da collaudare | Isolamento Python, riconoscimento del test fallito, TypeScript e build frontend superati sul server. Runner corretto installato nel bridge. Resta la richiesta reale Ollama in Programma |
 | PERF-01 | Parziale | Tre campioni diretti Ollama raccolti; resta confronto con richiesta reale Cora (coda, contesto, modello e tool) |
 | BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
@@ -201,6 +202,23 @@ La causa precisa del singolo run Graphify non è presente nel rapporto ricevuto.
 Quattro test UI mirati passati, inclusa riabilitazione dei check dopo creazione
 dei file. Queste correzioni successive alla PR #37 sono nella PR #38;
 richiedono integrazione in main e aggiornamento del frontend installato.
+
+### Episodio PostgreSQL, 12 ottobre ore 01:06–01:08
+
+Una nuova lettura diagnostica ha incontrato PostgreSQL in recovery e
+`psycopg_pool.PoolTimeout` dopo 10 s. Alle 01:08 l'utente rileva tutti e tre
+i container Cora `healthy`, PostgreSQL `running`, `RestartCount: 0`,
+`OOMKilled: false`; filesystem principale al 21%, circa 692 GiB disponibili.
+
+I log mostrano shutdown alle 01:03:25, avvio alle 01:05:58, uscita del
+checkpointer con codice 2 e reinizializzazione interna. Il recupero termina
+alle 01:06:55 (`2026-10-11T23:06:55.717Z`), con database pronto ad accettare
+connessioni. Il contatore riavvii Docker non misura i riavvii interni del DB.
+Non sono ancora disponibili le righe di errore che spiegano l'uscita del
+checkpointer. Lo stato healthy attuale chiude il blocco di disponibilità,
+non la diagnosi DB-01. Raccogliere log recenti filtrati per ERROR/PANIC/FATAL,
+checkpointer e problemi di file/accesso; confermare `pg_is_in_recovery()`
+e versione attiva registrata. Non ripetere aggiornamenti durante la diagnosi.
 
 Non assegnare “completato” ai collaudi finché manca il rapporto del server.
 Conservare gli esiti con data, commit attivo e immagini. Quando emerge un
