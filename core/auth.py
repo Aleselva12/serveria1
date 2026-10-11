@@ -84,6 +84,35 @@ def session_user(token):
             WHERE s.token_hash=%s AND s.expires_at>NOW()""", (hashlib.sha256(token.encode()).hexdigest(),)).fetchone()
 
 
+def auth_mode():
+    mode = os.getenv("CORA_AUTH_MODE", "password").strip()
+    if mode not in {"password", "tailscale"}:
+        raise HTTPException(503, "Modalità di accesso non valida.")
+    return mode
+
+
+def request_user(request):
+    if auth_mode() == "password":
+        return session_user(request.cookies.get(COOKIE))
+    # Nginx accepts identity only from the host Serve proxy, then adds a private
+    # credential. Raw Tailscale headers and existing cookies never authenticate here.
+    expected = os.getenv("CORA_TAILSCALE_PROXY_SECRET", "")
+    owner = os.getenv("CORA_TAILSCALE_LOGIN", "").strip()
+    if len(expected) < 32 or not owner:
+        raise HTTPException(503, "Accesso Tailscale non configurato.")
+    supplied = request.headers.get("x-cora-proxy-secret", "")
+    identities = request.headers.getlist("x-cora-tailscale-login")
+    if (not hmac.compare_digest(supplied.encode(), expected.encode())
+            or identities != [owner]):
+        return None
+    with db_connection() as conn:
+        # Preserve the existing owner's identity for approvals and audit records.
+        row = conn.execute("SELECT id,username FROM app_users LIMIT 1").fetchone()
+    if not row:
+        raise HTTPException(503, "Configura prima il proprietario dal terminale del server.")
+    return row
+
+
 def check_browser_write(request):
     if request.method in {"GET", "HEAD", "OPTIONS"}:
         return
@@ -104,7 +133,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             check_browser_write(request)
             if request.url.path not in {"/auth/login", "/auth/status"}:
                 from starlette.concurrency import run_in_threadpool
-                user = await run_in_threadpool(session_user, request.cookies.get(COOKIE))
+                user = await run_in_threadpool(request_user, request)
                 if not user:
                     raise HTTPException(401, "Accedi a Cora.")
                 request.state.user = user
@@ -122,8 +151,8 @@ class Login(BaseModel):
 
 @router.get("/status")
 def status(request: Request):
-    user = session_user(request.cookies.get(COOKIE))
-    return {"authenticated": bool(user), "username": user["username"] if user else None}
+    user = request_user(request)
+    return {"authenticated": bool(user), "username": user["username"] if user else None, "mode": auth_mode()}
 
 
 def client_address(request):
@@ -154,6 +183,8 @@ def client_address(request):
 
 @router.post("/login")
 def login(data: Login, request: Request, response: Response):
+    if auth_mode() == "tailscale":
+        raise HTTPException(403, "Accedi con il tuo account Tailscale tramite l’indirizzo privato del server.")
     host = client_address(request)
     now = time.monotonic()
     with _lock:
@@ -185,6 +216,8 @@ def login(data: Login, request: Request, response: Response):
 
 @router.post("/logout")
 def logout(request: Request, response: Response, all_sessions: bool = False):
+    if auth_mode() == "tailscale":
+        raise HTTPException(409, "Accesso gestito da Tailscale: disconnetti o revoca il dispositivo in Tailscale.")
     with db_connection() as conn:
         if all_sessions:
             conn.execute("DELETE FROM app_sessions WHERE user_id=%s", (request.state.user["id"],))

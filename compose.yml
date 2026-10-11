@@ -27,6 +27,9 @@ services:
     env_file: deploy.env
     environment:
       CORA_DATABASE_URL: postgresql://cora:${CORA_POSTGRES_PASSWORD}@postgres:5432/cora
+      CORA_AUTH_MODE: ${CORA_AUTH_MODE:-password}
+      CORA_TAILSCALE_LOGIN: ${CORA_TAILSCALE_LOGIN:-}
+      CORA_TAILSCALE_PROXY_SECRET: ${CORA_TAILSCALE_PROXY_SECRET:-disabled}
       CORA_RUNTIME_MODE: server
       CORA_TRUSTED_PROXY_HOSTS: web
       CORA_RUNTIME_SETTINGS_PATH: /state/runtime-settings.json
@@ -68,6 +71,11 @@ services:
       start_period: 60s
       retries: 5
   web:
+    environment:
+      CORA_AUTH_MODE: ${CORA_AUTH_MODE:-password}
+      CORA_TAILSCALE_PROXY_IP: ${CORA_TAILSCALE_PROXY_IP:-127.0.0.1}
+      CORA_TAILSCALE_PROXY_SECRET: ${CORA_TAILSCALE_PROXY_SECRET:-disabled}
+      NGINX_ENVSUBST_FILTER: ^CORA_
     image: cora-web:${CORA_RELEASE:-local}
     build:
       context: .

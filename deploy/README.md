@@ -244,3 +244,42 @@ header. Ricostruire API **e** web per applicare questa configurazione. Non
 pubblicare direttamente la porta API. Se si aggiunge un ulteriore reverse proxy
 prima di Nginx, il suo indirizzo sarà condiviso dai client finché non si configura
 e verifica esplicitamente la catena fidata; non fidarsi di header Internet.
+
+## Accesso automatico del proprietario tramite Tailscale Serve
+
+Opzionale, solo sul server: il PC di sviluppo mantiene il login con password.
+L’account proprietario deve essere già presente nel database. Dopo aver aggiornato
+il checkout, eseguire sul server (sostituire email e origine con quelle reali):
+
+```sh
+python3 deploy/tailscale_login.py --login owner@example.com --origin https://server.tailnet.ts.net
+```
+
+Lo script controlla Serve, rifiuta Funnel e porte web pubblicate fuori da localhost,
+ricava l’IP esatto del gateway Docker e mantiene tutti i file Compose del deployment
+attivo. Salva un backup privato di `deploy.env`, configura l’identità autorizzata e
+un segreto casuale fra proxy e API, quindi stampa il comando per ricostruire e
+riavviare API e web. Eseguire quel comando, che conserva gli override/NAS esistenti.
+Email e segreto restano in `deploy.env`, mai nel repository.
+
+Dal telefono: attivare Tailscale con l’account configurato e aprire l’URL HTTPS
+privato. Cora entra direttamente, senza cookie di sette giorni. Un altro account,
+un’identità assente, un cookie precedente o header contraffatti inviati direttamente
+all’API non danno accesso. Le scritture mantengono i controlli Origin e X-Cora-Client.
+In Impostazioni viene spiegato che la disconnessione/revoca si gestisce in Tailscale.
+
+Verificare `/backend/auth/status` dal browser del telefono: `authenticated: true`
+e `mode: tailscale`. Dal server, `curl http://127.0.0.1:8090/backend/auth/status`
+senza identità deve restituire `authenticated: false`. Un account non autorizzato
+non deve poter leggere `/backend/conversations` né eseguire scritture.
+
+Il proxy Nginx accetta l’identità Serve solo dall’IP host/gateway configurato e
+sovrascrive sempre gli header interni. L’API richiede anche il segreto privato.
+Questo si basa sulla fiducia nel server host: processi compromessi sul server
+possono impersonare il proxy. Non pubblicare il web su LAN/Internet né l’API
+sull’host; non attivare Funnel. Se cambia la rete Docker, rieseguire lo script:
+un gateway diverso viene respinto, non autorizzato automaticamente.
+
+Per tornare al login precedente, ripristinare il backup `deploy.env.before-tailscale-*`
+su `deploy.env` e rieseguire il comando Compose stampato. La password proprietario
+non viene modificata; può essere reimpostata con `python -m core.auth` nel container API.
