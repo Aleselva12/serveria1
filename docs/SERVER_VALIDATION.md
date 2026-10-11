@@ -42,10 +42,13 @@ pulsante insieme alle immagini di Cora.
 |---|---|---|
 | REM-01 | Riscontrato | Login da telefono via Tailscale; upload resta FILE-03 |
 | DEP-01 | Parziale | Inventario reale: servizi sani, mount/permessi storage, database/pgvector e modelli disponibili; bridge e commit registrato concordi. Restano BKP-01 e PRG-02 |
+| DB-01 | Nuovo, da diagnosticare | Recupero PostgreSQL terminato, servizi tornati sani. Checkpointer uscito con codice 2 il 12/10: raccogliere errori completi e causa prima di chiudere l'episodio |
+| DEP-02 | Diagnosi completata; aggiornamento da eseguire | Ore 01:14 confermati ID immagini iniziali e correzione Copilot assente. Registro 68f1125 coerente: nuova versione non applicata. Aggiornare tramite pulsante e verificare commit/immagini dopo esito positivo |
 | PRG-01 | Check Docker completati; modello da collaudare | Isolamento Python, riconoscimento del test fallito, TypeScript e build frontend superati sul server. Runner corretto installato nel bridge. Resta la richiesta reale Ollama in Programma |
 | PERF-01 | Parziale | Tre campioni diretti Ollama raccolti; resta confronto con richiesta reale Cora (coda, contesto, modello e tool) |
 | BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
 | PRG-02 | Da collaudare | Preparare/applicare una nuova release, confrontare commit e immagini, provare recupero in ambiente separato. Apertura del pulsante o aggiornamento senza novità non attestano il ciclo |
+| DEP-03 | Correzione preparata, da collaudare | Aggiornamento fermato prima dell'applicazione: test non avviabili per PermissionError su /app/tests. Normalizzazione dei permessi in Dockerfile API; riprovare suite completa tramite pulsante dopo integrazione |
 | PRG-03 | Nuovo, da configurare | La deploy key di lettura non può pubblicare branch. Definire credenziale dedicata di scrittura solo se si vuole usare “Pubblica” in Programma; aggiornamenti in lettura restano possibili |
 | PRG-04 | Correzione UI preparata, da installare | Copilot sempre scrivibile, prompt conservato e ID run visibile. Controlli Python/frontend disabilitati quando mancano i relativi file; mappa disabilitata senza Graphify. Run ricevuti identificati come check/mappa, nessuna prova modello attestata |
 | BKP-02 | Nuovo, da verificare | Il backup Cora copre database e `/state`, non il NAS esterno. Verificare disponibilità e ripristino del backup NAS |
@@ -201,6 +204,70 @@ La causa precisa del singolo run Graphify non è presente nel rapporto ricevuto.
 Quattro test UI mirati passati, inclusa riabilitazione dei check dopo creazione
 dei file. Queste correzioni successive alla PR #37 sono nella PR #38;
 richiedono integrazione in main e aggiornamento del frontend installato.
+
+### Episodio PostgreSQL, 12 ottobre ore 01:06–01:08
+
+Una nuova lettura diagnostica ha incontrato PostgreSQL in recovery e
+`psycopg_pool.PoolTimeout` dopo 10 s. Alle 01:08 l'utente rileva tutti e tre
+i container Cora `healthy`, PostgreSQL `running`, `RestartCount: 0`,
+`OOMKilled: false`; filesystem principale al 21%, circa 692 GiB disponibili.
+
+I log mostrano shutdown alle 01:03:25, avvio alle 01:05:58, uscita del
+checkpointer con codice 2 e reinizializzazione interna. Il recupero termina
+alle 01:06:55 (`2026-10-11T23:06:55.717Z`), con database pronto ad accettare
+connessioni. Il contatore riavvii Docker non misura i riavvii interni del DB.
+Non sono ancora disponibili le righe di errore che spiegano l'uscita del
+checkpointer. Lo stato healthy attuale chiude il blocco di disponibilità,
+non la diagnosi DB-01. Raccogliere log recenti filtrati per ERROR/PANIC/FATAL,
+checkpointer e problemi di file/accesso; confermare `pg_is_in_recovery()`
+e versione attiva registrata. Non ripetere aggiornamenti durante la diagnosi.
+
+Alle 01:12 `SELECT pg_is_in_recovery()` restituisce `f`. Il log filtrato
+ribadisce recupero concluso, senza spiegazione del checkpointer. Servono le
+righe complete del breve intervallo di avvio 23:05:54–23:06:02 UTC.
+Il registro updater è ancora `68f112515a89cb16a26e4365f45b6c1f8fa9eb03`,
+`updated_at: 2026-10-11T18:04:03.821063Z`, `images: null`: non attesta una
+nuova release completata. Questo dato non identifica da solo il codice nei
+container, che potrebbe essere stato ricostruito fuori dal bridge. Verificare
+immagini API/web e presenza della nuova UI (`copilot-send-status`) prima di
+proseguire la prova del modello. Non riallineare il registro a mano.
+
+Alle 01:14 confermati gli stessi ID API/web dell'inventario iniziale:
+API `236e7965…`, web `0c96d6f2…`; probe statico “Correzione Copilot assente”.
+DEP-02 è quindi chiarito: codice remoto aggiornato, container applicativi
+ancora iniziali, registro updater coerente. La nuova release non è attestata;
+usare il pulsante per applicare main e registrare esito/versione/immagini.
+
+Il breve log di avvio aggiunge un evento precedente al checkpointer:
+`2026-10-11T23:05:58.025Z`, `server process (PID 13) exited with exit code 2`,
+seguito da terminazione degli altri processi; checkpointer esce alle
+23:05:58.657Z. Non attribuire la causa primaria al solo checkpointer.
+DB-01 resta aperto per la causa dell'uscita del processo server; database
+attualmente sano e fuori dal recovery. Evitare riavvii aggiuntivi non necessari.
+
+### Aggiornamento dal pulsante, 12 ottobre ore 01:23–01:25
+
+Job `5b607d71-a8d4-4888-a424-d95b86f1d019`, versione richiesta
+`15afb22` (main, merge PR #38), fallito in fase `testing`.
+Versione attiva ancora `68f1125`. La fase è raggiunta dopo build/inspect delle
+immagini candidate e prima dell'applicazione: nessuna nuova versione applicata.
+Il log privato attesta che unittest discovery non parte per
+`PermissionError: [Errno 13] Permission denied: '/app/tests'`.
+
+L'updater usa umask 0077 e `tarfile.extractall(..., filter='data')`:
+le directory estratte possono mantenere 0700. Docker COPY mantiene i modi,
+ma assegna i file a root; l'API/test gira come utente Cora. La correzione nel
+Dockerfile normalizza lettura/traversal di `/app` con `chmod -R a+rX`,
+senza cambiare proprietario, concedere scrittura pubblica, eseguire i test
+come root o rimuovere la sola lettura del container di test.
+
+Test locale: riprodotta estrazione con umask 0077 e directory tests 0700;
+eseguito il comando di permessi effettivo del Dockerfile, verificati directory
+0755, file leggibile senza scrittura per gruppo/altri e proprietario invariato,
+poi discovery di una fixture. La verifica Docker non root della suite completa
+resta al prossimo aggiornamento: nel workspace non è disponibile Docker e il
+cambio UID nel subprocess non è consentito dalla mappatura dell'ambiente.
+La correzione non richiede modifiche al servizio updater installato o ai token.
 
 Non assegnare “completato” ai collaudi finché manca il rapporto del server.
 Conservare gli esiti con data, commit attivo e immagini. Quando emerge un
