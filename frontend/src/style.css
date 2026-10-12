@@ -3162,7 +3162,9 @@ select:disabled {
   flex: 1;
   padding: 18px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
 }
 .copilot-empty {
   color: #6f6f73;

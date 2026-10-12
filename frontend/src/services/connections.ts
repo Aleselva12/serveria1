@@ -24,7 +24,7 @@ export const homeRoadmap = {
   serverEvidence: [
     { label: "Accesso dal telefono", detail: "Accesso a Cora tramite Tailscale riscontrato nella sessione di installazione." },
     { label: "Servizi e percorsi del server", detail: "Inventario dell’11 ottobre: API, web e database sani; storage accessibile, bridge raggiungibile e workspace allineati. Le metriche sotto mostrano lo stato corrente." },
-    { label: "Servizi di aggiornamento", detail: "Bridge host e pulsante installati e avviati; lettura della repository GitHub verificata. Resta da collaudare il ciclo completo con una nuova release." },
+    { label: "Servizi di aggiornamento", detail: "Bridge host e pulsante installati e avviati; lettura della repository GitHub verificata. Aggiornamento riuscito riferito dal proprietario; restano confronto di commit/immagini e prova di recupero." },
   ],
   available: [
     { label: "Accesso e configurazione allineati", detail: "Link condivisi attraverso il login, tentativi distinti per client dal proxy fidato, endpoint Ollama unico e messaggi separati per errori di salvataggio. Richiedono ricostruzione API/web e collaudo sul server." },
@@ -41,8 +41,8 @@ export const homeRoadmap = {
   ],
   next: [
     { id: "LIB-01", state: "Da collaudare", label: "Collaudare Libreria IA con Ollama", detail: "Verificare scelta autonoma dei tool, permessi, fonti e streaming con un documento di prova sul server. Registrare il risultato in Attività; i test simulati non certificano il modello." },
-    { id: "PRG-01", state: "Parziale", label: "Collaudare il Programmatore sul server", detail: "Check Docker completati sul server: isolamento Python, riconoscimento dei test falliti, TypeScript e build frontend. Correzione della cache Vite installata nel bridge e verificata. Resta una richiesta reale con qwen3:0.6b. Pubblicazione GitHub ancora da configurare: la chiave attuale è di sola lettura." },
-    { id: "PERF-01", state: "Parziale", label: "Misurare la latenza sul PC reale", detail: "Ollama qwen3:0.6b misurato: 13,60 s al primo campione (7,39 s di caricamento), poi 4,91 e 5,83 s. Tutti hanno raggiunto il limite di 64 token: risposta completa non attestata. Resta il confronto con una richiesta reale Cora e la profilazione di coda, contesto, modello e tool." },
+    { id: "PRG-01", state: "Parziale", label: "Collaudare il Programmatore sul server", detail: "Check Docker completati sul server: isolamento Python, riconoscimento dei test falliti, TypeScript e build frontend. Correzione della cache Vite installata nel bridge e verificata. Richiesta reale completata in 218,38 s, senza strumenti eseguiti. Restano creazione di un file, test e verifica della risposta nella pagina. Pubblicazione GitHub ancora da configurare: la chiave attuale è di sola lettura." },
+    { id: "PERF-01", state: "Parziale", label: "Misurare la latenza sul PC reale", detail: "Ollama qwen3:0.6b misurato: 13,60 s al primo campione (7,39 s di caricamento), poi 4,91 e 5,83 s. Tutti hanno raggiunto il limite di 64 token: risposta completa non attestata. Prima richiesta Cora misurata: 218,38 s totali, 0,17 s in coda e 217,75 s nel modello; 2551 token di input. Resta isolare il peso di contesto e strumenti e confrontare il carico sul server." },
     { id: "DEP-01", state: "Parziale", label: "Verificare il deploy sul server", detail: "Inventario superato per servizi, storage, database, disponibilità modelli e bridge. Restano verifica dei backup, ripristino in ambiente separato e ciclo completo di una nuova release; il NAS richiede un backup distinto. L’accesso ai file di sistema in sola lettura va collaudato separatamente." },
   ],
   deferred: [
