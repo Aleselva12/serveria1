@@ -44,13 +44,13 @@ pulsante insieme alle immagini di Cora.
 | DEP-01 | Parziale | Inventario reale: servizi sani, mount/permessi storage, database/pgvector e modelli disponibili; bridge e commit registrato concordi. Restano BKP-01 e PRG-02 |
 | DB-01 | Nuovo, da diagnosticare | Recupero PostgreSQL terminato, servizi tornati sani. Checkpointer uscito con codice 2 il 12/10: raccogliere errori completi e causa prima di chiudere l'episodio |
 | DEP-02 | Diagnosi completata; aggiornamento da eseguire | Ore 01:14 confermati ID immagini iniziali e correzione Copilot assente. Registro 68f1125 coerente: nuova versione non applicata. Aggiornare tramite pulsante e verificare commit/immagini dopo esito positivo |
-| PRG-01 | Check Docker completati; modello da collaudare | Isolamento Python, riconoscimento del test fallito, TypeScript e build frontend superati sul server. Runner corretto installato nel bridge. Resta la richiesta reale Ollama in Programma |
-| PERF-01 | Parziale | Tre campioni diretti Ollama raccolti; resta confronto con richiesta reale Cora (coda, contesto, modello e tool) |
+| PRG-01 | Check Docker e risposta modello completati; modifica da collaudare | Isolamento Python, riconoscimento del test fallito, TypeScript e build frontend superati sul server. Runner corretto installato nel bridge. Run reale completed in 218,38 s; nessuno strumento nel campione. Restano file creato, test e risposta nel browser |
+| PERF-01 | Parziale | Tre campioni diretti Ollama e un run Cora raccolti: 218,38 s, di cui 217,75 s nel modello e 0,17 s in coda. Restano confronto controllato e carico CPU/RAM |
 | BKP-01 | Da collaudare | Verificare checksum, poi restore su macchina separata e vuota con prova di dati e sessioni revocate |
 | PRG-02 | Da collaudare | Preparare/applicare una nuova release, confrontare commit e immagini, provare recupero in ambiente separato. Apertura del pulsante o aggiornamento senza novità non attestano il ciclo |
 | DEP-03 | Correzione preparata, da collaudare | Aggiornamento fermato prima dell'applicazione: test non avviabili per PermissionError su /app/tests. Normalizzazione dei permessi in Dockerfile API; riprovare suite completa tramite pulsante dopo integrazione |
 | PRG-03 | Nuovo, da configurare | La deploy key di lettura non può pubblicare branch. Definire credenziale dedicata di scrittura solo se si vuole usare “Pubblica” in Programma; aggiornamenti in lettura restano possibili |
-| PRG-04 | Correzione UI preparata, da installare | Copilot sempre scrivibile, prompt conservato e ID run visibile. Controlli Python/frontend disabilitati quando mancano i relativi file; mappa disabilitata senza Graphify. Run ricevuti identificati come check/mappa, nessuna prova modello attestata |
+| PRG-04 | Correzione UI riscontrata nella schermata | Copilot sempre scrivibile, prompt conservato e ID run visibile. Controlli Python/frontend disabilitati quando mancano i relativi file; mappa disabilitata senza Graphify. Run ricevuti identificati come check/mappa, nessuna prova modello attestata |
 | BKP-02 | Nuovo, da verificare | Il backup Cora copre database e `/state`, non il NAS esterno. Verificare disponibilità e ripristino del backup NAS |
 | LIB-01 | Da collaudare | Un documento sintetico in Libreria: ricerca autonoma, fonti corrette, streaming e rispetto dei permessi |
 | FILE-03 | Da collaudare | Upload e foto da telefono; separato dal solo login |
@@ -431,3 +431,34 @@ l'aggiornamento. La chiave GitHub di sola lettura basta per scaricare main.
 - 15 test updater superati, compresi override, commit verificato e recupero.
 - Nessun daemon Docker o modello/server reale disponibile nel workspace:
   isolamento reale, tempi, restore e release non sono certificati dai test locali.
+
+## Aggiornamento del 12 ottobre: chiusura delle verifiche
+
+Il proprietario riferisce aggiornamento riuscito e accesso da telefono. Il run
+`0f6b614b-dde1-4bab-85fd-795601558e6e` è completed, senza errori: 218,38 s,
+99,7% nella chiamata modello. Dettagli e limiti in [PROGRAMMER_REVIEW.md](PROGRAMMER_REVIEW.md).
+Le voci precedenti descrivono anche incidenti storici: il riscontro successivo
+non certifica da solo commit/immagini attivi o capacità di ripristino.
+
+Ordine operativo:
+
+1. Dopo questo aggiornamento, eseguire inspect e trace con il collector aggiornato.
+2. PRG-01: in un workspace di prova chiedere `Crea somma.py con somma(a, b) e
+   tests/test_somma.py con un test per 2 + 3 = 5. Esegui python_tests e riporta
+   i file modificati e l’esito. Non preparare rilasci.` Verificare file, diff,
+   risultato reale del test, risposta visibile e ID run. Un saluto non chiude PRG-01.
+3. LIB-01: caricare manualmente in Libreria IA un documento sintetico con
+   `Codice collaudo CORA: SELVA-7429`. In una nuova chat con tool automatici chiedere
+   `Cerca nella Libreria IA il documento di collaudo CORA e riportane il codice
+   e il percorso della fonte.` Annotare ID run, tool realmente usati, fonte e
+   risposta visibile. Non includere il codice atteso nella domanda.
+4. BKP-01: elencare i backup effettivi, verificare quello scelto con verify-backup;
+   preparare il restore solo su macchina/VM separata come indicato sopra.
+5. PRG-02: confrontare commit e immagini del servizio dopo aggiornamento; provare
+   recupero nell’ambiente separato. GitHub in scrittura resta PRG-03 distinto.
+
+Il collector conserva separatamente esito inventario e probe: il report generale
+è positivo soltanto se entrambi passano. La modalità trace converte inoltre i
+tempi provider in millisecondi e ricorda che completed non certifica il lavoro.
+Non è stata cambiata la selezione del modello o degli strumenti: la causa precisa
+della lentezza richiede ancora un confronto controllato.

@@ -179,9 +179,21 @@ for row in rows:
         for model in metrics.get('models', [])]
     configuration = {k:v for k,v in metrics.get('configuration', {}).items() if k in
         ('model','profile','target','context_tokens','output_tokens','keep_alive')}
+    # Inclusive node spans overlap; never add node_ms to model or elapsed time.
+    model_ms = sum(m.get('duration_ms') or 0 for m in timings['models'])
+    elapsed = row.get('duration_ms')
+    summary = {'model_calls': len(timings['models']), 'model_ms': model_ms,
+               'model_share_percent': round(100 * model_ms / elapsed, 2)
+                   if elapsed and timings['models'] else None,
+               'node_times_are_inclusive': True}
+    for model in timings['models']:
+        model['provider_ms'] = {key: round(model[key] / 1e6, 2)
+            for key in ('load_duration','prompt_eval_duration','eval_duration','total_duration')
+            if isinstance(model.get(key), (int, float))}
     result.append({'id':row['id'], 'status':row['status'], 'duration_ms':row.get('duration_ms'), 'configuration':configuration,
-                   'timings':timings})
+                   'timings':timings, 'summary':summary})
 print(json.dumps({'ok':bool(result) and all(r['status']=='completed' for r in result),
+                  'scope':'runtime_completion_not_task_correctness',
                   'provider_duration_unit':'nanoseconds', 'runs':result}))
 '''.replace("IDENTIFIER", repr(identifier))
 
@@ -284,7 +296,7 @@ def main(argv=None):
                       "trace": lambda: trace_source(args.run_id)}[args.mode]()
             report["probe"] = api_probe(api_id, source,
                                         timeout=750 if args.mode == "programmer" else 390)
-            report["ok"] = report["probe"].get("ok", False)
+            report["ok"] = inventory["ok"] and report["probe"].get("ok", False)
     except (ProbeError, ValueError, KeyError) as error:
         report.update(ok=False, error_type=str(error) if isinstance(error, ProbeError) else type(error).__name__)
     # Exclusive creation avoids overwriting previous evidence or following symlinks.

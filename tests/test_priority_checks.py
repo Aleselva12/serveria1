@@ -13,6 +13,32 @@ spec.loader.exec_module(checks)
 
 
 class PriorityChecksTests(unittest.TestCase):
+    def test_successful_probe_does_not_hide_failed_inventory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)/'probe.json'
+            with patch.object(checks, 'inspect_host', return_value=({'ok': False}, 'api')), \
+                 patch.object(checks, 'api_probe', return_value={'ok': True}), patch('builtins.print'):
+                code = checks.main(['ollama', '--output', str(output)])
+            report = json.loads(output.read_text())
+            self.assertEqual(code, 1)
+            self.assertTrue(report['probe']['ok'])
+            self.assertFalse(report['ok'])
+
+    def test_trace_converts_provider_units_without_adding_nested_nodes(self):
+        import types
+        fake = types.ModuleType('core.execution_traces')
+        fake.read_runs = lambda **kwargs: [{'id': 'id', 'status': 'completed', 'duration_ms': 1000,
+            'metrics': {'node_ms': 2000, 'models': [{'duration_ms': 900,
+                'prompt_eval_duration': 600000000, 'eval_duration': 300000000}]}}]
+        with patch.dict('sys.modules', {'core.execution_traces': fake}), patch('builtins.print') as output:
+            exec(checks.trace_source('11111111-1111-4111-8111-111111111111'), {})
+        report = json.loads(output.call_args.args[0])
+        run = report['runs'][0]
+        self.assertEqual(run['summary']['model_share_percent'], 90)
+        self.assertEqual(run['summary']['model_calls'], 1)
+        self.assertEqual(run['timings']['models'][0]['provider_ms']['prompt_eval_duration'], 600)
+        self.assertEqual(report['scope'], 'runtime_completion_not_task_correctness')
+
     def test_inspect_allowlist_excludes_environment_and_health_logs(self):
         data = {'Id':'container', 'Image':'sha256:image',
                 'Config':{'Image':'cora-api:local', 'Env':['SECRET=private']},
