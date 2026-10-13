@@ -14,6 +14,9 @@ class PerformanceConfigurationTests(unittest.TestCase):
             "CORA_MODEL_KEEP_ALIVE": "45m",
             "CORA_CONTEXT_TOKENS": "8192",
             "CORA_OUTPUT_TOKENS": "512",
+            "CORA_UNLIMITED_GENERATION": "false",
+            "CORA_RUN_TIMEOUT_SECONDS": "300",
+            "CORA_MODEL_TIMEOUT_SECONDS": "180",
             "CORA_PERFORMANCE_PROFILE": "pc-test",
             "CORA_PERFORMANCE_HARDWARE_LABEL": "machine-a",
             "CORA_PERFORMANCE_GPU_LABEL": "gpu-a",
@@ -26,10 +29,27 @@ class PerformanceConfigurationTests(unittest.TestCase):
         self.assertEqual(data["keep_alive"], "45m")
         self.assertEqual(data["context_tokens"], 8192)
         self.assertEqual(data["output_tokens"], 512)
+        self.assertEqual(data["run_timeout_seconds"], 300)
+        self.assertEqual(data["model_timeout_seconds"], 180)
         self.assertEqual(data["hardware_label"], "machine-a")
         self.assertEqual(data["gpu_label"], "gpu-a")
         self.assertNotIn("password", data)
         self.assertNotIn("token", data)
+
+    def test_default_unlimited_profile_overrides_legacy_budgets(self):
+        with patch.dict(os.environ, {
+            "CORA_OUTPUT_TOKENS": "512",
+            "CORA_RUN_TIMEOUT_SECONDS": "300",
+            "CORA_MODEL_TIMEOUT_SECONDS": "180",
+            "CORA_CONTEXT_TOKENS": "8192",
+        }, clear=False):
+            # Existing deploy.env has no policy flag. Test that exact migration case.
+            os.environ.pop("CORA_UNLIMITED_GENERATION", None)
+            data = performance_configuration("programmer_agent")
+        self.assertEqual(data["output_tokens"], -1)
+        self.assertEqual(data["run_timeout_seconds"], 0)
+        self.assertIsNone(data["model_timeout_seconds"])
+        self.assertEqual(data["context_tokens"], 8192)
 
     def test_runtime_records_profile_and_host_snapshot(self):
         runtime = Runtime(persistent=False)

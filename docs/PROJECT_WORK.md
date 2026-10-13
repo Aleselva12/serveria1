@@ -260,3 +260,18 @@ PRG-01 o PERF-01 completati. Restano LIB-01 e prove backup/ripristino separate.
 Verifica locale del lotto: 95 test frontend e build riusciti; 12 test runtime,
 4 test politica di generazione, 4 test modelli e 22 test Programmatore superati;
 un test Graphify saltato per prerequisito opzionale. Nessun collaudo live implicito.
+
+### Correzione del blocco aggiornamento dopo PR #41
+
+Il test `test_effective_profile_is_non_secret_and_role_aware` pretendeva ancora
+512 token con la nuova modalità illimitata predefinita (-1). Riprodotto l'unico
+fallimento della suite completa; identico nei job GitHub verify e deployment
+api/api-audio-cpu. L'updater sul server mostra failed/testing e versione attiva
+d0e2521: coerente con lo stesso test, ma il log del job host non è stato acquisito.
+
+Il test ora sceglie esplicitamente la modalità con limiti; un secondo caso verifica
+la configurazione illimitata predefinita anche con le vecchie variabili installate.
+Nessun controllo di rilascio rimosso e nessun limite reintrodotto. Verifica locale:
+307 test raccolti, 250 superati e 57 saltati per prerequisiti; smoke check riuscito.
+La precedente verifica mirata non includeva questo test: attendere anche i job
+GitHub di deploy prima del prossimo merge. Collaudo server ancora da ripetere.
