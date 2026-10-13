@@ -1,3 +1,4 @@
+import { LengthChoice, RunTimer, type ResponseLength } from "./RunControls";
 import { useEffect, useRef, useState } from "react";
 import { Code2, Folder, Send, RefreshCw } from "lucide-react";
 import {
@@ -39,6 +40,9 @@ export default function Programmer() {
     [error, setError] = useState(""),
     [viewDiff, setViewDiff] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [responseLength, setResponseLength] = useState<ResponseLength>("medium");
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [finishedAt, setFinishedAt] = useState<number | null>(null);
   const [graphifyAvailable, setGraphifyAvailable] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null),
@@ -147,6 +151,7 @@ export default function Programmer() {
     const id = selected,
       message = draft.trim();
     setBusy(true);
+    setStartedAt(Date.now()); setFinishedAt(null);
     setError("");
     setLive("");
     setRunId("");
@@ -181,6 +186,7 @@ export default function Programmer() {
                 setLive,
                 setState,
                 abort.current.signal,
+                responseLength,
               );
       if (!mounted.current) return;
       if (profile) setReport(result.response);
@@ -201,6 +207,7 @@ export default function Programmer() {
       }
     } finally {
       if (mounted.current) setBusy(false);
+      setFinishedAt(Date.now());
     }
   }
   async function stop() {
@@ -528,7 +535,9 @@ export default function Programmer() {
               </div>
             )}
           </div>
-          <div className="copilot-composer">
+          <RunTimer started={startedAt} finished={finishedAt} />
+                <LengthChoice value={responseLength} onChange={setResponseLength} disabled={busy} />
+                <div className="copilot-composer">
             <textarea
               rows={3}
               value={draft}
@@ -549,7 +558,7 @@ export default function Programmer() {
           {sendBlocked && <small id="copilot-send-status">{sendBlocked}</small>}
           {runId && <small>ID esecuzione: <code>{runId}</code></small>}
           {busy && runId && (
-            <button onClick={() => void stop()}>Ferma esecuzione</button>
+            <button disabled={state === "Arresto richiesto"} onClick={() => void stop()}>Annulla esecuzione</button>
           )}
           <small>
             {model || "Modello locale"} · skill e strumenti Cora · nessuna

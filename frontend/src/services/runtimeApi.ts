@@ -8,8 +8,8 @@ export async function runtimeRequest<T>(path: string, init: RequestInit = {}): P
   return data as T;
 }
 export type LibraryActivity = { action: string; path: string; query: string };
-export async function streamChat(message: string, threadId: string, onRun: (id:string)=>void, onText: (text:string)=>void, onState:(state:string)=>void, attachmentIds:string[] = [], manualTools:string[]|null = null, onLibrary?:(activity:LibraryActivity)=>void) {
-  const run = await runtimeRequest<RunSnapshot>("/chat/runs", { method: "POST", body: JSON.stringify({ message, thread_id: threadId, ...(attachmentIds.length ? {attachment_ids:attachmentIds} : {}), ...(manualTools !== null ? {manual_tools:manualTools} : {}) }) });
+export async function streamChat(message: string, threadId: string, onRun: (id:string)=>void, onText: (text:string)=>void, onState:(state:string)=>void, attachmentIds:string[] = [], manualTools:string[]|null = null, onLibrary?:(activity:LibraryActivity)=>void, responseLength: "short" | "medium" | "long" = "medium") {
+  const run = await runtimeRequest<RunSnapshot>("/chat/runs", { method: "POST", body: JSON.stringify({ message, response_length: responseLength, thread_id: threadId, ...(attachmentIds.length ? {attachment_ids:attachmentIds} : {}), ...(manualTools !== null ? {manual_tools:manualTools} : {}) }) });
   onRun(run.id); onState(run.status);
   return streamRun(run, onText, onState, undefined, onLibrary);
 }

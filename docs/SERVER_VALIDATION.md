@@ -462,3 +462,69 @@ Il collector conserva separatamente esito inventario e probe: il report generale
 tempi provider in millisecondi e ricorda che completed non certifica il lavoro.
 Non è stata cambiata la selezione del modello o degli strumenti: la causa precisa
 della lentezza richiede ancora un confronto controllato.
+
+## Riscontro del 13 ottobre 2026, ore 19:15 italiane
+
+Inventario fornito dall'operatore: ok=true. Commit attivo e bridge concordano su
+`d0e2521749893dcc09e8966a16c0353c296948c8`; registered_images_match=true.
+API `sha256:eaa05f8d18ba82bde702e656c0e0d828fdce3fae3934fd65e0864479c1f563a1`,
+web `sha256:57448a295d5a376865df75685a0d63cab987c6739a477e3081f7e3c38972fc76`.
+API/web/PostgreSQL healthy, storage e modelli disponibili, servizi updater attivi,
+workspace scrivibile e allineato. Attestato il confronto delle immagini dopo
+l'aggiornamento; resta aperta la prova di recupero e ripristino.
+
+La schermata successiva del workspace `Collaudo Ollama - somma` mostra invece
+`Esecuzione timed_out`: PRG-01 non superato. Non sono visibili ID run, metriche
+o elenco completo delle modifiche. Recuperare l'ultima esecuzione programmer
+del workspace prima di ripetere la richiesta: non è ancora noto se il timeout
+sia arrivato durante il modello o dopo operazioni su file. Nessun aumento dei
+timeout o cambio modello applicato sulla base della sola schermata.
+
+Diagnostica successiva: run `19271097-e61f-41fa-a06c-e8095eeb51a2`,
+timed_out a 300,272 s, coda 43,62 ms, prepare 0,96 ms. Una sola chiamata
+modello interrotta con RunStopped a 300,102 s, first_token_ms=null. Nessun
+nodo strumenti nel campione; la pagina Attività mostra zero operazioni del run.
+I tre errori sono lo stesso RunStopped propagato a modello, call_llm e LangGraph.
+Il callback controlla la cancellazione prima di registrare il token: il null
+non certifica assenza di chunk di ragionamento/tool o di lavoro interno Ollama.
+Contesto stimato 2776 token, riserva strumenti 4312: sono stime del budget,
+non conteggi effettivi Ollama, assenti perché la chiamata non è terminata.
+La pagina Attività mostra inoltre pool PostgreSQL di 2 connessioni, entrambe
+occupate e 2 richieste in attesa al momento dello screenshot; dato istantaneo,
+non prova che il database abbia causato i cinque minuti di questo run.
+
+
+## Scadenza opzionale delle esecuzioni
+
+La nuova modalità `CORA_UNLIMITED_GENERATION=true` (predefinita anche se la
+variabile manca nel vecchio deploy.env) supera i vecchi valori 300/180/512:
+nessuna scadenza complessiva, timeout del client modello disabilitato e
+`num_predict=-1`. La configurazione effettiva della traccia deve mostrare
+`run_timeout_seconds: 0`, `model_timeout_seconds: null`, `output_tokens: -1`.
+Non occorre modificare deploy.env per attivarla dopo questo aggiornamento.
+Per tornare alla modalità configurabile impostare `CORA_UNLIMITED_GENERATION=false`;
+in tale modalità zero disabilita i timeout, valori positivi li mantengono.
+
+Chat e Programma mostrano il tempo trascorso dall'invio (comprende coda e rete),
+conservano la durata finale finché la vista resta aperta e offrono Annulla.
+Il timer è locale alla vista, non un registro persistente delle durate server.
+L'annullamento resta cooperativo: la richiesta è registrata subito ma il lavoro
+può restare in cancellazione finché una chiamata bloccante restituisce il controllo.
+Non è ancora attestato l'arresto immediato dell'inferenza Ollama prima del primo chunk.
+Il testo già scritto e gli effetti già applicati non vengono annullati automaticamente.
+
+Corta/media/lunga è una preferenza di stile per la richiesta, non un tetto di
+output; non viene salvata come istruzione nella cronologia. Il contesto rimane
+finito (`CORA_CONTEXT_TOKENS`): si riserva spazio positivo per generare anche con
+output senza cap. Restano i limiti di ricorsione, dimensione input/file, controlli
+Docker e richieste HTTP di servizio: eliminarli non aumenta la qualità del modello.
+Anche i riassunti interni usano la politica di output, senza il precedente cap 768.
+
+Da collaudare sul server dopo merge e aggiornamento: richiesta reale con file e
+test, annullamento durante l'attesa del modello, timer in entrambe le viste,
+qualità delle tre preferenze. PRG-01 e PERF-01 restano aperti.
+
+Riscontro hardware a riposo del 13 ottobre: circa 9,8 GiB disponibili, swap usata
+524 KiB, nessuna attività swap nei campioni, CPU inattiva 91-98% negli intervalli.
+`ollama` non presente nel PATH della shell host; ciò non indica servizio assente.
+Questi campioni non misurano il carico durante l'inferenza fallita.

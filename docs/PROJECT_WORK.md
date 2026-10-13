@@ -242,3 +242,21 @@ avanzata dei documenti restano estensioni future: non sono bug residui dei
 
 Verifica finale: 223 test backend passati, 57 saltati per prerequisiti; 90 test
 frontend passati, build riuscita e npm audit senza vulnerabilità segnalate.
+
+
+## 13 ottobre — generazione senza scadenza e controlli nelle chat
+
+Implementati in repository: politica di generazione senza scadenza o tetto di
+output, compatibile con deploy.env precedente; timer locale e annullamento nelle
+due viste; scelta corta/media/lunga come istruzione, con API validate. La finestra
+di contesto rimane finita e distinta dal tetto di generazione.
+
+Da fare sul server: installare la PR, controllare configurazione effettiva,
+completare il compito somma.py + test, misurare attesa e cancellazione. La
+cancellazione resta cooperativa, da rafforzare nel trasporto per interrompere una
+lettura Ollama bloccata senza aspettare il prossimo chunk. Non attestiamo ancora
+PRG-01 o PERF-01 completati. Restano LIB-01 e prove backup/ripristino separate.
+
+Verifica locale del lotto: 95 test frontend e build riusciti; 12 test runtime,
+4 test politica di generazione, 4 test modelli e 22 test Programmatore superati;
+un test Graphify saltato per prerequisito opzionale. Nessun collaudo live implicito.

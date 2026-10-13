@@ -63,6 +63,29 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(c.error_type,'OSError')
         trace=(Path(self.temp.name)/'traces.jsonl').read_text(); self.assertNotIn('secret error text',trace)
 
+    def test_zero_deadline_keeps_manual_cancellation(self):
+        with patch.dict(os.environ, {'CORA_RUN_TIMEOUT_SECONDS': '0'}):
+            run = Run('unlimited')
+        run.created -= 86400
+        run.check()
+        runtime = self.runtime
+        runtime._deadline(run)
+        self.assertFalse(run.cancel.is_set())
+        run.stop('cancelled')
+        with self.assertRaises(RunStopped): run.check()
+        self.assertEqual(run.reason, 'cancelled')
+
+    def test_context_zero_deadline_and_positive_deadline(self):
+        from core.runtime_context import bind_runtime, ensure_runtime_active
+        with patch('core.runtime_context.cancel_requested', return_value=False):
+            with patch.dict(os.environ, {'CORA_RUN_TIMEOUT_SECONDS': '0'}):
+                with bind_runtime('run', 'thread'):
+                    with patch('core.runtime_context.time.monotonic', return_value=10**12):
+                        ensure_runtime_active()
+            with bind_runtime('run', 'thread', timeout_seconds=1):
+                with patch('core.runtime_context.time.monotonic', return_value=10**12):
+                    with self.assertRaises(RunStopped): ensure_runtime_active()
+
     def test_timeout_and_invalid_transitions(self):
         run=Run('one',timeout=.01); run.created-=1
         with self.assertRaises(RunStopped): run.check()

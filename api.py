@@ -97,7 +97,11 @@ app.add_middleware(
 )
 
 
+from core.generation_policy import ResponseLength
+
+
 class ChatRequest(BaseModel):
+    response_length: ResponseLength = "medium"
     message: str = Field(min_length=1, max_length=24000)
     thread_id: uuid.UUID | None = None
     attachment_ids: list[uuid.UUID] = Field(default_factory=list, max_length=6)
@@ -343,7 +347,7 @@ def execute_chat(request: ChatRequest, run):
         context = prepare_context(thread_id, callbacks=[trace])
         run.timings["context_ms"] = round((time.perf_counter()-phase)*1000,2)
         result = None
-        for mode, chunk in graph.stream({"messages": context, "request_text": message, "manual_tools": request.manual_tools}, config={"callbacks": [trace], "recursion_limit": 50}, stream_mode=["messages", "values"]):
+        for mode, chunk in graph.stream({"messages": context, "request_text": message, "manual_tools": request.manual_tools, "response_length": request.response_length}, config={"callbacks": [trace], "recursion_limit": 50}, stream_mode=["messages", "values"]):
             checkpoint()
             if mode == "values": result = chunk
             elif mode == "messages":
