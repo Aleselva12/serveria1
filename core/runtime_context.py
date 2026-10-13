@@ -1,4 +1,5 @@
 from __future__ import annotations
+from core.generation_policy import run_timeout
 
 import os
 import time
@@ -48,7 +49,7 @@ def bind_runtime(
     else:
         if timeout_seconds is None:
             try:
-                timeout_seconds = float(os.getenv("CORA_RUN_TIMEOUT_SECONDS", "300"))
+                timeout_seconds = run_timeout()
             except ValueError:
                 timeout_seconds = 300.0
         deadline = time.monotonic() + max(1.0, timeout_seconds) if timeout_seconds > 0 else None

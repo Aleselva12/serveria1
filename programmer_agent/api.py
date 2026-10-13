@@ -26,7 +26,11 @@ class FileWrite(StrictRequest):
     expected_sha256: str = Field(default="", max_length=64)
 
 
+from core.generation_policy import ResponseLength
+
+
 class ProgrammerRequest(StrictRequest):
+    response_length: ResponseLength = "medium"
     workspace_id: UUID
     message: str = Field(min_length=1, max_length=12000)
 
@@ -139,7 +143,7 @@ def execute_programmer(request: ProgrammerRequest, run) -> dict:
         messages = prepare_context(run.thread_id, callbacks=[trace])
         result = None
         run.agents["programmer_agent"] = "running"
-        for mode, chunk in graph.stream({"messages": messages}, config={"callbacks": [trace], "recursion_limit": 60}, stream_mode=["messages", "values"]):
+        for mode, chunk in graph.stream({"messages": messages, "response_length": request.response_length}, config={"callbacks": [trace], "recursion_limit": 60}, stream_mode=["messages", "values"]):
             checkpoint()
             if mode == "values":
                 result = chunk

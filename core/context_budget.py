@@ -1,4 +1,5 @@
 """Bounded prompt assembly. Summaries are derived chat data, never semantic memories."""
+from core.generation_policy import output_tokens as generation_output_tokens
 import json
 import os
 import uuid
@@ -58,7 +59,10 @@ def fit_messages(messages, reserve=2048, tools=None, output_reserve=None):
     systems = [m for m in messages if isinstance(m,SystemMessage)]
     optional = [m for m in messages if getattr(m,"name",None) in OPTIONAL_CONTEXT and not isinstance(m,SystemMessage)]
     rest = [m for m in messages if not isinstance(m,SystemMessage) and getattr(m,"name",None) not in OPTIONAL_CONTEXT]
-    output_tokens = int(os.getenv("CORA_OUTPUT_TOKENS","1024")) if output_reserve is None else output_reserve
+    output_tokens = generation_output_tokens() if output_reserve is None else output_reserve
+    # Space for generation in the context is not a hard generation cap.
+    if output_tokens <= 0:
+        output_tokens = 1024
     budget = limit_tokens() - output_tokens - reserve
     used = sum(message_cost(m) for m in systems)
     groups = []
@@ -179,7 +183,7 @@ def prepare_context(conversation_id, callbacks=None, should_yield=None):
                 checkpoint()
                 if should_yield and should_yield(): raise ContextDeferred()
                 messages = [summary_prompt,HumanMessage(content=json.dumps({"previous_summary":summary,"messages":piece},ensure_ascii=False))]
-                result = get_chat_model("supervisor",num_predict=768).invoke(
+                result = get_chat_model("supervisor").invoke(
                     fit_messages(messages,reserve=256,output_reserve=768),config={"callbacks":callbacks or []})
                 summary = str(result.content)[:min(1500,max(128,(limit_tokens()-1536)//4))]
             checkpoint()

@@ -13,7 +13,7 @@ const json=body=>new Response(JSON.stringify(body),{headers:{'Content-Type':'app
 test('manual tools and attachments travel together; explicit empty never becomes automatic',async()=>{
  for(const manual of [['calculator_tool'],[]]){
   let calls=0;globalThis.fetch=async(url,init)=>{
-   if(++calls===1){assert.deepEqual(JSON.parse(init.body),{message:'Leggi',thread_id:'thread',attachment_ids:['attachment-id'],manual_tools:manual});return json({id:'run',status:'queued'});}
+   if(++calls===1){assert.deepEqual(JSON.parse(init.body),{message:'Leggi',response_length:'medium',thread_id:'thread',attachment_ids:['attachment-id'],manual_tools:manual});return json({id:'run',status:'queued'});}
    return stream('event: result\ndata: '+JSON.stringify({status:'completed',result:{response:'done',thread_id:'thread'}})+'\n\n');
   };
   await streamChat('Leggi','thread',()=>{},()=>{},()=>{},['attachment-id'],manual);assert.equal(calls,2);
@@ -60,8 +60,8 @@ test('specialist state and reset are visible without replacing canonical final r
 
 test('chat attachments are sent with the request and streaming never resubmits them',async()=>{
  let calls=0;globalThis.fetch=async(url,init)=>{
-  if(++calls===1){assert.deepEqual(JSON.parse(init.body),{message:'Leggi',thread_id:'thread',attachment_ids:['attachment-id']});return json({id:'run',status:'queued'});}
+  if(++calls===1){assert.deepEqual(JSON.parse(init.body),{message:'Leggi',response_length:'long',thread_id:'thread',attachment_ids:['attachment-id']});return json({id:'run',status:'queued'});}
   return stream('event: result\ndata: '+JSON.stringify({status:'completed',result:{response:'Letto',thread_id:'thread'}})+'\n\n');
  };
- await streamChat('Leggi','thread',()=>{},()=>{},()=>{},['attachment-id']);assert.equal(calls,2);
+ await streamChat('Leggi','thread',()=>{},()=>{},()=>{},['attachment-id'],null,undefined,'long');assert.equal(calls,2);
 });

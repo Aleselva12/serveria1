@@ -18,7 +18,11 @@ from prompt import SUPERVISOR_BOOTSTRAP
 load_dotenv()
 
 
+from core.generation_policy import response_instruction
+
+
 class CoraState(MessagesState):
+    response_length: str
     request_text: str
     manual_tools: list[str] | None
     system_prompt: str
@@ -96,7 +100,7 @@ def prepare_turn(state: CoraState):
     prompt, memory_context, context_pages, tool_names = _runtime_system_prompt(state["messages"], state.get("request_text"), state.get("manual_tools"))
     run = current_run.get()
     if run: run.timings["prompt_ms"] = round((time.perf_counter()-started)*1000,2)
-    return {"system_prompt": prompt, "memory_context":memory_context, "context_pages":context_pages, "selected_tool_names":tool_names}
+    return {"system_prompt": prompt + "\n" + response_instruction(state.get("response_length", "medium")), "memory_context":memory_context, "context_pages":context_pages, "selected_tool_names":tool_names}
 
 
 def _tool_name(call) -> str:

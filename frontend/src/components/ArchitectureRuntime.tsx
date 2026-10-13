@@ -22,7 +22,7 @@ export function performanceRows(metrics: Record<string, unknown>, duration: numb
     if (typeof config.model === "string") rows.push(["Modello",config.model]);
     if (typeof config.keep_alive === "string") rows.push(["Keep-alive",config.keep_alive]);
     if (typeof config.context_tokens === "number") rows.push(["Context configurato",String(config.context_tokens)]);
-    if (typeof config.output_tokens === "number") rows.push(["Output massimo",String(config.output_tokens)]);
+    if (typeof config.output_tokens === "number") rows.push(["Output massimo",config.output_tokens < 0 ? "Senza tetto prefissato" : String(config.output_tokens)]);
     if (typeof config.hardware_label === "string" && config.hardware_label) rows.push(["Hardware",config.hardware_label]);
     if (typeof config.gpu_label === "string" && config.gpu_label) rows.push(["GPU",config.gpu_label]);
   }

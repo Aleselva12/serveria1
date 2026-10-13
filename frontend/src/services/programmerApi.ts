@@ -86,10 +86,11 @@ export const programmerApi = {
     onText: (text: string) => void,
     onState: (state: string) => void,
     signal?: AbortSignal,
+    responseLength: "short" | "medium" | "long" = "medium",
   ) {
     const run = await runtimeRequest<RunSnapshot>("/programmer/runs", {
       method: "POST",
-      body: JSON.stringify({ workspace_id: id, message }),
+      body: JSON.stringify({ workspace_id: id, message, response_length: responseLength }),
     });
     onRun(run.id);
     onState(run.status);

@@ -1,3 +1,4 @@
+import { LengthChoice, RunTimer, type ResponseLength } from "./components/RunControls";
 import { usePermanentContext } from "./services/usePermanentContext";
 import { streamChat, runtimeRequest, type LibraryActivity } from "./services/runtimeApi";
 import { authenticatedFetch } from "./services/transport";
@@ -77,6 +78,9 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   const [menu, setMenu] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [responseLength, setResponseLength] = useState<ResponseLength>("medium");
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [finishedAt, setFinishedAt] = useState<number | null>(null);
   const [liveText, setLiveText] = useState("");
   const [libraryActivity, setLibraryActivity] = useState<{threadId:string; items:LibraryActivity[]}>({threadId:"", items:[]});
   const [runState, setRunState] = useState("");
@@ -132,6 +136,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
     if (!content || attachmentLock.current || sendLock.current || history.messagesLoading || history.historyLoading || history.messagesError || !backend.health?.ollama_online) return;
     sendLock.current = true;
     setSending(true);
+    setStartedAt(Date.now()); setFinishedAt(null);
     setLiveText("");
     setActiveRun("");
     setRunState("queued");
@@ -176,7 +181,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
     ]);
     try {
       setLibraryActivity({threadId, items:[]});
-      const result = await streamChat(content, threadId, setActiveRun, setLiveText, setRunState, attachments.map(a=>a.id), manualTools, item => setLibraryActivity(previous => ({threadId, items:[...previous.items.slice(-199), item]})));
+      const result = await streamChat(content, threadId, setActiveRun, setLiveText, setRunState, attachments.map(a=>a.id), manualTools, item => setLibraryActivity(previous => ({threadId, items:[...previous.items.slice(-199), item]})), responseLength);
       setChats((prev) =>
         prev.map((c) =>
           c.id === conversationId
@@ -228,6 +233,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
     } finally {
       sendLock.current = false;
       setSending(false);
+      setFinishedAt(Date.now());
       setLiveText("");
       setActiveRun("");
       void history.refreshHistory();
@@ -405,6 +411,8 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 {attachmentBusy&&<p role="status">Caricamento degli allegati…</p>}
                 <ChatToolPicker key={currentChat.threadId} selection={toolDrafts[currentChat.threadId]??null} onChange={names=>setToolDrafts(prev=>({...prev,[currentChat.threadId]:names}))} disabled={sending||attachmentBusy} available={Boolean(backend.health)} />
                 <div className="attachment-drafts">{(attachmentDrafts[currentChat.threadId]||[]).map(a=><span className="attachment-chip" key={a.id}>{a.name}{a.truncated?" · estratto limitato":""}<button disabled={sending||attachmentBusy} aria-label={"Rimuovi allegato "+a.name} onClick={()=>setAttachmentDrafts(prev=>({...prev,[currentChat.threadId]:(prev[currentChat.threadId]||[]).filter(x=>x.id!==a.id)}))}>×</button></span>)}</div>
+                <RunTimer started={startedAt} finished={finishedAt} />
+                <LengthChoice value={responseLength} onChange={setResponseLength} disabled={sending} />
                 <div className="composer">
                   <input ref={attachmentInput} type="file" multiple hidden accept=".txt,.md,.csv,.tsv,.json,.pdf,.docx,.py,.ts,.tsx,.js,.css,.yaml,.yml,.toml,.log" onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value="";void attach(files);}}/>
                   <button disabled={sending||attachmentBusy||!backend.health} title="Allega documenti alla richiesta" aria-label="Allega file" onClick={()=>attachmentInput.current?.click()}>

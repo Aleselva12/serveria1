@@ -496,19 +496,33 @@ non prova che il database abbia causato i cinque minuti di questo run.
 
 ## Scadenza opzionale delle esecuzioni
 
-Su richiesta del proprietario, `CORA_RUN_TIMEOUT_SECONDS=0` disattiva la
-scadenza temporale complessiva, sia nel runtime sia nel contesto degli strumenti.
-Il valore predefinito resta 300; valori positivi mantengono la scadenza.
-L'annullamento manuale resta cooperativo. Un lavoro che non termina può occupare
-lo slot del modello finché non viene annullato e raggiunge un punto di arresto.
-Restano distinti timeout di connessione, limiti dei controlli Docker, limite
-ricorsione del grafo e numero massimo di token generati.
+La nuova modalità `CORA_UNLIMITED_GENERATION=true` (predefinita anche se la
+variabile manca nel vecchio deploy.env) supera i vecchi valori 300/180/512:
+nessuna scadenza complessiva, timeout del client modello disabilitato e
+`num_predict=-1`. La configurazione effettiva della traccia deve mostrare
+`run_timeout_seconds: 0`, `model_timeout_seconds: null`, `output_tokens: -1`.
+Non occorre modificare deploy.env per attivarla dopo questo aggiornamento.
+Per tornare alla modalità configurabile impostare `CORA_UNLIMITED_GENERATION=false`;
+in tale modalità zero disabilita i timeout, valori positivi li mantengono.
 
-Attivazione sul server, solo dopo installazione del codice aggiornato: impostare
-`CORA_RUN_TIMEOUT_SECONDS=0` nel file `/srv/cora-server-test/deploy.env` e ricreare
-l'API con la procedura di deployment che preserva le immagini della release attiva.
-Il vecchio codice interpreta zero come un secondo: non impostarlo prima del deploy.
-Verificare nella configurazione della nuova traccia `run_timeout_seconds: 0`.
+Chat e Programma mostrano il tempo trascorso dall'invio (comprende coda e rete),
+conservano la durata finale finché la vista resta aperta e offrono Annulla.
+Il timer è locale alla vista, non un registro persistente delle durate server.
+L'annullamento resta cooperativo: la richiesta è registrata subito ma il lavoro
+può restare in cancellazione finché una chiamata bloccante restituisce il controllo.
+Non è ancora attestato l'arresto immediato dell'inferenza Ollama prima del primo chunk.
+Il testo già scritto e gli effetti già applicati non vengono annullati automaticamente.
+
+Corta/media/lunga è una preferenza di stile per la richiesta, non un tetto di
+output; non viene salvata come istruzione nella cronologia. Il contesto rimane
+finito (`CORA_CONTEXT_TOKENS`): si riserva spazio positivo per generare anche con
+output senza cap. Restano i limiti di ricorsione, dimensione input/file, controlli
+Docker e richieste HTTP di servizio: eliminarli non aumenta la qualità del modello.
+Anche i riassunti interni usano la politica di output, senza il precedente cap 768.
+
+Da collaudare sul server dopo merge e aggiornamento: richiesta reale con file e
+test, annullamento durante l'attesa del modello, timer in entrambe le viste,
+qualità delle tre preferenze. PRG-01 e PERF-01 restano aperti.
 
 Riscontro hardware a riposo del 13 ottobre: circa 9,8 GiB disponibili, swap usata
 524 KiB, nessuna attività swap nei campioni, CPU inattiva 91-98% negli intervalli.

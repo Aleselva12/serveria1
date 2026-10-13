@@ -1,4 +1,5 @@
 from __future__ import annotations
+from core.generation_policy import output_tokens, model_timeout, run_timeout
 
 import os
 import json
@@ -123,9 +124,9 @@ def get_chat_model(
     """Create the local chat model assigned to a Cora role."""
     from core.context_budget import limit_tokens
     kwargs.setdefault("num_ctx", limit_tokens())
-    kwargs.setdefault("num_predict", int(os.getenv("CORA_OUTPUT_TOKENS", "1024")))
+    kwargs.setdefault("num_predict", output_tokens())
     kwargs.setdefault("keep_alive", get_model_keep_alive())
-    kwargs.setdefault("client_kwargs", {"timeout": float(os.getenv("CORA_MODEL_TIMEOUT_SECONDS", "120")), "trust_env": False})
+    kwargs.setdefault("client_kwargs", {"timeout": model_timeout(), "trust_env": False})
     kwargs.setdefault("metadata", {"cora_role": role})
     # Ollama expects num_ctx/num_predict as model options; ChatOllama maps these fields.
     # Keep tool-capable models on the native /api/chat path.
@@ -157,9 +158,9 @@ def performance_configuration(target: str = "supervisor") -> dict:
         "ollama_base_url": get_ollama_base_url(),
         "keep_alive": get_model_keep_alive(),
         "context_tokens": int(os.getenv("CORA_CONTEXT_TOKENS", "16384")),
-        "output_tokens": int(os.getenv("CORA_OUTPUT_TOKENS", "1024")),
-        "model_timeout_seconds": float(os.getenv("CORA_MODEL_TIMEOUT_SECONDS", "120")),
-        "run_timeout_seconds": float(os.getenv("CORA_RUN_TIMEOUT_SECONDS", "300")),
+        "output_tokens": output_tokens(),
+        "model_timeout_seconds": model_timeout(),
+        "run_timeout_seconds": run_timeout(),
         "queue_size": int(os.getenv("CORA_RUN_QUEUE_SIZE", "8")),
         "db_pool_size": int(os.getenv("CORA_DB_POOL_SIZE", "4")),
         "hardware_label": os.getenv("CORA_PERFORMANCE_HARDWARE_LABEL", "").strip(),

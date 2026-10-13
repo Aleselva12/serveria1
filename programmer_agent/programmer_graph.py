@@ -27,7 +27,11 @@ Alla fine elenca file creati/modificati, verifiche realmente eseguite e collegam
 Non dichiarare successo se un controllo ha fallito o se hai solo scritto codice nella risposta.
 """
 
+from core.generation_policy import response_instruction
+
+
 class AgentState(MessagesState):
+    response_length: str
     system_prompt: str
 
 bind_capabilities("programmer_agent", PROGRAMMER_TOOLS)
@@ -38,7 +42,7 @@ def programmer_model():
 
 def prepare_prompt(state: AgentState):
     info = ws.summary(ws.manifest(ws.current()))
-    return {"system_prompt": with_permanent_context(PROMPT) + "\nWorkspace: " + json.dumps(info, ensure_ascii=False)
+    return {"system_prompt": with_permanent_context(PROMPT) + "\n" + response_instruction(state.get("response_length", "medium")) + "\nWorkspace: " + json.dumps(info, ensure_ascii=False)
             + "\nSkill disponibili (carica il contenuto con programmer_read_skill): " + json.dumps(SKILLS, ensure_ascii=False)}
 
 
