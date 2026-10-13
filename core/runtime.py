@@ -37,7 +37,7 @@ class Run:
     timings: dict = field(default_factory=dict)
     output: str = ""
     output_span: object = None
-    timeout: float = field(default_factory=lambda: max(1, float(os.getenv("CORA_RUN_TIMEOUT_SECONDS", "300"))))
+    timeout: float = field(default_factory=lambda: max(0, float(os.getenv("CORA_RUN_TIMEOUT_SECONDS", "300"))))
     graph_version: str = "runtime-v1"
     durable: bool = False
     persistence_error: str | None = None
@@ -82,7 +82,7 @@ class Run:
             if self.status == "running": self.transition("cancelling")
 
     def check(self):
-        if time.monotonic() - self.created >= self.timeout: self.stop("timed_out")
+        if self.timeout > 0 and time.monotonic() - self.created >= self.timeout: self.stop("timed_out")
         if self.cancel.is_set(): raise RunStopped(self.reason)
 
     def snapshot(self):
@@ -141,6 +141,8 @@ class Runtime:
             return run
 
     def _deadline(self, run):
+        if run.timeout <= 0:
+            return
         if not run.done.wait(run.timeout):
             try: run.stop("timed_out")
             except DurabilityLost: pass  # Worker stops at the next safe boundary; it keeps the slot until then.

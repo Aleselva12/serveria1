@@ -51,7 +51,7 @@ def bind_runtime(
                 timeout_seconds = float(os.getenv("CORA_RUN_TIMEOUT_SECONDS", "300"))
             except ValueError:
                 timeout_seconds = 300.0
-        deadline = time.monotonic() + max(1.0, timeout_seconds)
+        deadline = time.monotonic() + max(1.0, timeout_seconds) if timeout_seconds > 0 else None
 
     run_token = _run_id.set(run_id)
     thread_token = _thread_id.set(thread_id)

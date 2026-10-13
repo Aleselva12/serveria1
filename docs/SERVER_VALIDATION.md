@@ -462,3 +462,55 @@ Il collector conserva separatamente esito inventario e probe: il report generale
 tempi provider in millisecondi e ricorda che completed non certifica il lavoro.
 Non è stata cambiata la selezione del modello o degli strumenti: la causa precisa
 della lentezza richiede ancora un confronto controllato.
+
+## Riscontro del 13 ottobre 2026, ore 19:15 italiane
+
+Inventario fornito dall'operatore: ok=true. Commit attivo e bridge concordano su
+`d0e2521749893dcc09e8966a16c0353c296948c8`; registered_images_match=true.
+API `sha256:eaa05f8d18ba82bde702e656c0e0d828fdce3fae3934fd65e0864479c1f563a1`,
+web `sha256:57448a295d5a376865df75685a0d63cab987c6739a477e3081f7e3c38972fc76`.
+API/web/PostgreSQL healthy, storage e modelli disponibili, servizi updater attivi,
+workspace scrivibile e allineato. Attestato il confronto delle immagini dopo
+l'aggiornamento; resta aperta la prova di recupero e ripristino.
+
+La schermata successiva del workspace `Collaudo Ollama - somma` mostra invece
+`Esecuzione timed_out`: PRG-01 non superato. Non sono visibili ID run, metriche
+o elenco completo delle modifiche. Recuperare l'ultima esecuzione programmer
+del workspace prima di ripetere la richiesta: non è ancora noto se il timeout
+sia arrivato durante il modello o dopo operazioni su file. Nessun aumento dei
+timeout o cambio modello applicato sulla base della sola schermata.
+
+Diagnostica successiva: run `19271097-e61f-41fa-a06c-e8095eeb51a2`,
+timed_out a 300,272 s, coda 43,62 ms, prepare 0,96 ms. Una sola chiamata
+modello interrotta con RunStopped a 300,102 s, first_token_ms=null. Nessun
+nodo strumenti nel campione; la pagina Attività mostra zero operazioni del run.
+I tre errori sono lo stesso RunStopped propagato a modello, call_llm e LangGraph.
+Il callback controlla la cancellazione prima di registrare il token: il null
+non certifica assenza di chunk di ragionamento/tool o di lavoro interno Ollama.
+Contesto stimato 2776 token, riserva strumenti 4312: sono stime del budget,
+non conteggi effettivi Ollama, assenti perché la chiamata non è terminata.
+La pagina Attività mostra inoltre pool PostgreSQL di 2 connessioni, entrambe
+occupate e 2 richieste in attesa al momento dello screenshot; dato istantaneo,
+non prova che il database abbia causato i cinque minuti di questo run.
+
+
+## Scadenza opzionale delle esecuzioni
+
+Su richiesta del proprietario, `CORA_RUN_TIMEOUT_SECONDS=0` disattiva la
+scadenza temporale complessiva, sia nel runtime sia nel contesto degli strumenti.
+Il valore predefinito resta 300; valori positivi mantengono la scadenza.
+L'annullamento manuale resta cooperativo. Un lavoro che non termina può occupare
+lo slot del modello finché non viene annullato e raggiunge un punto di arresto.
+Restano distinti timeout di connessione, limiti dei controlli Docker, limite
+ricorsione del grafo e numero massimo di token generati.
+
+Attivazione sul server, solo dopo installazione del codice aggiornato: impostare
+`CORA_RUN_TIMEOUT_SECONDS=0` nel file `/srv/cora-server-test/deploy.env` e ricreare
+l'API con la procedura di deployment che preserva le immagini della release attiva.
+Il vecchio codice interpreta zero come un secondo: non impostarlo prima del deploy.
+Verificare nella configurazione della nuova traccia `run_timeout_seconds: 0`.
+
+Riscontro hardware a riposo del 13 ottobre: circa 9,8 GiB disponibili, swap usata
+524 KiB, nessuna attività swap nei campioni, CPU inattiva 91-98% negli intervalli.
+`ollama` non presente nel PATH della shell host; ciò non indica servizio assente.
+Questi campioni non misurano il carico durante l'inferenza fallita.
