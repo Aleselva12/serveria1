@@ -139,6 +139,12 @@ class ExecutionTrace(BaseCallbackHandler):
     def on_llm_new_token(self, token, *, run_id=None, **kwargs):
         if self.runtime_run: self.runtime_run.check()
         if token and run_id is not None: self.model_first_token.setdefault(str(run_id),time.perf_counter())
+        chunk = kwargs.get("chunk")
+        message = getattr(chunk, "message", None)
+        thinking = getattr(message, "additional_kwargs", {}).get("reasoning_content", "")
+        if self.runtime_run and thinking:
+            from core.runtime import publish_thinking
+            publish_thinking(self.runtime_run, self.model_roles.get(str(run_id), "model"), str(run_id), thinking)
 
     def on_chain_error(self, error, *, run_id, parent_run_id=None, **kwargs):
         self.end(run_id, parent_run_id, error)

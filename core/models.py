@@ -10,6 +10,20 @@ from core.ollama_transport import DEFAULT_BASE_URL, get_ollama_base_url, urlopen
 from langchain_ollama import ChatOllama
 
 
+class ConfiguredChatOllama(ChatOllama):
+    """Pass min_p through Ollama options; ChatOllama 1.1 omits that field."""
+    min_p: float | None = None
+
+    def _chat_params(self, messages, stop=None, **kwargs):
+        params = super()._chat_params(messages, stop=stop, **kwargs)
+        if self.min_p is not None:
+            options = params["options"]
+            if hasattr(options, "model_dump"):
+                options = options.model_dump(exclude_none=True)
+            params["options"] = {**options, "min_p": self.min_p}
+        return params
+
+
 DEFAULT_MODEL = "gpt-oss:20b"
 
 
@@ -115,6 +129,14 @@ def get_model_name(role: str = "default") -> str:
     return os.getenv("OLLAMA_MODEL", DEFAULT_MODEL)
 
 
+def model_options(model: str) -> dict:
+    """Qwen3 hybrid profile; do not apply it to Qwen3.5 or other families."""
+    family = model.rsplit("/", 1)[-1].split(":", 1)[0].lower()
+    if family != "qwen3":
+        return {}
+    return {"temperature": 0.6, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "reasoning": True}
+
+
 def get_chat_model(
     role: str = "default",
     *,
@@ -123,6 +145,10 @@ def get_chat_model(
 ) -> ChatOllama:
     """Create the local chat model assigned to a Cora role."""
     from core.context_budget import limit_tokens
+    model = get_model_name(role)
+    profile = model_options(model)
+    temperature = profile.pop("temperature", temperature)
+    kwargs.update(profile)
     kwargs.setdefault("num_ctx", limit_tokens())
     kwargs.setdefault("num_predict", output_tokens())
     kwargs.setdefault("keep_alive", get_model_keep_alive())
@@ -130,8 +156,8 @@ def get_chat_model(
     kwargs.setdefault("metadata", {"cora_role": role})
     # Ollama expects num_ctx/num_predict as model options; ChatOllama maps these fields.
     # Keep tool-capable models on the native /api/chat path.
-    return ChatOllama(
-        model=get_model_name(role),
+    return ConfiguredChatOllama(
+        model=model,
         base_url=get_ollama_base_url(),
         temperature=temperature,
         **kwargs,
@@ -157,6 +183,7 @@ def performance_configuration(target: str = "supervisor") -> dict:
         "models": {name: get_model_name(name) for name in ROLE_MODEL_ENV},
         "ollama_base_url": get_ollama_base_url(),
         "keep_alive": get_model_keep_alive(),
+        "sampling": model_options(get_model_name(role)),
         "context_tokens": int(os.getenv("CORA_CONTEXT_TOKENS", "16384")),
         "output_tokens": output_tokens(),
         "model_timeout_seconds": model_timeout(),

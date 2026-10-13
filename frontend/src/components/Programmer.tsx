@@ -1,3 +1,4 @@
+import ThinkingPanel, { type ThinkingState } from "./ThinkingPanel";
 import { LengthChoice, RunTimer, type ResponseLength } from "./RunControls";
 import { useEffect, useRef, useState } from "react";
 import { Code2, Folder, Send, RefreshCw } from "lucide-react";
@@ -40,6 +41,7 @@ export default function Programmer() {
     [error, setError] = useState(""),
     [viewDiff, setViewDiff] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [thinking, setThinking] = useState<ThinkingState>({text: "", truncated: false});
   const [responseLength, setResponseLength] = useState<ResponseLength>("medium");
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [finishedAt, setFinishedAt] = useState<number | null>(null);
@@ -91,6 +93,7 @@ export default function Programmer() {
   }
   useEffect(() => {
     selection.current = selected;
+    setThinking({text: "", truncated: false});
     fileRequest.current++;
     setFile(null);
     setFiles([]);
@@ -151,6 +154,7 @@ export default function Programmer() {
     const id = selected,
       message = draft.trim();
     setBusy(true);
+    setThinking({text: "", truncated: false});
     setStartedAt(Date.now()); setFinishedAt(null);
     setError("");
     setLive("");
@@ -187,6 +191,7 @@ export default function Programmer() {
                 setState,
                 abort.current.signal,
                 responseLength,
+                setThinking,
               );
       if (!mounted.current) return;
       if (profile) setReport(result.response);
@@ -535,6 +540,7 @@ export default function Programmer() {
               </div>
             )}
           </div>
+          <ThinkingPanel value={thinking} />
           <RunTimer started={startedAt} finished={finishedAt} />
                 <LengthChoice value={responseLength} onChange={setResponseLength} disabled={busy} />
                 <div className="copilot-composer">

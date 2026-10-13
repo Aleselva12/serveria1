@@ -58,6 +58,7 @@ def call_llm(state: AgentState):
     calls = list(getattr(response, "tool_calls", []) or [])
     if len(calls) > 1:
         response = AIMessage(content=response.content, tool_calls=calls[:1], id=response.id,
+                             additional_kwargs=response.additional_kwargs,
                              response_metadata=response.response_metadata, usage_metadata=response.usage_metadata)
     return {"messages": [response]}
 

@@ -65,3 +65,18 @@ test('chat attachments are sent with the request and streaming never resubmits t
  };
  await streamChat('Leggi','thread',()=>{},()=>{},()=>{},['attachment-id'],null,undefined,'long');assert.equal(calls,2);
 });
+
+test('thinking stays separate from answer and resync replaces lost chunks',async()=>{
+ let calls=0;const thinking=[],answers=[];
+ globalThis.fetch=async()=>++calls===1?json({id:'run',status:'queued'}):stream(
+ 'data: '+JSON.stringify({type:'thinking.delta',payload:{text:'Prima',truncated:false}})+'\n\n'+
+ 'event: resync\ndata: '+JSON.stringify({status:'running',output:'',thinking:'Recuperato',thinking_truncated:true})+'\n\n'+
+ 'data: '+JSON.stringify({type:'thinking.reset'})+'\n\n'+
+ 'data: '+JSON.stringify({type:'thinking.delta',payload:{text:'Controllo',truncated:false}})+'\n\n'+
+ 'data: '+JSON.stringify({type:'chat.delta',payload:{text:'Risposta'}})+'\n\n'+
+ 'event: result\ndata: '+JSON.stringify({status:'completed',thinking:'Controllo',thinking_truncated:false,result:{response:'Risposta',thread_id:'thread'}})+'\n\n');
+ const result=await streamChat('query','thread',()=>{},t=>answers.push(t),()=>{},[],null,undefined,'medium',v=>thinking.push(v));
+ assert.deepEqual(thinking.map(v=>v.text),['Prima','Recuperato','','Controllo','Controllo']);
+ assert.equal(thinking[1].truncated,true);
+ assert.deepEqual(answers,['','Risposta']);assert.equal(result.response,'Risposta');
+});

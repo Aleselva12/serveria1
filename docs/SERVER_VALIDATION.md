@@ -528,3 +528,34 @@ Riscontro hardware a riposo del 13 ottobre: circa 9,8 GiB disponibili, swap usat
 524 KiB, nessuna attività swap nei campioni, CPU inattiva 91-98% negli intervalli.
 `ollama` non presente nel PATH della shell host; ciò non indica servizio assente.
 Questi campioni non misurano il carico durante l'inferenza fallita.
+
+## Passaggio controllato a Qwen3 8B
+
+Dopo merge e aggiornamento, senza richieste IA attive, eseguire sul server:
+
+```sh
+docker exec -i cora-api-1 python -m deploy.prepare_qwen3
+```
+
+Il comando usa l'endpoint Ollama configurato nell'API (non richiede il comando
+ollama nella shell host). Scarica ~5.2 GB, verifica tools/thinking, carica con
+contesto 8192 e solo dopo salva qwen3:8b come modello globale nel file persistente
+runtime-settings.json. In caso di errore prima del salvataggio, la selezione
+precedente rimane invariata; un download parziale può restare nella cache Ollama.
+Non eseguirlo contemporaneamente a chat o altri comandi di cambio modello.
+Se la RAM disponibile è inferiore a 8 GiB, interrompe la preparazione: valutare
+il carico reale prima di insistere. Il peso del download non è la RAM totale.
+
+Per tornare al modello precedente già installato usare la selezione modello
+nell'interfaccia; oppure, se era qwen3:0.6b:
+
+```sh
+docker exec -i cora-api-1 python -c 'from core.models import save_runtime_model; save_runtime_model("qwen3:0.6b")'
+```
+
+Qwen3 usa temperatura 0.6, top_p 0.95, top_k 20, min_p 0 e thinking esplicito.
+Il profilo vale anche per il modello piccolo. Nessun limite di tempo o di token
+di output aggiunto. Gli eventi thinking sono disponibili nella vista corrente,
+non sono prove di scritture/test né un registro persistente. Un'assenza di testo
+nel pannello non certifica modello inattivo: può essere ancora in caricamento o
+valutazione del prompt. Il nuovo modello resta da collaudare sul compito reale.
