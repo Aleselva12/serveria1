@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
+from langchain_core.messages import AIMessage
 
 from core import models
 
@@ -47,6 +48,8 @@ class RuntimeModelTests(unittest.TestCase):
                 first, second = MagicMock(), MagicMock()
                 first.bind_tools.return_value = first
                 second.bind_tools.return_value = second
+                first.invoke.return_value = AIMessage(content="first")
+                second.invoke.return_value = AIMessage(content="second")
                 with patch.object(module, 'get_chat_model', side_effect=[first, second]) as factory, patch.object(module, 'fit_messages', return_value=[]), patch.object(module, 'ensure_runtime_active'):
                     module.call_llm({'system_prompt': 'test', 'messages': []})
                     module.call_llm({'system_prompt': 'test', 'messages': []})

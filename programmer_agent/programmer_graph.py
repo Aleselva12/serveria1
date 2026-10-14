@@ -1,7 +1,8 @@
 """Native LangGraph coding loop; shares Cora's queue, contracts and context budget."""
 from __future__ import annotations
 import json
-from langchain_core.messages import SystemMessage, AIMessage
+import time
+from langchain_core.messages import SystemMessage, ToolMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 from core.context_budget import fit_messages
@@ -10,6 +11,7 @@ from core.models import get_chat_model
 from core.prompt_context import with_permanent_context
 from core.runtime_context import ensure_runtime_active
 from programmer_agent import workspace as ws
+from programmer_agent import context_manager
 from programmer_agent.knowledge import SKILLS
 from programmer_agent.programmer_tools import PROGRAMMER_TOOLS
 
@@ -35,9 +37,9 @@ class AgentState(MessagesState):
     system_prompt: str
 
 bind_capabilities("programmer_agent", PROGRAMMER_TOOLS)
-def programmer_model():
+def programmer_model(tools=None):
     """Resolve the operator-selected model on every call, like the supervisor."""
-    return get_chat_model("programmer", temperature=0.0).bind_tools(PROGRAMMER_TOOLS)
+    return get_chat_model("programmer", temperature=0.0).bind_tools(PROGRAMMER_TOOLS if tools is None else tools)
 
 
 def prepare_prompt(state: AgentState):
@@ -46,21 +48,96 @@ def prepare_prompt(state: AgentState):
             + "\nSkill disponibili (carica il contenuto con programmer_read_skill): " + json.dumps(SKILLS, ensure_ascii=False)}
 
 
+def record_metric(kind, payload):
+    from core.runtime import current_run
+    from core.event_bus import bus
+    run = current_run.get()
+    if run:
+        samples = run.timings.setdefault("programmer_context", [])
+        samples.append({"kind": kind, **payload})
+        del samples[:-100]
+        bus.publish("programmer." + kind, "programmer_agent", run_id=run.id,
+                    thread_id=run.thread_id, payload=payload)
+
+
 def call_llm(state: AgentState):
     ensure_runtime_active()
-    response = programmer_model().invoke(
-        fit_messages(
-            [SystemMessage(content=state["system_prompt"])] + list(state["messages"]),
-            tools=PROGRAMMER_TOOLS,
-        )
-    )
-    # Serialize operations: do not race optimistic writes/checks within one turn.
-    calls = list(getattr(response, "tool_calls", []) or [])
-    if len(calls) > 1:
-        response = AIMessage(content=response.content, tool_calls=calls[:1], id=response.id,
-                             additional_kwargs=response.additional_kwargs,
-                             response_metadata=response.response_metadata, usage_metadata=response.usage_metadata)
-    return {"messages": [response]}
+    started = time.perf_counter()
+    active = context_manager.enabled()
+    sample = {"enabled": active}
+    try:
+        if active:
+            messages, selected, reason = context_manager.prepare(
+                state["system_prompt"], list(state["messages"]), PROGRAMMER_TOOLS)
+        else:
+            selected, reason = PROGRAMMER_TOOLS, "legacy"
+            messages = fit_messages([SystemMessage(content=state["system_prompt"])] + list(state["messages"]), tools=selected)
+        sample.update(context_manager.metrics(messages, selected), selection_reason=reason)
+        response = programmer_model(selected).invoke(messages)
+        ensure_runtime_active()
+        if getattr(response, "invalid_tool_calls", None):
+            raise ValueError("Il modello ha restituito chiamate tool non valide; nessuna eseguita.")
+        if not response.content and not getattr(response, "tool_calls", None):
+            raise ValueError("Il modello ha restituito una risposta vuota.")
+        meta = getattr(response, "response_metadata", {})
+        for key in ("prompt_eval_count", "eval_count", "total_duration"):
+            if isinstance(meta.get(key), (int, float)):
+                sample[key] = meta[key]
+        return {"messages": [response]}
+    except BaseException as error:
+        sample["error_type"] = type(error).__name__
+        raise
+    finally:
+        sample["duration_ms"] = round((time.perf_counter() - started) * 1000, 2)
+        record_metric("context_call", sample)
+
+
+def tool_error(error: Exception) -> str:
+    from core.run_lifecycle import RunCancelled
+    from core.runtime_context import RunTimedOut
+    if isinstance(error, (RunCancelled, RunTimedOut)):
+        raise error
+    return "Tool non completato: " + str(error)
+
+
+_tool_node = ToolNode(PROGRAMMER_TOOLS, handle_tool_errors=tool_error)
+
+
+def execute_tools(state: AgentState, config):
+    ensure_runtime_active()
+    response = state["messages"][-1]
+    calls = response.tool_calls
+    # Execute only one operation; preserve the other calls with explicit results.
+    # The model must reconsider them after observing the first operation's result.
+    first = response.model_copy(update={"tool_calls": calls[:1]})
+    result = _tool_node.invoke({"messages": [first]}, config=config)
+    ensure_runtime_active()
+    result["messages"].extend(ToolMessage(
+        content="Non eseguito: operazioni serializzate. Rivaluta questa chiamata dopo il risultato precedente.",
+        name=call["name"], tool_call_id=call["id"], status="error") for call in calls[1:])
+    record_metric("tools", {"executed_tool": calls[0]["name"], "deferred_tools": [c["name"] for c in calls[1:]],
+                            "errors": sum(m.status == "error" for m in result["messages"])})
+    return result
+
+
+def final_evidence(state: AgentState):
+    ensure_runtime_active()
+    from programmer_agent.components import check_history, workspace_digest
+    identifier = ws.current()
+    with ws.LOCK:
+        history = check_history(identifier)
+        digest = workspace_digest(identifier) if history else None
+        latest = {r["profile"]: r for r in history if r.get("workspace_digest") == digest}
+        evidence = {profile: {"passed": row.get("passed") is True,
+                              "completed": row.get("completed", True)} for profile, row in latest.items()}
+    record_metric("verification", {"workspace_digest": digest, "checks": evidence,
+                                   "verified_profiles": [p for p, r in evidence.items() if r["passed"] and r["completed"]]})
+    # Evidence is authoritative workspace state, never the model's claim of success.
+    response = state["messages"][-1]
+    if isinstance(response.content, str):
+        note = "Verifiche registrate sul workspace corrente: " + (json.dumps(evidence, ensure_ascii=False) if evidence else "nessuna. Risultato non verificato.")
+        return {"messages": [response.model_copy(update={"content": response.content + "\n\n" + note})]}
+    return {}
 
 
 def should_continue(state: AgentState):
@@ -72,11 +149,13 @@ def create_programmer_graph():
     flow = StateGraph(AgentState)
     flow.add_node("prepare", prepare_prompt)
     flow.add_node("call_llm", call_llm)
-    flow.add_node("tools", ToolNode(PROGRAMMER_TOOLS, handle_tool_errors=True))
+    flow.add_node("tools", execute_tools)
+    flow.add_node("final_evidence", final_evidence)
     flow.add_edge(START, "prepare")
     flow.add_edge("prepare", "call_llm")
-    flow.add_conditional_edges("call_llm", should_continue, {"tools": "tools", END: END})
+    flow.add_conditional_edges("call_llm", should_continue, {"tools": "tools", END: "final_evidence"})
     flow.add_edge("tools", "call_llm")
+    flow.add_edge("final_evidence", END)
     return flow.compile()
 
 graph = create_programmer_graph()
