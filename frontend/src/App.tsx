@@ -1,3 +1,4 @@
+import ThinkingPanel, { type ThinkingState } from "./components/ThinkingPanel";
 import { LengthChoice, RunTimer, type ResponseLength } from "./components/RunControls";
 import { usePermanentContext } from "./services/usePermanentContext";
 import { streamChat, runtimeRequest, type LibraryActivity } from "./services/runtimeApi";
@@ -82,6 +83,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [finishedAt, setFinishedAt] = useState<number | null>(null);
   const [liveText, setLiveText] = useState("");
+  const [thinking, setThinking] = useState<ThinkingState>({text: "", truncated: false});
   const [libraryActivity, setLibraryActivity] = useState<{threadId:string; items:LibraryActivity[]}>({threadId:"", items:[]});
   const [runState, setRunState] = useState("");
   const [activeRun, setActiveRun] = useState("");
@@ -99,6 +101,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   const { content: permanentContext, updatedAt: contextUpdatedAt, version: contextVersion, saving: contextSaving, error: contextError, edit: setPermanentContext, save: savePermanentContext, reload:reloadPermanentContext } = usePermanentContext(Boolean(backend.health));
   const history = useConversations(Boolean(backend.health), sending);
   const { chats, setChats, currentChat } = history;
+  useEffect(() => setThinking({text: "", truncated: false}), [currentChat.id]);
   useEffect(() => {
     if (page === "chat" && !history.messagesLoading)
       messagesEnd.current?.scrollIntoView({ block: "end" });
@@ -136,6 +139,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
     if (!content || attachmentLock.current || sendLock.current || history.messagesLoading || history.historyLoading || history.messagesError || !backend.health?.ollama_online) return;
     sendLock.current = true;
     setSending(true);
+    setThinking({text: "", truncated: false});
     setStartedAt(Date.now()); setFinishedAt(null);
     setLiveText("");
     setActiveRun("");
@@ -181,7 +185,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
     ]);
     try {
       setLibraryActivity({threadId, items:[]});
-      const result = await streamChat(content, threadId, setActiveRun, setLiveText, setRunState, attachments.map(a=>a.id), manualTools, item => setLibraryActivity(previous => ({threadId, items:[...previous.items.slice(-199), item]})), responseLength);
+      const result = await streamChat(content, threadId, setActiveRun, setLiveText, setRunState, attachments.map(a=>a.id), manualTools, item => setLibraryActivity(previous => ({threadId, items:[...previous.items.slice(-199), item]})), responseLength, setThinking);
       setChats((prev) =>
         prev.map((c) =>
           c.id === conversationId
@@ -411,6 +415,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 {attachmentBusy&&<p role="status">Caricamento degli allegati…</p>}
                 <ChatToolPicker key={currentChat.threadId} selection={toolDrafts[currentChat.threadId]??null} onChange={names=>setToolDrafts(prev=>({...prev,[currentChat.threadId]:names}))} disabled={sending||attachmentBusy} available={Boolean(backend.health)} />
                 <div className="attachment-drafts">{(attachmentDrafts[currentChat.threadId]||[]).map(a=><span className="attachment-chip" key={a.id}>{a.name}{a.truncated?" · estratto limitato":""}<button disabled={sending||attachmentBusy} aria-label={"Rimuovi allegato "+a.name} onClick={()=>setAttachmentDrafts(prev=>({...prev,[currentChat.threadId]:(prev[currentChat.threadId]||[]).filter(x=>x.id!==a.id)}))}>×</button></span>)}</div>
+                <ThinkingPanel value={thinking} />
                 <RunTimer started={startedAt} finished={finishedAt} />
                 <LengthChoice value={responseLength} onChange={setResponseLength} disabled={sending} />
                 <div className="composer">

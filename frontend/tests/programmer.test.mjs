@@ -24,6 +24,7 @@ let code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES20
  .replace(/from "react\/jsx-runtime"/g,'from '+external('react/jsx-runtime')).replace(/from "react"/g,'from '+external('react')).replace(/from "lucide-react"/g,'from '+external('lucide-react'))
  .replace(/import \{[^}]*\} from "\.\.\/services\/programmerApi";/,'const programmerApi=globalThis.__programmerApi;')
  .replace(/import \{[^}]*\} from "\.\/RunControls";/, "const LengthChoice=()=>null, RunTimer=()=>null;")
+ .replace(/import ThinkingPanel from "\.\/ThinkingPanel";/, "const ThinkingPanel=()=>null;")
  .replace(/import ProgrammerReleases from "\.\/ProgrammerReleases";/, "const ProgrammerReleases=()=>null;")
  .replace(/import ProgrammerArtifacts from "\.\/ProgrammerArtifacts";/, "const ProgrammerArtifacts=()=>null;")
  .replace(/import WorkspaceEditor from "\.\/WorkspaceEditor";/, "const WorkspaceEditor=()=>null;")

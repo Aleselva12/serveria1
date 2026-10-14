@@ -87,6 +87,7 @@ export const programmerApi = {
     onState: (state: string) => void,
     signal?: AbortSignal,
     responseLength: "short" | "medium" | "long" = "medium",
+    onThinking?: import("./runtimeApi").ThinkingUpdate,
   ) {
     const run = await runtimeRequest<RunSnapshot>("/programmer/runs", {
       method: "POST",
@@ -94,7 +95,7 @@ export const programmerApi = {
     });
     onRun(run.id);
     onState(run.status);
-    return streamRun(run, onText, onState, signal);
+    return streamRun(run, onText, onState, signal, undefined, onThinking);
   },
   async buildGraph(
     id: string,

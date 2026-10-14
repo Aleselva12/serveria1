@@ -1,6 +1,7 @@
 import { apiBaseUrl } from "./api";
 import { authenticatedFetch } from "./transport";
-export type RunSnapshot = { cancel_requested?:boolean; stop_reason?:string|null; persistence_error?:string|null; created_at?:string; finished_at?:string|null; target?:string; parent_run_id?:string|null; approval_ids?:string[]; id: string; thread_id: string; status: string; output: string; elapsed_ms: number; error_type: string | null; result: { response: string; thread_id: string } | null; agents: Record<string,string>; timings: Record<string,unknown> };
+export type ThinkingUpdate = (value: {text: string; truncated: boolean}) => void;
+export type RunSnapshot = { thinking?: string; thinking_truncated?: boolean; cancel_requested?:boolean; stop_reason?:string|null; persistence_error?:string|null; created_at?:string; finished_at?:string|null; target?:string; parent_run_id?:string|null; approval_ids?:string[]; id: string; thread_id: string; status: string; output: string; elapsed_ms: number; error_type: string | null; result: { response: string; thread_id: string } | null; agents: Record<string,string>; timings: Record<string,unknown> };
 export async function runtimeRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await authenticatedFetch(apiBaseUrl + "/api/v1" + path, { ...init, headers: { "Content-Type": "application/json", ...init.headers }, signal: init.signal ?? AbortSignal.timeout(15000) });
   const data = await response.json();
@@ -8,16 +9,17 @@ export async function runtimeRequest<T>(path: string, init: RequestInit = {}): P
   return data as T;
 }
 export type LibraryActivity = { action: string; path: string; query: string };
-export async function streamChat(message: string, threadId: string, onRun: (id:string)=>void, onText: (text:string)=>void, onState:(state:string)=>void, attachmentIds:string[] = [], manualTools:string[]|null = null, onLibrary?:(activity:LibraryActivity)=>void, responseLength: "short" | "medium" | "long" = "medium") {
+export async function streamChat(message: string, threadId: string, onRun: (id:string)=>void, onText: (text:string)=>void, onState:(state:string)=>void, attachmentIds:string[] = [], manualTools:string[]|null = null, onLibrary?:(activity:LibraryActivity)=>void, responseLength: "short" | "medium" | "long" = "medium", onThinking?: ThinkingUpdate) {
   const run = await runtimeRequest<RunSnapshot>("/chat/runs", { method: "POST", body: JSON.stringify({ message, response_length: responseLength, thread_id: threadId, ...(attachmentIds.length ? {attachment_ids:attachmentIds} : {}), ...(manualTools !== null ? {manual_tools:manualTools} : {}) }) });
   onRun(run.id); onState(run.status);
-  return streamRun(run, onText, onState, undefined, onLibrary);
+  return streamRun(run, onText, onState, undefined, onLibrary, onThinking);
 }
-export async function streamRun(run: RunSnapshot, onText: (text:string)=>void, onState:(state:string)=>void, signal?: AbortSignal, onLibrary?:(activity:LibraryActivity)=>void) {
+export async function streamRun(run: RunSnapshot, onText: (text:string)=>void, onState:(state:string)=>void, signal?: AbortSignal, onLibrary?:(activity:LibraryActivity)=>void, onThinking?: ThinkingUpdate) {
   const response = await authenticatedFetch(apiBaseUrl + "/api/v1/runtime/runs/" + run.id + "/events", { signal });
   if (!response.ok || !response.body) throw new Error("Streaming non disponibile. Consulta Attività per l'esito.");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+  let thinking = "";
   let pending = "", text = "", final: RunSnapshot | null = null;
   try {
     while (true) {
@@ -30,8 +32,10 @@ export async function streamRun(run: RunSnapshot, onText: (text:string)=>void, o
         const line = frame.split("\n").find(l => l.startsWith("data: "));
         if (!line) continue;
         const event = JSON.parse(line.slice(6));
-        if (frame.includes("event: result")) final = event as RunSnapshot;
-        else if (frame.includes("event: resync")) { text = event.output || ""; onText(text); onState(event.status); }
+        if (frame.includes("event: result")) { final = event as RunSnapshot; thinking = event.thinking ?? thinking; onThinking?.({text: thinking, truncated: Boolean(event.thinking_truncated)}); }
+        else if (frame.includes("event: resync")) { text = event.output || ""; onText(text); onState(event.status); thinking = event.thinking || ""; onThinking?.({text: thinking, truncated: Boolean(event.thinking_truncated)}); }
+        else if (event.type === "thinking.reset") { thinking = ""; onThinking?.({text: "", truncated: false}); }
+        else if (event.type === "thinking.delta") { thinking = (thinking + event.payload.text).slice(-24000); onThinking?.({text: thinking, truncated: Boolean(event.payload.truncated)}); }
         else if (event.type === "library.activity") onLibrary?.(event.payload);
         else if (event.type === "chat.reset") { text = ""; onText(text); }
         else if (event.type === "chat.delta") { text += event.payload.text; onText(text); }

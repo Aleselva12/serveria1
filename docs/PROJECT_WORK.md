@@ -275,3 +275,28 @@ Nessun controllo di rilascio rimosso e nessun limite reintrodotto. Verifica loca
 307 test raccolti, 250 superati e 57 saltati per prerequisiti; smoke check riuscito.
 La precedente verifica mirata non includeva questo test: attendere anche i job
 GitHub di deploy prima del prossimo merge. Collaudo server ancora da ripetere.
+
+## 13 ottobre — taratura Qwen3 e thinking visibile
+
+Home/Obiettivi rinviati: aggiunta revisione dei modelli (campionamento, thinking,
+quantizzazione, contesto, dense/MoE e valutazione separata del fine-tuning dei pesi).
+Profilo Qwen3 applicato centralmente anche ai chiamanti che chiedevano temperatura
+zero: temperatura 0.6, top_p 0.95, top_k 20, min_p 0, reasoning esplicito.
+L'adattatore passa min_p alle opzioni Ollama: ChatOllama 1.1 non lo espone direttamente.
+Nessun timeout di generazione reintrodotto; output illimitato invariato.
+
+Chat/Programma: pannello espandibile del thinking emesso dal modello, distinto
+dalla risposta e dagli effetti dei tool. Buffer degli ultimi 24000 caratteri per
+chiamata con segnalazione del taglio visivo, resync SSE e dati in memoria soltanto;
+nessun thinking nei transcript o nell'archivio diagnostico. Il taglio del buffer
+non interrompe la generazione. Cancellazione tuttora cooperativa.
+
+Modello scelto per la prova server: qwen3:8b Q4_K_M (~5.2 GB di download).
+`python -m deploy.prepare_qwen3` verifica almeno 8 GiB di RAM disponibile, scarica,
+controlla le capacità tools/thinking e prova il caricamento a contesto 8192 prima
+di salvare la selezione globale. Il controllo RAM è preliminare, non una garanzia
+di prestazioni o assenza di swap. Non eseguito sul server da questa sessione.
+
+Da fare: installare la PR, eseguire preparazione sul server senza richieste attive,
+collaudare somma.py + unittest con 8B, verificare thinking, RAM/swap, tempi e stop.
+PRG-01/PERF-01 restano aperti; nessuna capacità reale del nuovo modello attestata.

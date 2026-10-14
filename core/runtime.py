@@ -38,6 +38,9 @@ class Run:
     timings: dict = field(default_factory=dict)
     output: str = ""
     output_span: object = None
+    thinking: str = ""
+    thinking_span: str = ""
+    thinking_truncated: bool = False
     timeout: float = field(default_factory=lambda: run_timeout())
     graph_version: str = "runtime-v1"
     durable: bool = False
@@ -91,6 +94,7 @@ class Run:
             return {"id": self.id, "thread_id": self.thread_id, "status": self.status,
                 "error_type": self.error_type, "result": self.result,
                 "agents": dict(self.agents), "timings": dict(self.timings), "output": self.output,
+                "thinking": self.thinking, "thinking_truncated": self.thinking_truncated,
                 "approval_ids": list(self.approvals), "cancel_requested":self.cancel.is_set(),
                 "stop_reason":self.reason if self.cancel.is_set() else None, "persistence_error":self.persistence_error,
                 "elapsed_ms": round(((self.finished or time.monotonic())-self.created)*1000,2)}
@@ -228,6 +232,24 @@ class Runtime:
                 except DurabilityLost: pass
 
 runtime = Runtime()
+
+
+def publish_thinking(run, role, span, text):
+    """Bounded display buffer only: never limits model generation or stores chat history."""
+    if not isinstance(text, str) or not text:
+        return
+    with run.lock:
+        if span != run.thinking_span:
+            run.thinking_span = span
+            run.thinking = ""
+            run.thinking_truncated = False
+            bus.publish("thinking.reset", role, run_id=run.id, thread_id=run.thread_id)
+        run.timings.setdefault("first_thinking_ms", round((time.monotonic()-run.created)*1000, 2))
+        run.timings["last_model_chunk_ms"] = round((time.monotonic()-run.created)*1000, 2)
+        run.thinking_truncated = run.thinking_truncated or len(run.thinking) + len(text) > 24000
+        run.thinking = (run.thinking + text)[-24000:]
+        bus.publish("thinking.delta", role, run_id=run.id, thread_id=run.thread_id,
+                    payload={"text": text[-24000:], "truncated": run.thinking_truncated})
 
 
 def publish_text(run, role, span, text):
