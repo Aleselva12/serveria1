@@ -39,7 +39,9 @@ class AgentState(MessagesState):
 bind_capabilities("programmer_agent", PROGRAMMER_TOOLS)
 def programmer_model(tools=None):
     """Resolve the operator-selected model on every call, like the supervisor."""
-    return get_chat_model("programmer", temperature=0.0).bind_tools(PROGRAMMER_TOOLS if tools is None else tools)
+    selected = PROGRAMMER_TOOLS if tools is None else tools
+    model = get_chat_model("programmer", temperature=0.0)
+    return model.bind_tools(selected) if selected else model
 
 
 def prepare_prompt(state: AgentState):
