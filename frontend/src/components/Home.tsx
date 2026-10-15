@@ -1,4 +1,4 @@
-import { Activity, HardDrive, PlugZap, ShieldCheck, Wifi } from "lucide-react";
+import { Activity, HardDrive, PlugZap, ShieldCheck, Wifi, RefreshCw, ExternalLink } from "lucide-react";
 import type { BackendHealth } from "../types/contracts";
 import { useHomeMonitoring } from "../services/useHomeMonitoring";
 import { homeRoadmap, missingConnections } from "../services/connections";
@@ -53,6 +53,18 @@ export default function Home({
               ? "Verifica della connessione a Cora…"
               : "Il backend non è raggiungibile. Avvia Cora sul computer o sul server."}
         </p>
+        <div className="home-update-actions">
+          <a
+            className="home-update-link"
+            href="https://serverale.tail7b83c3.ts.net:8443/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <RefreshCw size={16} /> Aggiorna Cora
+            <ExternalLink size={14} aria-hidden="true" />
+          </a>
+          <span>Apre la pagina di aggiornamento in una nuova scheda.</span>
+        </div>
         <small>
           {telemetry
             ? "Misurazioni della macchina che esegue Cora · " +
