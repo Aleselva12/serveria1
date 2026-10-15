@@ -29,6 +29,29 @@ class ContextTests(unittest.TestCase):
         self.assertLess(cm.metrics([], selected)['estimated_tool_tokens'], cm.metrics([], PROGRAMMER_TOOLS)['estimated_tool_tokens'])
         self.assertEqual(len(PROGRAMMER_TOOLS), 21)
 
+    def test_simple_question_uses_zero_tools_only_when_isolated(self):
+        selected, reason = cm.select_tools([HumanMessage('Preferisci Python o C++?')], PROGRAMMER_TOOLS)
+        self.assertEqual(selected, [])
+        self.assertEqual(reason, 'simple_question_no_tools')
+        for request in ('Modifica Python o C++ nel progetto', 'Preferisci Python o C++ per modificare il repository?',
+                        'Preferisci Python o C++? Poi modifica un file'):
+            selected, _ = cm.select_tools([HumanMessage(request)], PROGRAMMER_TOOLS)
+            self.assertNotEqual(selected, [])
+        selected, _ = cm.select_tools([HumanMessage('Prima leggi un file'), HumanMessage('Preferisci Python o C++?')], PROGRAMMER_TOOLS)
+        self.assertNotEqual(selected, [])
+
+    def test_simple_question_skips_binding_and_preserves_required_prompt(self):
+        from unittest.mock import MagicMock
+        model = MagicMock()
+        model.invoke.return_value = AIMessage('Python')
+        with patch.dict(os.environ, {'CORA_CONTEXT_MANAGER_ENABLED': 'true'}), patch.object(pg, 'get_chat_model', return_value=model):
+            result = pg.call_llm({'system_prompt': 'identity', 'messages': [HumanMessage('Preferisci Python o C++?')]})
+        self.assertEqual(result['messages'][0].content, 'Python')
+        model.bind_tools.assert_not_called()
+        passed = model.invoke.call_args.args[0]
+        self.assertIn('identity', passed[0].content)
+        self.assertIn('Preferisci Python o C++?', str(passed[-1].content))
+
     def test_ambiguous_request_and_discovery_expand_catalog(self):
         self.assertEqual(cm.select_tools([HumanMessage('Fai quello che serve')], PROGRAMMER_TOOLS)[0], PROGRAMMER_TOOLS)
         messages = [HumanMessage('Leggi un file'), AIMessage('', tool_calls=[call('programmer_catalog')]),
