@@ -1,0 +1,585 @@
+{
+  "mode": "offline_scripted_model_not_ollama",
+  "cases": [
+    {
+      "enabled": false,
+      "scenario": "valid_edit",
+      "offline_graph_ms": 149.54,
+      "real_ollama_tokens": null,
+      "final_response": "Sintassi verificata\n\nVerifiche registrate sul workspace corrente: {\"syntax\": {\"passed\": true, \"completed\": true}}",
+      "metrics": [
+        {
+          "kind": "context_call",
+          "enabled": false,
+          "estimated_message_tokens": 1515,
+          "estimated_tool_tokens": 4056,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_graph",
+            "programmer_validate_automation",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component",
+            "programmer_delete_file",
+            "programmer_git_commit",
+            "programmer_prepare_release",
+            "programmer_release_status",
+            "programmer_apply_release",
+            "programmer_rollback_release",
+            "programmer_publish_release"
+          ],
+          "selection_reason": "legacy",
+          "duration_ms": 12.69
+        },
+        {
+          "kind": "tools",
+          "executed_tool": "programmer_read_file",
+          "deferred_tools": [],
+          "errors": 0
+        },
+        {
+          "kind": "context_call",
+          "enabled": false,
+          "estimated_message_tokens": 1891,
+          "estimated_tool_tokens": 4056,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_graph",
+            "programmer_validate_automation",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component",
+            "programmer_delete_file",
+            "programmer_git_commit",
+            "programmer_prepare_release",
+            "programmer_release_status",
+            "programmer_apply_release",
+            "programmer_rollback_release",
+            "programmer_publish_release"
+          ],
+          "selection_reason": "legacy",
+          "duration_ms": 0.94
+        },
+        {
+          "kind": "tools",
+          "executed_tool": "programmer_write_file",
+          "deferred_tools": [],
+          "errors": 0
+        },
+        {
+          "kind": "context_call",
+          "enabled": false,
+          "estimated_message_tokens": 2299,
+          "estimated_tool_tokens": 4056,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_graph",
+            "programmer_validate_automation",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component",
+            "programmer_delete_file",
+            "programmer_git_commit",
+            "programmer_prepare_release",
+            "programmer_release_status",
+            "programmer_apply_release",
+            "programmer_rollback_release",
+            "programmer_publish_release"
+          ],
+          "selection_reason": "legacy",
+          "duration_ms": 1.03
+        },
+        {
+          "kind": "tools",
+          "executed_tool": "programmer_check",
+          "deferred_tools": [],
+          "errors": 0
+        },
+        {
+          "kind": "context_call",
+          "enabled": false,
+          "estimated_message_tokens": 2751,
+          "estimated_tool_tokens": 4056,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_graph",
+            "programmer_validate_automation",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component",
+            "programmer_delete_file",
+            "programmer_git_commit",
+            "programmer_prepare_release",
+            "programmer_release_status",
+            "programmer_apply_release",
+            "programmer_rollback_release",
+            "programmer_publish_release"
+          ],
+          "selection_reason": "legacy",
+          "duration_ms": 1.01
+        },
+        {
+          "kind": "verification",
+          "workspace_digest": "0088f27e92708025b97f70165acadb5d0b0cda118ca98ce9ea3a9c091ca1bfea",
+          "checks": {
+            "syntax": {
+              "passed": true,
+              "completed": true
+            }
+          },
+          "verified_profiles": [
+            "syntax"
+          ]
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "scenario": "valid_edit",
+      "offline_graph_ms": 16.69,
+      "real_ollama_tokens": null,
+      "final_response": "Sintassi verificata\n\nVerifiche registrate sul workspace corrente: {\"syntax\": {\"passed\": true, \"completed\": true}}",
+      "metrics": [
+        {
+          "kind": "context_call",
+          "enabled": true,
+          "estimated_message_tokens": 1694,
+          "estimated_tool_tokens": 2299,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component"
+          ],
+          "selection_reason": "task_selection",
+          "duration_ms": 1.47
+        },
+        {
+          "kind": "tools",
+          "executed_tool": "programmer_read_file",
+          "deferred_tools": [],
+          "errors": 0
+        },
+        {
+          "kind": "context_call",
+          "enabled": true,
+          "estimated_message_tokens": 2070,
+          "estimated_tool_tokens": 2299,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component"
+          ],
+          "selection_reason": "task_selection",
+          "duration_ms": 0.58
+        },
+        {
+          "kind": "tools",
+          "executed_tool": "programmer_write_file",
+          "deferred_tools": [],
+          "errors": 0
+        },
+        {
+          "kind": "context_call",
+          "enabled": true,
+          "estimated_message_tokens": 2478,
+          "estimated_tool_tokens": 2299,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component"
+          ],
+          "selection_reason": "task_selection",
+          "duration_ms": 1.1
+        },
+        {
+          "kind": "tools",
+          "executed_tool": "programmer_check",
+          "deferred_tools": [],
+          "errors": 0
+        },
+        {
+          "kind": "context_call",
+          "enabled": true,
+          "estimated_message_tokens": 2930,
+          "estimated_tool_tokens": 2299,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component"
+          ],
+          "selection_reason": "task_selection",
+          "duration_ms": 0.86
+        },
+        {
+          "kind": "verification",
+          "workspace_digest": "0088f27e92708025b97f70165acadb5d0b0cda118ca98ce9ea3a9c091ca1bfea",
+          "checks": {
+            "syntax": {
+              "passed": true,
+              "completed": true
+            }
+          },
+          "verified_profiles": [
+            "syntax"
+          ]
+        }
+      ]
+    },
+    {
+      "enabled": false,
+      "scenario": "invalid_syntax",
+      "offline_graph_ms": 17.61,
+      "real_ollama_tokens": null,
+      "final_response": "Verifica fallita\n\nVerifiche registrate sul workspace corrente: {\"syntax\": {\"passed\": false, \"completed\": true}}",
+      "metrics": [
+        {
+          "kind": "context_call",
+          "enabled": false,
+          "estimated_message_tokens": 1515,
+          "estimated_tool_tokens": 4056,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_graph",
+            "programmer_validate_automation",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component",
+            "programmer_delete_file",
+            "programmer_git_commit",
+            "programmer_prepare_release",
+            "programmer_release_status",
+            "programmer_apply_release",
+            "programmer_rollback_release",
+            "programmer_publish_release"
+          ],
+          "selection_reason": "legacy",
+          "duration_ms": 1.32
+        },
+        {
+          "kind": "tools",
+          "executed_tool": "programmer_read_file",
+          "deferred_tools": [],
+          "errors": 0
+        },
+        {
+          "kind": "context_call",
+          "enabled": false,
+          "estimated_message_tokens": 1891,
+          "estimated_tool_tokens": 4056,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_graph",
+            "programmer_validate_automation",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component",
+            "programmer_delete_file",
+            "programmer_git_commit",
+            "programmer_prepare_release",
+            "programmer_release_status",
+            "programmer_apply_release",
+            "programmer_rollback_release",
+            "programmer_publish_release"
+          ],
+          "selection_reason": "legacy",
+          "duration_ms": 1.12
+        },
+        {
+          "kind": "tools",
+          "executed_tool": "programmer_write_file",
+          "deferred_tools": [],
+          "errors": 0
+        },
+        {
+          "kind": "context_call",
+          "enabled": false,
+          "estimated_message_tokens": 2299,
+          "estimated_tool_tokens": 4056,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_graph",
+            "programmer_validate_automation",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component",
+            "programmer_delete_file",
+            "programmer_git_commit",
+            "programmer_prepare_release",
+            "programmer_release_status",
+            "programmer_apply_release",
+            "programmer_rollback_release",
+            "programmer_publish_release"
+          ],
+          "selection_reason": "legacy",
+          "duration_ms": 0.89
+        },
+        {
+          "kind": "tools",
+          "executed_tool": "programmer_check",
+          "deferred_tools": [],
+          "errors": 0
+        },
+        {
+          "kind": "context_call",
+          "enabled": false,
+          "estimated_message_tokens": 2796,
+          "estimated_tool_tokens": 4056,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_graph",
+            "programmer_validate_automation",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component",
+            "programmer_delete_file",
+            "programmer_git_commit",
+            "programmer_prepare_release",
+            "programmer_release_status",
+            "programmer_apply_release",
+            "programmer_rollback_release",
+            "programmer_publish_release"
+          ],
+          "selection_reason": "legacy",
+          "duration_ms": 0.84
+        },
+        {
+          "kind": "verification",
+          "workspace_digest": "b8a61e17adaeaa1b30f5660b3d55bf2708b9005f6805877b0a8919c49a8ec71d",
+          "checks": {
+            "syntax": {
+              "passed": false,
+              "completed": true
+            }
+          },
+          "verified_profiles": []
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "scenario": "invalid_syntax",
+      "offline_graph_ms": 17.58,
+      "real_ollama_tokens": null,
+      "final_response": "Verifica fallita\n\nVerifiche registrate sul workspace corrente: {\"syntax\": {\"passed\": false, \"completed\": true}}",
+      "metrics": [
+        {
+          "kind": "context_call",
+          "enabled": true,
+          "estimated_message_tokens": 1694,
+          "estimated_tool_tokens": 2299,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component"
+          ],
+          "selection_reason": "task_selection",
+          "duration_ms": 0.54
+        },
+        {
+          "kind": "tools",
+          "executed_tool": "programmer_read_file",
+          "deferred_tools": [],
+          "errors": 0
+        },
+        {
+          "kind": "context_call",
+          "enabled": true,
+          "estimated_message_tokens": 2070,
+          "estimated_tool_tokens": 2299,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component"
+          ],
+          "selection_reason": "task_selection",
+          "duration_ms": 0.61
+        },
+        {
+          "kind": "tools",
+          "executed_tool": "programmer_write_file",
+          "deferred_tools": [],
+          "errors": 0
+        },
+        {
+          "kind": "context_call",
+          "enabled": true,
+          "estimated_message_tokens": 2478,
+          "estimated_tool_tokens": 2299,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component"
+          ],
+          "selection_reason": "task_selection",
+          "duration_ms": 2.3
+        },
+        {
+          "kind": "tools",
+          "executed_tool": "programmer_check",
+          "deferred_tools": [],
+          "errors": 0
+        },
+        {
+          "kind": "context_call",
+          "enabled": true,
+          "estimated_message_tokens": 2975,
+          "estimated_tool_tokens": 2299,
+          "selected_tools": [
+            "programmer_list_files",
+            "programmer_read_file",
+            "programmer_search_code",
+            "programmer_write_file",
+            "programmer_diff",
+            "programmer_catalog",
+            "programmer_read_skill",
+            "programmer_template",
+            "programmer_check",
+            "programmer_components",
+            "programmer_register_component",
+            "programmer_deliver_component"
+          ],
+          "selection_reason": "task_selection",
+          "duration_ms": 0.81
+        },
+        {
+          "kind": "verification",
+          "workspace_digest": "b8a61e17adaeaa1b30f5660b3d55bf2708b9005f6805877b0a8919c49a8ec71d",
+          "checks": {
+            "syntax": {
+              "passed": false,
+              "completed": true
+            }
+          },
+          "verified_profiles": []
+        }
+      ]
+    }
+  ]
+}
