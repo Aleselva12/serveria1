@@ -46,6 +46,10 @@ def run_case(active, broken=False):
                 assert name in self.names, name
                 return AIMessage('', tool_calls=[{'name':name, 'args':{'workspace_id':identifier, **args},
                                                    'id':str(len(results)), 'type':'tool_call'}])
+        stack.enter_context(patch.object(pg.request_router, 'classify', return_value={
+            'status':'classified', 'route': {'intent':'modification',
+            'context':['current','files'], 'tool_groups':['edit'],
+            'difficulty':2, 'confidence':0.95}, 'duration_ms':0}))
         stack.enter_context(patch.object(pg, 'get_chat_model', return_value=ScriptedModel()))
         stack.enter_context(patch.object(pg, 'with_permanent_context', side_effect=lambda p:p))
         stack.enter_context(patch.object(pg, 'record_metric', side_effect=lambda kind, payload:samples.append({'kind':kind, **payload})))

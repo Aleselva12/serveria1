@@ -11,7 +11,7 @@ from core.models import get_chat_model
 from core.prompt_context import with_permanent_context
 from core.runtime_context import ensure_runtime_active
 from programmer_agent import workspace as ws
-from programmer_agent import context_manager
+from programmer_agent import context_manager, request_router
 from programmer_agent.knowledge import SKILLS
 from programmer_agent.programmer_tools import PROGRAMMER_TOOLS
 
@@ -35,6 +35,8 @@ from core.generation_policy import response_instruction
 class AgentState(MessagesState):
     response_length: str
     system_prompt: str
+    conversation_prompt: str
+    context_route: dict
 
 bind_capabilities("programmer_agent", PROGRAMMER_TOOLS)
 def programmer_model(tools=None):
@@ -43,8 +45,15 @@ def programmer_model(tools=None):
 
 
 def prepare_prompt(state: AgentState):
-    info = ws.summary(ws.manifest(ws.current()))
-    return {"system_prompt": with_permanent_context(PROMPT) + "\n" + response_instruction(state.get("response_length", "medium")) + "\nWorkspace: " + json.dumps(info, ensure_ascii=False)
+    ensure_runtime_active()
+    base = with_permanent_context(PROMPT) + "\n" + response_instruction(state.get("response_length", "medium"))
+    decision = request_router.classify(list(state["messages"])) if context_manager.enabled() else request_router.fallback('disabled')
+    if context_manager.enabled():
+        record_metric('context_route', decision)
+    identifier = ws.current()
+    info = ws.summary(ws.manifest(identifier))
+    return {"context_route": decision, "conversation_prompt": base + "\nWorkspace ID: " + identifier,
+            "system_prompt": base + "\nWorkspace: " + json.dumps(info, ensure_ascii=False)
             + "\nSkill disponibili (carica il contenuto con programmer_read_skill): " + json.dumps(SKILLS, ensure_ascii=False)}
 
 
@@ -68,7 +77,9 @@ def call_llm(state: AgentState):
     try:
         if active:
             messages, selected, reason = context_manager.prepare(
-                state["system_prompt"], list(state["messages"]), PROGRAMMER_TOOLS)
+                state["system_prompt"], list(state["messages"]), PROGRAMMER_TOOLS,
+                decision=state.get("context_route", request_router.fallback("missing")),
+                conversation_prompt=state.get("conversation_prompt"))
         else:
             selected, reason = PROGRAMMER_TOOLS, "legacy"
             messages = fit_messages([SystemMessage(content=state["system_prompt"])] + list(state["messages"]), tools=selected)

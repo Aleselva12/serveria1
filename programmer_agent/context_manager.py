@@ -1,4 +1,4 @@
-"""Opt-in, deterministic context selection for the programmer only.
+"""Opt-in context selection for the programmer only.
 
 No new execution path: further retrieval uses existing governed tools. Unknown
 requests and catalog discovery expand to the full registry, never a hard denylist.
@@ -60,8 +60,58 @@ def select_tools(messages, tools):
     return [tool for tool in tools if tool.name in names], 'task_selection'
 
 
-def prepare(system_prompt, messages, tools):
-    selected, reason = select_tools(messages, tools)
+SEMANTIC_GROUPS = {
+    'read': set(ESSENTIAL), 'edit': EDIT,
+    'automation': EDIT | {'programmer_validate_automation'},
+    'graph': {'programmer_graph'},
+    'delete': EDIT | {'programmer_delete_file'},
+    'release': {'programmer_git_commit', 'programmer_prepare_release',
+                'programmer_release_status', 'programmer_apply_release',
+                'programmer_rollback_release', 'programmer_publish_release'},
+}
+
+
+def semantic_tools(messages, tools, decision):
+    # Revalidate at the consumption boundary, including persisted graph state.
+    from programmer_agent.request_router import Route
+    try:
+        route = Route.model_validate(decision.get('route'))
+    except (ValueError, TypeError, AttributeError):
+        return list(tools), 'semantic_fallback'
+    if (decision.get('status') != 'classified' or route.confidence < 0.85
+            or route.intent == 'unknown' or 'current' not in route.context):
+        return list(tools), 'semantic_fallback'
+    start = max((i for i, m in enumerate(messages) if isinstance(m, HumanMessage)), default=0)
+    turn = messages[start:]
+    for message in turn:
+        calls = getattr(message, 'tool_calls', []) or []
+        if (any(c.get('name') == 'programmer_catalog' for c in calls)
+                or getattr(message, 'status', None) == 'error'):
+            return list(tools), 'expanded_after_discovery_or_error'
+    conversational = (route.intent in {'conversation', 'explanation'}
+                      and set(route.context) == {'current'} and not route.tool_groups)
+    # Preserve a recovery tool even in the light path. History stays available;
+    # the classifier's suggestion never deletes user instructions or exchanges.
+    names = {'programmer_catalog'} if conversational else set(ESSENTIAL)
+    for group in route.tool_groups:
+        names.update(SEMANTIC_GROUPS[group])
+    if route.intent == 'modification':
+        names.update(EDIT)
+    for message in turn:
+        names.update(c.get('name') for c in (getattr(message, 'tool_calls', []) or []))
+    if turn and isinstance(turn[0], HumanMessage):
+        names.update(t.name for t in tools if t.name in str(turn[0].content))
+    return [t for t in tools if t.name in names], ('semantic_conversation' if conversational else 'semantic_task')
+
+
+def prepare(system_prompt, messages, tools, decision=None, conversation_prompt=None):
+    selected, reason = (semantic_tools(messages, tools, decision) if decision is not None
+                        else select_tools(messages, tools))
+    # Only omit workspace/skill catalogue metadata on the initial standalone
+    # conversation path. Keep identity, policies and all history in fit_messages.
+    if (reason == 'semantic_conversation' and conversation_prompt is not None
+            and len(messages) == 1 and isinstance(messages[0], HumanMessage)):
+        system_prompt = conversation_prompt
     fitted = fit_messages([SystemMessage(content=system_prompt + '\n' + GUIDANCE)] + list(messages), tools=selected)
     return fitted, selected, reason
 
