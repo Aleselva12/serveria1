@@ -37,6 +37,7 @@ class AgentState(MessagesState):
     system_prompt: str
     conversation_prompt: str
     context_route: dict
+    response_started_at: float
 
 bind_capabilities("programmer_agent", PROGRAMMER_TOOLS)
 def programmer_model(tools=None):
@@ -45,6 +46,7 @@ def programmer_model(tools=None):
 
 
 def prepare_prompt(state: AgentState):
+    started = time.perf_counter()
     ensure_runtime_active()
     base = with_permanent_context(PROMPT) + "\n" + response_instruction(state.get("response_length", "medium"))
     decision = request_router.classify(list(state["messages"])) if context_manager.enabled() else request_router.fallback('disabled')
@@ -52,7 +54,7 @@ def prepare_prompt(state: AgentState):
         record_metric('context_route', decision)
     identifier = ws.current()
     info = ws.summary(ws.manifest(identifier))
-    return {"context_route": decision, "conversation_prompt": base + "\nWorkspace ID: " + identifier,
+    return {"response_started_at": started, "context_route": decision, "conversation_prompt": base + "\nWorkspace ID: " + identifier,
             "system_prompt": base + "\nWorkspace: " + json.dumps(info, ensure_ascii=False)
             + "\nSkill disponibili (carica il contenuto con programmer_read_skill): " + json.dumps(SKILLS, ensure_ascii=False)}
 
@@ -145,10 +147,23 @@ def final_evidence(state: AgentState):
                                    "verified_profiles": [p for p, r in evidence.items() if r["passed"] and r["completed"]]})
     # Evidence is authoritative workspace state, never the model's claim of success.
     response = state["messages"][-1]
+    note = "Verifiche registrate sul workspace corrente: " + (json.dumps(evidence, ensure_ascii=False) if evidence else "nessuna. Risultato non verificato.")
+    started = state.get("response_started_at")
+    if started is not None:
+        elapsed = max(0.0, time.perf_counter() - started)
+        # One wall-clock interval includes preparation, routing, model calls,
+        # tools and final evidence. Queue/network/UI time is excluded.
+        tenths = round(elapsed * 10)
+        minutes, remaining = divmod(tenths, 600)
+        seconds = f"{remaining / 10:.1f}".replace(".", ",")
+        duration = f"{minutes} min {seconds} s" if minutes else f"{seconds} s"
+        note += "\n\nTempo di elaborazione: " + duration + "."
+        record_metric("response_time", {"duration_ms": round(elapsed * 1000, 2)})
     if isinstance(response.content, str):
-        note = "Verifiche registrate sul workspace corrente: " + (json.dumps(evidence, ensure_ascii=False) if evidence else "nessuna. Risultato non verificato.")
-        return {"messages": [response.model_copy(update={"content": response.content + "\n\n" + note})]}
-    return {}
+        content = response.content + "\n\n" + note
+    else:
+        content = list(response.content) + [{"type": "text", "text": note}]
+    return {"messages": [response.model_copy(update={"content": content})]}
 
 
 def should_continue(state: AgentState):

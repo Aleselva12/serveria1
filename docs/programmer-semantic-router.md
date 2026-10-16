@@ -92,3 +92,14 @@ Prima di considerare riuscita l'ottimizzazione confrontare anche il run completo
 con manager false/true, stesso modello e richiesta: durata totale, accuratezza,
 recuperi del catalogo, errori e check finali. La scelta automatica del modello resta
 fuori da questa prima fase.
+
+## Tempo visibile nella risposta
+
+Ogni risposta finale del programmatore riporta `Tempo di elaborazione: 2 min 50,0 s.`
+Misura con orologio monotono dall'ingresso nel nodo prepare alla conclusione delle
+verifiche finali: comprende contesto permanente, router, modello e strumenti,
+anche con Context Manager disabilitato. Esclude attesa in coda, eventuale lavoro
+dell'orchestratore prima della delega, trasporto e rendering dell'interfaccia.
+Il valore è calcolato dal codice, non stimato dal modello; viene anche registrato
+come evento `programmer.response_time`. Errori/cancellazioni senza risposta finale
+restano consultabili nelle tracce esistenti.
