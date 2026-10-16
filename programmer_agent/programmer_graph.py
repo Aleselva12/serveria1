@@ -40,9 +40,9 @@ class AgentState(MessagesState):
     response_started_at: float
 
 bind_capabilities("programmer_agent", PROGRAMMER_TOOLS)
-def programmer_model(tools=None):
+def programmer_model(tools=None, *, reasoning=None):
     """Resolve the operator-selected model on every call, like the supervisor."""
-    return get_chat_model("programmer", temperature=0.0).bind_tools(PROGRAMMER_TOOLS if tools is None else tools)
+    model = get_chat_model("programmer", temperature=0.0)\n    if reasoning is not None and str(model.model).rsplit("/", 1)[-1].split(":", 1)[0].lower() == "qwen3":\n        model = model.model_copy(update={"reasoning": reasoning})\n    selected = PROGRAMMER_TOOLS if tools is None else tools\n    return model.bind_tools(selected) if selected else model
 
 
 def prepare_prompt(state: AgentState):
@@ -86,7 +86,7 @@ def call_llm(state: AgentState):
             selected, reason = PROGRAMMER_TOOLS, "legacy"
             messages = fit_messages([SystemMessage(content=state["system_prompt"])] + list(state["messages"]), tools=selected)
         sample.update(context_manager.metrics(messages, selected), selection_reason=reason)
-        response = programmer_model(selected).invoke(messages)
+        decision = state.get("context_route") or {}\n        route = decision.get("route") if decision.get("status") == "classified" else None\n        # Conservative: never suppress reasoning during tool cycles or ambiguous requests.\n        simple = (isinstance(route, dict) and route.get("confidence", 0) >= 0.85\n                  and route.get("difficulty", 10) <= 3\n                  and route.get("intent") in {"conversation", "explanation"}\n                  and route.get("context") == ["current"] and not route.get("tool_groups")\n                  and not any(getattr(m, "tool_calls", None) for m in state["messages"]))\n        reasoning = False if simple else None\n        sample["thinking_policy"] = "off_simple" if simple else "model_default"\n        response = programmer_model(selected, reasoning=reasoning).invoke(messages)
         ensure_runtime_active()
         if getattr(response, "invalid_tool_calls", None):
             raise ValueError("Il modello ha restituito chiamate tool non valide; nessuna eseguita.")
