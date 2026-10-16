@@ -32,7 +32,7 @@ GUIDANCE = """Context Manager: usa list_files/search_code/read_file per recupera
 
 
 def enabled():
-    return os.getenv('CORA_CONTEXT_MANAGER_ENABLED', 'false').strip().lower() == 'true'
+    return os.getenv('CORA_CONTEXT_MANAGER_ENABLED', 'true').strip().lower() == 'true'
 
 
 def select_tools(messages, tools):
