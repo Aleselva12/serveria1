@@ -11,7 +11,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from core.context_budget import fit_messages
-from core.models import get_chat_model, list_ollama_models
+from core.models import get_chat_model
 from core.runtime_context import ensure_runtime_active, RunTimedOut
 from core.run_lifecycle import RunCancelled
 
@@ -76,7 +76,13 @@ def classify(messages):
                                format=Route.model_json_schema(), num_predict=256,
                                client_kwargs={'timeout': timeout, 'trust_env': False},
                                metadata={'cora_role': 'programmer_router'})
-        # Prefer the already installed small local model for classification. If it is\n        # absent, fail open to the legacy model rather than downloading anything.\n        configured = os.getenv('CORA_CONTEXT_ROUTER_MODEL', 'qwen3:0.6b').strip()\n        if configured:\n            try:\n                available = {item['name'] for item in list_ollama_models()}\n                if configured not in available:\n                    result = fallback('router_model_unavailable')\n                    return result\n                model = model.model_copy(update={'model': configured})\n            except Exception:\n                result = fallback('router_model_check_failed')\n                return result\n        # The general Qwen profile enables thinking; routing must not spend its
+        # Explicit lightweight model override; installation is checked by Ollama on use.
+        # No availability probe in the critical path: a provider error safely
+        # falls back to the full catalog without a second classification.
+        configured = os.getenv('CORA_CONTEXT_ROUTER_MODEL', '').strip()
+        if configured:
+            model = model.model_copy(update={'model': configured})
+        # The general Qwen profile enables thinking; routing must not spend its
         # small output budget on reasoning. Do not alter the answer model profile.
         family = str(model.model).rsplit('/', 1)[-1].split(':', 1)[0].lower()
         thinking = 'low' if family == 'gpt-oss' else False
