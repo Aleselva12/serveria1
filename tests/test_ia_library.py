@@ -139,5 +139,17 @@ class LibraryCopiesTests(unittest.TestCase):
         self.assertEqual((self.server / 'report.txt').read_text(), 'read only')
 
 
+    def test_text_edit_of_library_copy_keeps_server_original(self):
+        (self.server / 'report.txt').write_bytes(b'original')
+        self.assertEqual(self.import_file().status_code, 201)
+        params = {'root_id': 'library', 'path': 'report.txt'}
+        opened = self.client.get(self.prefix + '/text', params=params)
+        self.assertEqual(opened.status_code, 200, opened.text)
+        result = self.client.post(self.prefix + '/text', json={**params, 'revision': opened.json()['revision'], 'text': 'edited'})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual((self.server / 'report.txt').read_bytes(), b'original')
+        self.assertEqual((self.library / 'report.txt').read_bytes(), b'edited')
+
+
 if __name__ == '__main__':
     unittest.main()

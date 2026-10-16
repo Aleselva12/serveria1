@@ -3342,3 +3342,7 @@ select:disabled {
   outline-offset: 3px;
 }
 .home-update-actions > span { font-size: 13px; color: #596579; }
+
+.file-modal.file-editor { width: min(1100px, 96vw); max-height: 92vh; overflow: auto; }
+.file-editor textarea { box-sizing: border-box; width: 100%; min-height: 45vh; resize: vertical; padding: 12px; font: 14px/1.5 monospace; tab-size: 4; white-space: pre; overflow: auto; background: #fafbff; color: #111827; border: 1px solid #64748b; border-radius: 8px; }
+.file-editor footer { gap: 12px; flex-wrap: wrap; }

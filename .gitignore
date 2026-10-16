@@ -59,3 +59,8 @@ frontend/dist/
 # AVVIO local state
 .cora_requirements.sha256
 .cora_frontend.sha256
+
+# Manual text-editor backups / server-local Compose override
+cora-backup-*.bak
+.cora-edit-*
+compose.files.yml

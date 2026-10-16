@@ -1,0 +1,18 @@
+# Opt-in host access. Include LAST after any existing compose.files.yml.
+services:
+  api:
+    environment:
+      CORA_FILE_ROOTS: '[{"id":"server","label":"Intero server Debian","path":"/host","writable":false},{"id":"project","label":"Progetto Cora","path":"/project","writable":true},{"id":"drive","label":"Drive NAS","path":"/nas/drive","writable":true},{"id":"cora","label":"Dati Cora","path":"/state/files","writable":true}]'
+    volumes:
+      - type: bind
+        source: /
+        target: /host
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CORA_PROJECT_ROOT:-.}
+        target: /project
+        read_only: false
+        bind:
+          create_host_path: false

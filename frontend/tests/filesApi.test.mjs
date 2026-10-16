@@ -137,3 +137,17 @@ test("folder names and search strings are correctly URL encoded", async () => {
   await filesApi.children("server", "", "drive", "A & B", "x&root_id=other");
 });
 
+
+test('text editor sends the opened revision and propagates conflicts', async () => {
+  globalThis.fetch = async (url, init) => {
+    if (!init.method) {
+      assert.equal(url, '/backend/api/v1/server/files/text?root_id=project&path=core%2Fa.py');
+      return response({text: 'old', revision: 'abc'});
+    }
+    assert.equal(init.method, 'POST');
+    assert.deepEqual(JSON.parse(init.body), {root_id:'project',path:'core/a.py',text:'new',revision:'abc'});
+    return response({detail:'File cambiato'},409);
+  };
+  assert.deepEqual(await filesApi.text('server','','project','core/a.py'),{text:'old',revision:'abc'});
+  await assert.rejects(()=>filesApi.saveText('server','','project','core/a.py','new','abc'), /File cambiato/);
+});
