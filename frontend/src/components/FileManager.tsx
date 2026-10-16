@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import FilePreview from "./FilePreview";
+import FileEditor from "./FileEditor";
 import { sharePageUrl } from "../services/sharedFiles";
 import { filesApi } from "../services/filesApi";
 import type {
@@ -320,6 +321,7 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
   const [listing, setListing] = useState<BrowserListing | null>(null);
   const [trash, setTrash] = useState<TrashItem[]>([]);
   const [recursive,setRecursive] = useState(false);
+  const [editor,setEditor] = useState<BrowserNode|null>(null);
   const [preview,setPreview] = useState<BrowserNode|null>(null);
   const [shareList,setShareList] = useState<{id:string;path:string;expiresAt:string;revoked:boolean}[]|null>(null);
   const [shareLink,setShareLink] = useState("");
@@ -524,6 +526,7 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
   function actions(item: BrowserNode) {
     return (
       <div className="file-actions">
+        {item.kind === "file" && writable && <button disabled={busy} title="Modifica testo" aria-label={"Modifica testo " + item.name} onClick={() => setEditor(item)}>Modifica testo</button>}
         {item.kind==="file"&&<><button disabled={busy} title="Anteprima" aria-label={"Anteprima "+item.name} onClick={()=>setPreview(item)}>Anteprima</button>
         <button disabled={busy} title="Condividi per 24 ore (richiede accesso)" onClick={()=>void run(async()=>{const share=await filesApi.share(area,rootId,item.path);setShareLink(sharePageUrl(share.url,window.location.origin));},"Collegamento creato: valido 24 ore, richiede accesso al server.")}>Condividi</button></>}
 
@@ -726,6 +729,7 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
       {shareLink&&<div className="file-notice"><label>Collegamento privato (richiede login)<input readOnly value={shareLink} onFocus={e=>e.target.select()}/></label></div>}
       {listing&&(listing as BrowserListing & {truncated?:boolean}).truncated&&<p className="connection-notice">Ricerca limitata a 10.000 elementi o 30 livelli. Cerca in una sottocartella per continuare.</p>}
       {shareList&&<div className="system-card"><div className="metric-head"><h3>Condivisioni della risorsa</h3><button onClick={()=>setShareList(null)}>Chiudi</button></div>{!shareList.length&&<p>Nessun collegamento creato.</p>}{shareList.map(item=><div className="settings-row" key={item.id}><div><strong>{item.path}</strong><small>Scadenza: {new Date(item.expiresAt).toLocaleString("it-IT")} · {item.revoked?"Revocato":""}</small></div><button disabled={busy||item.revoked} onClick={()=>void run(async()=>{await filesApi.revokeShare(area,item.id);setShareList(prev=>prev?.map(s=>s.id===item.id?{...s,revoked:true}:s)||null);},"Collegamento revocato.")}>Revoca</button></div>)}</div>}
+      {editor&&<FileEditor area={area} rootId={rootId} token={token} item={editor} close={()=>setEditor(null)} saved={()=>setReload(n=>n+1)}/>}
       {preview&&<FilePreview area={area} rootId={rootId} token={token} item={preview} close={()=>setPreview(null)}/>}
       {error && (
         <div className="connection-error" role="alert">

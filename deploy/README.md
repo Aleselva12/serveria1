@@ -283,3 +283,55 @@ un gateway diverso viene respinto, non autorizzato automaticamente.
 Per tornare al login precedente, ripristinare il backup `deploy.env.before-tailscale-*`
 su `deploy.env` e rieseguire il comando Compose stampato. La password proprietario
 non viene modificata; può essere reimpostata con `python -m core.auth` nel container API.
+
+## Modifiche rapide dal browser: Progetto Cora
+
+La pagina File offre **Modifica testo** nelle risorse scrivibili: UTF-8 fino a
+1 MiB, salvataggio esplicito, backup completo prima di sostituire il file,
+controllo della revisione per evitare di sovrascrivere modifiche intervenute
+dopo l'apertura. I backup `cora-backup-UUID.bak` sono nella cartella del file,
+visibili e scaricabili dal browser; conservare il percorso indicato al salvataggio
+per associarli al file originale. Non vengono eliminati automaticamente.
+I file binari, i link e i file con collegamenti fisici non sono modificabili
+con questo editor. Restano necessari i permessi Debian sulle cartelle/file.
+L'editor è riservato al proprietario; non aggiunge strumenti agli agenti.
+
+Per il server personale, dal checkout `/srv/cora-server-test`, **dopo aver
+installato questa versione**:
+
+```sh
+docker compose --env-file deploy.env -f compose.yml -f compose.server-test.yml -f compose.files.yml -f compose.project-files.yml config --quiet
+docker compose --env-file deploy.env -f compose.yml -f compose.server-test.yml -f compose.files.yml -f compose.project-files.yml up -d --build --wait api web
+```
+
+Omettere `-f compose.files.yml` se non esiste. L'override `compose.project-files.yml`
+va sempre per ultimo: aggiunge il progetto host corrente in `/project` scrivibile,
+conserva `/host` in sola lettura e le risorse NAS e Dati Cora. Un percorso alternativo
+si imposta con `CORA_PROJECT_ROOT` in deploy.env. Non abilitarlo su installazioni
+che non devono esporre il checkout. Non serve cambiare utente Docker o applicare
+chmod ricorsivi. La Libreria IA continua a usare copie indipendenti.
+
+Se è già installato l'updater host, il pulsante Aggiorna riusa il suo snapshot
+Compose e occorre aggiungere il mount anche lì. Questo comando modifica soltanto
+la risorsa `project` e il mount `/project`, preservando le altre impostazioni e
+salvando un backup privato di compose.json. Eseguirlo con l'utente proprietario
+dell'updater, **senza job di aggiornamento in corso**, con servizio fermo:
+
+```sh
+sudo systemctl stop cora-updater
+python3 -m deploy.project_files --updater-root /srv/cora-updater --project-root /srv/cora-server-test
+sudo systemctl start cora-updater
+```
+
+La configurazione diventa effettiva nei container al prossimo aggiornamento o
+alla ricreazione manuale con gli override precedenti. Se si installa l'updater
+per la prima volta, passare direttamente `--compose-file compose.project-files.yml`
+per ultimo a `updater.setup`, insieme agli override esistenti.
+
+L'editor modifica il **checkout sul server**, mentre Docker esegue codice già
+incluso nelle immagini. Per eseguire una modifica locale ricostruire API/web con
+il comando Compose precedente. Il pulsante di aggiornamento da GitHub costruisce
+invece dal commit selezionato: non incorpora modifiche locali non committate.
+Salvare e pubblicare le modifiche in Git prima di aggiornare da GitHub.
+Per modifiche estese usare VS Code Remote - SSH, aprendo la stessa cartella
+`/srv/cora-server-test` dopo la connessione SSH al server.

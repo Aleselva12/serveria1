@@ -93,6 +93,14 @@ const validNode = (n: BrowserNode) =>
     (Number.isFinite(n.sizeBytes) && n.sizeBytes >= 0)) &&
   Number.isFinite(Date.parse(n.modifiedAt));
 export const filesApi = {
+  text(area: FileArea, token: string, rootId: string, path: string) {
+    return json<{text: string; revision: string}>(area, "/text?" + query({root_id: rootId, path}), token);
+  },
+  saveText(area: FileArea, token: string, rootId: string, path: string, text: string, revision: string) {
+    return json<{revision: string; backupPath: string}>(area, "/text", token, {
+      method: "POST", body: JSON.stringify({root_id: rootId, path, text, revision}),
+    });
+  },
   async roots(area: FileArea, token: string): Promise<BrowserRoot[]> {
     const data = await json<{ roots: BrowserRoot[] }>(area, "/roots", token);
     if (
