@@ -1,5 +1,9 @@
 # Programmatore: stabilizzazione e Context Manager minimale
 
+> Aggiornamento: il percorso semantico e la configurazione attuale sono descritti
+> in [programmer-semantic-router.md](programmer-semantic-router.md). Il resto di
+> questo documento descrive la prima implementazione e le sue misure storiche.
+
 Base analizzata: `5d58af9` (main). Nessun merge o rilascio automatico.
 
 ## Diagnosi e modifiche
