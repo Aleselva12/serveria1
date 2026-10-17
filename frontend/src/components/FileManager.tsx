@@ -19,6 +19,7 @@ import FilePreview from "./FilePreview";
 import FileEditor from "./FileEditor";
 import { sharePageUrl } from "../services/sharedFiles";
 import { filesApi } from "../services/filesApi";
+import { libraryMonitorApi, type MonitorStatus } from "../services/libraryMonitorApi";
 import type {
   BrowserListing,
   BrowserNode,
@@ -326,6 +327,7 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
   const [shareList,setShareList] = useState<{id:string;path:string;expiresAt:string;revoked:boolean}[]|null>(null);
   const [shareLink,setShareLink] = useState("");
   const [uploadProgress,setUploadProgress] = useState("");
+  const [monitor,setMonitor] = useState<MonitorStatus|null>(null);
   const [inTrash, setInTrash] = useState(false);
   const [view, setView] = useState<"list" | "grid">("list");
   const [loading, setLoading] = useState(true);
@@ -348,6 +350,22 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
     !loading,
   );
   const isLibrary = area === "library";
+  useEffect(() => {
+    if (!isLibrary) { setMonitor(null); return; }
+    let active = true;
+    void libraryMonitorApi.status().then(value => { if (active) setMonitor(value); })
+      .catch(() => { if (active) setMonitor(null); });
+    return () => { active = false; };
+  }, [isLibrary, reload]);
+  const toggleMonitor = async (folder: string) => {
+    setBusy(true);
+    try {
+      const enabled = !monitor?.folders.includes(folder);
+      setMonitor(await libraryMonitorApi.setFolder(folder, enabled));
+      setNotice(enabled ? "Monitor attivato per la cartella e le sottocartelle." : "Monitor disattivato.");
+    } catch (e) { setError(message(e)); }
+    finally { setBusy(false); }
+  };
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(query);
@@ -556,6 +574,15 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
             <span>IA</span>
           </button>
         )}
+        {isLibrary && item.kind === "folder" && (
+          <button type="button" disabled={busy || !monitor}
+            title="Attiva o disattiva l'analisi proattiva"
+            aria-label={"Analisi proattiva cartella " + item.name}
+            aria-pressed={Boolean(monitor?.folders.includes(item.path))}
+            onClick={() => void toggleMonitor(item.path)}>
+            {monitor?.folders.includes(item.path) ? "Monitor ON" : "Monitor OFF"}
+          </button>
+        )}
         {item.capabilities.includes("rename") && (
           <button
             disabled={busy}
@@ -633,6 +660,19 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
         </p>
         {busy && <span role="status">Operazione in corso…</span>}
       </div>
+      {isLibrary && !inTrash && path && (
+        <div className="settings-row">
+          <div><strong>Analisi proattiva di questa cartella</strong>
+            <p>Scansione leggera, incluse le sottocartelle; nessuna modifica e nessuna chiamata Ollama.
+            {monitor?.folders.some(folder => path.startsWith(folder + "/")) ? " Ereditata da una cartella superiore." : ""}</p>
+          </div>
+          <button type="button" disabled={busy || !monitor}
+            aria-pressed={Boolean(monitor?.folders.includes(path))}
+            onClick={() => void toggleMonitor(path)}>
+            {monitor?.folders.includes(path) ? "Monitor attivo" : "Monitor disattivo"}
+          </button>
+        </div>
+      )}
       <div className="file-toolbar">
         <div className="file-toolbar-left">
           <Breadcrumbs
