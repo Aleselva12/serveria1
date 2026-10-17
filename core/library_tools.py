@@ -1,5 +1,7 @@
 """Agent writes restricted to IA working copies, with version-bound approvals."""
 import hashlib
+import io
+from docx import Document
 import json
 import os
 from pathlib import Path
@@ -129,4 +131,103 @@ def library_trash(relative_path: str, expected_sha256: str) -> dict:
         return {'status':'ok', 'trash':archive_previous(path, data, move=True)}
 
 
-LIBRARY_WRITE_TOOLS = [library_file_info, library_copy, library_replace_text, library_trash]
+
+def _document_bytes(suffix: str, text: str, *, original: bytes | None = None) -> bytes:
+    """Text and DOCX editor; existing Word paragraphs, tables and styles survive append."""
+    if suffix == '.docx':
+        document = Document(io.BytesIO(original)) if original is not None else Document()
+        for line in text.splitlines():
+            document.add_paragraph(line)
+        output = io.BytesIO()
+        document.save(output)
+        return output.getvalue()
+    if suffix not in {'.txt', '.md'}:
+        raise ValueError('Sono supportati soltanto .txt, .md e .docx.')
+    if original is None:
+        return text.encode('utf-8')
+    previous = original.decode('utf-8')
+    separator = '' if not previous or previous.endswith('\\n') else '\\n'
+    return (previous + separator + text).encode('utf-8')
+
+
+@agent_tool('supervisor', capability='library_create_document',
+            actions=('library_modify',), effect='write', retry='never')
+def library_create_document(relative_path: str, content: str) -> dict:
+    """CREA un nuovo TXT, Markdown o DOCX nella Libreria IA dopo conferma in Attività.
+    Non sovrascrive mai file esistenti."""
+    from search_agent.search_tools import _safe_path, MAX_FILE_BYTES, KNOWLEDGE_ROOT
+    with operation():
+        ensure_runtime_active()
+        path = _safe_path(relative_path)
+        if path == KNOWLEDGE_ROOT or not path.parent.is_dir() or path.is_symlink():
+            raise ValueError('Destinazione non valida o cartella non esistente.')
+        if not content.strip():
+            raise ValueError('Il contenuto non può essere vuoto.')
+        data = _document_bytes(path.suffix.lower(), content)
+        if len(data) > MAX_FILE_BYTES:
+            raise ValueError('Documento oltre il limite.')
+        publish_bytes(path, data, replace=False)
+        return {'status': 'ok', 'path': relative_path, 'sha256': digest(data),
+                'size_bytes': len(data), 'created': True}
+
+
+@agent_tool('supervisor', capability='library_append_document',
+            actions=('library_read', 'library_modify'), effect='write', retry='never')
+def library_append_document(relative_path: str, expected_sha256: str, content: str) -> dict:
+    """AGGIUNGE appunti in fondo a TXT, Markdown o Word dopo approvazione.
+    SHA256 obbligatorio: file cambiati non vengono modificati. Salva la versione
+    precedente nel cestino prima di pubblicare la nuova."""
+    from search_agent.search_tools import MAX_FILE_BYTES
+    with operation():
+        ensure_runtime_active()
+        path, original = checked_file(relative_path, expected_sha256)
+        if not content.strip():
+            raise ValueError('Il contenuto non può essere vuoto.')
+        updated = _document_bytes(path.suffix.lower(), content, original=original)
+        if len(updated) > MAX_FILE_BYTES or updated == original:
+            raise ValueError('Documento invariato o oltre il limite.')
+        version = archive_previous(path, original)
+        publish_bytes(path, updated, replace=True)
+        return {'status': 'ok', 'path': relative_path, 'sha256': digest(updated),
+                'previous_version_trash_id': version['id'], 'appended': True}
+
+
+@agent_tool('supervisor', capability='library_replace_document_text',
+            actions=('library_read', 'library_modify'), effect='write', retry='never')
+def library_replace_document_text(relative_path: str, expected_sha256: str,
+                                  old_text: str, new_text: str) -> dict:
+    """Sostituisce un testo che compare una sola volta in TXT/MD o in un singolo
+    paragrafo DOCX, conservando il resto del documento. Richiede conferma."""
+    from search_agent.search_tools import MAX_FILE_BYTES
+    with operation():
+        ensure_runtime_active()
+        path, original = checked_file(relative_path, expected_sha256)
+        if not old_text or old_text == new_text:
+            raise ValueError('Seleziona un testo da sostituire diverso dal nuovo.')
+        if path.suffix.lower() == '.docx':
+            doc = Document(io.BytesIO(original))
+            # Avoid silent loss of mixed-run formatting: only exact paragraph replacements.
+            paragraphs = list(doc.paragraphs)
+            matches = [p for p in paragraphs if p.text == old_text]
+            if len(matches) != 1:
+                raise ValueError('Word: sostituzione ammessa solo per un paragrafo intero univoco.')
+            matches[0].text = new_text
+            output = io.BytesIO()
+            doc.save(output)
+            updated = output.getvalue()
+        elif path.suffix.lower() in {'.txt', '.md'}:
+            body = original.decode('utf-8')
+            if body.count(old_text) != 1:
+                raise ValueError('Il testo deve comparire una sola volta.')
+            updated = body.replace(old_text, new_text, 1).encode('utf-8')
+        else:
+            raise ValueError('Formato non modificabile.')
+        if len(updated) > MAX_FILE_BYTES:
+            raise ValueError('Documento oltre il limite.')
+        version = archive_previous(path, original)
+        publish_bytes(path, updated, replace=True)
+        return {'status': 'ok', 'path': relative_path, 'sha256': digest(updated),
+                'previous_version_trash_id': version['id']}
+
+LIBRARY_WRITE_TOOLS = [library_file_info, library_copy, library_replace_text, library_trash,
+                       library_create_document, library_append_document, library_replace_document_text]
