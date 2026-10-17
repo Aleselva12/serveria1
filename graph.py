@@ -103,7 +103,7 @@ def prepare_turn(state: CoraState):
     from core.library_preflight import preload as library_preload
     preflight = library_preload(state.get("request_text") or _latest_user_text(state["messages"]), tool_names)
     if preflight:
-        memory_context = (memory_context + "\\n\\n" + preflight) if memory_context else preflight
+        memory_context = (memory_context + "\n\n" + preflight) if memory_context else preflight
     run = current_run.get()
     if run: run.timings["prompt_ms"] = round((time.perf_counter()-started)*1000,2)
     return {"system_prompt": prompt + "\n" + response_instruction(state.get("response_length", "medium")), "memory_context":memory_context, "context_pages":context_pages, "selected_tool_names":tool_names}
