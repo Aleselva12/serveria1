@@ -40,6 +40,43 @@ class LibraryWriteTests(unittest.TestCase):
         finally:
             if token:approved_action.reset(token)
 
+    def test_new_document_writes_require_confirmation(self):
+        for capability, payload in (
+            ('library_create_document', {'relative_path':'created.md','content':'Nuovo appunto'}),
+            ('library_append_document', {'relative_path':'note.txt','expected_sha256':self.hash,'content':'Appunto aggiunto'}),
+            ('library_replace_document_text', {'relative_path':'note.txt','expected_sha256':self.hash,'old_text':'prima','new_text':'aggiornato'}),
+        ):
+            with self.subTest(capability=capability), patch('core.governance.propose', return_value={'id': uuid4()}):
+                self.assertEqual(self.invoke(capability,payload).status,'pending')
+        self.assertFalse((self.root/'created.md').exists())
+        self.assertEqual((self.root/'note.txt').read_text(),'prima')
+
+    def test_create_append_and_restore_previous_content(self):
+        made=self.invoke('library_create_document', {'relative_path':'created.md','content':'Prima riga'},True)
+        self.assertEqual(made.status,'ok')
+        before=(self.root/'created.md').read_bytes()
+        changed=self.invoke('library_append_document', {'relative_path':'created.md','expected_sha256':lib.digest(before),'content':'Seconda riga'},True)
+        self.assertEqual(changed.status,'ok')
+        self.assertEqual((self.root/'created.md').read_text(),'Prima riga\\nSeconda riga')
+        self.assertEqual((self.root/'.cora-trash'/changed.native['previous_version_trash_id']/'content').read_bytes(),before)
+        self.assertEqual(self.invoke('library_append_document', {'relative_path':'created.md','expected_sha256':lib.digest(before),'content':'Ancora'},True).status,'error')
+
+    def test_word_replace_retains_style_and_rejects_mixed_runs(self):
+        from docx import Document
+        path=self.root/'notes.docx'
+        doc=Document(); p=doc.add_paragraph();r=p.add_run('Evidenza');r.bold=True
+        doc.save(path)
+        result=self.invoke('library_replace_document_text',{'relative_path':'notes.docx','expected_sha256':lib.digest(path.read_bytes()),'old_text':'Evidenza','new_text':'Confermato'},True)
+        self.assertEqual(result.status,'ok')
+        after=Document(path).paragraphs[0]
+        self.assertEqual(after.text,'Confermato')
+        self.assertTrue(after.runs[0].bold)
+        doc=Document();p=doc.add_paragraph();p.add_run('Parte ');p.add_run('forte').bold=True
+        doc.save(path)
+        mixed=self.invoke('library_replace_document_text',{'relative_path':'notes.docx','expected_sha256':lib.digest(path.read_bytes()),'old_text':'Parte forte','new_text':'Rimpiazzo'},True)
+        self.assertEqual(mixed.status,'error')
+        self.assertEqual(Document(path).paragraphs[0].text,'Parte forte')
+
     def test_copy_preserves_source_and_occupied_destination(self):
         (self.root/'copy.txt').write_text('existing')
         result=self.invoke('library_copy',{'relative_path':'note.txt','destination':'copy.txt'})
