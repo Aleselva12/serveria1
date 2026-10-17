@@ -146,7 +146,7 @@ def _document_bytes(suffix: str, text: str, *, original: bytes | None = None) ->
     if original is None:
         return text.encode('utf-8')
     previous = original.decode('utf-8')
-    separator = '' if not previous or previous.endswith('\\n') else '\\n'
+    separator = '' if not previous or previous.endswith('\n') else '\n'
     return (previous + separator + text).encode('utf-8')
 
 
