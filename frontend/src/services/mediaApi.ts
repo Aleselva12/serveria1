@@ -19,6 +19,12 @@ export async function uploadAttachment(threadId:string, file:File) {
   const form = new FormData(); form.set('conversation_id',threadId); form.set('file',file);
   return mediaRequest<Attachment>('/api/v1/chat/attachments',{method:'POST',body:form});
 }
+export function attachLibraryFile(threadId: string, relativePath: string) {
+  return mediaRequest<Attachment>('/api/v1/chat/attachments/from-library', {
+    method: 'POST',
+    body: JSON.stringify({conversation_id: threadId, relative_path: relativePath}),
+  });
+}
 export type AudioRecord = {
   id:string; title:string; name:string; recordedAt:string; speakerNames:string[]; createdAt:string;
   version:number; transcript:string|null; result:{diarization_status:string; diarization_warning:string|null; duration_seconds:number; detected_language:string}|null;
