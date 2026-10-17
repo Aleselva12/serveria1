@@ -66,6 +66,24 @@ class LibraryMonitorTests(unittest.TestCase):
         self.assertEqual({e['type'] for e in events}, {'added','changed'})
         self.assertEqual(monitor.status()['indexed_files'], 2)
 
+    def test_disabling_folder_does_not_report_deletion(self):
+        folder = self.root/'work'; folder.mkdir()
+        (folder/'one.txt').write_text('original')
+        monitor.set_folder('work', True)
+        self.assertTrue(monitor.scan_once())
+        monitor.set_folder('work', False)
+        self.assertTrue(monitor.scan_once())
+        self.assertEqual(monitor.status()['events'], [])
+
+    def test_nested_folder_is_included_without_double_counting(self):
+        folder = self.root/'work'; folder.mkdir()
+        nested = folder/'nested'; nested.mkdir()
+        (nested/'one.txt').write_text('original')
+        monitor.set_folder('work', True)
+        monitor.set_folder('work/nested', True)
+        self.assertTrue(monitor.scan_once())
+        self.assertEqual(monitor.status()['indexed_files'],1)
+
     def test_failed_scan_does_not_replace_previous_snapshot(self):
         folder = self.root/'work'; folder.mkdir()
         (folder/'one.txt').write_text('original')

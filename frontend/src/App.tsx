@@ -1,3 +1,4 @@
+import LibraryMonitorFeed from "./components/LibraryMonitorFeed";
 import LibraryMonitorSettings from "./components/LibraryMonitorSettings";
 import ThinkingPanel, { type ThinkingState } from "./components/ThinkingPanel";
 import { LengthChoice, RunTimer, type ResponseLength } from "./components/RunControls";
@@ -504,6 +505,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 </div>
                 <span className="pill">Runtime · Sola lettura</span>
               </div>
+              <LibraryMonitorFeed />
               <div className="activity-layout">
                 <div className="section-card activity-session-card">
                   <h2>Richieste della sessione</h2>

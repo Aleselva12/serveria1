@@ -101,8 +101,11 @@ def scan_once():
         for path, meta in snapshot.items():
             if path not in before: changes.append({'type':'added','path':path})
             elif before[path] != meta: changes.append({'type':'changed','path':path})
+        monitored = tuple(data['folders'])
         for path in before:
-            if path not in snapshot: changes.append({'type':'removed_or_unwatched','path':path})
+            if path not in snapshot and any(path.startswith(folder + '/') for folder in monitored):
+                changes.append({'type':'removed_or_unwatched','path':path})
+        # A file disappearing during scan may mean deletion or access failure; do not claim deletion.
         now = datetime.now(timezone.utc).isoformat()
         if data['last_scan'] is not None:
             data['events'] = (data['events'] + [{'at':now, **item} for item in changes])[-100:]

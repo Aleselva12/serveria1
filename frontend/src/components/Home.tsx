@@ -1,3 +1,4 @@
+import LibraryMonitorFeed from "./LibraryMonitorFeed";
 import { Activity, HardDrive, PlugZap, ShieldCheck, Wifi, RefreshCw, ExternalLink } from "lucide-react";
 import type { BackendHealth } from "../types/contracts";
 import { useHomeMonitoring } from "../services/useHomeMonitoring";
@@ -164,6 +165,7 @@ export default function Home({
           {telemetryError}
         </div>
       )}
+      <LibraryMonitorFeed compact />
       <div className="home-metrics">
         {(["cpu", "ram", "gpu"] as const).map((key) => {
           const metric = telemetry?.[key];
