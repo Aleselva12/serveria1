@@ -1,3 +1,4 @@
+import ChatLibraryPicker from "./components/ChatLibraryPicker";
 import LibraryMonitorFeed from "./components/LibraryMonitorFeed";
 import LibraryMonitorSettings from "./components/LibraryMonitorSettings";
 import ThinkingPanel, { type ThinkingState } from "./components/ThinkingPanel";
@@ -21,7 +22,7 @@ import {
 } from "lucide-react";
 import Audio from "./components/Audio";
 import ChatToolPicker from "./components/ChatToolPicker";
-import { uploadAttachment, type Attachment } from "./services/mediaApi";
+import { uploadAttachment, attachLibraryFile, type Attachment } from "./services/mediaApi";
 import Home from "./components/Home";
 import Programmer from "./components/Programmer";
 import Calendar from "./components/Calendar";
@@ -95,6 +96,8 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   const [attachmentDrafts,setAttachmentDrafts] = useState<Record<string,Attachment[]>>({});
   const [toolDrafts,setToolDrafts] = useState<Record<string,string[]|null>>({});
   const [attachmentBusy,setAttachmentBusy] = useState(false);
+  const [attachmentMenu,setAttachmentMenu] = useState(false);
+  const [libraryPicker,setLibraryPicker] = useState(false);
   const attachmentLock = useRef(false);
   const messagesEnd = useRef<HTMLDivElement>(null);
   const [activity, setActivity] = useState<RequestActivity[]>([]);
@@ -133,6 +136,20 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
     try{for(const file of files){const item=await uploadAttachment(id,file);setAttachmentDrafts(prev=>({...prev,[id]:[...(prev[id]||[]),item]}));}}
     catch(e){setChatError(e instanceof Error?e.message:"Allegato non caricato.");}
     finally{attachmentLock.current=false;setAttachmentBusy(false);}
+  }
+  async function attachFromLibrary(path: string) {
+    if (attachmentLock.current || sendLock.current) throw new Error("Attendi la fine dell'operazione corrente.");
+    const id = currentChat.threadId;
+    if ((attachmentDrafts[id] || []).length >= 6) throw new Error("Massimo sei allegati.");
+    attachmentLock.current = true;
+    setAttachmentBusy(true);
+    try {
+      const item = await attachLibraryFile(id, path);
+      setAttachmentDrafts(prev => ({...prev,[id]:[...(prev[id] || []),item]}));
+    } finally {
+      attachmentLock.current = false;
+      setAttachmentBusy(false);
+    }
   }
   async function send() {
     const manualTools = toolDrafts[currentChat.threadId] ?? null;
@@ -416,15 +433,22 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 )}
                 {attachmentBusy&&<p role="status">Caricamento degli allegati…</p>}
                 <ChatToolPicker key={currentChat.threadId} selection={toolDrafts[currentChat.threadId]??null} onChange={names=>setToolDrafts(prev=>({...prev,[currentChat.threadId]:names}))} disabled={sending||attachmentBusy} available={Boolean(backend.health)} />
+                {libraryPicker && <ChatLibraryPicker disabled={sending||attachmentBusy} onClose={()=>setLibraryPicker(false)} onPick={attachFromLibrary} />}
                 <div className="attachment-drafts">{(attachmentDrafts[currentChat.threadId]||[]).map(a=><span className="attachment-chip" key={a.id}>{a.name}{a.truncated?" · estratto limitato":""}<button disabled={sending||attachmentBusy} aria-label={"Rimuovi allegato "+a.name} onClick={()=>setAttachmentDrafts(prev=>({...prev,[currentChat.threadId]:(prev[currentChat.threadId]||[]).filter(x=>x.id!==a.id)}))}>×</button></span>)}</div>
                 <ThinkingPanel value={thinking} />
                 <RunTimer started={startedAt} finished={finishedAt} />
                 <LengthChoice value={responseLength} onChange={setResponseLength} disabled={sending} />
                 <div className="composer">
                   <input ref={attachmentInput} type="file" multiple hidden accept=".txt,.md,.csv,.tsv,.json,.pdf,.docx,.py,.ts,.tsx,.js,.css,.yaml,.yml,.toml,.log" onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value="";void attach(files);}}/>
-                  <button disabled={sending||attachmentBusy||!backend.health} title="Allega documenti alla richiesta" aria-label="Allega file" onClick={()=>attachmentInput.current?.click()}>
-                    <Paperclip size={19} /><span>Allega</span>
-                  </button>
+                  <div className="attachment-choice">
+                    <button disabled={sending||attachmentBusy||!backend.health} title="Scegli la provenienza del documento" aria-label="Allega file" aria-expanded={attachmentMenu} onClick={()=>setAttachmentMenu(open=>!open)}>
+                      <Paperclip size={19} /><span>Allega</span>
+                    </button>
+                    {attachmentMenu && <div className="attachment-choice-menu">
+                      <button type="button" onClick={()=>{setAttachmentMenu(false);attachmentInput.current?.click();}}>Carica dal dispositivo</button>
+                      <button type="button" onClick={()=>{setAttachmentMenu(false);setLibraryPicker(true);}}>Scegli dalla Libreria IA</button>
+                    </div>}
+                  </div>
                   <textarea
                     disabled={history.historyLoading || history.messagesLoading}
                     value={draft}
