@@ -103,3 +103,29 @@ def upload_copy(path: str = Form(''), file: UploadFile = File(...)):
             status = error.status_code if isinstance(error, HTTPException) else 503
             raise HTTPException(status, 'Copia IA non creata; originale conservato in Originali Libreria IA/' + original['path']) from error
         return {'copy': result, 'original': {'rootId': ORIGINALS_ID, 'path': original['path']}}
+
+class MonitorFolder(BaseModel):
+    folder: str = Field(min_length=1)
+    enabled: bool
+
+@router.get('/monitor')
+def monitor_status():
+    from core.library_monitor import status
+    return status()
+
+@router.put('/monitor/folder')
+def monitor_folder(body: MonitorFolder):
+    from core.library_monitor import set_folder
+    with operation():
+        try:
+            return set_folder(body.folder, body.enabled)
+        except ValueError as error:
+            raise HTTPException(400, str(error)) from error
+
+@router.post('/monitor/scan')
+def monitor_scan():
+    from core.library_monitor import scan_once, status
+    with operation():
+        if not scan_once():
+            raise HTTPException(503, 'Scansione non completata; registro precedente conservato.')
+        return status()
