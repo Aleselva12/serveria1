@@ -140,6 +140,13 @@ def _bounded_tool_calls(response: AIMessage) -> AIMessage:
 
 def call_model(state: CoraState):
     ensure_runtime_active()
+    # Direct, governed read-only listing for explicit IA Library inventory questions.
+    # Never override an explicit manual tool selection.
+    from core.library_routing import list_requested, list_documents_direct
+    if state.get("manual_tools") is None and "library_list" in state.get("selected_tool_names", []):
+        request = state.get("request_text") or _latest_user_text(state["messages"])
+        if list_requested(request):
+            return {"messages": [AIMessage(content=list_documents_direct())]}
     messages_for_llm = [
         SystemMessage(content=state["system_prompt"])
     ]
