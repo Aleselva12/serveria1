@@ -132,6 +132,34 @@ def library_trash(relative_path: str, expected_sha256: str) -> dict:
 
 
 
+
+@agent_tool('supervisor', capability='library_read_document_chunk',
+            actions=('library_read',), effect='read', retry='safe')
+def library_read_document_chunk(relative_path: str, offset: int = 0, max_chars: int = 12000,
+                                expected_sha256: str = '') -> dict:
+    """Legge davvero il contenuto di TXT/MD/Word a blocchi. Restituisce testo,
+    posizione successiva e SHA256: ripetere con next_offset finché has_more è falso."""
+    from search_agent.search_tools import _read_docx
+    with operation():
+        path = source_file(relative_path)
+        data = path.read_bytes()
+        sha = digest(data)
+        if expected_sha256 and sha != expected_sha256:
+            raise ValueError('File modificato dalla prima lettura: ricomincia.')
+        if path.suffix.lower() == '.docx':
+            full_text = _read_docx(path)
+        elif path.suffix.lower() in {'.txt', '.md'}:
+            full_text = data.decode('utf-8')
+        else:
+            raise ValueError('Usa library_read per gli altri formati.')
+        if not (0 <= offset <= len(full_text)) or not (1 <= max_chars <= 12000):
+            raise ValueError('Intervallo di lettura non valido.')
+        end = min(len(full_text), offset + max_chars)
+        return {'status': 'ok', 'path': relative_path, 'sha256': sha,
+                'content': full_text[offset:end], 'offset': offset, 'next_offset': end,
+                'total_chars': len(full_text), 'has_more': end < len(full_text)}
+
+
 def _document_bytes(suffix: str, text: str, *, original: bytes | None = None) -> bytes:
     """Text and DOCX editor; existing Word paragraphs, tables and styles survive append."""
     if suffix == '.docx':
@@ -230,4 +258,5 @@ def library_replace_document_text(relative_path: str, expected_sha256: str,
                 'previous_version_trash_id': version['id']}
 
 LIBRARY_WRITE_TOOLS = [library_file_info, library_copy, library_replace_text, library_trash,
+                       library_read_document_chunk,
                        library_create_document, library_append_document, library_replace_document_text]
