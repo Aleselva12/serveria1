@@ -239,7 +239,15 @@ def library_replace_document_text(relative_path: str, expected_sha256: str,
             matches = [p for p in paragraphs if p.text == old_text]
             if len(matches) != 1:
                 raise ValueError('Word: sostituzione ammessa solo per un paragrafo intero univoco.')
-            matches[0].text = new_text
+            # Reassigning Paragraph.text destroys run-level formatting.
+            # Only replace when a single run can safely carry the edit.
+            runs = matches[0].runs
+            if len(runs) > 1:
+                raise ValueError('Word con formattazione mista: modifica non sicura.')
+            if runs:
+                runs[0].text = new_text
+            else:
+                matches[0].add_run(new_text)
             output = io.BytesIO()
             doc.save(output)
             updated = output.getvalue()
