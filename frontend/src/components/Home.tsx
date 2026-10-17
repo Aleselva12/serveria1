@@ -83,7 +83,7 @@ export default function Home({
           </span>
         </div>
         <p className="home-backlog-intro">
-          Stato del codice aggiornato al {homeRoadmap.updatedAt}. Le funzioni disponibili nel codice richiedono i servizi configurati e raggiungibili; lo stato live è mostrato nelle metriche e nei servizi.
+          Quadro di progetto aggiornato al {homeRoadmap.updatedAt}: separa codice presente, riscontri sul server, lavori aperti e attività rinviate. Le metriche e i servizi sottostanti mostrano lo stato live, non sostituiscono i collaudi.
         </p>
         <details>
           <summary>Già disponibile nel codice</summary>
@@ -104,13 +104,35 @@ export default function Home({
             </div>
           ))}
         </details>
-        <h3>Verifiche prioritarie</h3>
-        {homeRoadmap.next.map((item) => (
+        <h3>Le cinque priorità operative</h3>
+        <p className="home-backlog-intro">
+          Ordine di lavoro concordato. Ogni attività passerà a completata solo dopo implementazione e prove adeguate, non per la sola presenza di un pulsante o di una bozza.
+        </p>
+        {homeRoadmap.priorities.map((item) => (
           <div className="settings-row" key={item.id}>
             <div><strong>{item.label}</strong><p>{item.detail}</p><small>{item.id}</small></div>
             <span className="pill pending">{item.state}</span>
           </div>
         ))}
+        <details>
+          <summary>Verifiche tecniche ancora aperte</summary>
+          {homeRoadmap.next.map((item) => (
+            <div className="settings-row" key={item.id}>
+              <div><strong>{item.label}</strong><p>{item.detail}</p><small>{item.id}</small></div>
+              <span className="pill pending">{item.state}</span>
+            </div>
+          ))}
+        </details>
+        <details>
+          <summary>Programmatore e prestazioni · rinviati all’upgrade hardware</summary>
+          <p>Il codice esiste e va preservato. Rimangono aperti i collaudi end-to-end e l’ottimizzazione su hardware idoneo, senza bloccare le altre attività.</p>
+          {homeRoadmap.paused.map((item) => (
+            <div className="settings-row" key={item.label}>
+              <div><strong>{item.label}</strong><p>{item.detail}</p></div>
+              <span className="pill">Rinviato</span>
+            </div>
+          ))}
+        </details>
         <h3>Collegamenti da completare</h3>
         {Object.entries(missingConnections).map(([id, item]) => (
           <div className="connection-backlog" key={id}>
