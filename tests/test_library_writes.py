@@ -57,7 +57,7 @@ class LibraryWriteTests(unittest.TestCase):
         before=(self.root/'created.md').read_bytes()
         changed=self.invoke('library_append_document', {'relative_path':'created.md','expected_sha256':lib.digest(before),'content':'Seconda riga'},True)
         self.assertEqual(changed.status,'ok')
-        self.assertEqual((self.root/'created.md').read_text(),'Prima riga\\nSeconda riga')
+        self.assertEqual((self.root/'created.md').read_text(),'Prima riga\nSeconda riga')
         self.assertEqual((self.root/'.cora-trash'/changed.native['previous_version_trash_id']/'content').read_bytes(),before)
         self.assertEqual(self.invoke('library_append_document', {'relative_path':'created.md','expected_sha256':lib.digest(before),'content':'Ancora'},True).status,'error')
 
