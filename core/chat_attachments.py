@@ -121,3 +121,55 @@ def download(attachment_id: uuid.UUID):
     target = resolve(attachment_root(), row['storage_path'])
     exists(target)
     return FileResponse(target, filename=row['name'], media_type='application/octet-stream')
+
+from pydantic import BaseModel, Field
+
+class LibraryAttachmentSelection(BaseModel):
+    conversation_id: uuid.UUID
+    relative_path: str = Field(min_length=1, max_length=1024)
+
+
+@router.post('/from-library', status_code=201)
+def attach_from_library(body: LibraryAttachmentSelection):
+    """Attach a versioned snapshot of an authorized Library document to one chat.
+
+    Do not make a live link: subsequent IA Library edits must not change the
+    content already included in a conversation or bypass extraction limits.
+    """
+    from io import BytesIO
+    from core.ia_library import library_base
+    from search_agent.search_tools import _safe_path
+
+    base = library_base()
+    source = _safe_path(body.relative_path)
+    if not source.is_relative_to(base) or not source.is_file() or source.is_symlink():
+        raise HTTPException(404, 'Documento non disponibile nella Libreria IA.')
+    name = source.name
+    if source.suffix.lower() not in TEXT | {'.pdf', '.docx'}:
+        raise HTTPException(415, 'Formato non supportato negli allegati chat.')
+    with source.open('rb') as stream:
+        data = stream.read(5_000_001)
+    if not data or len(data) > 5_000_000:
+        raise HTTPException(413, 'Documento vuoto o oltre 5 MB.')
+    ident = uuid.uuid4()
+    target_base = attachment_root()
+    with operation():
+        folder = target_base / ident.hex
+        folder.mkdir()
+        try:
+            copied = upload_to({'writable': True}, target_base, ident.hex,
+                               UploadFile(filename=name, file=BytesIO(data)))
+            path = resolve(target_base, copied['path'])
+            text, truncated = extract(path)
+            ensure_conversation(str(body.conversation_id))
+            with db_connection() as conn:
+                row = conn.execute(
+                    """INSERT INTO chat_attachments(id,conversation_id,name,storage_path,size_bytes,sha256,extracted_text,truncated)
+                       VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *""",
+                    (ident, body.conversation_id, name, copied['path'], len(data),
+                     hashlib.sha256(data).hexdigest(), text, truncated)).fetchone()
+            return public(row)
+        except Exception:
+            import shutil
+            shutil.rmtree(folder, ignore_errors=True)
+            raise
