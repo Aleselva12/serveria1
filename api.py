@@ -59,8 +59,11 @@ async def lifespan(app):
     from core.observability import archive
     archive.start()
     background_embeddings.start()
+    from core import library_monitor
+    library_monitor.start()
     yield
     runtime.shutdown()
+    library_monitor.stop()
     background_embeddings.stop()
     archive.stop()
     close_pool()

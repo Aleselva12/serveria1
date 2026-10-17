@@ -1,3 +1,4 @@
+import LibraryMonitorSettings from "./components/LibraryMonitorSettings";
 import ThinkingPanel, { type ThinkingState } from "./components/ThinkingPanel";
 import { LengthChoice, RunTimer, type ResponseLength } from "./components/RunControls";
 import { usePermanentContext } from "./services/usePermanentContext";
@@ -600,6 +601,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                   </span>
                 </div>
                 <ModelSettings onChanged={() => void backend.refresh()} />
+                <LibraryMonitorSettings />
                 <div className="settings-row">
                   <div>
                     <strong>Modalità runtime</strong>
