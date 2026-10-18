@@ -584,7 +584,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 <div>
                   <div className="eyebrow">PREFERENZE</div>
                   <h1>Impostazioni</h1>
-                  {authMode === "tailscale" ? <p>Accesso automatico tramite Tailscale. Per interromperlo su questo dispositivo, disconnetti Tailscale; per revocarlo, rimuovi il dispositivo dalla console Tailscale.</p> : <>
+                  {authMode === "desktop" ? <p>Accesso locale automatico. Cora accetta richieste soltanto dal computer che la esegue.</p> : authMode === "tailscale" ? <p>Accesso automatico tramite Tailscale. Per interromperlo su questo dispositivo, disconnetti Tailscale; per revocarlo, rimuovi il dispositivo dalla console Tailscale.</p> : <>
                   <button className="text-button" onClick={async () => { const r = await authenticatedFetch(apiBaseUrl + "/auth/logout", { method: "POST" }); if (r.ok) window.dispatchEvent(new Event("cora:unauthorized")); }}>Esci</button>
                   <button className="text-button" onClick={async () => { const r = await authenticatedFetch(apiBaseUrl + "/auth/logout?all_sessions=true", { method: "POST" }); if (r.ok) window.dispatchEvent(new Event("cora:unauthorized")); }}>Disconnetti tutti i dispositivi</button>
                   </>}

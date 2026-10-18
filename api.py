@@ -391,57 +391,68 @@ def execute_chat(request: ChatRequest, run):
         postprocess.submit(_postprocess_turn, thread_id, message, response, str(user_message["id"]), str(assistant_message["id"]))
         run.timings["result_save_ms"] = round((time.perf_counter()-phase)*1000,2)
         operation["result"] = {
-            "response_char…23904 tokens truncated…xEmit.ReactJSX}}).outputText
- .replace(/from "react\/jsx-runtime"/g,'from '+external('react/jsx-runtime'))
- .replace(/from "react"/g,'from '+external('react'))
- .replace('import { apiBaseUrl } from "../services/api";','const apiBaseUrl="/backend";')
- .replace('import { authenticatedFetch } from "../services/transport";','const authenticatedFetch=(...args)=>globalThis.__updateFetch(...args);');
-const Panel=(await import('data:text/javascript;base64,'+Buffer.from(c).toString('base64'))).default;
-const text=n=>typeof n==='string'?n:(n?.children||[]).map(text).join(' ');
-const button=(r,label)=>r.root.findAllByType('button').find(b=>text(b).includes(label));
+            "response_chars": len(response),
+            "assistant_message_id": str(assistant_message["id"]),
+        }
 
-test('Windows preparation is explicit and ready never means installed',async()=>{
- let calls=[],status='idle',r;
- globalThis.__updateFetch=async(path,init={})=>{
-  calls.push([path,init.method||'GET']);
-  if(init.method==='POST')status='ready';
-  return {ok:true,json:async()=>({platform:'windows',status,commit:'abc',directory:'C:/candidate'})};
- };
- try{
-  await act(async()=>{r=create(React.createElement(Panel));});
-  assert.equal(calls.length,0);
-  await act(async()=>button(r,'Aggiorna Cora').props.onClick());
-  assert.equal(calls.length,1); assert.equal(r.root.findAllByType('a').length,0);
-  await act(async()=>button(r,'Prepara aggiornamento Windows').props.onClick());
-  assert.equal(calls.filter(c=>c[1]==='POST').length,1);
-  assert.match(text(r.toJSON()),/preparato, non installato/);
-  assert.match(text(r.toJSON()),/backup PostgreSQL/);
- }finally{if(r)await act(async()=>r.unmount());}
-});
+    return ChatResponse(
+        response=response,
+        thread_id=thread_id,
+        run_id=run.id,
+    )
 
-test('Debian uses its configured URL and explains an absent service',async()=>{
- for(const url of ['', 'https://server.example/update']){
-  globalThis.__updateFetch=async()=>({ok:true,json:async()=>({platform:'server',status:url?'configured':'unconfigured',url})});
-  let r;try{
-   await act(async()=>{r=create(React.createElement(Panel));});
-   await act(async()=>button(r,'Aggiorna Cora').props.onClick());
-   assert.equal(Boolean(button(r,'Prepara aggiornamento Windows')),false);
-   if(url)assert.equal(r.root.findByType('a').props.href,url);
-   else assert.match(text(r.toJSON()),/CORA_UPDATE_URL/);
-  }finally{if(r)await act(async()=>r.unmount());}
- }
-});
 
-test('an uncertain POST is never repeated automatically and remains visible',async()=>{
- let posts=0,r;
- globalThis.__updateFetch=async(path,init={})=>{
-  if(init.method==='POST'){posts++;throw Error('offline');}
-  return {ok:true,json:async()=>({platform:'windows',status:'idle'})};
- };
- try{
-  await act(async()=>{r=create(React.createElement(Panel));});
-  await act(async()=>button(r,'Aggiorna Cora').props.onClick());
-  await act(async()=>button(r,'Prepara aggiornamento Windows').props.onClick());
-  assert.equal(posts,1);assert.match(text(r.toJSON()),/offline/);
- }finally{if(r)await act(async()=>r.unmount());}
-});
+def submit_chat(request):
+    from core.chat_tools import validate_selection
+    from tools import supervisor_tools
+    try:
+        validate_selection(request.manual_tools, supervisor_tools)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+    thread_id = str(request.thread_id) if request.thread_id else str(uuid.uuid4())
+    if request.attachment_ids:
+        attachment_rows(thread_id, request.attachment_ids)
+    try:
+        return runtime.submit(thread_id, lambda run: execute_chat(request, run).model_dump(), graph_version=architecture_graph()["version"])
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(503, "Runtime non disponibile; verifica Attività e riavvia il backend.") from error
+
+
+@app.get("/api/v1/chat/tools")
+def chat_tools_endpoint():
+    from core.chat_tools import chat_tool_options
+    return chat_tool_options()
+
+
+@app.post("/api/v1/chat/runs", status_code=202)
+def start_chat(request: ChatRequest):
+    return submit_chat(request).snapshot()
+
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest, http_request: Request):
+    run = submit_chat(request)
+    while not run.done.is_set():
+        if await http_request.is_disconnected(): run.stop()
+        await asyncio.sleep(.1)
+    if run.status in {"completed", "awaiting_approval"}: return run.result
+    raise HTTPException(408 if run.status in {"cancelled", "timed_out"} else 500,
+                        "Esecuzione " + run.status + ". Consulta Attività.")
+
+
+postprocess = ThreadPoolExecutor(max_workers=1,thread_name_prefix="cora-postprocess")
+
+
+def _postprocess_turn(thread_id,message,response,user_id,assistant_id):
+    try:
+        schedule_summary(thread_id)
+        refresh_transcript(thread_id)
+        create_episode(title=message.replace("\n", " ")[:80] or "Turno chat",
+            summary="Richiesta: " + message[:240] + "\nRisultato: " + response[:420],
+            conversation_id=thread_id,episode_type="conversation_turn",agent_id="supervisor",
+            metadata={"user_message_id":user_id,"assistant_message_id":assistant_id})
+    except Exception:
+        pass  # Primary messages remain authoritative; derived copies can be rebuilt.
+
