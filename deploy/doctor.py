@@ -12,6 +12,9 @@ def model_available(name,names):
 
 def inspect():
     checks={}
+    from core.file_paths import library_workspace_status
+    library=library_workspace_status()
+    checks['library']={'ok':library['available'],**library}
     try:
         from core.database import db_connection
         with db_connection(ensure_schema=False) as conn:

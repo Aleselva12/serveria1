@@ -22,7 +22,8 @@ def _ollama_online() -> bool:
 def component_runtime_status() -> dict:
     ollama = _ollama_online()
     database = database_status()
-    knowledge = Path(os.getenv("CORA_KNOWLEDGE_ROOT") or "./knowledge").expanduser()
+    from core.file_paths import library_workspace_status
+    library = library_workspace_status()
     audio_root = Path(os.getenv("CORA_AUDIO_ROOT", "./audio")).expanduser()
     gmail_credentials = Path(os.getenv("CORA_GMAIL_CREDENTIALS_PATH", "./email_agent/credentials.json")).expanduser()
     gmail_token = Path(os.getenv("CORA_GMAIL_TOKEN_PATH", "./email_agent/token.json")).expanduser()
@@ -44,9 +45,9 @@ def component_runtime_status() -> dict:
             "checks": {"ollama": ollama},
         },
         "local_research_agent": {
-            "status": "ready" if ollama and knowledge.exists() else "degraded" if ollama else "offline",
+            "status": "ready" if ollama and library['available'] else "degraded" if ollama else "offline",
             "model": get_model_name("research"),
-            "checks": {"ollama": ollama, "knowledge_root": knowledge.exists()},
+            "checks": {"ollama": ollama, "knowledge_root": library['available'], "library": library},
         },
         "audio_agent": {
             "status": "ready" if ollama and importlib.util.find_spec("faster_whisper") else "degraded" if ollama else "offline",

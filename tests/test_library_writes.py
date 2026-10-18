@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,7 +22,7 @@ class LibraryWriteTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)/'library'; self.root.mkdir()
-        for target, value in [('search_agent.search_tools.KNOWLEDGE_ROOT',self.root),
+        for target, value in [('core.file_paths.knowledge_root',lambda: self.root),
                               ('core.permissions.policy_overrides',lambda: {}),
                               ('core.operation_journal.begin',lambda *args: None),
                               ('core.operation_journal.finish',lambda *args, **kwargs: None)]:
