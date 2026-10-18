@@ -15,7 +15,7 @@ from search_agent import search_tools
 class LibraryWorkspaceTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
-        self.base=Path(self.tmp.name)
+        self.base=Path(self.tmp.name).resolve()
         for setting in (patch.object(file_paths,'BASE',self.base),
                         patch.dict(os.environ,{'CORA_KNOWLEDGE_ROOT':'','CORA_LIBRARY_ORIGINALS_ROOT':''}),
                         patch('core.permissions.policy_overrides',return_value={}),
