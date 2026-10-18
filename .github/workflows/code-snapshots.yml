@@ -1,0 +1,34 @@
+name: Code snapshots
+# At most one snapshot daily, plus an explicit manual checkpoint.
+# Only already-published main commits: no worktree scan, uploads or secrets.
+on:
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: code-snapshots
+  cancel-in-progress: false
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Preserve changed published revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          revision=$(git rev-parse HEAD)
+          if git for-each-ref --format='%(objectname)' refs/remotes/origin/snapshots/ | grep -Fxq "$revision"; then
+            echo 'Revision already preserved'; exit 0
+          fi
+          branch="snapshots/$(date -u +%Y%m%dT%H%M%SZ)-${revision:0:12}"
+          gh api --method POST "repos/$GH_REPO/git/refs" -f ref="refs/heads/$branch" -f sha="$revision"

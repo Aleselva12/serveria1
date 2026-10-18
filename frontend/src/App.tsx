@@ -435,7 +435,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 <ChatToolPicker key={currentChat.threadId} selection={toolDrafts[currentChat.threadId]??null} onChange={names=>setToolDrafts(prev=>({...prev,[currentChat.threadId]:names}))} disabled={sending||attachmentBusy} available={Boolean(backend.health)} />
                 {libraryPicker && <ChatLibraryPicker disabled={sending||attachmentBusy} onClose={()=>setLibraryPicker(false)} onPick={attachFromLibrary} />}
                 <div className="attachment-drafts">{(attachmentDrafts[currentChat.threadId]||[]).map(a=><span className="attachment-chip" key={a.id}>{a.name}{a.truncated?" · estratto limitato":""}<button disabled={sending||attachmentBusy} aria-label={"Rimuovi allegato "+a.name} onClick={()=>setAttachmentDrafts(prev=>({...prev,[currentChat.threadId]:(prev[currentChat.threadId]||[]).filter(x=>x.id!==a.id)}))}>×</button></span>)}</div>
-                <ThinkingPanel value={thinking} />
+                <ThinkingPanel key={currentChat.threadId} value={thinking} threadId={currentChat.threadId} running={sending} />
                 <RunTimer started={startedAt} finished={finishedAt} />
                 <LengthChoice value={responseLength} onChange={setResponseLength} disabled={sending} />
                 <div className="composer">

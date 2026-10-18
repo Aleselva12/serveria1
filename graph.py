@@ -77,6 +77,11 @@ def _runtime_system_prompt(messages, request_text=None, manual_tools=None) -> tu
 
     run = current_run.get()
     if run:
+        from core.consultations import record
+        for page in selected:
+            record('context', page.id, 'included', run=run)
+        for provider in preload_providers:
+            record('context', provider, 'loaded', run=run)
         run.timings["memory_ms"] = 0.0
         run.timings["memory_available"] = 1
         run.timings["context_pages"] = [page.id for page in selected]

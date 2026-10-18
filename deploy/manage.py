@@ -8,6 +8,7 @@ import secrets
 import shutil
 import subprocess
 import sys
+import tarfile
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,8 +52,9 @@ def digest(path):
 
 def check_backup(path):
     manifest=json.loads((path/'manifest.json').read_text())
-    if manifest.get('version')!=1:raise ValueError('Formato backup non supportato.')
-    expected={'database.dump','state.tar.gz','deploy.env'}
+    if manifest.get('version') not in (1,2):raise ValueError('Formato backup non supportato.')
+    expected=({'database.dump','state.tar.gz','deploy.env'} if manifest['version']==1 else
+              {'database.dump','state.tar.gz','private-files.tar.gz','compose.json','config.json','current.json','bridge.token'})
     if set(manifest['sha256'])!=expected:raise ValueError('Manifest incompleto.')
     for name in expected:
         if digest(path/name)!=manifest['sha256'][name]:raise ValueError('Backup danneggiato: '+name)
@@ -84,6 +86,12 @@ def backup(path):
 
 def restore(path):
     check_backup(path)
+    # Validate all archive entries before stopping services or importing any database data.
+    with tarfile.open(path/'state.tar.gz') as archive:
+        for member in archive:
+            relative=Path(member.name)
+            if relative.is_absolute() or '..' in relative.parts or '\\' in member.name or not (member.isfile() or member.isdir()):
+                raise ValueError('Archivio state non sicuro: link, percorsi esterni o file speciali.')
     # Restore is intentionally limited to a fresh target, never overwrites live data.
     compose('stop','web','api')
     compose('up','-d','--wait','postgres')
