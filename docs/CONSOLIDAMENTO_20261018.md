@@ -2,7 +2,7 @@
 
 Fonte canonica: [roadmap.json](roadmap.json), importata dalla Home. Rigenerare
 `17 passi.txt` con `python deploy/render_roadmap.py` dopo ogni modifica.
-Lo stesso comando genera la copia `frontend/src/data/roadmap.json` necessaria
+Lo stesso comando genera la copia `frontend/src/roadmap.generated.json` necessaria
 alle build isolate Docker: i test ne verificano l’uguaglianza con la fonte.
 Il documento allegato nella chat è stato consultato come fotografia storica;
 il file aggiornato in repository è una nuova versione operativa, senza modificare

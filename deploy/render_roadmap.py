@@ -18,6 +18,6 @@ def render():
 if __name__=='__main__':
     (ROOT/'17 passi.txt').write_text(render(),encoding='utf-8')
     # Frontend Docker/check builds receive only frontend/, never the sibling docs/.
-    target=ROOT/'frontend/src/data/roadmap.json'
+    target=ROOT/'frontend/src/roadmap.generated.json'
     target.parent.mkdir(parents=True,exist_ok=True)
     target.write_text((ROOT/'docs/roadmap.json').read_text(encoding='utf-8'),encoding='utf-8')

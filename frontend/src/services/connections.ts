@@ -1,4 +1,4 @@
-import roadmap from "../data/roadmap.json";
+import roadmap from "../roadmap.generated.json";
 
 /** Fonte canonica condivisa con 17 passi.txt. Nessun inventario host pubblico. */
 export const missingConnections = {

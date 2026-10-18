@@ -30,7 +30,7 @@ class ConsultationTests(unittest.TestCase):
         self.assertEqual(rows[12]['state'],'Escluso')
         self.assertIn('causa utente',rows[5]['state'])
         self.assertEqual((ROOT/'17 passi.txt').read_text(encoding='utf-8'),render())
-        self.assertEqual((ROOT/'frontend/src/data/roadmap.json').read_text(encoding='utf-8'),
+        self.assertEqual((ROOT/'frontend/src/roadmap.generated.json').read_text(encoding='utf-8'),
                          (ROOT/'docs/roadmap.json').read_text(encoding='utf-8'))
 
 
