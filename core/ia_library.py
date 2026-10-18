@@ -9,7 +9,7 @@ from fastapi import File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from core.confined_paths import confined_path
-from core.file_paths import ORIGINALS_ID, knowledge_root, originals_root
+from core.file_paths import ORIGINALS_ID, library_workspace_root, LibraryAccessError
 from core.server_files import (exists, make_router, node, operation, parts,
                                resolve, root_for, upload_to, vacant)
 
@@ -17,12 +17,8 @@ LIBRARY_ID = 'library'
 
 
 def library_roots():
-    library = knowledge_root()
-    originals = originals_root()
-    if library.is_relative_to(originals) or originals.is_relative_to(library):
-        raise HTTPException(503, 'Libreria IA e originali devono essere cartelle separate.')
-    if not os.getenv('CORA_KNOWLEDGE_ROOT', '').strip():
-        library.mkdir(parents=True, exist_ok=True)
+    try: library = library_workspace_root(require_available=False)
+    except LibraryAccessError as error: raise HTTPException(503,str(error)) from error
     return [{'id': LIBRARY_ID, 'label': 'Libreria IA', 'path': str(library), 'writable': True}]
 
 

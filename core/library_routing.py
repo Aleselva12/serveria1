@@ -15,13 +15,13 @@ def list_requested(text: str) -> bool:
 
 def list_documents_direct() -> str:
     """No Ollama required. Reuse governed Library API, preserving permissions."""
-    import json
     from tools import library_list
-    response = library_list.invoke({"directory": ".", "recursive": True})
-    data = json.loads(response)
-    if data.get("status") == "error":
-        return "Impossibile consultare la Libreria IA: " + str(data.get("error", "errore"))[:250]
-    rows = data.get("documents", [])
+    from core.library_preflight import _invoke, _unavailable
+    data,error = _invoke(library_list,{"directory": ".", "recursive": True},action='elenco',for_model=False)
+    if error: return error
+    rows = data.get("documents")
+    if not isinstance(rows,list) or any(not isinstance(row,dict) or not isinstance(row.get('path'),str) for row in rows):
+        return _unavailable(action='elenco',for_model=False)
     if not rows:
         return "Non risultano documenti leggibili nella Libreria IA."
     result = ["Documenti trovati nella Libreria IA:"]

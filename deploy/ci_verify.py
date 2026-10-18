@@ -68,6 +68,11 @@ run=create_run(thread_id='ci-backup-proof')
 transition_run(str(run['id']),'running')
 transition_run(str(run['id']),'completed',result={'response':'fixture'})
 Path('/state/files/proof.txt').write_text(str(run['id']))
+Path('/state/knowledge/library-proof.txt').write_text('CI library workspace proof')
+from tools import library_read
+assert 'CI library workspace proof' in library_read.invoke({'relative_path':'library-proof.txt'})
+from core.file_paths import library_workspace_status
+assert library_workspace_status()['available']
 """
         manage.compose('exec','-T','api','python','-',input=source,text=True)
         with request('/backend/auth/login',{'username':'ci-owner','password':'ci-private-password-123'}) as response:

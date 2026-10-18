@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime, timezone
 
 from core.governance import agent_tool
+from core.file_paths import library_workspace_root
 from core.server_files import operation, trash_area
 from core.confined_paths import confined_path
 from core.runtime_context import ensure_runtime_active
@@ -56,12 +57,11 @@ def publish_bytes(destination, data, *, replace=False):
 
 
 def archive_previous(path, data, *, move=False):
-    from search_agent.search_tools import KNOWLEDGE_ROOT
-    area = trash_area(KNOWLEDGE_ROOT)
+    area = trash_area(library_workspace_root())
     identifier = uuid.uuid4().hex
     slot = confined_path(area, area/identifier)
     slot.mkdir()
-    metadata = {'id':identifier, 'path':path.relative_to(KNOWLEDGE_ROOT).as_posix(),
+    metadata = {'id':identifier, 'path':path.relative_to(library_workspace_root()).as_posix(),
                 'deletedAt':datetime.now(timezone.utc).isoformat(), 'reason':'agent-trash' if move else 'before-edit'}
     (slot/'metadata.json').write_text(json.dumps(metadata), encoding='utf-8')
     if move:
@@ -83,20 +83,20 @@ def library_file_info(relative_path: str) -> dict:
 @agent_tool('supervisor', capability='library_copy', actions=('library_read', 'library_copy'), effect='write', retry='never')
 def library_copy(relative_path: str, destination: str) -> dict:
     """Crea una copia nella sola Libreria IA. Non modifica l'origine; assegna un nome libero se già occupato."""
-    from search_agent.search_tools import _safe_path, KNOWLEDGE_ROOT
+    from search_agent.search_tools import _safe_path
     with operation():
         ensure_runtime_active()
         source = source_file(relative_path)
         data = source.read_bytes()
         requested = _safe_path(destination)
-        if not requested.parent.is_dir() or requested == KNOWLEDGE_ROOT:
+        if not requested.parent.is_dir() or requested == library_workspace_root():
             raise ValueError('La cartella di destinazione deve già esistere.')
         for index in range(1000):
             target = requested if index == 0 else requested.with_name(f'{requested.stem} ({index}){requested.suffix}')
-            target = _safe_path(target.relative_to(KNOWLEDGE_ROOT).as_posix())
+            target = _safe_path(target.relative_to(library_workspace_root()).as_posix())
             try:
                 publish_bytes(target, data)
-                return {'status':'ok', 'path':target.relative_to(KNOWLEDGE_ROOT).as_posix(), 'source':relative_path}
+                return {'status':'ok', 'path':target.relative_to(library_workspace_root()).as_posix(), 'source':relative_path}
             except FileExistsError:
                 continue
         raise ValueError('Troppi nomi occupati: scegli una destinazione diversa.')
@@ -183,11 +183,11 @@ def _document_bytes(suffix: str, text: str, *, original: bytes | None = None) ->
 def library_create_document(relative_path: str, content: str) -> dict:
     """CREA un nuovo TXT, Markdown o DOCX nella Libreria IA dopo conferma in Attività.
     Non sovrascrive mai file esistenti."""
-    from search_agent.search_tools import _safe_path, MAX_FILE_BYTES, KNOWLEDGE_ROOT
+    from search_agent.search_tools import _safe_path, MAX_FILE_BYTES
     with operation():
         ensure_runtime_active()
         path = _safe_path(relative_path)
-        if path == KNOWLEDGE_ROOT or not path.parent.is_dir() or path.is_symlink():
+        if path == library_workspace_root() or not path.parent.is_dir() or path.is_symlink():
             raise ValueError('Destinazione non valida o cartella non esistente.')
         if not content.strip():
             raise ValueError('Il contenuto non può essere vuoto.')

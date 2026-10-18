@@ -11,7 +11,7 @@ from core.governance import agent_tool
 from pypdf import PdfReader
 
 from core.permissions import require_permission
-from core.file_paths import knowledge_root
+from core.file_paths import library_workspace_root, LibraryAccessError, LIBRARY_ERRORS
 from core.confined_paths import confined_path
 from core.runtime_context import ensure_runtime_active, RunTimedOut
 from core.run_lifecycle import RunCancelled
@@ -20,7 +20,6 @@ from core.run_lifecycle import RunCancelled
 load_dotenv()
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
-KNOWLEDGE_ROOT = knowledge_root()
 
 BLOCKED_PARTS = {".git", ".venv", "__pycache__", "node_modules", ".cora-trash", ".cora-staging"}
 BLOCKED_NAMES = {".env", "credentials.json", "token.json"}
@@ -42,9 +41,10 @@ def _require_permission(action: str) -> None:
 def _safe_path(relative_path: str) -> Path:
     if Path(relative_path).is_absolute() or "\\" in relative_path or ".." in Path(relative_path).parts:
         raise ValueError("Usa un percorso relativo alla Libreria IA.")
-    candidate = confined_path(KNOWLEDGE_ROOT, KNOWLEDGE_ROOT / relative_path)
+    root = library_workspace_root()
+    candidate = confined_path(root, root / relative_path)
 
-    relative = candidate.relative_to(KNOWLEDGE_ROOT)
+    relative = candidate.relative_to(root)
     if any(part in BLOCKED_PARTS for part in relative.parts):
         raise ValueError("Cartella protetta.")
 
@@ -57,24 +57,37 @@ def _safe_path(relative_path: str) -> Path:
 def _iter_documents(directory: str = ".", recursive: bool = True) -> Iterable[Path]:
     base = _safe_path(directory)
     if not base.exists() or not base.is_dir():
-        raise ValueError("Cartella della Libreria IA non disponibile.")
+        raise LibraryAccessError('LibraryDirectoryMissing')
 
     def walk():
         visited = 0
-        for folder, dirs, files in os.walk(base, followlinks=False):
+        def walk_error(error):
+            # os.walk otherwise silently treats unreadable roots as an empty library.
+            raise error
+        for folder, dirs, files in os.walk(base, followlinks=False, onerror=walk_error):
             ensure_runtime_active()
             dirs[:] = sorted(d for d in dirs if d not in BLOCKED_PARTS and not (Path(folder)/d).is_symlink())
             for name in sorted(files):
                 visited += 1
                 if visited > 2000:
-                    raise ValueError("Limite di scansione raggiunto: restringi la cartella.")
+                    raise LibraryAccessError('LibraryScanLimit')
                 path = Path(folder)/name
                 if path.is_symlink() or name.lower() in BLOCKED_NAMES or path.suffix.lower() not in SUPPORTED_EXTENSIONS:
                     continue
-                yield _safe_path(path.relative_to(KNOWLEDGE_ROOT).as_posix())
+                yield _safe_path(path.relative_to(library_workspace_root()).as_posix())
             if not recursive:
                 break
     return walk()
+
+
+def _read_error(error, action):
+    """Stable, actionable failures without leaking host paths or exception contents."""
+    if isinstance(error, LibraryAccessError): code=error.code
+    elif isinstance(error, PermissionError): code='LibraryPermissionDenied'
+    elif isinstance(error, OSError): code='LibraryStorageUnavailable'
+    else: code='LibraryReadError'
+    message=LIBRARY_ERRORS.get(code, 'Operazione di '+action+' nella Libreria IA non riuscita. Nessun contenuto letto è confermato.')
+    return json.dumps({'status':'error','error_code':code,'error':message},ensure_ascii=False)
 
 
 def _activity(action: str, *, path: str = ".", query: str = ""):
@@ -129,7 +142,7 @@ def _read_pdf(path: Path) -> str:
 
 
 def _read_document(path: Path) -> str:
-    path = _safe_path(path.relative_to(KNOWLEDGE_ROOT).as_posix())
+    path = _safe_path(path.relative_to(library_workspace_root()).as_posix())
     if not path.is_file():
         raise ValueError("Il percorso non è un file normale.")
     ensure_runtime_active()
@@ -151,9 +164,9 @@ def _read_document(path: Path) -> str:
     if len(text) > MAX_TEXT_CHARS:
         text = text[:MAX_TEXT_CHARS] + "\n\n[TESTO TRONCATO PER LIMITE DI SICUREZZA]"
 
-    _activity("read", path=path.relative_to(KNOWLEDGE_ROOT).as_posix())
+    _activity("read", path=path.relative_to(library_workspace_root()).as_posix())
     from core.consultations import record
-    record('file', path.relative_to(KNOWLEDGE_ROOT).as_posix(), 'read')
+    record('file', path.relative_to(library_workspace_root()).as_posix(), 'read')
     return text
 
 
@@ -179,7 +192,7 @@ def list_local_documents(
 
             stat = path.stat()
             results.append({
-                "path": str(path.relative_to(KNOWLEDGE_ROOT)),
+                "path": str(path.relative_to(library_workspace_root())),
                 "type": path.suffix.lower(),
                 "size_bytes": stat.st_size,
                 "modified_timestamp": stat.st_mtime,
@@ -196,7 +209,7 @@ def list_local_documents(
     except (RunCancelled, RunTimedOut):
         raise
     except Exception as error:
-        return json.dumps({"status":"error","error":f"Errore durante l'elenco dei documenti: {error}"}, ensure_ascii=False)
+        return _read_error(error,'elenco')
 
 
 @agent_tool('local_research_agent', capability='read_local_document', actions=('read_document',), effect='read', retry='safe')
@@ -214,7 +227,7 @@ def read_local_document(relative_path: str) -> str:
 
         text = _read_document(path)
         return (
-            f"SOURCE_PATH: {path.relative_to(KNOWLEDGE_ROOT)}\n"
+            f"SOURCE_PATH: {path.relative_to(library_workspace_root())}\n"
             f"SOURCE_TYPE: {path.suffix.lower()}\n"
             f"SOURCE_SHA256: {hashlib.sha256(path.read_bytes()).hexdigest()}\n"
             f"--- DOCUMENT CONTENT ---\n{text}"
@@ -222,7 +235,7 @@ def read_local_document(relative_path: str) -> str:
     except (RunCancelled, RunTimedOut):
         raise
     except Exception as error:
-        return json.dumps({"status":"error","error":f"Errore durante la lettura del documento: {error}"}, ensure_ascii=False)
+        return _read_error(error,'lettura')
 
 
 @agent_tool('local_research_agent', capability='search_local_documents', actions=('search_documents',), effect='read', retry='safe')
@@ -258,7 +271,7 @@ def search_local_documents(
                 text = ""
 
             folded = text.casefold()
-            name = path.relative_to(KNOWLEDGE_ROOT).as_posix().casefold()
+            name = path.relative_to(library_workspace_root()).as_posix().casefold()
             score = sum(folded.count(term) + 5 * name.count(term) for term in terms)
             if score <= 0:
                 continue
@@ -270,7 +283,7 @@ def search_local_documents(
             excerpt = text[start:end].strip()
 
             matches.append({
-                "path": str(path.relative_to(KNOWLEDGE_ROOT)),
+                "path": str(path.relative_to(library_workspace_root())),
                 "score": score,
                 "excerpt": excerpt,
             })
@@ -288,7 +301,7 @@ def search_local_documents(
     except (RunCancelled, RunTimedOut):
         raise
     except Exception as error:
-        return json.dumps({"status":"error","error":f"Errore durante la ricerca locale: {error}"}, ensure_ascii=False)
+        return _read_error(error,'ricerca')
 
 
 @agent_tool('local_research_agent', capability='create_word_document', actions=(), effect='write', retry='never', conditional_actions=('create_word_document', 'overwrite_word_document'))
@@ -340,7 +353,7 @@ def create_word_document(
         publish_bytes(output_path, buffer.getvalue(), replace=False)
         return json.dumps({
             "status": "ok",
-            "path": str(output_path.relative_to(KNOWLEDGE_ROOT)),
+            "path": str(output_path.relative_to(library_workspace_root())),
         }, ensure_ascii=False)
     except Exception as error:
         return json.dumps({
@@ -405,7 +418,7 @@ def append_word_document(
             publish_bytes(path, buffer.getvalue(), replace=True)
         return json.dumps({
             "status": "ok",
-            "path": str(path.relative_to(KNOWLEDGE_ROOT)),
+            "path": str(path.relative_to(library_workspace_root())),
             "paragraphs_added": added,
         }, ensure_ascii=False)
     except Exception as error:

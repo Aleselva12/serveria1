@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,7 +25,7 @@ class LibraryResearchTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)/'library'; self.root.mkdir()
-        for target, value in [('KNOWLEDGE_ROOT', self.root), ('_require_permission', lambda action: None), ('ensure_runtime_active', lambda: None)]:
+        for target, value in [('library_workspace_root', lambda **kwargs: self.root), ('_require_permission', lambda action: None), ('ensure_runtime_active', lambda: None)]:
             p = patch.object(st, target, value); p.start(); self.addCleanup(p.stop)
 
     def test_names_and_contents_and_source_paths(self):

@@ -25,8 +25,10 @@ class LibraryRoutingTests(unittest.TestCase):
 
     @patch('tools.library_list')
     def test_error_is_not_reported_as_empty_library(self, tool):
-        tool.invoke.return_value = json.dumps({"status":"error","error":"permission denied"})
-        self.assertIn("permission denied", list_documents_direct())
+        tool.invoke.return_value = json.dumps({"status":"error","error_code":"LibraryPermissionDenied","error":"private detail"})
+        result=list_documents_direct()
+        self.assertIn("permessi",result)
+        self.assertNotIn("private detail",result)
 
     def test_supervisor_binding_does_not_expose_repository_for_library(self):
         from graph import _runtime_system_prompt

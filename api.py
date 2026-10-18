@@ -158,9 +158,11 @@ def _ollama_online() -> bool:
 
 @app.get("/health")
 def health():
+    from core.file_paths import library_workspace_status
     database = database_status()
     return {
         "status": "ok",
+        "library": library_workspace_status(),
         "ollama_online": _ollama_online(),
         "model": get_model_name("supervisor"),
         "runtime_mode": runtime_mode(),

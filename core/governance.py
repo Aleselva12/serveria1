@@ -134,6 +134,9 @@ def execute_capability(identifier, payload):
         if isinstance(parsed, dict) and (parsed.get("status") in {"error","failed"} or ("error" in parsed and parsed["error"])):
             result.status = "error"
             result.error = CapabilityError(code="ToolReportedError", message=str(parsed.get("error") or "Operazione non completata."))
+            from core.file_paths import LIBRARY_ERRORS
+            if isinstance(parsed.get('error_code'),str) and parsed['error_code'] in LIBRARY_ERRORS:
+                result.error.code=parsed['error_code']
         elif isinstance(parsed, dict) and parsed.get("status") == "pending":
             result.status = "pending"
             proposal = parsed.get('proposal')
@@ -156,7 +159,9 @@ def execute_capability(identifier, payload):
             result.error = CapabilityError(code=type(error).__name__, message="Impossibile creare la richiesta di conferma.")
     except Exception as error:
         result.status = "error"
-        result.error = CapabilityError(code=type(error).__name__, message="Operazione non completata: " + type(error).__name__ + ".")
+        # Preserve the category across Supervisor -> research adapter boundaries.
+        code=error.code if isinstance(error,CapabilityExecutionError) else type(error).__name__
+        result.error = CapabilityError(code=code, message="Operazione non completata: " + code + ".")
     except BaseException as error:
         escaped_error = type(error).__name__
         result.status = "error"
