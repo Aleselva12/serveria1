@@ -114,7 +114,7 @@ def call_llm(state: AgentState):
                   and route.get("intent") in {"conversation", "explanation"}
                   and route.get("context") == ["current"] and not route.get("tool_groups")
                   and not any(getattr(m, "tool_calls", None) for m in state["messages"]))
-        last = state["messages"][-1]
+        last = state["messages"][-1] if state["messages"] else None
         try:
             repairing_arguments = isinstance(last, ToolMessage) and json.loads(last.content).get("code") == "invalid_arguments"
         except (ValueError, TypeError, AttributeError):
