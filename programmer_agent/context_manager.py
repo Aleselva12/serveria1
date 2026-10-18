@@ -9,7 +9,8 @@ import os
 import re
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.utils.function_calling import convert_to_openai_tool
-from core.context_budget import estimate, fit_messages, message_cost
+from core.context_budget import estimate, message_cost
+from programmer_agent.loop_context import fit_programmer_messages
 
 ESSENTIAL = frozenset({
     'programmer_list_files', 'programmer_read_file', 'programmer_search_code',
@@ -112,7 +113,7 @@ def prepare(system_prompt, messages, tools, decision=None, conversation_prompt=N
     if (reason == 'semantic_conversation' and conversation_prompt is not None
             and len(messages) == 1 and isinstance(messages[0], HumanMessage)):
         system_prompt = conversation_prompt
-    fitted = fit_messages([SystemMessage(content=system_prompt + '\n' + GUIDANCE)] + list(messages), tools=selected)
+    fitted = fit_programmer_messages([SystemMessage(content=system_prompt + '\n' + GUIDANCE)] + list(messages), tools=selected)
     return fitted, selected, reason
 
 

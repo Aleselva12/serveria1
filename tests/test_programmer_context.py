@@ -85,7 +85,7 @@ class ContextTests(unittest.TestCase):
                 self.assertEqual(model.invoke.call_count, 1 if isinstance(outcome, Exception) else 2)
 
     def test_serialization_keeps_protocol_and_does_not_execute_second_call(self):
-        response = AIMessage('', tool_calls=[call('programmer_read_file'), call('programmer_write_file', 'b')])
+        response = AIMessage('', tool_calls=[call('programmer_read_file', workspace_id='test', path='a.py'), call('programmer_write_file', 'b')])
         with patch.object(pg._tool_node, 'invoke', return_value={'messages':[ToolMessage('read', tool_call_id='a') ]}) as invoke:
             result = pg.execute_tools({'messages':[response]}, {})
         self.assertEqual(len(invoke.call_args.args[0]['messages'][0].tool_calls), 1)
@@ -100,7 +100,7 @@ class ContextTests(unittest.TestCase):
         from core.run_states import EffectUncertain
         for error in (RunCancelled('stop'), RunTimedOut('timeout')):
             with self.assertRaises(type(error)): pg.tool_error(error)
-        response = AIMessage('', tool_calls=[call('programmer_write_file')])
+        response = AIMessage('', tool_calls=[call('programmer_write_file', workspace_id='test', path='a.py', content='x=1')])
         with patch.object(pg._tool_node, 'invoke', side_effect=EffectUncertain('unknown')):
             with self.assertRaises(EffectUncertain): pg.execute_tools({'messages':[response]}, {})
 

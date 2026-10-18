@@ -5,7 +5,6 @@ import time
 from langchain_core.messages import SystemMessage, ToolMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
-from core.context_budget import fit_messages
 from core.governance import bind_capabilities
 from core.models import get_chat_model
 from core.prompt_context import with_permanent_context
@@ -14,6 +13,7 @@ from programmer_agent import workspace as ws
 from programmer_agent import context_manager, request_router
 from programmer_agent.knowledge import SKILLS
 from programmer_agent.programmer_tools import PROGRAMMER_TOOLS
+from programmer_agent.loop_context import fit_programmer_messages
 
 PROMPT = """Sei il Programmatore di Cora. Lavori su richiesta dell'utente, principalmente per creare tool e automazioni.
 Hai una copia del codice in un workspace separato; un workspace Git permette di preparare rilasci su richiesta. Tutto ciò che scrivi è una bozza: non è installato o attivo.
@@ -104,7 +104,7 @@ def call_llm(state: AgentState):
                 conversation_prompt=state.get("conversation_prompt"))
         else:
             selected, reason = PROGRAMMER_TOOLS, "legacy"
-            messages = fit_messages([SystemMessage(content=state["system_prompt"])] + list(state["messages"]), tools=selected)
+            messages = fit_programmer_messages([SystemMessage(content=state["system_prompt"])] + list(state["messages"]), tools=selected)
         sample.update(context_manager.metrics(messages, selected), selection_reason=reason)
         decision = state.get("context_route") or {}
         route = decision.get("route") if decision.get("status") == "classified" else None
@@ -114,8 +114,19 @@ def call_llm(state: AgentState):
                   and route.get("intent") in {"conversation", "explanation"}
                   and route.get("context") == ["current"] and not route.get("tool_groups")
                   and not any(getattr(m, "tool_calls", None) for m in state["messages"]))
-        reasoning = False if simple else None
-        sample["thinking_policy"] = "off_simple" if simple else "model_default"
+        last = state["messages"][-1] if state["messages"] else None
+        try:
+            repairing_arguments = isinstance(last, ToolMessage) and json.loads(last.content).get("code") == "invalid_arguments"
+        except (ValueError, TypeError, AttributeError):
+            repairing_arguments = False
+        reasoning = False if simple or repairing_arguments else None
+        if repairing_arguments:
+            messages = fit_programmer_messages(messages + [SystemMessage(content=
+                "La precedente chiamata non è stata eseguita: correggi i campi segnalati nel risultato tool. "
+                "Correggi tu la chiamata e richiama il tool; non chiedere all'utente di riparare i tuoi argomenti. "
+                "Usa soltanto i nomi esatti dello schema. content deve essere una stringa JSON contenente il codice, "
+                "non un oggetto. Non ripetere operazioni già riuscite.")], tools=selected)
+        sample["thinking_policy"] = "off_argument_repair" if repairing_arguments else "off_simple" if simple else "model_default"
         model = programmer_model(selected, reasoning=reasoning)
         for attempt in range(2):
             ensure_runtime_active()
@@ -132,11 +143,13 @@ def call_llm(state: AgentState):
                     "Risposta del modello non utilizzabile (" + problem + "). "
                     "Nessun tool di queste risposte è stato eseguito; le operazioni precedenti restano valide.")
             # Retry inference only. Never append malformed calls to history or replay tools.
-            messages = list(messages) + [SystemMessage(content=
+            messages = fit_programmer_messages(list(messages) + [SystemMessage(content=
                 "La tua ultima risposta era vuota o conteneva chiamate tool non valide ed è stata scartata. "
                 "Continua dai risultati tool già presenti senza ripetere operazioni. "
-                "Fornisci una risposta testuale non vuota oppure chiamate tool con argomenti JSON validi.")]
+                "Fornisci una risposta testuale non vuota oppure chiamate tool con argomenti JSON validi.")], tools=selected)
         meta = getattr(response, "response_metadata", {})
+        if isinstance(meta.get("done_reason"), str):
+            sample["done_reason"] = meta["done_reason"]
         for key in ("prompt_eval_count", "eval_count", "total_duration"):
             if isinstance(meta.get(key), (int, float)):
                 sample[key] = meta[key]
@@ -167,12 +180,30 @@ def execute_tools(state: AgentState, config):
     # Execute only one operation; preserve the other calls with explicit results.
     # The model must reconsider them after observing the first operation's result.
     first = response.model_copy(update={"tool_calls": calls[:1]})
-    result = _tool_node.invoke({"messages": [first]}, config=config)
+    tool = next((t for t in PROGRAMMER_TOOLS if t.name == calls[0]["name"]), None)
+    invalid = None
+    if tool is not None:
+        from pydantic import ValidationError
+        try:
+            tool.args_schema.model_validate(calls[0]["args"])
+        except ValidationError as error:
+            schema = tool.args_schema.model_json_schema()
+            properties = schema.get("properties", {})
+            problems = [{"field": str(e["loc"][0]) if e["loc"] and e["loc"][0] in properties else "(extra)",
+                         "type": e["type"]} for e in error.errors(include_input=False, include_url=False)][:12]
+            invalid = {"code":"invalid_arguments", "executed":False, "tool":tool.name,
+                       "problems":problems, "required":schema.get("required", []),
+                       "fields":{name:prop.get("type", "value") for name,prop in properties.items()}}
+            record_metric("tool_validation", {"tool":tool.name, "error_count":len(problems), "executed":False})
+    result = ({"messages":[ToolMessage(content=json.dumps(invalid, ensure_ascii=False), name=calls[0]["name"],
+                                       tool_call_id=calls[0]["id"], status="error")]}
+              if invalid else _tool_node.invoke({"messages": [first]}, config=config))
     ensure_runtime_active()
     result["messages"].extend(ToolMessage(
         content="Non eseguito: operazioni serializzate. Rivaluta questa chiamata dopo il risultato precedente.",
         name=call["name"], tool_call_id=call["id"], status="error") for call in calls[1:])
-    record_metric("tools", {"executed_tool": calls[0]["name"], "deferred_tools": [c["name"] for c in calls[1:]],
+    record_metric("tools", {"executed_tool": None if invalid else calls[0]["name"],
+                            "attempted_tool": calls[0]["name"], "deferred_tools": [c["name"] for c in calls[1:]],
                             "errors": sum(m.status == "error" for m in result["messages"])})
     return result
 

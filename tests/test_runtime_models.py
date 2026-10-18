@@ -50,7 +50,8 @@ class RuntimeModelTests(unittest.TestCase):
                 second.bind_tools.return_value = second
                 first.invoke.return_value = AIMessage(content="first")
                 second.invoke.return_value = AIMessage(content="second")
-                with patch.object(module, 'get_chat_model', side_effect=[first, second]) as factory, patch.object(module, 'fit_messages', return_value=[]), patch.object(module, 'ensure_runtime_active'):
+                fit = 'fit_programmer_messages' if role == 'programmer' else 'fit_messages'
+                with patch.object(module, 'get_chat_model', side_effect=[first, second]) as factory, patch.object(module, fit, return_value=[]), patch.object(module, 'ensure_runtime_active'):
                     module.call_llm({'system_prompt': 'test', 'messages': []})
                     module.call_llm({'system_prompt': 'test', 'messages': []})
                 self.assertEqual(factory.call_count, 2)
