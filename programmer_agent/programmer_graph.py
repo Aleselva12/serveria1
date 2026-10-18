@@ -202,7 +202,8 @@ def execute_tools(state: AgentState, config):
     result["messages"].extend(ToolMessage(
         content="Non eseguito: operazioni serializzate. Rivaluta questa chiamata dopo il risultato precedente.",
         name=call["name"], tool_call_id=call["id"], status="error") for call in calls[1:])
-    record_metric("tools", {"executed_tool": calls[0]["name"], "deferred_tools": [c["name"] for c in calls[1:]],
+    record_metric("tools", {"executed_tool": None if invalid else calls[0]["name"],
+                            "attempted_tool": calls[0]["name"], "deferred_tools": [c["name"] for c in calls[1:]],
                             "errors": sum(m.status == "error" for m in result["messages"])})
     return result
 

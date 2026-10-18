@@ -68,7 +68,7 @@ class LoopContextTests(unittest.TestCase):
 
     def test_invalid_arguments_return_schema_without_code_or_tool_execution(self):
         response=AIMessage('',tool_calls=[call(path='new.py',content={'private':'x'*10000})])
-        with patch.object(pg._tool_node,'invoke') as execute,patch.object(pg,'record_metric'):
+        with patch.object(pg._tool_node,'invoke') as execute,patch.object(pg,'record_metric') as metric:
             result=pg.execute_tools({'messages':[response]}, {})['messages'][0]
         execute.assert_not_called()
         error=json.loads(result.content)
@@ -76,6 +76,7 @@ class LoopContextTests(unittest.TestCase):
         self.assertEqual({p['field'] for p in error['problems']},{'workspace_id','content'})
         self.assertEqual(error['fields']['content'],'string')
         self.assertLess(len(result.content),1000);self.assertNotIn('private',result.content)
+        self.assertIsNone(metric.call_args.args[1]['executed_tool'])
 
     def test_argument_repair_disables_thinking_and_rechecks_budget(self):
         model=MagicMock();model.invoke.return_value=AIMessage('No writes yet')
