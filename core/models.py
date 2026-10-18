@@ -10,9 +10,43 @@ from core.ollama_transport import DEFAULT_BASE_URL, get_ollama_base_url, urlopen
 from langchain_ollama import ChatOllama
 
 
+def preserve_tool_argument_types(response):
+    """Parse the argument envelope once, never reinterpret individual file strings.
+
+    ChatOllama's nested-JSON heuristic changes valid content='{"nodes": ...}'
+    into a dict. An encoded outer envelope avoids that heuristic losslessly.
+    """
+    if hasattr(response, "model_dump"):
+        response = response.model_dump(exclude_none=True)
+    if not isinstance(response, dict):
+        return response
+    message = response.get("message")
+    if not isinstance(message, dict) or not message.get("tool_calls"):
+        return response
+    calls = []
+    for call in message["tool_calls"]:
+        function = call.get("function", {})
+        arguments = function.get("arguments")
+        if isinstance(arguments, dict):
+            arguments = dict(arguments)
+            if arguments.get("functionName") == function.get("name"):
+                arguments.pop("functionName")
+            call = {**call, "function": {**function, "arguments": json.dumps(arguments, ensure_ascii=False)}}
+        calls.append(call)
+    return {**response, "message": {**message, "tool_calls": calls}}
+
+
 class ConfiguredChatOllama(ChatOllama):
     """Pass min_p through Ollama options; ChatOllama 1.1 omits that field."""
     min_p: float | None = None
+
+    def _create_chat_stream(self, messages, stop=None, **kwargs):
+        for response in super()._create_chat_stream(messages, stop, **kwargs):
+            yield preserve_tool_argument_types(response)
+
+    async def _acreate_chat_stream(self, messages, stop=None, **kwargs):
+        async for response in super()._acreate_chat_stream(messages, stop, **kwargs):
+            yield preserve_tool_argument_types(response)
 
     def _chat_params(self, messages, stop=None, **kwargs):
         params = super()._chat_params(messages, stop=stop, **kwargs)

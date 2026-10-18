@@ -9,6 +9,11 @@ from psycopg.types.json import Jsonb
 from core.database import db_connection, database_configured
 
 PAYLOAD_FIELDS = {
+    'programmer.context_projection': {'compacted', 'original_tokens', 'projected_tokens'},
+    'programmer.tool_validation': {'tool', 'error_count', 'executed'},
+    'programmer.context_call': {'enabled','selection_reason','thinking_policy','error_type','duration_ms',
+                                'estimated_message_tokens','estimated_tool_tokens','prompt_eval_count',
+                                'eval_count','total_duration','done_reason'},
     'programmer.response_validation': {'reason', 'attempt', 'tool_count', 'invalid_tool_count'},
     'run.state': {'status'}, 'run.persistence_failed': {'status','persisted'},
     'tool.finished': {'tool_id','capability_id','contract_version','status','duration_ms','operation_id','error_type'},

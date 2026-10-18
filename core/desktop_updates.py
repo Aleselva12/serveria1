@@ -20,6 +20,8 @@ LOCK = threading.Lock()
 JOB = {"status": "idle"}
 LIMIT = 60 * 1024 * 1024
 WINDOWS_TESTS = (
+    "tests.test_ollama_tool_arguments",
+    "tests.test_programmer_loop_context",
     "tests.test_desktop_auth_update", "tests.test_programmer_response_recovery",
     "tests.test_programmer_context", "tests.test_tailscale_auth.TailscaleAuthTests",
     "tests.test_programmer_router", "tests.test_generation_policy", "tests.test_core_protocol",
