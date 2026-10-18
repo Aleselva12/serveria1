@@ -13,6 +13,7 @@ trap {
 }
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$env:CORA_AUTH_MODE = "desktop"
 $Frontend = if ($FrontendPath) { (Resolve-Path $FrontendPath).Path } else { Join-Path $Root "frontend" }
 $UiUrl = "http://127.0.0.1:5173"
 $ApiHealthUrl = "http://127.0.0.1:8000/auth/status"
@@ -34,6 +35,13 @@ function Test-CoraUi {
     } catch {
         return $false
     }
+}
+
+function Test-CoraBackend {
+    try {
+        $Status = Invoke-RestMethod -Uri $ApiHealthUrl -TimeoutSec 2
+        return $Status.mode -eq "desktop" -and $Status.authenticated -eq $true
+    } catch { return $false }
 }
 
 function Wait-Url($Url, $Seconds) {
@@ -94,7 +102,7 @@ $LockFile = Join-Path $Root ".avvio.lock"
 Write-Host ""
 Write-Host "=== AVVIO CORA ===" -ForegroundColor Cyan
 
-if ((Test-CoraUi) -and (Test-Url $ApiHealthUrl)) {
+if ((Test-CoraUi) -and (Test-CoraBackend)) {
     Write-Host "Cora e' gia attiva. Apro l'interfaccia..." -ForegroundColor Green
     Start-Process $UiUrl
     exit 0
@@ -209,11 +217,11 @@ function Start-Backend {
         "-NoExit",
         "-Command",
         "`$host.UI.RawUI.WindowTitle = '$BackendWindowTitle'; Set-Location '$Root'; & '$VenvPython' -m uvicorn api:app --host 127.0.0.1 --port 8000"
-    ) -WindowStyle Minimized -PassThru
+    ) -WindowStyle Hidden -PassThru
     Set-Content -Path $BackendPidFile -Value $Process.Id
 }
 
-if (-not (Test-Url $ApiHealthUrl)) {
+if (-not (Test-CoraBackend)) {
     Start-Backend
 }
 

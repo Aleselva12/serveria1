@@ -3,6 +3,26 @@ on: [push, pull_request]
 permissions:
   contents: read
 jobs:
+  windows-regressions:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -r requirements-test.txt
+      - run: python -c "import subprocess,sys; from core.desktop_updates import WINDOWS_TESTS; subprocess.run([sys.executable,'-m','unittest',*WINDOWS_TESTS],check=True)"
+      - run: npm ci && npm test && npm run build
+        working-directory: frontend
+      - shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD/AVVIO.ps1", [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count) { throw ($errors | Out-String) }
   verify:
     runs-on: ubuntu-latest
     services:
