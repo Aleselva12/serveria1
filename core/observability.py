@@ -9,6 +9,7 @@ from psycopg.types.json import Jsonb
 from core.database import db_connection, database_configured
 
 PAYLOAD_FIELDS = {
+    'programmer.response_validation': {'reason', 'attempt', 'tool_count', 'invalid_tool_count'},
     'run.state': {'status'}, 'run.persistence_failed': {'status','persisted'},
     'tool.finished': {'tool_id','capability_id','contract_version','status','duration_ms','operation_id','error_type'},
     'agent.state': {'status'},

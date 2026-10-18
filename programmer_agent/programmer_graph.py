@@ -75,6 +75,22 @@ def record_metric(kind, payload):
                     thread_id=run.thread_id, payload=payload)
 
 
+class ProgrammerResponseError(ValueError):
+    """A provider response failed validation; no calls from it were executed."""
+
+
+def response_problem(response):
+    if getattr(response, "invalid_tool_calls", None):
+        return "invalid_tool_calls"
+    if getattr(response, "tool_calls", None):
+        return None
+    content = response.content
+    text = content if isinstance(content, str) else "".join(
+        part if isinstance(part, str) else part.get("text", "")
+        for part in content if isinstance(part, (str, dict)))
+    return None if text.strip() else "empty_response"
+
+
 def call_llm(state: AgentState):
     ensure_runtime_active()
     started = time.perf_counter()
@@ -100,12 +116,26 @@ def call_llm(state: AgentState):
                   and not any(getattr(m, "tool_calls", None) for m in state["messages"]))
         reasoning = False if simple else None
         sample["thinking_policy"] = "off_simple" if simple else "model_default"
-        response = programmer_model(selected, reasoning=reasoning).invoke(messages)
-        ensure_runtime_active()
-        if getattr(response, "invalid_tool_calls", None):
-            raise ValueError("Il modello ha restituito chiamate tool non valide; nessuna eseguita.")
-        if not response.content and not getattr(response, "tool_calls", None):
-            raise ValueError("Il modello ha restituito una risposta vuota.")
+        model = programmer_model(selected, reasoning=reasoning)
+        for attempt in range(2):
+            ensure_runtime_active()
+            response = model.invoke(messages)
+            ensure_runtime_active()
+            problem = response_problem(response)
+            if not problem:
+                break
+            record_metric("response_validation", {"reason": problem, "attempt": attempt + 1,
+                          "tool_count": len(getattr(response, "tool_calls", [])),
+                          "invalid_tool_count": len(getattr(response, "invalid_tool_calls", []))})
+            if attempt:
+                raise ProgrammerResponseError(
+                    "Risposta del modello non utilizzabile (" + problem + "). "
+                    "Nessun tool di queste risposte è stato eseguito; le operazioni precedenti restano valide.")
+            # Retry inference only. Never append malformed calls to history or replay tools.
+            messages = list(messages) + [SystemMessage(content=
+                "La tua ultima risposta era vuota o conteneva chiamate tool non valide ed è stata scartata. "
+                "Continua dai risultati tool già presenti senza ripetere operazioni. "
+                "Fornisci una risposta testuale non vuota oppure chiamate tool con argomenti JSON validi.")]
         meta = getattr(response, "response_metadata", {})
         for key in ("prompt_eval_count", "eval_count", "total_duration"):
             if isinstance(meta.get(key), (int, float)):
@@ -162,6 +192,12 @@ def final_evidence(state: AgentState):
     # Evidence is authoritative workspace state, never the model's claim of success.
     response = state["messages"][-1]
     note = "Verifiche registrate sul workspace corrente: " + (json.dumps(evidence, ensure_ascii=False) if evidence else "nessuna. Risultato non verificato.")
+    turn = list(state["messages"])
+    start = max((i for i, m in enumerate(turn) if m.type == "human"), default=-1)
+    results = [m for m in turn[start + 1:] if isinstance(m, ToolMessage)]
+    operations = [{"tool": m.name or "tool", "status": m.status} for m in results]
+    note = ("Risultati tool registrati in questa richiesta: " + json.dumps(operations, ensure_ascii=False)
+            + ". Il testo del modello non certifica modifiche o attivazioni.\n\n" + note)
     started = state.get("response_started_at")
     if started is not None:
         elapsed = max(0.0, time.perf_counter() - started)

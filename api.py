@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from core.auth import AuthMiddleware, router as auth_router
+from core.desktop_updates import router as update_router
 from core.database import close_pool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -77,6 +78,7 @@ app = FastAPI(
 
 app.add_middleware(AuthMiddleware)
 app.include_router(auth_router)
+app.include_router(update_router)
 app.include_router(runtime_router)
 app.include_router(permissions_router)
 app.include_router(monitoring_router)

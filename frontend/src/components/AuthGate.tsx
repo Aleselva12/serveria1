@@ -36,6 +36,11 @@ export default function AuthGate() {
   if (authenticated) return sharedPath ? <SharedFile path={sharedPath} /> : <App authMode={mode} />;
   if (offline && !sharedPath) return <App authMode={mode} />;
   if (checking) return <main className="auth-page"><section className="section-card auth-card" aria-live="polite"><div className="eyebrow">CORA</div><h1>Verifica accesso…</h1></section></main>;
+  if (mode === "desktop") return <main className="auth-page"><section className="section-card auth-card">
+    <h1>Accesso locale a Cora</h1><p>Apri http://127.0.0.1:5173 sul computer che esegue AVVIO.cmd.</p>
+    <p role="alert">{error || "Accesso locale non disponibile. Riavvia Cora con AVVIO.cmd."}</p>
+    <button onClick={() => void refresh()}>Riprova accesso</button>
+  </section></main>;
   if (mode === "tailscale") return <main className="auth-page"><section className="section-card auth-card">
     <div className="eyebrow">CORA · TAILSCALE</div><h1>Collega il tuo dispositivo</h1>
     <p>Attiva Tailscale con l’account autorizzato e apri l’indirizzo HTTPS privato del server. L’accesso a Cora è automatico.</p>

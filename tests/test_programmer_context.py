@@ -82,7 +82,7 @@ class ContextTests(unittest.TestCase):
                 with self.assertRaises((ValueError, TimeoutError)):
                     pg.call_llm({'system_prompt':'identity', 'messages':[HumanMessage('Leggi')]})
                 self.assertIn('error_type', record.call_args.args[1])
-                model.invoke.assert_called_once()
+                self.assertEqual(model.invoke.call_count, 1 if isinstance(outcome, Exception) else 2)
 
     def test_serialization_keeps_protocol_and_does_not_execute_second_call(self):
         response = AIMessage('', tool_calls=[call('programmer_read_file'), call('programmer_write_file', 'b')])

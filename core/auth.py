@@ -55,6 +55,10 @@ def setup_if_needed():
         if conn.execute("SELECT id FROM app_users LIMIT 1").fetchone():
             print("Account proprietario gia configurato.")
             return
+    if auth_mode() == "desktop":
+        provision("desktop-owner", secrets.token_urlsafe(48))
+        print("Identità desktop configurata; accesso limitato al computer locale.")
+        return
     print("Primo avvio: crea l'account proprietario di Cora.")
     interactive_provision()
 
@@ -86,12 +90,29 @@ def session_user(token):
 
 def auth_mode():
     mode = os.getenv("CORA_AUTH_MODE", "password").strip()
-    if mode not in {"password", "tailscale"}:
+    if mode not in {"password", "tailscale", "desktop"}:
         raise HTTPException(503, "Modalità di accesso non valida.")
     return mode
 
 
 def request_user(request):
+    if auth_mode() == "desktop":
+        from core.access import is_loopback
+        from urllib.parse import urlsplit
+        host = request.client.host if request.client else ""
+        authority = urlsplit("//" + request.headers.get("host", ""))
+        if not is_loopback(host) or authority.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            return None
+        if any(name in request.headers for name in ("forwarded", "x-forwarded-for", "x-cora-proxy-secret")):
+            return None
+        origin = request.headers.get("origin")
+        if origin and origin not in {"http://localhost:5173", "http://127.0.0.1:5173"}:
+            return None
+        with db_connection() as conn:
+            row = conn.execute("SELECT id,username FROM app_users LIMIT 1").fetchone()
+        if not row:
+            raise HTTPException(503, "Avvia Cora con AVVIO.cmd per configurare il proprietario locale.")
+        return row
     if auth_mode() == "password":
         return session_user(request.cookies.get(COOKIE))
     # Nginx accepts identity only from the host Serve proxy, then adds a private
@@ -183,8 +204,8 @@ def client_address(request):
 
 @router.post("/login")
 def login(data: Login, request: Request, response: Response):
-    if auth_mode() == "tailscale":
-        raise HTTPException(403, "Accedi con il tuo account Tailscale tramite l’indirizzo privato del server.")
+    if auth_mode() != "password":
+        raise HTTPException(403, "Login password disabilitato: usa l’accesso locale desktop o l’identità Tailscale configurata.")
     host = client_address(request)
     now = time.monotonic()
     with _lock:
@@ -216,8 +237,8 @@ def login(data: Login, request: Request, response: Response):
 
 @router.post("/logout")
 def logout(request: Request, response: Response, all_sessions: bool = False):
-    if auth_mode() == "tailscale":
-        raise HTTPException(409, "Accesso gestito da Tailscale: disconnetti o revoca il dispositivo in Tailscale.")
+    if auth_mode() != "password":
+        raise HTTPException(409, "Accesso automatico: chiudi Cora sul desktop o revoca il dispositivo in Tailscale.")
     with db_connection() as conn:
         if all_sessions:
             conn.execute("DELETE FROM app_sessions WHERE user_id=%s", (request.state.user["id"],))
