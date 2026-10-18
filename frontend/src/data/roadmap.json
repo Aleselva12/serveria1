@@ -1,0 +1,19 @@
+[
+  {"id":"P0","label":"1 · Pulizia e roadmap unica","state":"Parziale","detail":"Roadmap canonica in docs/roadmap.json e 17 passi.txt. Restano fast-path Supervisor e pulizia del vecchio prompt; non dichiarati risolti da questo aggiornamento."},
+  {"id":"FILE-AGENT","label":"2 · File Server e Libreria agentici","state":"Rinviato: hardware","detail":"Accesso e modifiche agentiche ai file server, importazione, cartelle e restore agentico rinviati all’upgrade hardware. Nessuna nuova capability in questo intervento."},
+  {"id":"PERM-FINAL","label":"3 · Permission finali","state":"Fuori scope","detail":"Revisione finale delle policy in un prompt separato. Rimangono attivi i controlli esistenti."},
+  {"id":"LIVE-TESTS","label":"4 · Collaudi reali","state":"Accorpato al punto 17","detail":"Documento reale, telefono via Tailscale, /host, file sensibili, commit e immagini attive: collaudi complessivi soltanto al checkpoint finale."},
+  {"id":"BKP","label":"5 · Snapshot codice e backup dati privati","state":"Implementato; attivazione host pendente","detail":"Snapshot giornaliero dei commit pubblicati su main in branch snapshots/* se cambiati; backup locali cifrati PostgreSQL, state e configurazione con audit, retention e restore su target vuoto. Installazione updater e audit reale necessari."},
+  {"id":"DB-01","label":"6 · Episodio PostgreSQL","state":"Chiuso: causa utente","detail":"Chiuso su dichiarazione del proprietario. Non è un difetto del server e non richiede ulteriore diagnosi."},
+  {"id":"LIB-SYNC","label":"7 · Originali e Libreria IA","state":"Rinviato: hardware","detail":"Sincronizzazione, versioni e conflitti rinviati all’upgrade hardware; nessuna sovrascrittura silenziosa."},
+  {"id":"AUTO-EXEC","label":"8 · Automazioni grafiche","state":"Da implementare","detail":"Validazione, esecuzione, pianificazione e annullamento controllati delle bozze."},
+  {"id":"OCR","label":"9 · OCR","state":"Da implementare","detail":"Lettura dei PDF scansionati con limiti espliciti."},
+  {"id":"CONTEXT-REGISTRY","label":"10 · Context Registry","state":"Da implementare","detail":"Draft, validazione, approvazione, pubblicazione e versionamento."},
+  {"id":"CONTEXT-RESOLVER","label":"11 · Resolver Context Pages","state":"Da migliorare","detail":"Selezione più robusta conservando il determinismo dove necessario."},
+  {"id":"SPECIALISTS","label":"12 · Agenti specialistici","state":"Da ottimizzare","detail":"Ridurre tool e contesto non pertinenti senza perdere le capacità richieste."},
+  {"id":"SEMANTIC-MONITOR","label":"13 · Monitor semantico Libreria","state":"Escluso","detail":"Attività esplicitamente esclusa dal proprietario. Il monitor filesystem già esistente rimane disponibile."},
+  {"id":"CONSULTATIONS","label":"14 · Storico consultazioni in ragionamento chat","state":"Storico implementato; ricerca estesa pendente","detail":"Registro PostgreSQL privato per conversazione: esiti delle capability, file letti con successo e contesti inclusi. Visibile nella finestra ragionamento, paginato e recuperabile dopo ricaricamento. Ricerca indicizzata avanzata ancora da sviluppare."},
+  {"id":"DOCUMENTS","label":"15 · Gestione documentale avanzata","state":"Da estendere","detail":"Operazioni strutturali Word/PDF oltre i casi già supportati."},
+  {"id":"BASELINE","label":"16 · Preparazione baseline","state":"In attesa dei punti attivi","detail":"Preparare documentazione e versione candidata al congelamento. Nessun tag stabile prima dell’esito del punto 17."},
+  {"id":"FINAL","label":"17 · Collaudo complessivo e congelamento","state":"Ultimo punto","detail":"Dopo i punti attivi: collaudo sul server reale di servizi, Tailscale, file, cronologia, restore isolato dati/NAS, updater e rollback, commit e immagini effettive. Solo dopo esito positivo fissare commit/tag stabile e avviare le applicazioni produttive."}
+]
