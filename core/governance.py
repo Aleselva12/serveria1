@@ -180,6 +180,8 @@ def execute_capability(identifier, payload):
         operation_status = finish(operation_id, contract.effect, None if escaped_error else result, escaped_error)
         if operation_status == 'uncertain' and not escaped_error:
             result.error = CapabilityError(code='EffectUncertain',message='Esito dell’effetto non verificabile. Controlla l’operazione in Attività prima di ripetere.')
+        from core.consultations import record
+        record('tool', contract.id, operation_status if operation_status == 'uncertain' else result.status, run=run)
         bus.publish("tool.finished", contract.actor, run_id=run.id if run else None,
             operation_id=operation_id,payload={"tool_id":tool_id,"capability_id":contract.id,"contract_version":contract.version,
             "status":result.status,"operation_id":operation_id,'error_type':escaped_error or (result.error.code if result.error else None),"duration_ms":round((time.perf_counter()-started)*1000,2)})

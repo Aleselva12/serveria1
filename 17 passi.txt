@@ -1,0 +1,75 @@
+17 PASSI — ROADMAP CANONICA
+Decisioni del proprietario, 18 ottobre 2026
+
+Fonte unica degli stati: docs/roadmap.json (usata anche dalla Home).
+Il documento originale è una fotografia storica, non un elenco di attività autorizzate.
+La numerazione resta stabile: i collaudi sono riuniti al 17; il 16 prepara la baseline.
+I test di sviluppo verificano il codice e non sostituiscono il collaudo finale sul server.
+
+1 · Pulizia e roadmap unica
+Stato: Parziale
+Roadmap canonica in docs/roadmap.json e 17 passi.txt. Restano fast-path Supervisor e pulizia del vecchio prompt; non dichiarati risolti da questo aggiornamento.
+
+2 · File Server e Libreria agentici
+Stato: Rinviato: hardware
+Accesso e modifiche agentiche ai file server, importazione, cartelle e restore agentico rinviati all’upgrade hardware. Nessuna nuova capability in questo intervento.
+
+3 · Permission finali
+Stato: Fuori scope
+Revisione finale delle policy in un prompt separato. Rimangono attivi i controlli esistenti.
+
+4 · Collaudi reali
+Stato: Accorpato al punto 17
+Documento reale, telefono via Tailscale, /host, file sensibili, commit e immagini attive: collaudi complessivi soltanto al checkpoint finale.
+
+5 · Snapshot codice e backup dati privati
+Stato: Implementato; attivazione host pendente
+Snapshot giornaliero dei commit pubblicati su main in branch snapshots/* se cambiati; backup locali cifrati PostgreSQL, state e configurazione con audit, retention e restore su target vuoto. Installazione updater e audit reale necessari.
+
+6 · Episodio PostgreSQL
+Stato: Chiuso: causa utente
+Chiuso su dichiarazione del proprietario. Non è un difetto del server e non richiede ulteriore diagnosi.
+
+7 · Originali e Libreria IA
+Stato: Rinviato: hardware
+Sincronizzazione, versioni e conflitti rinviati all’upgrade hardware; nessuna sovrascrittura silenziosa.
+
+8 · Automazioni grafiche
+Stato: Da implementare
+Validazione, esecuzione, pianificazione e annullamento controllati delle bozze.
+
+9 · OCR
+Stato: Da implementare
+Lettura dei PDF scansionati con limiti espliciti.
+
+10 · Context Registry
+Stato: Da implementare
+Draft, validazione, approvazione, pubblicazione e versionamento.
+
+11 · Resolver Context Pages
+Stato: Da migliorare
+Selezione più robusta conservando il determinismo dove necessario.
+
+12 · Agenti specialistici
+Stato: Da ottimizzare
+Ridurre tool e contesto non pertinenti senza perdere le capacità richieste.
+
+13 · Monitor semantico Libreria
+Stato: Escluso
+Attività esplicitamente esclusa dal proprietario. Il monitor filesystem già esistente rimane disponibile.
+
+14 · Storico consultazioni in ragionamento chat
+Stato: Storico implementato; ricerca estesa pendente
+Registro PostgreSQL privato per conversazione: esiti delle capability, file letti con successo e contesti inclusi. Visibile nella finestra ragionamento, paginato e recuperabile dopo ricaricamento. Ricerca indicizzata avanzata ancora da sviluppare.
+
+15 · Gestione documentale avanzata
+Stato: Da estendere
+Operazioni strutturali Word/PDF oltre i casi già supportati.
+
+16 · Preparazione baseline
+Stato: In attesa dei punti attivi
+Preparare documentazione e versione candidata al congelamento. Nessun tag stabile prima dell’esito del punto 17.
+
+17 · Collaudo complessivo e congelamento
+Stato: Ultimo punto
+Dopo i punti attivi: collaudo sul server reale di servizi, Tailscale, file, cronologia, restore isolato dati/NAS, updater e rollback, commit e immagini effettive. Solo dopo esito positivo fissare commit/tag stabile e avviare le applicazioni produttive.

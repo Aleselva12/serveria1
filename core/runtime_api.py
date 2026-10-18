@@ -14,6 +14,11 @@ from core import calendar
 
 router = APIRouter(prefix="/api/v1", tags=["Runtime"])
 
+@router.get('/chat/consultations/{conversation_id}')
+def consultations(conversation_id: UUID, before: int | None = Query(None,ge=1), limit: int = Query(100,ge=1,le=200)):
+    from core.consultations import read
+    return read(conversation_id,before,limit)
+
 class Decision(BaseModel):
     approve: bool
 

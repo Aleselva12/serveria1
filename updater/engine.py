@@ -438,6 +438,8 @@ class Engine:
 
     def start(self):
         def loop():
+            from updater.data_backups import recover_pending
+            recover_pending(self)
             for entry in self.list_jobs():
                 row=self.load(entry['id'])
                 if row['status']=='running':
@@ -447,6 +449,9 @@ class Engine:
             while not self.closed.is_set():
                 with self.lock:
                     queued=next((self.load(r['id']) for r in reversed(self.list_jobs()) if r['status']=='queued'),None)
+                    if not queued and not any(r['status'] in BUSY | {'recovery_required'} for r in self.list_jobs()):
+                        from updater.data_backups import tick
+                        tick(self)
                 if queued: self.execute(queued)
                 else: self.wakeup.wait(1); self.wakeup.clear()
         def guarded_loop():

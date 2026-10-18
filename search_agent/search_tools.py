@@ -133,7 +133,6 @@ def _read_document(path: Path) -> str:
     if not path.is_file():
         raise ValueError("Il percorso non è un file normale.")
     ensure_runtime_active()
-    _activity("read", path=path.relative_to(KNOWLEDGE_ROOT).as_posix())
     if path.stat().st_size > MAX_FILE_BYTES:
         raise ValueError(
             f"File troppo grande: limite {MAX_FILE_BYTES} byte."
@@ -152,6 +151,9 @@ def _read_document(path: Path) -> str:
     if len(text) > MAX_TEXT_CHARS:
         text = text[:MAX_TEXT_CHARS] + "\n\n[TESTO TRONCATO PER LIMITE DI SICUREZZA]"
 
+    _activity("read", path=path.relative_to(KNOWLEDGE_ROOT).as_posix())
+    from core.consultations import record
+    record('file', path.relative_to(KNOWLEDGE_ROOT).as_posix(), 'read')
     return text
 
 
