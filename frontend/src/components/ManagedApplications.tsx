@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiBaseUrl } from "../services/api";
 import { authenticatedFetch } from "../services/transport";
-type App = { id:string; name:string; repository:string; installed:boolean; url?:string|null; job?:{status:string;action?:string} };
+type App = { id:string; name:string; repository:string; installed:boolean; configured?:boolean; running?:boolean; commit?:string|null; url?:string|null; job?:{status:string;action?:string;phase?:string;message?:string} };
 type Catalog = { available:boolean; apps:App[] };
 export default function ManagedApplications() {
  const [open,setOpen]=useState(false);
@@ -32,9 +32,9 @@ export default function ManagedApplications() {
  <button className="text-button" onClick={()=>void refresh()}>Verifica stato</button>
  {error&&<p role="alert">{error}</p>}
  {!data?.available&&<p>Servizio host per le applicazioni esterne non abilitato. L'installazione richiede configurazione del Debian.</p>}
- {data?.apps.map(app=><div key={app.id}><strong>{app.name}</strong> — {app.installed?"Sorgenti installati":"Da installare"}
- <p>{app.repository}</p><p>{app.job?.status==="running"?"Operazione in corso":app.job?.status==="needs_configuration"?"Configura schema e segreti sul Debian":app.job?.status==="failed"?"Operazione fallita: controlla il servizio host":""}</p>
- <button className="file-tool" disabled={!data.available||busy||app.job?.status==="running"} onClick={()=>void action(app)}>{app.installed?"Aggiorna":"Installa"}</button>
+ {data?.apps.map(app=><div key={app.id}><strong>{app.name}</strong> — {app.running?"Online":app.installed?"Installata, servizio non attivo":"Da installare"}
+ <p>{app.repository}</p>{app.commit&&<p>Versione: <code>{app.commit}</code></p>}{app.installed&&!app.configured&&<p>Configurazione privata e schema necessari.</p>}<p>{app.job?.status==="running"?"Operazione in corso":app.job?.status==="needs_configuration"?"Configura schema e segreti sul Debian":app.job?.status==="failed"?(app.job.message||"Operazione fallita: controlla il servizio host"):""}</p>
+ <button className="file-tool" disabled={!data.available||busy||app.job?.status==="running"} onClick={()=>void action(app)}>{app.installed?"Aggiorna e verifica":"Installa"}</button>
  {app.url&&<a href={app.url} target="_blank" rel="noopener noreferrer">Apri gestionale</a>}</div>)}
  </section>}</div>;
 }
