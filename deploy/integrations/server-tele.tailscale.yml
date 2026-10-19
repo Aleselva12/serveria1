@@ -1,8 +1,5 @@
-# Optional access from an authorized Tailscale client.
-# Use together with server-tele.mysql.yml. SERVER_TELE_TAILSCALE_IP must be
-# the actual IPv4 assigned to this Debian server on Tailscale; never 0.0.0.0.
-# Use Tailscale ACL/grants to restrict device and TCP/3307 separately.
-services:
-  mysql:
-    ports:
-      - "${SERVER_TELE_TAILSCALE_IP:?Set Debian Tailscale IPv4}:3307:3306"
+# OBSOLETE — not used by the web deployment.
+# Magazzino Tele now exposes HTTP (port 8082) on Tailscale, with MySQL
+# accessible exclusively inside its private Compose network.
+# Do not add a direct MySQL host port for the web-based client.
+services: {}
