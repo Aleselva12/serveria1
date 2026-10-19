@@ -1,5 +1,0 @@
-# OBSOLETE — not used by the web deployment.
-# Magazzino Tele now exposes HTTP (port 8082) on Tailscale, with MySQL
-# accessible exclusively inside its private Compose network.
-# Do not add a direct MySQL host port for the web-based client.
-services: {}
