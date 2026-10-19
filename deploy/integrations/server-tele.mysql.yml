@@ -1,0 +1,22 @@
+# Integration staging only. Independent from Cora's PostgreSQL.
+# Run explicitly with host-provided DB_PASSWORD, never commit passwords.
+name: server-tele
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: magazzino_tele
+      MYSQL_USER: servertele
+      MYSQL_PASSWORD: ${SERVER_TELE_DB_PASSWORD:?Set secret in host environment}
+      MYSQL_ROOT_PASSWORD: ${SERVER_TELE_ROOT_PASSWORD:?Set separate root secret in host environment}
+    volumes:
+      - server_tele_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping --protocol=tcp -h 127.0.0.1 -u root --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    # No host ports; attach a separate API container on the same private network later.
+volumes:
+  server_tele_mysql:
