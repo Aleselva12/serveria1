@@ -64,7 +64,10 @@ def _runtime_system_prompt(messages, request_text=None, manual_tools=None) -> tu
     preloaded_context, preload_providers = preload_context(selected)
     from core.chat_tools import validate_selection
     manual = validate_selection(manual_tools, supervisor_tools)
-    tool_names = manual if manual is not None else list(dict.fromkeys(selected_tool_names(selected) + ["library_list", "library_search", "library_read"]))
+    tool_names = manual if manual is not None else list(dict.fromkeys(selected_tool_names(selected)))
+    from core.library_routing import library_intent
+    if manual is None and library_intent(user_text):
+        tool_names = list(dict.fromkeys(tool_names + ["library_list", "library_search", "library_read"]))
     # A Library-only request must not expose repository browsing tools.
     # The manual tool choice continues to take precedence.
     from core.library_routing import library_intent
