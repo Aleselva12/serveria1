@@ -9,7 +9,7 @@ def status():
     try:
         return releases.request("GET","/managed-apps")
     except ValueError:
-        return {"available":False,"apps":[],"reason":"Servizio host non disponibile o non configurato"}
+        return {"available":False,"apps":[{"id":"magazzino-tele","name":"Magazzino Tele","repository":"https://github.com/Aleselva12/magazzino-tele","installed":False,"job":{"status":"unknown"},"url":None}],"reason":"Bridge updater host non raggiungibile oppure non configurato. Verificare il servizio cora-updater sul Debian."}
 
 @router.post("/{app_id}/{action}",status_code=202)
 def action_request(app_id:str,action:str):
