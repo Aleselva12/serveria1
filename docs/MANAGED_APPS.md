@@ -20,3 +20,42 @@ Il pulsante **Gestisci applicazioni**, accanto a **Aggiorna Cora**, mostra un ca
 Il gestore consente lo stato installato e la richiesta di installazione/aggiornamento da UI, ma non include un restore MySQL, un diff delle migrazioni né un rollback autonomo di Tele. Il job vive in memoria del processo host; dopo un suo riavvio lo stato storico potrebbe non comparire. Lo stato `needs_configuration` significa soltanto repository clonato: non significa programma installato e raggiungibile. Per il momento non registrare Magazzino Tele come servizio certificato finché la UI web, import Excel e restore non sono verificati.
 
 Se il backend restituisce `available: false`, verificare installazione host, configurazione e token bridge senza aggiungere privilegi ai container Cora.
+
+## Migliorie stato/applicazione (ottobre 2026)
+
+Il pannello ora distingue:
+- Sorgenti clonate (`installed`).
+- Configurazione locale presente (`configured`).
+- Web Docker realmente avviato e healthy (`running`).
+- Commit locale effettivamente estratto da Git.
+- Job falliti o incompleti, con fase.
+
+Il comando **Aggiorna e verifica** scarica soltanto il branch autorizzato e avvia il Compose
+del servizio isolato con `--wait`; non segna completato un deployment il cui web non
+diventi healthy. I container Cora e il database PostgreSQL non vengono toccati.
+
+**Attenzione al servizio installato su serverale:** il merge di Serveria
+aggiorna i container Cora ma NON modifica la copia live di
+`/srv/cora-tools/updater/installed/updater/managed_apps.py`.
+Dopo il merge e l'aggiornamento Cora, prima di abilitare il nuovo comportamento
+copiare il solo modulo con backup, verificando che il checkout della nuova versione
+contenga il file. Esempio per un checkout Git aggiornato e fidato:
+
+```bash
+# Leggere questo comando prima di lanciarlo sul Debian
+SRC=/home/ale/cora-update-candidate/updater/managed_apps.py
+DST=/srv/cora-tools/updater/installed/updater/managed_apps.py
+test -f "$SRC" || { echo 'Aggiorna prima il checkout candidato'; exit 1; }
+python3 -m py_compile "$SRC"
+cp -p "$DST" "$HOME/managed_apps.before-update.py"
+cp "$SRC" "$DST"
+sudo systemctl restart cora-updater
+sudo systemctl is-active cora-updater
+```
+
+Non cambiare `config.json`, `bridge.token` né `compose.json`; non fare reset
+del vecchio branch locale Cora. I volumi Magazzino Tele rimangono separati.
+
+Nota: anche quando il codice host è aggiornato, una tabella MySQL mancante richiede
+la procedura conservativa `deploy/reconcile_schema.py` nella repository Tele.
+Il pulsante updater NON effettua migrazioni automatiche di database.
