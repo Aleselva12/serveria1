@@ -117,6 +117,11 @@ class AppManager:
             self._compose(folder, item, "up", "-d", "--build", "--wait", timeout=1200)
             phase = "verify"
             self.jobs[key] = {"status": "running", "phase": phase, "action": action}
+            # Health means both web healthy AND legacy tables available.
+            # This is read-only; schema repair requires an explicit admin command.
+            if key == "magazzino-tele":
+                self._run(["python3", "deploy/reconcile_schema.py", "--require-complete"],
+                          cwd=folder, timeout=90)
             current = self._status_one(key, item)
             if not current["running"]:
                 raise RuntimeError("Web non healthy dopo il deployment")
