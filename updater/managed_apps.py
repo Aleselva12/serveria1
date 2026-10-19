@@ -73,7 +73,7 @@ class AppManager:
             else:
                 if not (folder/".git").is_dir() or not (folder/item["compose"]).is_file():
                     raise ValueError("Applicazione non installata")
-                self._run(["git","fetch","--ff-only","origin",item["branch"]],cwd=folder)
+                self._run(["git","fetch","origin",item["branch"]],cwd=folder)
                 self._run(["git","merge","--ff-only","FETCH_HEAD"],cwd=folder)
             # Never touch a live database without explicit host provisioning.
             if not (folder/"deploy"/".env").is_file() or not (folder/"deploy"/"init"/"01-schema.sql").is_file():
