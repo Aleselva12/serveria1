@@ -5,9 +5,10 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from updater.engine import Engine
+from updater.managed_apps import AppManager
 
 
-def handler(engine, token):
+def handler(engine, token, apps=None):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args): pass
         def reply(self, code, value):
@@ -20,12 +21,15 @@ def handler(engine, token):
                 parts=self.path.strip('/').split('/')
                 if self.command=='GET':
                     if parts==['status']: return self.reply(200,{'available':True,'active_commit':engine.current()['commit'],'jobs':engine.list_jobs()})
+                    if parts==['managed-apps'] and apps is not None: return self.reply(200,apps.status())
                     if len(parts)==2 and parts[0]=='jobs': return self.reply(200,engine.public(engine.load(parts[1])))
                 elif self.command=='POST':
                     length=int(self.headers.get('Content-Length','0'))
                     if not 0<length<=20000: raise ValueError('Richiesta troppo grande o vuota.')
                     data=json.loads(self.rfile.read(length))
                     if not isinstance(data,dict): raise ValueError('Richiesta non valida.')
+                    if len(parts)==3 and parts[0]=='managed-apps' and parts[2] in {'install','update'} and not data and apps is not None:
+                        return self.reply(202,apps.submit(parts[1],parts[2]))
                     if len(parts)==3 and parts[0]=='workspaces' and parts[2]=='check' and set(data)=={'profile','workspace_digest'}:
                         return self.reply(200,engine.check_workspace(parts[1],data['profile'],data['workspace_digest']))
                     if parts==['workspaces'] and set(data)=={'title'}: return self.reply(201,engine.create_workspace(data['title']))
@@ -49,7 +53,7 @@ def main():
     with (root/'service.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         engine=Engine(root);engine.start()
-        server=ThreadingHTTPServer((engine.config['listen'],engine.config['port']),handler(engine,(root/'bridge.token').read_text().strip()))
+        server=ThreadingHTTPServer((engine.config['listen'],engine.config['port']),handler(engine,(root/'bridge.token').read_text().strip(),AppManager(engine.config)))
         import threading
         serving=threading.Thread(target=server.serve_forever,daemon=True);serving.start()
         try:

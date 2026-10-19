@@ -1,6 +1,7 @@
 import LibraryMonitorFeed from "./LibraryMonitorFeed";
 import { Activity, HardDrive, PlugZap, ShieldCheck, Wifi } from "lucide-react";
 import SystemUpdate from "./SystemUpdate";
+import ManagedApplications from "./ManagedApplications";
 import type { BackendHealth } from "../types/contracts";
 import { useHomeMonitoring } from "../services/useHomeMonitoring";
 import { homeRoadmap, missingConnections } from "../services/connections";
@@ -55,7 +56,7 @@ export default function Home({
               ? "Verifica della connessione a Cora…"
               : "Il backend non è raggiungibile. Avvia Cora sul computer o sul server."}
         </p>
-        <SystemUpdate />
+        <div className="home-update-actions"><SystemUpdate /><ManagedApplications /></div>
         <small>
           {telemetry
             ? "Misurazioni della macchina che esegue Cora · " +
