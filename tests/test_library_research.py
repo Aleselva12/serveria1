@@ -87,6 +87,8 @@ class LibraryResearchTests(unittest.TestCase):
 
     def test_automatic_tools_available_and_manual_selection_wins(self):
         from graph import _runtime_system_prompt
-        names = _runtime_system_prompt([], request_text='Quanto avevamo concordato?')[3]
-        self.assertTrue({'library_list','library_search','library_read'} <= set(names))
+        names = _runtime_system_prompt([], request_text='ciao')[3]
+        self.assertFalse({'library_list','library_search','library_read'} & set(names))
+        requested = _runtime_system_prompt([], request_text='Elenca la Libreria IA')[3]
+        self.assertTrue({'library_list','library_search','library_read'} <= set(requested))
         self.assertEqual(_runtime_system_prompt([], request_text='Cerca Rossi', manual_tools=[])[3], [])
