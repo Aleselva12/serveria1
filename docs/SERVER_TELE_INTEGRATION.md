@@ -1,60 +1,56 @@
-# Magazzino Tele — servizio indipendente da Cora
+# Magazzino Tele — gestionale web autonomo
 
-Stato: progetto di installazione; nessun deploy sul server Debian.
+Stato: primo prototipo integrato nella PR; nessun deploy sul Debian, nessuna migrazione di dati certificata.
 
-## Requisiti operativi confermati
+## Requisiti definitivi
 
-- Utente: una sola persona, la zia del proprietario, dal suo computer già connesso a Tailscale.
-- Obiettivo: gestione quotidiana del magazzino sempre disponibile, anche quando il PC del proprietario è spento.
-- Nessun collegamento a Cora: nessun tool, agente, accesso al database, endpoint o controllo IA.
-- Interfaccia separata dalla web UI Serveria. **Opzione iniziale preferita:** riutilizzare Tkinter sul PC della zia, con MySQL che resta acceso sul Debian. Non serve riscrivere oggi l'interfaccia web.
-- Codice Magazzino Tele in una cartella autonoma e database indipendente da Cora. Non usare `/state` di Cora e non mescolare dump/volumi dei due programmi.
+- L'utente principale è la zia del proprietario, da PC remoto membro della tailnet.
+- Aprirà un'interfaccia **web** separata: `http://<indirizzo-tailscale-server>:8082`.
+- Non si usa Tkinter sul client. Non si integra con frontend, API, PostgreSQL, tool, agenti, permission engine o IA di Cora.
+- Nessuna schermata di login applicativo richiesta. L'assenza di login rende l'accesso alla porta web possibile a **qualsiasi dispositivo effettivamente autorizzato dalle policy Tailscale**, non automaticamente soltanto alla zia. Restrizioni ACL/grants e assenza di port forwarding sono indispensabili.
+- Il database MySQL richiede comunque credenziali **tecniche interne**; non sono chieste alla zia e non vanno eliminate.
+- Codice in `apps/magazzino-tele/web/`, stack in `deploy/integrations/server-tele.mysql.yml`, database in volume Docker `server_tele_mysql` separato. Nel server finale suggerita cartella autonoma `/srv/apps/magazzino-tele/`.
 
-## Disposizione raccomandata sul Debian
+## Ricostruzione dalla repository storica
 
-```text
-/srv/apps/
-  cora/                     # progetto Serveria; PostgreSQL e state Cora
-  magazzino-tele/
-    app/                    # checkout o copia revisionata del programma Tele
-    compose.yml             # stack MySQL e futuri componenti Tele
-    config/                 # file privati di configurazione, permessi stretti
-    backups/                # backup MySQL Tele dedicati
-```
+Fonte: `Aleselva12/magazzino-tele` su `master`, `backend/crud.py`, `backend/inventario_crud.py`, `interfaccia/pages/ordini.py` e `backup/2025-08-17_18-16-33/backup_info.txt`.
 
-Il percorso è una proposta, non è stato creato sul Debian. Nel repository `serveria1` la configurazione Tele rimane in `deploy/integrations/`; se si sceglie un unico repository per entrambi i sorgenti, includere il codice Tele in una directory `apps/magazzino-tele/`, con versionamento e build separati e un processo esplicito di sincronizzazione dalla repository originaria. Non importare automaticamente database, dump, credenziali o file locali nel Git pubblico.
+| Tabelle storiche | Utilizzo osservato |
+|---|---|
+| `customers` | Anagrafica clienti/fornitori; ricerca per codice e descrizione; ordine collegato al cliente |
+| `schema colori semplice` | Elenco di nomi colori |
+| `prodotti_completi` | Catalogo combinazioni modello-colore; contiene codici/nome modello e codici/nome colore; codice prodotto da combinazione |
+| `modelli` | Catalogo modelli, ricerca per codice e nome |
+| `magazzino` | Giacenze aggregate per `codiceprodotto` |
+| `ordini` | Testata ordine, codice cliente, data, evasione |
+| `ordiniprodotti` | Prodotti e quantità appartenenti all'ordine |
 
-## Collegamento del PC della zia
+Colori: l'elenco filtrabile usa principalmente `prodotti_completi` e talvolta `schema colori semplice`; **non** creare colori dimostrativi come dati reali. Il programma storico contiene una lista demo quando manca il database: non va usata nella migrazione.
 
-1. Installare l'applicazione Tkinter sul suo PC, non eseguire la GUI sul server headless.
-2. Spostare la configurazione MySQL in un file locale non committato, con host = IP Tailscale stabile o nome MagicDNS del Debian e una porta dedicata.
-3. Eseguire MySQL in Docker separato con `restart: unless-stopped`, volume persistente e healthcheck.
-4. Per accesso diretto MySQL, pubblicare **solo** sull'indirizzo Tailscale del Debian usando l'override `server-tele.tailscale.yml`; non esporre `0.0.0.0` o il router. Limitare inoltre in Tailscale ACL/grants la porta esclusivamente al dispositivo autorizzato della zia e ai dispositivi amministrativi strettamente necessari. Verificare le regole effettive: Docker può interagire con le regole del firewall host.
-5. Credenze MySQL personali dell'app, a privilegi minimi; non usare root. Sul PC conservare le credenziali in configurazione protetta, evitando log e stampe debug.
-6. Impostare servizio Docker e Tailscale per il riavvio automatico; verificare connessione dopo reboot, guasto rete, PC spento e riconnessione.
-7. Evitare di inserire il servizio in `compose.yml` Cora, nel Component Registry o nel tool catalog. Il solo isolamento di Docker non costituisce controllo di accesso.
-8. Per modificare l'app in futuro, lavorare su branch e rilasci separati; Cora non acquisisce alcuna autorizzazione implicita solo perché condivide l'hardware.
+Clienti: `customers` è la fonte per ricerca/autocomplete; il codice mostra sia riferimenti a `codice`, sia `ï»¿codiceunivoco`, sia `codice_cliente`, `ragione_sociale` e `CoF` (C/F: cliente/fornitore). Il nome effettivo delle colonne va confermato con `SHOW COLUMNS` sul dump in uso, senza alterarlo per ipotesi.
 
-**Nota di sicurezza:** il client desktop parlerà a un servizio DB remoto. È una soluzione semplice su rete privata ma meno isolata di una futura API autenticata. Verificare configurazione TLS del DB/connessione e Tailscale, restrizioni MySQL, permessi e regole ACL prima dell'uso regolare.
+Il backup storico del 17/08/2025 elenca tutte e sette le tabelle. **La sola lista prova l'esistenza delle tabelle in quel momento, non la disponibilità attuale dei record.** La lettura del file SQL associato attraverso il connettore non ha restituito contenuti: non possiamo affermare che l'anagrafica clienti, colori, prodotti e ordini sia stata effettivamente copiata. Occorre il dump MySQL effettivo o gli Excel originali (se presenti e coerenti).
 
-## Rischi attuali da risolvere prima della messa online
+## Prototipo interfaccia
 
-- La repository pubblica `Aleselva12/magazzino-tele` include riferimenti a credenziali MySQL in script diagnostici/test. Ruotare le credenziali e spostarle fuori dal codice. Una cancellazione dal file più recente non rimuove una credenziale già divulgata dalla cronologia Git.
-- Il progetto attuale usa Tkinter e MySQL: nessuna GUI web è stata costruita o promessa per questa fase.
-- Il backup privato Cora **non copre** il database Tele. Realizzare dump periodici MySQL consistenti, conservazione separata, copia fuori dal medesimo disco quando possibile e prova di ripristino su volume vuoto.
-- Prima di importare il database della zia: conservare un dump originale, verificare schema/charset, integrità e conteggi e testare import su database vuoto.
-- I dati possono essere meno critici per l'azienda, ma una perdita impedirebbe il lavoro quotidiano. Non sostituire il gestionale attivo finché connessione e restore non funzionano.
+Il nuovo frontend Flask offre sette schede: Clienti, Colori, Prodotti, Modelli, Ordini, Righe ordine, Magazzino. Elenca fino a 50 righe per pagina, ricerca nelle colonne, creazione e modifica generica, eliminazione con conferma, con colonne lette da `information_schema`. Non modifica né crea automaticamente le tabelle; richiede un database già importato e una chiave primaria per modifica/cancellazione. Le relazioni tra entità non sono ancora accompagnate da flussi assistiti: **questa non è ancora la sostituzione completa dell'esperienza ordini Tkinter**.
 
-## Sequenza di rilascio
+Nota: senza login e con CRUD generico, ogni utente autorizzato sulla porta può modificare i dati. Limitare la porta Tailscale con ACL e controlli sulla rete; non pubblicarla nel router, nel reverse proxy pubblico né su `0.0.0.0`.
 
-1. Isolare i sorgenti Magazzino Tele dal progetto Cora; rimuovere password dal codice e preparare configurazione client.
-2. Validare configurazione MySQL separata e client su un ambiente di prova, senza importare dati reali.
-3. Installare sul Debian, con bind Tailscale e ACL, e importare solo dopo il backup della sorgente.
-4. Aggiornare il client sul PC della zia; testare visualizzazione, inserimento, modifica, eliminazione e ricerche con dati di prova.
-5. Verificare persistenza, riavvio automatico, backup e restore prima dell'utilizzo definitivo.
+## Installazione prevista (non eseguita)
 
-## Stato checkpoint
+1. Ruotare e togliere dal codice le credenziali MySQL storiche che compaiono nella repository pubblica. La cronologia Git rimane un possibile vettore di divulgazione.
+2. Creare un `.env` privato sul server con `SERVER_TELE_DB_PASSWORD`, `SERVER_TELE_ROOT_PASSWORD`, `SERVER_TELE_TAILSCALE_IP` reale; permessi stretti. Non mettere `.env` su GitHub.
+3. Con il repo disponibile sul server: `docker compose -f deploy/integrations/server-tele.mysql.yml config` (verificare porte e volumi). Quindi, dopo controllo, `docker compose -f deploy/integrations/server-tele.mysql.yml up -d --build`. La porta web HTTP 8082 sarà associata al solo IP Tailscale del server. Non esiste alcuna porta MySQL esposta sul sistema host.
+4. Prima di migrare, fare dump del MySQL originario e verificare numero di righe, charset, valori, PK/FK, indice, tabelle, clienti e colori. Importare su database isolato e confrontare esattamente gli elementi del catalogo. Nessun seed fittizio.
+5. Verificare con la zia il percorso completo creazione ordine → scelta cliente → scelta modello e colore → quantità → salvataggio → ricerca → modifica → evasione. Aggiungere form guidati se richiesti per eguagliare il comportamento storico.
+6. Separare backup MySQL, retention e restore dal sistema di backup Cora. Testare un restore isolato prima di trasferire l'uso quotidiano.
+7. Testare funzionamento da PC della zia e riconnessione/reboot del server. Non considerare completata la messa in produzione prima di queste verifiche.
 
-- Fast-path Supervisor e rimozione prompt obsoleto: modifiche proposte nella stessa PR, in attesa dei controlli.
-- Backup Cora: infrastruttura già presente ma attivazione host non attestata.
-- Collaudo complessivo Serveria: rinviato al checkpoint finale di stasera; installazione Magazzino Tele è attività separata.
+## Isolamento
+
+Cora non monta i dati o il volume Tele, non dispone di credenziali Tele, non espone capability per la sua gestione e non lo controlla. Un eventuale futuro accesso tramite Programmatore richiederà una decisione esplicita distinta.
+
+## Checkpoint
+
+Il collaudo di Serveria/Cora è rinviato a stasera come concordato. Il collaudo operativo di Magazzino Tele avverrà separatamente, con lo schema e i dati effettivi.
