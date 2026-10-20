@@ -1,10 +1,10 @@
 import { authenticatedFetch } from "./transport";
 import { apiBaseUrl } from "./api";
 
-function decodeKey(value: string): Uint8Array {
+function decodeKey(value: string): ArrayBuffer {
   const padding = "=".repeat((4 - (value.length % 4)) % 4);
   const raw = atob((value + padding).replace(/-/g, "+").replace(/_/g, "/"));
-  return Uint8Array.from(raw, (char) => char.charCodeAt(0));
+  return Uint8Array.from(raw, (char) => char.charCodeAt(0)).buffer;
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
