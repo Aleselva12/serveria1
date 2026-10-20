@@ -31,6 +31,7 @@ const event = {
   end: "2026-10-02T10:00:00+02:00",
   all_day: false,
   notes: "",
+  reminder_minutes: 30,
   version: 2,
   created_by: "user",
   updated_by: "user",
