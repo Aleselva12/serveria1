@@ -51,6 +51,10 @@ export async function calendarRequest<T>(
       date(value.start) &&
       date(value.end) &&
       typeof value.all_day === "boolean" &&
+      (value.reminder_minutes === null ||
+        (Number.isInteger(value.reminder_minutes) &&
+          Number(value.reminder_minutes) >= 1 &&
+          Number(value.reminder_minutes) <= 10080)) &&
       Number.isInteger(value.version) &&
       Number(value.version) >= 1 &&
       typeof value.created_by === "string" &&
