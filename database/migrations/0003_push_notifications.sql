@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS notification_deliveries (
     kind TEXT NOT NULL,
     scheduled_for TIMESTAMPTZ NOT NULL,
     delivered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(subscription_id, event_id, event_version, kind)
+    UNIQUE(subscription_id, event_id, kind, scheduled_for)
 );
 CREATE INDEX IF NOT EXISTS idx_notification_deliveries_event
     ON notification_deliveries(event_id, event_version);
