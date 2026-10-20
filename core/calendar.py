@@ -22,6 +22,7 @@ class EventInput(BaseModel):
     end: datetime
     all_day: bool = False
     notes: str = Field(default="", max_length=10000)
+    reminder_minutes: int | None = Field(default=30, ge=1, le=10080)
 
     @model_validator(mode="after")
     def validate_event(self):
@@ -88,9 +89,9 @@ def _write(conn, action: str, *, actor: str, event_id=None, version=None, data=N
     if action == "create":
         data = EventInput.model_validate(data)
         row = conn.execute("""INSERT INTO calendar_events
-            (id,title,start_at,end_at,all_day,notes,created_by,updated_by)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *""",
-            (uuid4(), data.title, data.start, data.end, data.all_day, data.notes, actor, actor)).fetchone()
+            (id,title,start_at,end_at,all_day,notes,reminder_minutes,created_by,updated_by)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *""",
+            (uuid4(), data.title, data.start, data.end, data.all_day, data.notes, data.reminder_minutes, actor, actor)).fetchone()
     else:
         if action not in {"update", "delete", "restore"}:
             raise ValueError("Azione non valida.")
@@ -104,9 +105,9 @@ def _write(conn, action: str, *, actor: str, event_id=None, version=None, data=N
         if action == "update":
             data = EventInput.model_validate(data)
             row = conn.execute("""UPDATE calendar_events SET title=%s,start_at=%s,end_at=%s,
-                all_day=%s,notes=%s,updated_by=%s,updated_at=NOW(),version=version+1
+                all_day=%s,notes=%s,reminder_minutes=%s,updated_by=%s,updated_at=NOW(),version=version+1
                 WHERE id=%s RETURNING *""",
-                (data.title, data.start, data.end, data.all_day, data.notes, actor, row["id"])).fetchone()
+                (data.title, data.start, data.end, data.all_day, data.notes, data.reminder_minutes, actor, row["id"])).fetchone()
         else:
             deleted_at = datetime.now(timezone.utc) if action == "delete" else None
             row = conn.execute("""UPDATE calendar_events SET deleted_at=%s,updated_by=%s,
