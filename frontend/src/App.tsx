@@ -29,7 +29,9 @@ import {
 import Audio from "./components/Audio";
 import ChatToolPicker from "./components/ChatToolPicker";
 import { uploadAttachment, attachLibraryFile, type Attachment } from "./services/mediaApi";
-import Home from "./components/Home";\nimport MobileHome from "./components/MobileHome";\nimport MobilePhotos from "./components/MobilePhotos";
+import Home from "./components/Home";
+import MobileHome from "./components/MobileHome";
+import MobilePhotos from "./components/MobilePhotos";
 import Programmer from "./components/Programmer";
 import Calendar from "./components/Calendar";
 import FileManager from "./components/FileManager";
@@ -80,7 +82,10 @@ const mobilePrimary: { id: Page; label: string; icon: typeof House }[] = [
 ];
 const uid = () => crypto.randomUUID();
 export default function App({ authMode = "password" }: { authMode?: string } = {}) {
-  const [page, setPage] = useState<Page>(() => {\n    const requested = window.location.hash.replace(/^#/, "");\n    return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested) ? requested as Page : "home";\n  });
+  const [page, setPage] = useState<Page>(() => {
+    const requested = window.location.hash.replace(/^#/, "");
+    return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested) ? requested as Page : "home";
+  });
   const [menu, setMenu] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -108,7 +113,15 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   const { content: permanentContext, updatedAt: contextUpdatedAt, version: contextVersion, saving: contextSaving, error: contextError, edit: setPermanentContext, save: savePermanentContext, reload:reloadPermanentContext } = usePermanentContext(Boolean(backend.health));
   const history = useConversations(Boolean(backend.health), sending);
   const { chats, setChats, currentChat } = history;
-  useEffect(() => setThinking({text: "", truncated: false}), [currentChat.id]);\n  useEffect(() => {\n    const syncHash = () => {\n      const requested = window.location.hash.replace(/^#/, "");\n      if (["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested)) setPage(requested as Page);\n    };\n    window.addEventListener("hashchange", syncHash);\n    return () => window.removeEventListener("hashchange", syncHash);\n  }, []);
+  useEffect(() => setThinking({text: "", truncated: false}), [currentChat.id]);
+  useEffect(() => {
+    const syncHash = () => {
+      const requested = window.location.hash.replace(/^#/, "");
+      if (["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested)) setPage(requested as Page);
+    };
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, []);
   useEffect(() => {
     if (page === "chat" && !history.messagesLoading)
       messagesEnd.current?.scrollIntoView({ block: "end" });
