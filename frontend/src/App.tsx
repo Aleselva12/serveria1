@@ -11,9 +11,15 @@ import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   ArrowRight,
+  CalendarDays,
   ChevronDown,
+  FileAudio,
+  Files,
+  House,
+  Images,
   FileText,
   Menu,
+  MoreHorizontal,
   Paperclip,
   RefreshCw,
   Send,
@@ -38,6 +44,7 @@ import { useConversations } from "./services/useConversations";
 type Page =
   | "home"
   | "chat"
+  | "photos"
   | "architecture"
   | "code"
   | "calendar"
@@ -64,18 +71,13 @@ const secondary: { id: Page; label: string; icon: typeof FileText }[] = [
   { id: "activity", label: "Attività", icon: Activity },
   { id: "settings", label: "Impostazioni", icon: Settings },
 ];
-const labels: Record<Page, string> = {
-  home: "Home",
-  chat: "Chat",
-  architecture: "Architettura",
-  code: "Programma",
-  calendar: "Calendario",
-  files: "File",
-  audio: "Audio",
-  activity: "Attività",
-  settings: "Impostazioni",
-  "memory-management": "Gestione Memoria",
-};
+const mobilePrimary: { id: Page; label: string; icon: typeof House }[] = [
+  { id: "home", label: "Home", icon: House },
+  { id: "photos", label: "Foto", icon: Images },
+  { id: "files", label: "File", icon: Files },
+  { id: "audio", label: "Audio", icon: FileAudio },
+  { id: "calendar", label: "Agenda", icon: CalendarDays },
+];
 const uid = () => crypto.randomUUID();
 export default function App({ authMode = "password" }: { authMode?: string } = {}) {
   const [page, setPage] = useState<Page>(() => {\n    const requested = window.location.hash.replace(/^#/, "");\n    return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested) ? requested as Page : "home";\n  });
@@ -120,6 +122,10 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   function navigate(next: Page) {
     setPage(next);
     setMenu(false);
+    const url = next === "home"
+      ? window.location.pathname + window.location.search
+      : "#" + next;
+    window.history.replaceState(null, "", url);
   }
   function newChat() {
     if (sendLock.current) return;
@@ -367,6 +373,18 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                       {item.label}
                     </button>
                   ))}
+                </div>
+              )}
+            </div>
+            <div className="mobile-more-wrap">
+              <button className="mobile-more-button" onClick={() => setMenu(!menu)} aria-expanded={menu} aria-label="Altre funzioni">
+                <MoreHorizontal size={21} />
+              </button>
+              {menu && (
+                <div className="dropdown mobile-dropdown">
+                  <button onClick={() => navigate("chat")}><span>✦</span> Chat Cora</button>
+                  <button onClick={() => navigate("activity")}><Activity size={17} /> Attività</button>
+                  <button onClick={() => navigate("settings")}><Settings size={17} /> Impostazioni</button>
                 </div>
               )}
             </div>
