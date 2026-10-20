@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
@@ -190,18 +190,24 @@ def _active_subscriptions():
         ).fetchall()
 
 
+def _scheduled_for(event):
+    return event["start_at"] - timedelta(minutes=event["reminder_minutes"])
+
+
 def _already_delivered(subscription_id, event) -> bool:
+    scheduled = _scheduled_for(event)
     with db_connection() as conn:
         row = conn.execute(
             """SELECT 1 FROM notification_deliveries
-               WHERE subscription_id=%s AND event_id=%s AND event_version=%s AND kind='calendar_reminder'""",
-            (subscription_id, event["id"], event["version"]),
+               WHERE subscription_id=%s AND event_id=%s AND kind='calendar_reminder'
+                 AND scheduled_for=%s""",
+            (subscription_id, event["id"], scheduled),
         ).fetchone()
     return bool(row)
 
 
 def _record_delivery(subscription_id, event):
-    scheduled = event["start_at"] - __import__("datetime").timedelta(minutes=event["reminder_minutes"])
+    scheduled = _scheduled_for(event)
     with db_connection() as conn:
         conn.execute(
             """INSERT INTO notification_deliveries
@@ -215,12 +221,12 @@ def _record_delivery(subscription_id, event):
 
 def _calendar_payload(event) -> dict:
     local = event["start_at"].astimezone(ZoneInfo("Europe/Rome"))
-    minutes = event["reminder_minutes"]
+    remaining = max(1, round((event["start_at"] - datetime.now(timezone.utc)).total_seconds() / 60))
     when = local.strftime("%H:%M")
-    lead = f"Tra {minutes} minuti" if minutes < 60 else (
-        "Tra 1 ora" if minutes == 60 else
-        f"Tra {minutes // 60} ore" if minutes < 1440 and minutes % 60 == 0 else
-        "Domani" if minutes == 1440 else f"Promemoria · {when}"
+    lead = f"Tra {remaining} minuti" if remaining < 60 else (
+        "Tra 1 ora" if remaining < 90 else
+        f"Tra {round(remaining / 60)} ore" if remaining < 1440 else
+        "Domani" if remaining < 2160 else f"{local.strftime('%d/%m')} alle {when}"
     )
     return {
         "title": "Cora · Calendario",
