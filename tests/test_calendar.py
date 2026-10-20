@@ -80,7 +80,7 @@ class CalendarPostgresTests(unittest.TestCase):
         with connection() as conn:
             schema=Path("database/schema.sql").read_text()
             conn.execute(schema[schema.index("CREATE TABLE IF NOT EXISTS calendar_events"):])
-            conn.execute(Path("database/migrations/0003_push_notifications.sql").read_text())
+            conn.execute(Path("database/migrations/0004_push_notifications.sql").read_text())
             conn.execute("TRUNCATE notification_deliveries,push_subscriptions,calendar_proposals,calendar_event_history,calendar_events")
         app=FastAPI(); app.include_router(router)
         self.env=patch.dict(os.environ,{"CORA_CALENDAR_TOKEN":"owner"}); self.env.start()
