@@ -2,6 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import AuthGate from "./components/AuthGate";
 import "./style.css";
+import { registerPwa } from "./services/pwa";
+registerPwa();
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthGate />

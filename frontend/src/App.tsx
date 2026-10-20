@@ -11,9 +11,15 @@ import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   ArrowRight,
+  CalendarDays,
   ChevronDown,
+  FileAudio,
+  Files,
+  House,
+  Images,
   FileText,
   Menu,
+  MoreHorizontal,
   Paperclip,
   RefreshCw,
   Send,
@@ -24,6 +30,8 @@ import Audio from "./components/Audio";
 import ChatToolPicker from "./components/ChatToolPicker";
 import { uploadAttachment, attachLibraryFile, type Attachment } from "./services/mediaApi";
 import Home from "./components/Home";
+import MobileHome from "./components/MobileHome";
+import MobilePhotos from "./components/MobilePhotos";
 import Programmer from "./components/Programmer";
 import Calendar from "./components/Calendar";
 import FileManager from "./components/FileManager";
@@ -38,6 +46,7 @@ import { useConversations } from "./services/useConversations";
 type Page =
   | "home"
   | "chat"
+  | "photos"
   | "architecture"
   | "code"
   | "calendar"
@@ -64,22 +73,21 @@ const secondary: { id: Page; label: string; icon: typeof FileText }[] = [
   { id: "activity", label: "Attività", icon: Activity },
   { id: "settings", label: "Impostazioni", icon: Settings },
 ];
-const labels: Record<Page, string> = {
-  home: "Home",
-  chat: "Chat",
-  architecture: "Architettura",
-  code: "Programma",
-  calendar: "Calendario",
-  files: "File",
-  audio: "Audio",
-  activity: "Attività",
-  settings: "Impostazioni",
-  "memory-management": "Gestione Memoria",
-};
+const mobilePrimary: { id: Page; label: string; icon: typeof House }[] = [
+  { id: "home", label: "Home", icon: House },
+  { id: "photos", label: "Foto", icon: Images },
+  { id: "files", label: "File", icon: Files },
+  { id: "audio", label: "Audio", icon: FileAudio },
+  { id: "calendar", label: "Agenda", icon: CalendarDays },
+];
 const uid = () => crypto.randomUUID();
 export default function App({ authMode = "password" }: { authMode?: string } = {}) {
-  const [page, setPage] = useState<Page>("home");
+  const [page, setPage] = useState<Page>(() => {
+    const requested = window.location.hash.replace(/^#/, "");
+    return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested) ? requested as Page : "home";
+  });
   const [menu, setMenu] = useState(false);
+  const [mobileUi, setMobileUi] = useState(() => window.matchMedia("(max-width: 620px)").matches);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [responseLength, setResponseLength] = useState<ResponseLength>("medium");
@@ -108,6 +116,20 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   const { chats, setChats, currentChat } = history;
   useEffect(() => setThinking({text: "", truncated: false}), [currentChat.id]);
   useEffect(() => {
+    const media = window.matchMedia("(max-width: 620px)");
+    const sync = () => setMobileUi(media.matches);
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+  useEffect(() => {
+    const syncHash = () => {
+      const requested = window.location.hash.replace(/^#/, "");
+      if (["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested)) setPage(requested as Page);
+    };
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, []);
+  useEffect(() => {
     if (page === "chat" && !history.messagesLoading)
       messagesEnd.current?.scrollIntoView({ block: "end" });
   }, [page, currentChat.id, currentChat.messages.length, history.messagesLoading, sending]);
@@ -120,6 +142,10 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   function navigate(next: Page) {
     setPage(next);
     setMenu(false);
+    const url = next === "home"
+      ? window.location.pathname + window.location.search
+      : "#" + next;
+    window.history.replaceState(null, "", url);
   }
   function newChat() {
     if (sendLock.current) return;
@@ -262,7 +288,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
       void history.refreshHistory();
     }
   }
-  const withSidebar = !["home", "files", "audio", "architecture", "code", "calendar"].includes(page);
+  const withSidebar = !["home", "photos", "files", "audio", "architecture", "code", "calendar"].includes(page);
   return (
     <div
       className={"app app-" + page + " " + (withSidebar ? "has-sidebar" : "")}
@@ -370,6 +396,18 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 </div>
               )}
             </div>
+            <div className="mobile-more-wrap">
+              <button className="mobile-more-button" onClick={() => setMenu(!menu)} aria-expanded={menu} aria-label="Altre funzioni">
+                <MoreHorizontal size={21} />
+              </button>
+              {menu && (
+                <div className="dropdown mobile-dropdown">
+                  <button onClick={() => navigate("chat")}><span>✦</span> Chat Cora</button>
+                  <button onClick={() => navigate("activity")}><Activity size={17} /> Attività</button>
+                  <button onClick={() => navigate("settings")}><Settings size={17} /> Impostazioni</button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
         <main className={"main " + (page === "chat" ? "chat-main" : "")}>
@@ -385,12 +423,24 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
             </div>
           )}
           {page === "home" && (
-            <Home
-              health={backend.health}
-              checking={backend.checking}
-              checkedAt={backend.checkedAt}
-            />
+            mobileUi ? (
+              <div className="mobile-home-slot">
+                <MobileHome
+                  health={backend.health}
+                  checking={backend.checking}
+                  onRefresh={() => void backend.refresh()}
+                  onNavigate={(next) => navigate(next)}
+                />
+              </div>
+            ) : (
+              <Home
+                health={backend.health}
+                checking={backend.checking}
+                checkedAt={backend.checkedAt}
+              />
+            )
           )}
+          {page === "photos" && <MobilePhotos />}
           {page === "chat" && (
             <section className="chat-page">
               <div className="messages" aria-live="polite">
@@ -728,19 +778,18 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
           )}
         </main>
       </div>
-      <div className="mobile-nav">
-        {[...primary, { id: "files" as Page, label: "File" }, ...secondary].map(
-          (item) => (
-            <button
-              key={item.id}
-              className={page === item.id ? "active" : ""}
-              onClick={() => navigate(item.id)}
-            >
-              {labels[item.id]}
-            </button>
-          ),
-        )}
-      </div>
+      <nav className="mobile-nav" aria-label="Navigazione mobile">
+        {mobilePrimary.map((item) => (
+          <button
+            key={item.id}
+            className={page === item.id ? "active" : ""}
+            onClick={() => navigate(item.id)}
+          >
+            <item.icon size={20} />
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
