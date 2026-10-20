@@ -49,9 +49,6 @@ def _private_bytes(key: ec.EllipticCurvePrivateKey) -> bytes:
 
 def _load_private(value: str) -> ec.EllipticCurvePrivateKey:
     number = int.from_bytes(_unb64(value), "big")
-    if not 1 <= number < ec.SECP256R1().key_size ** 32:
-        # derive_private_key performs the authoritative curve-order validation.
-        pass
     return ec.derive_private_key(number, ec.SECP256R1())
 
 
@@ -90,7 +87,7 @@ def _jwt(endpoint: str, key: ec.EllipticCurvePrivateKey) -> str:
     claims = _b64(json.dumps({
         "aud": f"{parts.scheme}://{parts.netloc}",
         "exp": int(time.time()) + 12 * 60 * 60,
-        "sub": os.getenv("CORA_PUSH_VAPID_SUBJECT", "mailto:cora@localhost"),
+        "sub": os.getenv("CORA_PUSH_VAPID_SUBJECT", "mailto:cora@example.invalid"),
     }, separators=(",", ":")).encode())
     signing_input = f"{header}.{claims}".encode("ascii")
     der = key.sign(signing_input, ec.ECDSA(hashes.SHA256()))
