@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Activity,
   CalendarDays,
@@ -12,6 +12,13 @@ import {
 } from "lucide-react";
 import type { BackendHealth } from "../types/contracts";
 import { useHomeMonitoring } from "../services/useHomeMonitoring";
+import {
+  currentPushState,
+  disablePushNotifications,
+  enablePushNotifications,
+  sendTestPush,
+  type PushState,
+} from "../services/pushNotifications";
 
 type MobilePage = "photos" | "files" | "audio" | "calendar" | "chat" | "activity" | "settings";
 
@@ -32,19 +39,40 @@ export default function MobileHome({
   onNavigate: (page: MobilePage) => void;
 }) {
   const { telemetry, services, telemetryError, servicesError } = useHomeMonitoring();
-  const [notificationState, setNotificationState] = useState(
-    typeof Notification === "undefined" ? "unsupported" : Notification.permission,
-  );
+  const [pushState, setPushState] = useState<PushState>({
+    supported: false,
+    permission: typeof Notification === "undefined" ? "unsupported" : Notification.permission,
+    subscribed: false,
+  });
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMessage, setPushMessage] = useState("");
   const disks = telemetry?.disks ?? [];
   const disk = disks[0];
   const coreOk = Boolean(health);
   const ready = services.filter((service) => service.status === "ready").length;
   const issues = services.filter((service) => ["offline", "error"].includes(service.status)).length;
 
-  async function enableNotifications() {
-    if (typeof Notification === "undefined") return;
-    const permission = await Notification.requestPermission();
-    setNotificationState(permission);
+  useEffect(() => {
+    let live = true;
+    void currentPushState().then((state) => {
+      if (live) setPushState(state);
+    }).catch(() => undefined);
+    return () => { live = false; };
+  }, []);
+
+  async function pushAction(action: () => Promise<PushState | void>, success: string) {
+    if (pushBusy) return;
+    setPushBusy(true);
+    setPushMessage("");
+    try {
+      const state = await action();
+      if (state) setPushState(state);
+      setPushMessage(success);
+    } catch (error) {
+      setPushMessage(error instanceof Error ? error.message : "Operazione notifiche non riuscita.");
+    } finally {
+      setPushBusy(false);
+    }
   }
 
   return (
@@ -109,15 +137,43 @@ export default function MobileHome({
           <div><span className="mobile-kicker">TELEFONO</span><h2>Notifiche</h2></div>
         </div>
         <p className="mobile-card-copy">
-          {notificationState === "granted"
-            ? "Permesso notifiche attivo. La PWA è pronta per ricevere Web Push dal server."
-            : notificationState === "denied"
-              ? "Notifiche bloccate nelle impostazioni del browser."
-              : notificationState === "unsupported"
-                ? "Questo browser non espone le notifiche Web."
-                : "Abilita il permesso del telefono. Il collegamento automatico degli eventi al Web Push sarà il passo successivo."}
+          {!pushState.supported
+            ? "Web Push richiede la PWA installata e aperta tramite HTTPS."
+            : pushState.subscribed
+              ? "Questo dispositivo è registrato. Gli appuntamenti con promemoria possono arrivare anche quando Cora non è aperta."
+              : pushState.permission === "denied"
+                ? "Notifiche bloccate nelle impostazioni del telefono."
+                : "Registra questo dispositivo per ricevere i promemoria del calendario."}
         </p>
-        {notificationState === "default" && <button className="mobile-secondary-button" onClick={() => void enableNotifications()}>Abilita notifiche</button>}
+        {pushMessage && <p className="mobile-inline-status" role="status">{pushMessage}</p>}
+        <div className="mobile-push-actions">
+          {!pushState.subscribed ? (
+            <button
+              className="mobile-secondary-button"
+              disabled={pushBusy || !pushState.supported || pushState.permission === "denied"}
+              onClick={() => void pushAction(() => enablePushNotifications("iPhone"), "Notifiche calendario attivate su questo dispositivo.")}
+            >
+              {pushBusy ? "Attivazione…" : "Attiva notifiche calendario"}
+            </button>
+          ) : (
+            <>
+              <button
+                className="mobile-secondary-button"
+                disabled={pushBusy}
+                onClick={() => void pushAction(async () => { await sendTestPush(); }, "Notifica di prova inviata.")}
+              >
+                Invia notifica di prova
+              </button>
+              <button
+                className="mobile-text-button"
+                disabled={pushBusy}
+                onClick={() => void pushAction(() => disablePushNotifications(), "Notifiche disattivate su questo dispositivo.")}
+              >
+                Disattiva su questo iPhone
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="mobile-secondary-links">
