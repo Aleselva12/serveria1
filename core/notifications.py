@@ -213,7 +213,7 @@ def _record_delivery(subscription_id, event):
             """INSERT INTO notification_deliveries
                (id,subscription_id,event_id,event_version,kind,scheduled_for)
                VALUES (%s,%s,%s,%s,'calendar_reminder',%s)
-               ON CONFLICT(subscription_id,event_id,event_version,kind) DO NOTHING""",
+               ON CONFLICT(subscription_id,event_id,kind,scheduled_for) DO NOTHING""",
             (uuid4(), subscription_id, event["id"], event["version"], scheduled),
         )
         conn.commit()
