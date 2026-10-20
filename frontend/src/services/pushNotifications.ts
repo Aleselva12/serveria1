@@ -51,10 +51,17 @@ export async function currentPushState(): Promise<PushState> {
 }
 
 export async function enablePushNotifications(label = "iPhone"): Promise<PushState> {
-  const state = await currentPushState();
-  if (!state.supported) {
+  const supported =
+    typeof window !== "undefined" &&
+    window.isSecureContext &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    typeof Notification !== "undefined";
+  if (!supported) {
     throw new Error("Web Push richiede la PWA installata e una connessione HTTPS.");
   }
+  // On iOS the permission prompt must remain directly tied to the user's tap:
+  // do not await service-worker/network work before requestPermission().
   const permission = Notification.permission === "granted"
     ? "granted"
     : await Notification.requestPermission();
