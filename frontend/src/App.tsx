@@ -87,6 +87,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
     return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested) ? requested as Page : "home";
   });
   const [menu, setMenu] = useState(false);
+  const [mobileUi, setMobileUi] = useState(() => window.matchMedia("(max-width: 620px)").matches);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [responseLength, setResponseLength] = useState<ResponseLength>("medium");
@@ -114,6 +115,12 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   const history = useConversations(Boolean(backend.health), sending);
   const { chats, setChats, currentChat } = history;
   useEffect(() => setThinking({text: "", truncated: false}), [currentChat.id]);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 620px)");
+    const sync = () => setMobileUi(media.matches);
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
   useEffect(() => {
     const syncHash = () => {
       const requested = window.location.hash.replace(/^#/, "");
@@ -416,14 +423,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
             </div>
           )}
           {page === "home" && (
-            <>
-              <div className="desktop-home">
-                <Home
-                  health={backend.health}
-                  checking={backend.checking}
-                  checkedAt={backend.checkedAt}
-                />
-              </div>
+            mobileUi ? (
               <div className="mobile-home-slot">
                 <MobileHome
                   health={backend.health}
@@ -432,7 +432,13 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                   onNavigate={(next) => navigate(next)}
                 />
               </div>
-            </>
+            ) : (
+              <Home
+                health={backend.health}
+                checking={backend.checking}
+                checkedAt={backend.checkedAt}
+              />
+            )
           )}
           {page === "photos" && <MobilePhotos />}
           {page === "chat" && (
