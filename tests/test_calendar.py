@@ -78,7 +78,8 @@ class CalendarPostgresTests(unittest.TestCase):
         with connection() as conn:
             schema=Path("database/schema.sql").read_text()
             conn.execute(schema[schema.index("CREATE TABLE IF NOT EXISTS calendar_events"):])
-            conn.execute("TRUNCATE calendar_proposals,calendar_event_history,calendar_events")
+            conn.execute(Path("database/migrations/0003_push_notifications.sql").read_text())
+            conn.execute("TRUNCATE notification_deliveries,push_subscriptions,calendar_proposals,calendar_event_history,calendar_events")
         app=FastAPI(); app.include_router(router)
         self.env=patch.dict(os.environ,{"CORA_CALENDAR_TOKEN":"owner"}); self.env.start()
         self.client=TestClient(app,headers={"Authorization":"Bearer owner"})
@@ -98,9 +99,11 @@ class CalendarPostgresTests(unittest.TestCase):
     def test_persistence_updates_conflicts_soft_delete_restore_and_audit(self):
         event=self.create(); eid=event["id"]
         self.assertEqual(self.list()[0]["id"],eid)
-        updated=self.client.patch(self.base+"/events/"+eid,json={**DATA,"title":"Aggiornato","version":1})
+        self.assertEqual(event["reminder_minutes"],30)
+        updated=self.client.patch(self.base+"/events/"+eid,json={**DATA,"title":"Aggiornato","reminder_minutes":None,"version":1})
         self.assertEqual(updated.status_code,200,updated.text)
         self.assertEqual(updated.json()["version"],2)
+        self.assertIsNone(updated.json()["reminder_minutes"])
         self.assertEqual(self.client.delete(self.base+"/events/"+eid+"?version=1").status_code,409)
         removed=self.client.delete(self.base+"/events/"+eid+"?version=2")
         self.assertEqual(removed.status_code,200,removed.text)
