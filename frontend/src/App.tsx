@@ -23,7 +23,7 @@ import {
 import Audio from "./components/Audio";
 import ChatToolPicker from "./components/ChatToolPicker";
 import { uploadAttachment, attachLibraryFile, type Attachment } from "./services/mediaApi";
-import Home from "./components/Home";
+import Home from "./components/Home";\nimport MobileHome from "./components/MobileHome";\nimport MobilePhotos from "./components/MobilePhotos";
 import Programmer from "./components/Programmer";
 import Calendar from "./components/Calendar";
 import FileManager from "./components/FileManager";
@@ -78,7 +78,7 @@ const labels: Record<Page, string> = {
 };
 const uid = () => crypto.randomUUID();
 export default function App({ authMode = "password" }: { authMode?: string } = {}) {
-  const [page, setPage] = useState<Page>("home");
+  const [page, setPage] = useState<Page>(() => {\n    const requested = window.location.hash.replace(/^#/, "");\n    return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested) ? requested as Page : "home";\n  });
   const [menu, setMenu] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -106,7 +106,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   const { content: permanentContext, updatedAt: contextUpdatedAt, version: contextVersion, saving: contextSaving, error: contextError, edit: setPermanentContext, save: savePermanentContext, reload:reloadPermanentContext } = usePermanentContext(Boolean(backend.health));
   const history = useConversations(Boolean(backend.health), sending);
   const { chats, setChats, currentChat } = history;
-  useEffect(() => setThinking({text: "", truncated: false}), [currentChat.id]);
+  useEffect(() => setThinking({text: "", truncated: false}), [currentChat.id]);\n  useEffect(() => {\n    const syncHash = () => {\n      const requested = window.location.hash.replace(/^#/, "");\n      if (["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested)) setPage(requested as Page);\n    };\n    window.addEventListener("hashchange", syncHash);\n    return () => window.removeEventListener("hashchange", syncHash);\n  }, []);
   useEffect(() => {
     if (page === "chat" && !history.messagesLoading)
       messagesEnd.current?.scrollIntoView({ block: "end" });
@@ -262,7 +262,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
       void history.refreshHistory();
     }
   }
-  const withSidebar = !["home", "files", "audio", "architecture", "code", "calendar"].includes(page);
+  const withSidebar = !["home", "photos", "files", "audio", "architecture", "code", "calendar"].includes(page);
   return (
     <div
       className={"app app-" + page + " " + (withSidebar ? "has-sidebar" : "")}
@@ -385,12 +385,25 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
             </div>
           )}
           {page === "home" && (
-            <Home
-              health={backend.health}
-              checking={backend.checking}
-              checkedAt={backend.checkedAt}
-            />
+            <>
+              <div className="desktop-home">
+                <Home
+                  health={backend.health}
+                  checking={backend.checking}
+                  checkedAt={backend.checkedAt}
+                />
+              </div>
+              <div className="mobile-home-slot">
+                <MobileHome
+                  health={backend.health}
+                  checking={backend.checking}
+                  onRefresh={() => void backend.refresh()}
+                  onNavigate={(next) => navigate(next)}
+                />
+              </div>
+            </>
           )}
+          {page === "photos" && <MobilePhotos />}
           {page === "chat" && (
             <section className="chat-page">
               <div className="messages" aria-live="polite">
@@ -728,19 +741,18 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
           )}
         </main>
       </div>
-      <div className="mobile-nav">
-        {[...primary, { id: "files" as Page, label: "File" }, ...secondary].map(
-          (item) => (
-            <button
-              key={item.id}
-              className={page === item.id ? "active" : ""}
-              onClick={() => navigate(item.id)}
-            >
-              {labels[item.id]}
-            </button>
-          ),
-        )}
-      </div>
+      <nav className="mobile-nav" aria-label="Navigazione mobile">
+        {mobilePrimary.map((item) => (
+          <button
+            key={item.id}
+            className={page === item.id ? "active" : ""}
+            onClick={() => navigate(item.id)}
+          >
+            <item.icon size={20} />
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
