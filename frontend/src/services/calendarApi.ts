@@ -106,7 +106,25 @@ export async function calendarRequest<T>(
     clearTimeout(timeout);
   }
 }
+export type CalendarProviderStatus = {
+  connected: boolean;
+  provider: "google" | "local";
+  reachable?: boolean;
+  credentialsAvailable?: boolean;
+  error?: string;
+};
+
 export const calendarApi = {
+  provider: async (token: string) => {
+    const response = await authenticatedFetch(apiBaseUrl + "/api/v1/calendar/provider", {
+      headers: {
+        Accept: "application/json",
+        ...(token ? { Authorization: "Bearer " + token } : {}),
+      },
+    });
+    if (!response.ok) throw new Error("Stato Google Calendar non disponibile.");
+    return await response.json() as CalendarProviderStatus;
+  },
   get: (id: string, token: string) =>
     calendarRequest<CalendarEvent>(`/events/${id}`, token),
   list: (start: string, end: string, token: string, deleted = false) =>

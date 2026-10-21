@@ -53,6 +53,7 @@ globalThis.__calendarViewApi = {
     return deleted ? [] : events;
   },
   proposals: async () => proposals,
+  provider: async () => ({ connected: false, provider: "local" }),
   save: async (data, token, event) => {
     if (fail) throw new Error("Save failed");
     const result = saved(data);
@@ -70,7 +71,7 @@ let source = await readFile(
   "utf8",
 );
 source = source.replace(
-  /import \{ calendarApi \} from "..\/services\/calendarApi";/,
+  /import \{ calendarApi, type CalendarProviderStatus \} from "..\/services\/calendarApi";/,
   "const calendarApi=globalThis.__calendarViewApi;",
 );
 let output = compile(source).replace(

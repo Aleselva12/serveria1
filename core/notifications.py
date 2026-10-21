@@ -13,7 +13,7 @@ from psycopg import OperationalError
 
 from core.access import require_owner
 from core.database import db_connection
-from core import webpush
+from core import webpush, google_calendar
 
 
 def owner(request: Request):
@@ -237,6 +237,10 @@ def _calendar_payload(event) -> dict:
 
 
 def deliver_calendar_reminders():
+    # Google Calendar owns appointment reminders once the user account is connected.
+    # Keep Cora Web Push for future server/agent notifications, avoiding duplicates.
+    if google_calendar.token_exists():
+        return
     events = _due_events()
     if not events:
         return
