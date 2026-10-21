@@ -5,7 +5,7 @@ import type {
   CalendarHistory,
   CalendarProposal,
 } from "../types/contracts";
-import { calendarApi } from "../services/calendarApi";
+import { calendarApi, type CalendarProviderStatus } from "../services/calendarApi";
 import {
   clock,
   dayLabel,
@@ -49,6 +49,10 @@ export default function Calendar() {
   const [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
     [connected, setConnected] = useState(false);
+  const [provider, setProvider] = useState<CalendarProviderStatus>({
+    connected: false,
+    provider: "local",
+  });
   const lock = useRef(false),
     generation = useRef(0),
     historyGeneration = useRef(0);
@@ -60,7 +64,7 @@ export default function Calendar() {
       const current = ++generation.current;
       if (!quiet) setLoading(true);
       try {
-        const [saved, deleted, pending] = await Promise.all([
+        const [saved, deleted, pending, providerState] = await Promise.all([
           calendarApi.list(dayStart(rangeStart), dayStart(rangeEnd), token),
           calendarApi.list(
             dayStart(rangeStart),
@@ -69,11 +73,13 @@ export default function Calendar() {
             true,
           ),
           calendarApi.proposals(token),
+          calendarApi.provider(token),
         ]);
         if (current !== generation.current) return;
         setEvents(saved);
         setTrash(deleted);
         setProposals(pending);
+        setProvider(providerState);
         setConnected(true);
       } catch (e) {
         if (current !== generation.current) return;
@@ -234,13 +240,21 @@ export default function Calendar() {
         <div>
           <div className="eyebrow">ORGANIZZA IL TEMPO</div>
           <h1>Calendario</h1>
-          <p>Impegni personali · orario italiano (Europe/Rome)</p>
+          <p>
+            {provider.provider === "google"
+              ? "Google Calendar · calendario principale · Europe/Rome"
+              : "Calendario Cora locale · Europe/Rome"}
+          </p>
         </div>
         <span className={"pill " + (connected ? "" : "pending")}>
           {loading
             ? "Caricamento…"
             : connected
-              ? "Collegato"
+              ? provider.provider === "google"
+                ? provider.reachable === false
+                  ? "Google non raggiungibile"
+                  : "Google collegato"
+                : "Locale"
               : "Non disponibile"}
         </span>
       </div>
@@ -602,6 +616,7 @@ export default function Calendar() {
           )}
         </aside>
       </div>
+      {provider.provider !== "google" && (
       <div className="calendar-bottom">
         <section className="section-card">
           <h2>Proposte degli agenti</h2>
@@ -704,7 +719,4 @@ export default function Calendar() {
             </article>
           ))}
         </section>
-      </div>
-    </section>
-  );
-}
+      </div>\n      )}\n    </section>\n  );\n}
