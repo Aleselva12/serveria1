@@ -1,0 +1,11 @@
+.personal-terminal { margin: 0 0 20px; }
+.terminal-panel { margin-top: 12px; padding: 16px; border: 1px solid #3c4657; border-radius: 12px; min-width: 0; }
+.terminal-heading, .terminal-login, .terminal-keys { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.terminal-heading { justify-content: space-between; }
+.terminal-heading h2 { margin: 0; font-size: 1.1rem; }
+.terminal-login input { min-width: 0; flex: 1 1 180px; padding: 10px; font-size: 16px; }
+.terminal-login button, .terminal-keys button { min-height: 44px; padding: 8px 12px; }
+.terminal-note { font-size: .85rem; opacity: .8; }
+.terminal-keys { margin: 12px 0; gap: 6px; }
+.terminal-screen { height: min(55dvh, 520px); min-height: 240px; padding: 8px; background: #10151f; border-radius: 8px; overflow: hidden; }
+@media (max-width: 600px) { .terminal-panel { padding: 10px; } .terminal-login > span { flex-basis: 100%; } }

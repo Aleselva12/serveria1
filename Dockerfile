@@ -19,6 +19,17 @@ COPY requirements-deploy-audio.lock ./
 RUN pip install --no-cache-dir --require-hashes -r requirements-deploy-audio.lock
 USER cora
 
+# Optional personal terminal: no application data, Docker socket, or host shell.
+FROM python:3.12-slim-bookworm AS terminal
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+COPY terminal_service/requirements.lock ./requirements.lock
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock && useradd --uid 10001 --create-home terminal
+COPY terminal_service/ ./terminal_service/
+RUN chmod -R a+rX /app
+USER terminal
+CMD ["python", "-m", "uvicorn", "terminal_service.app:app", "--host", "0.0.0.0", "--port", "8022", "--workers", "1", "--no-proxy-headers", "--no-access-log", "--ws-max-size", "16384", "--ws-max-queue", "8"]
+
 FROM node:22-bookworm-slim AS frontend
 WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./

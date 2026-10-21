@@ -15,6 +15,7 @@ import { runtimeRequest } from "../services/runtimeApi";
 import ProgrammerArtifacts from "./ProgrammerArtifacts";
 import ProgrammerReleases from "./ProgrammerReleases";
 import WorkspaceEditor from "./WorkspaceEditor";
+import PersonalTerminal from "./PersonalTerminal";
 
 export default function Programmer() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]),
@@ -286,6 +287,7 @@ export default function Programmer() {
           {online ? "Programmatore collegato" : "Backend non disponibile"}
         </span>
       </div>
+      <PersonalTerminal />
       {error && (
         <p className="programmer-error" role="alert">
           {error}
