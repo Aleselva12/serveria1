@@ -11,6 +11,7 @@ import threading
 from urllib.request import Request, urlopen
 import zipfile
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 from core.auth import auth_mode
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,7 +49,48 @@ def status():
     if desktop():
         with LOCK:
             return {"platform": "windows", **JOB}
-    return {"platform": "server", "url": server_url(), "status": "configured" if server_url() else "unconfigured"}
+    from programmer_agent import releases
+    try:
+        return {"platform": "server", **releases.status()}
+    except (ValueError, OSError):
+        return {"platform": "server", "available": False, "reason": "Updater non raggiungibile", "jobs": []}
+
+
+@router.post("/server/prepare", status_code=202)
+def prepare_server():
+    if desktop():
+        raise HTTPException(409, "Questa operazione richiede Debian.")
+    from programmer_agent import releases
+    try:
+        state = releases.status()
+        if not state.get("available"):
+            raise HTTPException(503, "Updater Debian non configurato. Segui updater/README.md.")
+        workspace = releases.create("Aggiornamento Cora dal branch main")
+        saved = releases.commit(workspace["id"], "Prepare current main for deployment")
+        return releases.request("POST", "/jobs", {"kind": "prepare", "workspace_id": workspace["id"], "commit": saved["commit"]})
+    except (ValueError, OSError) as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+class ApplyServerRequest(BaseModel):
+    release_id: str = Field(pattern=r"^[0-9a-f-]{36}$")
+    expected_commit: str = Field(pattern=r"^[a-f0-9]{40}$")
+
+
+@router.post("/server/apply", status_code=202)
+def apply_server(data: ApplyServerRequest):
+    if desktop():
+        raise HTTPException(409, "Questa operazione richiede Debian.")
+    from programmer_agent import releases
+    try:
+        release = releases.request("GET", "/jobs/" + data.release_id)
+        if (release.get("kind") != "prepare" or release.get("status") != "ready"
+                or release.get("commit") != data.expected_commit):
+            raise HTTPException(409, "Rilascio non pronto o commit diverso.")
+        return releases.request("POST", "/jobs", {"kind": "apply", "release_id": data.release_id, "commit": data.expected_commit})
+    except (ValueError, OSError) as exc:
+        raise HTTPException(409, str(exc)) from exc
+
 
 
 def extract_candidate(data, destination):
