@@ -1,7 +1,7 @@
 import os
 import unittest
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from core import calendar as store
+from core import notifications
 from core.calendar_api import router
 from core.calendar_tools import calendar_tools_for
 from core.permissions import check_permission, validate_permission_configuration
@@ -75,17 +76,19 @@ class CalendarPostgresTests(unittest.TestCase):
             with psycopg.connect(self.url,row_factory=dict_row,prepare_threshold=None) as conn:
                 yield conn
         self.patch=patch.object(store,"db_connection",connection); self.patch.start()
+        self.notify_patch=patch.object(notifications,"db_connection",connection); self.notify_patch.start()
         with connection() as conn:
             schema=Path("database/schema.sql").read_text()
             conn.execute(schema[schema.index("CREATE TABLE IF NOT EXISTS calendar_events"):])
-            conn.execute("TRUNCATE calendar_proposals,calendar_event_history,calendar_events")
+            conn.execute(Path("database/migrations/0004_push_notifications.sql").read_text())
+            conn.execute("TRUNCATE notification_deliveries,push_subscriptions,calendar_proposals,calendar_event_history,calendar_events")
         app=FastAPI(); app.include_router(router)
         self.env=patch.dict(os.environ,{"CORA_CALENDAR_TOKEN":"owner"}); self.env.start()
         self.client=TestClient(app,headers={"Authorization":"Bearer owner"})
         self.base="/api/v1/calendar"
 
     def tearDown(self):
-        self.client.close(); self.env.stop(); self.patch.stop()
+        self.client.close(); self.env.stop(); self.notify_patch.stop(); self.patch.stop()
 
     def create(self, **delta):
         response=self.client.post(self.base+"/events",json={**DATA,**delta})
@@ -98,9 +101,11 @@ class CalendarPostgresTests(unittest.TestCase):
     def test_persistence_updates_conflicts_soft_delete_restore_and_audit(self):
         event=self.create(); eid=event["id"]
         self.assertEqual(self.list()[0]["id"],eid)
-        updated=self.client.patch(self.base+"/events/"+eid,json={**DATA,"title":"Aggiornato","version":1})
+        self.assertEqual(event["reminder_minutes"],30)
+        updated=self.client.patch(self.base+"/events/"+eid,json={**DATA,"title":"Aggiornato","reminder_minutes":None,"version":1})
         self.assertEqual(updated.status_code,200,updated.text)
         self.assertEqual(updated.json()["version"],2)
+        self.assertIsNone(updated.json()["reminder_minutes"])
         self.assertEqual(self.client.delete(self.base+"/events/"+eid+"?version=1").status_code,409)
         removed=self.client.delete(self.base+"/events/"+eid+"?version=2")
         self.assertEqual(removed.status_code,200,removed.text)
@@ -141,6 +146,31 @@ class CalendarPostgresTests(unittest.TestCase):
         store.resolve_proposal(pid,False)
         self.assertEqual(store.list_proposals(),[])
         self.assertEqual(len(self.list()),1)
+
+
+    def test_calendar_reminder_delivers_once_for_same_schedule(self):
+        now=datetime.now(timezone.utc)
+        event=store.write_event("create",data={
+            "title":"Promemoria push",
+            "start":now+timedelta(minutes=10),
+            "end":now+timedelta(minutes=40),
+            "all_day":False,
+            "notes":"",
+            "reminder_minutes":30,
+        })
+        with store.db_connection() as conn:
+            conn.execute("""INSERT INTO push_subscriptions
+                (id,endpoint,p256dh,auth,label,user_agent,active)
+                VALUES (%s,%s,%s,%s,%s,%s,TRUE)""",
+                (uuid4(),"https://push.example.test/device","p256dh","auth","iPhone","test"))
+            conn.commit()
+        with patch.object(notifications,"send_one",return_value=True) as send:
+            notifications.deliver_calendar_reminders()
+            notifications.deliver_calendar_reminders()
+        self.assertEqual(send.call_count,1)
+        with store.db_connection() as conn:
+            deliveries=conn.execute("SELECT * FROM notification_deliveries WHERE event_id=%s",(event["id"],)).fetchall()
+        self.assertEqual(len(deliveries),1)
 
     def test_audit_failure_rolls_back_event(self):
         with patch.object(store,"_audit",side_effect=RuntimeError("test audit failure")):

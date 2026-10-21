@@ -24,6 +24,7 @@ from core.memory import delete_memory, memory_stats, save_memory, search_memorie
 from core.system_context import get_system_context, update_system_context
 from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
 from core.calendar_api import router as calendar_router
+from core.notifications import router as notifications_router, worker as notification_worker
 from core.models import get_model_name, list_ollama_models, save_runtime_model, RuntimeSettingsError
 from core.runtime_profile import validate_runtime_profile, runtime_mode
 from core.monitoring import router as monitoring_router
@@ -63,7 +64,9 @@ async def lifespan(app):
     background_embeddings.start()
     from core import library_monitor
     library_monitor.start()
+    notification_worker.start()
     yield
+    notification_worker.stop()
     runtime.shutdown()
     library_monitor.stop()
     background_embeddings.stop()
@@ -89,6 +92,7 @@ app.include_router(library_router)
 app.include_router(attachments_router)
 app.include_router(audio_router)
 app.include_router(calendar_router)
+app.include_router(notifications_router)
 app.include_router(architecture_router)
 app.include_router(automation_router)
 app.include_router(programmer_router)

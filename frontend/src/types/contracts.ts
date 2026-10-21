@@ -103,6 +103,7 @@ export type CalendarInput = {
   end: string;
   all_day: boolean;
   notes: string;
+  reminder_minutes: number | null;
 };
 export type CalendarEvent = CalendarInput & {
   id: string;

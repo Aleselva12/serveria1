@@ -32,6 +32,7 @@ const initialForm = (day: string, hour = 9) => ({
   end: `${day}T${String(hour).padStart(2, "0")}:30`,
   all_day: false,
   notes: "",
+  reminder_minutes: 30 as number | null,
 });
 export default function Calendar() {
   const [day, setDay] = useState(romeToday),
@@ -123,6 +124,7 @@ export default function Calendar() {
         : romeLocal(event.end),
       all_day: event.all_day,
       notes: event.notes,
+      reminder_minutes: event.reminder_minutes,
     });
     try {
       const result = await calendarApi.history(event.id, token);
@@ -192,6 +194,7 @@ export default function Calendar() {
             end,
             all_day: form.all_day,
             notes: form.notes,
+            reminder_minutes: form.all_day ? null : form.reminder_minutes,
           },
           token,
           editing,
@@ -512,6 +515,29 @@ export default function Calendar() {
                 }
               />
             </label>
+            {!form.all_day && (
+              <label>
+                Promemoria
+                <select
+                  disabled={busy}
+                  value={form.reminder_minutes ?? ""}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      reminder_minutes: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                >
+                  <option value="">Nessuno</option>
+                  <option value="5">5 minuti prima</option>
+                  <option value="15">15 minuti prima</option>
+                  <option value="30">30 minuti prima</option>
+                  <option value="60">1 ora prima</option>
+                  <option value="120">2 ore prima</option>
+                  <option value="1440">1 giorno prima</option>
+                </select>
+              </label>
+            )}
             <label>
               Note
               <textarea
@@ -534,6 +560,9 @@ export default function Calendar() {
             <>
               <p className="panel-note">
                 Creato da {editing.created_by} · versione {editing.version}
+                {!editing.all_day && (
+                  <> · {editing.reminder_minutes ? `promemoria ${editing.reminder_minutes} min prima` : "nessun promemoria"}</>
+                )}
               </p>
               <div className="calendar-actions">
                 <button disabled={busy} onClick={() => newEvent()}>

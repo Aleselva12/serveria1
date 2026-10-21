@@ -3739,3 +3739,36 @@ select:disabled {
 @keyframes cora-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Calendar push notifications. */
+.calendar-side select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  border: 1px solid #dfe8e1;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+}
+.mobile-push-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.mobile-text-button {
+  border: 0;
+  background: transparent;
+  color: #68746e;
+  padding: 10px 4px;
+  font-size: 12px;
+}
+.mobile-inline-status {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: #f1f5f3;
+  color: #45544d;
+  font-size: 11px;
+  line-height: 1.4;
+}
