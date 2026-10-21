@@ -107,10 +107,10 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
         {state.available === false && connected === true &&
           <p role="alert" style={{color:"#b42318"}}>{state.reason || "Servizio updater non disponibile."}</p>}
         <p>Commit installato: <code>{short(state.active_commit)}</code></p>
-        <button className="file-tool" disabled={!canAct}
+        {state.available !== false && <button className="file-tool" disabled={!canAct}
           onClick={() => void invoke("/api/v1/system/update/server/prepare")}>
           Prepara aggiornamento da GitHub
-        </button>
+        </button>}
         {connected === false && shown &&
           <p>Ultimo stato noto (non confermato): {role(shown)} · {describe(shown)}. Non è un'indicazione dello stato attuale.</p>}
         {connected === true && shown && <div className="settings-row">
