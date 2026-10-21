@@ -38,17 +38,44 @@ test('Windows preparation is explicit and ready never means installed',async()=>
  }finally{if(r)await act(async()=>r.unmount());}
 });
 
-test('Debian uses its configured URL and explains an absent service',async()=>{
- for(const url of ['', 'https://server.example/update']){
-  globalThis.__updateFetch=async()=>({ok:true,json:async()=>({platform:'server',status:url?'configured':'unconfigured',url})});
-  let r;try{
-   await act(async()=>{r=create(React.createElement(Panel));});
-   await act(async()=>button(r,'Aggiorna Cora').props.onClick());
-   assert.equal(Boolean(button(r,'Prepara aggiornamento Windows')),false);
-   if(url)assert.equal(r.root.findByType('a').props.href,url);
-   else assert.match(text(r.toJSON()),/CORA_UPDATE_URL/);
-  }finally{if(r)await act(async()=>r.unmount());}
- }
+test('Debian shows availability and requires explicit installation',async()=>{
+ let r;
+ globalThis.__updateFetch=async(path,init={})=>({
+   ok:true,
+   json:async()=>({platform:'server',available:false,reason:'Updater non configurato',jobs:[]})
+ });
+ try{
+  await act(async()=>{r=create(React.createElement(Panel));});
+  await act(async()=>button(r,'Aggiorna Cora').props.onClick());
+  assert.equal(Boolean(button(r,'Prepara aggiornamento Windows')),false);
+  assert.equal(Boolean(button(r,'Prepara aggiornamento da GitHub')),false);
+  assert.equal(r.root.findAllByType('a').length,0);
+  assert.match(text(r.toJSON()),/Updater non configurato/);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('Debian prepares from GitHub only on click and installs only a verified job with confirmation',async()=>{
+ const oldConfirm=globalThis.window;
+ let r, calls=[];
+ globalThis.window={confirm:()=>false};
+ const release={id:'12345678-1234-1234-1234-123456789abc',kind:'prepare',status:'ready',phase:'ready',commit:'a'.repeat(40)};
+ globalThis.__updateFetch=async(path,init={})=>{
+   calls.push([path,init.method||'GET']);
+   return {ok:true,json:async()=>({platform:'server',available:true,active_commit:'b'.repeat(40),jobs:[release]})};
+ };
+ try{
+  await act(async()=>{r=create(React.createElement(Panel));});
+  assert.equal(calls.length,0);
+  await act(async()=>button(r,'Aggiorna Cora').props.onClick());
+  assert.equal(calls.filter(x=>x[1]==='POST').length,0);
+  assert.ok(button(r,'Prepara aggiornamento da GitHub'));
+  assert.ok(button(r,'Installa versione verificata'));
+  await act(async()=>button(r,'Installa versione verificata').props.onClick());
+  assert.equal(calls.filter(x=>x[1]==='POST').length,0);
+  await act(async()=>button(r,'Prepara aggiornamento da GitHub').props.onClick());
+  assert.equal(calls.filter(x=>x[1]==='POST').length,1);
+  assert.equal(calls.find(x=>x[1]==='POST')[0],'/backend/api/v1/system/update/server/prepare');
+ }finally{globalThis.window=oldConfirm;if(r)await act(async()=>r.unmount());}
 });
 
 test('an uncertain POST is never repeated automatically and remains visible',async()=>{
