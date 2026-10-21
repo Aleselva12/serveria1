@@ -1,6 +1,7 @@
 import LibraryMonitorFeed from "./LibraryMonitorFeed";
 import { Activity, ExternalLink, HardDrive, PlugZap, ShieldCheck, Wifi } from "lucide-react";
 import SystemUpdate from "./SystemUpdate";
+import CurrentCommit from "./CurrentCommit";
 import ManagedApplications from "./ManagedApplications";
 import type { BackendHealth } from "../types/contracts";
 import { useHomeMonitoring } from "../services/useHomeMonitoring";
@@ -62,6 +63,7 @@ export default function Home({
             ? "Misurazioni della macchina che esegue Cora · " +
               new Date(telemetry.sampledAt).toLocaleTimeString("it-IT")
             : "In attesa delle misurazioni del server"}
+          <CurrentCommit />
         </small>
       </div>
       <div className="system-card home-backlog">
