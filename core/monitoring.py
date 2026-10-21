@@ -190,7 +190,9 @@ def storage():
 def service_status():
     timestamp = now()
     services = [
-        {"id": "fastapi", "label": "FastAPI", "status": "ready", "checkedAt": timestamp}
+        {"id": "fastapi", "label": "FastAPI", "status": "ready", "checkedAt": timestamp},
+        {"id": "cora", "label": "Cora", "status": "ready", "detail": "Interfaccia Cora sul server",
+         "checkedAt": timestamp, "browserUrl": os.getenv("CORA_SERVICE_CORA_BROWSER_URL", "").strip()},
     ]
     targets = [
         (
