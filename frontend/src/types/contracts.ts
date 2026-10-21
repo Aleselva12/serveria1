@@ -34,6 +34,7 @@ export type AutomationDraft = ToolFlow & {
 };
 export type DraftSummary = { id: string; title: string; version: number; updated_at: string; status: "draft" };
 export type ServiceStatus = {
+  browserUrl?: string;
   id: string;
   label: string;
   status: AgentStatus;
