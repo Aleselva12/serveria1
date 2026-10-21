@@ -30,6 +30,7 @@ import Audio from "./components/Audio";
 import ChatToolPicker from "./components/ChatToolPicker";
 import { uploadAttachment, attachLibraryFile, type Attachment } from "./services/mediaApi";
 import Home from "./components/Home";
+import SystemUpdate from "./components/SystemUpdate";
 import MobileHome from "./components/MobileHome";
 import MobilePhotos from "./components/MobilePhotos";
 import Programmer from "./components/Programmer";
@@ -53,6 +54,7 @@ type Page =
   | "files"
   | "audio"
   | "activity"
+  | "updates"
   | "settings"
   | "memory-management";
 type RequestActivity = {
@@ -71,6 +73,7 @@ const primary: { id: Page; label: string }[] = [
 const secondary: { id: Page; label: string; icon: typeof FileText }[] = [
   { id: "audio", label: "Audio", icon: FileText },
   { id: "activity", label: "Attività", icon: Activity },
+  { id: "updates", label: "Aggiornamenti", icon: RefreshCw },
   { id: "settings", label: "Impostazioni", icon: Settings },
 ];
 const mobilePrimary: { id: Page; label: string; icon: typeof House }[] = [
@@ -84,7 +87,7 @@ const uid = () => crypto.randomUUID();
 export default function App({ authMode = "password" }: { authMode?: string } = {}) {
   const [page, setPage] = useState<Page>(() => {
     const requested = window.location.hash.replace(/^#/, "");
-    return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested) ? requested as Page : "home";
+    return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "updates", "settings"].includes(requested) ? requested as Page : "home";
   });
   const [menu, setMenu] = useState(false);
   const [mobileUi, setMobileUi] = useState(() => window.matchMedia("(max-width: 620px)").matches);
@@ -411,7 +414,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
           </div>
         </header>
         <main className={"main " + (page === "chat" ? "chat-main" : "")}>
-          {backend.error && (
+          {backend.error && page !== "updates" && (
             <div className="connection-error" role="alert">
               <span>{backend.error}</span>
               <button
@@ -437,8 +440,14 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 health={backend.health}
                 checking={backend.checking}
                 checkedAt={backend.checkedAt}
+                onOpenUpdates={() => navigate("updates")}
               />
             )
+          )}
+          {page === "updates" && (
+            <section className="content-page narrow">
+              <SystemUpdate standalone />
+            </section>
           )}
           {page === "photos" && <MobilePhotos />}
           {page === "chat" && (

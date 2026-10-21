@@ -2,112 +2,146 @@ import { useEffect, useState } from "react";
 import { apiBaseUrl } from "../services/api";
 import { authenticatedFetch } from "../services/transport";
 
-type UpdateJob = { id: string; kind: string; status: string; phase?: string; commit?: string; error?: string };
-type Update = { platform: string; status?: string; directory?: string; commit?: string; phase?: string; available?: boolean; reason?: string; active_commit?: string; jobs?: UpdateJob[] };
+type UpdateJob = {
+  id: string; kind: string; status: string; phase?: string; commit?: string;
+  base_commit?: string; error?: string; updated_at?: string;
+};
+type Update = {
+  platform: string; status?: string; directory?: string; commit?: string;
+  phase?: string; available?: boolean; reason?: string; active_commit?: string;
+  jobs?: UpdateJob[];
+};
+const working = (job: UpdateJob) => ["queued", "running"].includes(job.status);
+const phaseNames: Record<string, string> = {
+  queued: "In attesa", building: "Compilazione delle immagini", testing: "Esecuzione dei test",
+  ready: "Verifiche completate", stopping: "Arresto controllato dei servizi",
+  backing_up: "Backup dei dati", backup_complete: "Backup completato",
+  migration_trial: "Prova delle migrazioni su una copia dei dati",
+  candidate_starting: "Avvio della versione candidata",
+  restoring: "Ripristino della versione precedente", completed: "Completato",
+};
+const describe = (job: UpdateJob) => phaseNames[job.phase || ""] || job.phase || job.status;
+const role = (job: UpdateJob) => job.kind === "prepare" ? "Preparazione" : job.kind === "apply" ? "Installazione" : "Operazione";
+const short = (hash?: string) => hash?.slice(0, 12) || "non disponibile";
 
-export default function SystemUpdate() {
-  const [open, setOpen] = useState(false);
+export default function SystemUpdate({ standalone = false }: { standalone?: boolean } = {}) {
+  const [expanded, setExpanded] = useState(false);
+  const open = standalone || expanded;
   const [state, setState] = useState<Update | null>(null);
-  const [error, setError] = useState("");
+  const [connected, setConnected] = useState<boolean | null>(null);
+  const [statusError, setStatusError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [actionNote, setActionNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const current = state?.jobs?.find(j => ["queued", "running"].includes(j.status)) || state?.jobs?.[0];
-  const phaseLabel: Record<string, string> = {
-    queued: "In attesa", building: "Compilazione Docker", testing: "Esecuzione dei test",
-    ready: "Verifiche completate", stopping: "Arresto di Cora",
-    backing_up: "Backup dei dati", backup_complete: "Backup completato",
-    migrating: "Verifica migrazioni", applying: "Installazione",
-    starting: "Avvio servizi", verifying: "Verifica finale",
-    restoring: "Ripristino", completed: "Completato"
-  };
-  const describe = (j: UpdateJob) => phaseLabel[j.phase || ""] || j.phase || j.status;
+
   async function refresh() {
     try {
       const response = await authenticatedFetch(apiBaseUrl + "/api/v1/system/update");
-      if (!response.ok) throw Error("Stato aggiornamenti non disponibile.");
-      setState(await response.json()); setError("");
-    } catch (e) { setError(String(e)); }
+      if (!response.ok) throw Error("HTTP " + response.status);
+      const data: Update = await response.json();
+      setState(data); setConnected(true); setStatusError("");
+    } catch {
+      // Never display an old queued job as current when the API cannot be reached.
+      setConnected(false);
+      setStatusError("Backend temporaneamente non raggiungibile. Durante l'installazione Cora può riavviarsi: l'updater sul Debian continua indipendentemente. Non ripetere la richiesta; la pagina riproverà automaticamente.");
+    }
   }
-  useEffect(() => { if (open) void refresh(); }, [open]);
+
   useEffect(() => {
-    if (!open || (state?.status !== "running" && !state?.jobs?.some(j => ["queued", "running"].includes(j.status)))) return;
+    if (!open) return;
+    void refresh();
+    // Poll even while disconnected or when no job has been returned yet.
     const timer = setInterval(() => void refresh(), 3000);
     return () => clearInterval(timer);
-  }, [open, state?.status, state?.jobs]);
-  async function prepareServer() {
-    setBusy(true); setError("");
+  }, [open]);
+
+  async function invoke(route: string, body?: object) {
+    setBusy(true); setActionError(""); setActionNote("");
     try {
-      const response = await authenticatedFetch(apiBaseUrl + "/api/v1/system/update/server/prepare", { method: "POST" });
-      if (!response.ok) throw Error(await response.text());
-      await refresh();
-    } catch (e) { setError(String(e)); }
-    finally { setBusy(false); }
-  }
-  async function applyServer(job: UpdateJob) {
-    if (!job.commit || !window.confirm("Installare il rilascio " + job.commit.slice(0, 12) + "? Cora si riavvierà. Il servizio host eseguirà backup e controlli prima di confermare il risultato.")) return;
-    setBusy(true); setError("");
-    try {
-      const response = await authenticatedFetch(apiBaseUrl + "/api/v1/system/update/server/apply", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ release_id: job.id, expected_commit: job.commit }),
+      const response = await authenticatedFetch(apiBaseUrl + route, {
+        method: "POST", ...(body ? {headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)} : {}),
       });
-      if (!response.ok) throw Error(await response.text());
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw Error(typeof errorBody.detail === "string" ? errorBody.detail : "Operazione non accettata (HTTP " + response.status + ").");
+      }
+      setActionNote("Richiesta accettata. Attendo le verifiche del servizio updater.");
       await refresh();
-    } catch (e) { setError(String(e)); }
-    finally { setBusy(false); }
+    } catch (error) {
+      // If the response was lost, the daemon may have accepted the request.
+      // In particular, never automatically repeat an uncertain POST.
+      setActionError((error instanceof Error ? error.message : String(error)) + ". Esito non confermato: controlla lo stato prima di riprovare.");
+    } finally { setBusy(false); }
   }
-  async function prepare() {
-    setBusy(true); setError("");
-    try {
-      const response = await authenticatedFetch(apiBaseUrl + "/api/v1/system/update/prepare", { method: "POST" });
-      if (!response.ok) throw Error("Preparazione non confermata: verifica lo stato prima di riprovare.");
-      await refresh();
-    } catch (e) { await refresh(); setError(String(e)); }
-    finally { setBusy(false); }
-  }
-  return <div className="home-update-actions">
-    <button className="file-tool" onClick={() => setOpen(v => !v)}>Aggiorna Cora</button>
+
+  const jobs = state?.jobs || [];
+  const running = jobs.find(working);
+  const ready = jobs.find(job => job.kind === "prepare" && job.status === "ready" &&
+    !!job.base_commit && job.base_commit === state?.active_commit);
+  const recent = jobs[0];
+  const shown = running || ready || recent;
+  const canAct = connected === true && state?.available === true && !busy && !running;
+
+  return <div className={standalone ? "system-card" : "home-update-actions"}>
+    {standalone ? <>
+      <h1>Aggiornamenti Cora</h1>
+      <p>Il servizio di aggiornamento gira sul Debian e prosegue anche durante il riavvio di Cora.</p>
+    </> : <button className="file-tool" onClick={() => setExpanded(v => !v)}>Aggiorna Cora</button>}
     {open && <section aria-label="Aggiornamento di Cora" aria-live="polite">
-      {error && <p role="alert">{error}</p>}
+      {connected === false && <p role="status" style={{ color: "#965a14" }}>{statusError}</p>}
+      {actionError && <p role="alert" style={{color:"#b42318",fontWeight:600}}>{actionError}</p>}
+      {actionNote && !actionError && <p role="status">{actionNote}</p>}
       <button className="text-button" onClick={() => void refresh()}>Verifica stato</button>
       {state?.platform === "windows" ? <>
-        <p>Desktop Windows: prepara una nuova copia da GitHub ed esegue test e build. La copia attuale resta attiva.</p>
-        <button className="file-tool" disabled={busy || state.status === "running"} onClick={() => void prepare()}>
-          {busy || state.status === "running" ? "Preparazione in corso…" : "Prepara aggiornamento Windows"}
-        </button>
-        {state.status === "failed" && <p role="alert">Preparazione fallita nella fase {state.phase}. Aggiornamento non installato. Controlla le dipendenze e i test del candidato in {state.directory}.</p>}
+        <p>Desktop Windows: prepara una copia separata del codice, esegue test e build, senza installarla automaticamente.</p>
+        <button className="file-tool" disabled={connected !== true || busy || state.status === "running"}
+          onClick={() => void invoke("/api/v1/system/update/prepare")}>Prepara aggiornamento Windows</button>
+        {state.status === "failed" && <p role="alert" style={{color:"#b42318"}}>Preparazione fallita nella fase {state.phase}. La versione installata non è cambiata.</p>}
         {state.status === "ready" && <>
-          <p>Suite di regressione Windows, test frontend e build riusciti per il commit {state.commit}. Aggiornamento preparato, non installato. I test server completi sono eseguiti nella CI Linux.</p>
-          <p>Prima di attivare: salva un backup PostgreSQL e della cartella data, chiudi i servizi Cora attuali, poi esegui ATTIVA.ps1 nella cartella indicata. Configurazione e dati restano quelli locali. Per tornare al codice precedente serve anche un backup compatibile del database.</p>
+          <p>Versione {short(state.commit)} verificata e preparata, non ancora installata.</p>
+          <p>Per attivare il candidato, esegui il backup dei dati e segui le istruzioni della cartella preparata.</p>
           <code>{state.directory}</code>
         </>}
       </> : state?.platform === "server" ? <>
-        {!state.available ? <p role="alert" style={{ color: "#b42318" }}>{state.reason || "Updater non configurato su Debian."}</p> : <>
-          <button className="file-tool" disabled={busy || !!state.jobs?.some(j => ["queued","running"].includes(j.status))}
-            onClick={() => void prepareServer()}>Prepara aggiornamento da GitHub</button>
-          {current && <div className="settings-row" aria-live="polite">
-            <div>
-              <strong>{current.kind === "prepare" ? "Preparazione" : current.kind === "apply" ? "Installazione" : "Operazione"}: {describe(current)}</strong>
-              <p>{current.status === "failed" ? "Aggiornamento non riuscito." :
-                current.status === "ready" ? "Versione verificata. Conferma per installarla." :
-                ["queued","running"].includes(current.status) ? "Il server sta eseguendo questa fase; aggiornamento automatico dello stato." :
-                current.status === "completed" ? "Operazione completata." : current.status}</p>
-              {current.status === "failed" && <p role="alert" style={{ color: "#b42318", fontWeight: 600 }}>
-                Motivo: {current.error || "Dettagli non disponibili: consultare il log privato dell'updater sul Debian."}
-              </p>}
-            </div>
-            {current.kind === "prepare" && current.status === "ready" &&
-              <button className="file-tool" disabled={busy} onClick={() => void applyServer(current)}>Installa versione verificata</button>}
-          </div>}
-          {!!state.jobs?.length && <button className="text-button" onClick={() => setShowHistory(v => !v)}>
-            {showHistory ? "Nascondi cronologia" : "Mostra cronologia aggiornamenti"}
-          </button>}
-          {showHistory && state.jobs?.slice(0, 15).map(job => <div className="settings-row" key={job.id}>
-            <span>{job.kind} · {describe(job)} · {job.status}</span>
-            {job.status === "failed" && <span role="alert" style={{ color: "#b42318" }}>{job.error || "Dettagli non disponibili"}</span>}
-          </div>)}
-        </>}
-      </> : null}
+        {state.available === false && connected === true &&
+          <p role="alert" style={{color:"#b42318"}}>{state.reason || "Servizio updater non disponibile."}</p>}
+        <p>Commit installato: <code>{short(state.active_commit)}</code></p>
+        {state.available !== false && <button className="file-tool" disabled={!canAct}
+          onClick={() => void invoke("/api/v1/system/update/server/prepare")}>
+          Prepara aggiornamento da GitHub
+        </button>}
+        {connected === false && shown &&
+          <p>Ultimo stato noto (non confermato): {role(shown)} · {describe(shown)}. Non è un'indicazione dello stato attuale.</p>}
+        {connected === true && shown && <div className="settings-row">
+          <div>
+            <strong>{running ? role(shown) + ": " + describe(shown) :
+              ready && shown.id === ready.id ? "Versione pronta per l'installazione" :
+              "Ultimo risultato: " + role(shown) + " · " + describe(shown)}</strong>
+            {running && <p role="status">L'updater è al lavoro sul server. La fase viene aggiornata automaticamente.</p>}
+            {shown.status === "failed" && <p role="alert" style={{color:"#b42318",fontWeight:600}}>
+              Aggiornamento non riuscito. Motivo: {shown.error || "Controlla il log privato del servizio updater sul Debian."}
+            </p>}
+            {shown.status === "recovery_required" && <p role="alert" style={{color:"#b42318",fontWeight:600}}>
+              È necessario un intervento sul server prima di tentare nuovi aggiornamenti.
+            </p>}
+          </div>
+          {ready && !running && shown.id === ready.id &&
+            <button className="file-tool" disabled={!canAct} onClick={() => {
+              if (!window.confirm("Installare il commit " + short(ready.commit) + "? Cora verrà riavviata dopo backup e test.")) return;
+              void invoke("/api/v1/system/update/server/apply", {
+                release_id: ready.id, expected_commit: ready.commit,
+              });
+            }}>Installa versione verificata</button>}
+        </div>}
+        {!!jobs.length && <button className="text-button" onClick={() => setShowHistory(v => !v)}>
+          {showHistory ? "Nascondi cronologia aggiornamenti" : "Mostra cronologia aggiornamenti"}
+        </button>}
+        {showHistory && jobs.slice(0, 15).map(job => <div key={job.id} className="settings-row">
+          <span>{role(job)} · {job.status} · {describe(job)} · {short(job.commit)}</span>
+          {job.status === "failed" && <span role="alert" style={{color:"#b42318"}}>{job.error || "Dettagli non disponibili"}</span>}
+        </div>)}
+      </> : connected === null ? <p>Caricamento stato aggiornamenti…</p> : null}
     </section>}
   </div>;
 }

@@ -21,3 +21,20 @@ Non usare "operativo" in base alla sola presenza di file, pulsanti o check CI.
 2. Documentare dipendenze, API e consenso/permessi.
 3. Test automatici della modifica senza saltare controlli.
 4. Collaudo su Debian e browser telefono; registrare commit e risultato.
+
+
+## Aggiornamenti Cora — verifica 2026-10-21
+
+- La Home mostra esclusivamente il commit attivo e un collegamento alla sottopagina interna `#updates`.
+- La sottopagina interroga le API autorizzate di Cora ogni 3 secondi, anche durante una temporanea indisponibilità del backend. **Non è una seconda interfaccia pubblica dell'updater** e non espone token.
+- Durante il riavvio dei container, lo stato mostrato è esplicitamente **ultimo dato noto, non verificato**. L'updater sul Debian continua a lavorare e la pagina riprende la lettura quando FastAPI torna disponibile.
+- I rilasci `ready` di una versione base differente dal commit attivo non sono installabili dall'interfaccia.
+- Un POST con esito non confermato **non viene ripetuto automaticamente**.
+- Percorso di aggiornamento host in un comando (da usare solo dopo merge e CI verde della PR):
+
+```sh
+cd /srv/cora-server-test && git fetch origin main && git merge --ff-only origin/main && sudo python3 deploy/update_once.py --commit "$(git rev-parse HEAD)"
+```
+
+  `deploy/update_once.py` verifica il target `api-audio-cpu`, l'assenza di altri job attivi, la corrispondenza esatta del commit proveniente dal repository configurato; chiede al servizio host di preparare, testare e poi applicare il rilascio, aspettandone l'esito. Backup e ripristino restano responsabilità dell'updater, non del checkout Git. Non usare `docker compose down -v`.
+- La pagina e il comando devono essere collaudati sul Debian dopo la CI; non indicare operativo senza verifica.

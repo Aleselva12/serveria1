@@ -1,6 +1,5 @@
 import LibraryMonitorFeed from "./LibraryMonitorFeed";
 import { Activity, ExternalLink, HardDrive, PlugZap, ShieldCheck, Wifi } from "lucide-react";
-import SystemUpdate from "./SystemUpdate";
 import CurrentCommit from "./CurrentCommit";
 import ManagedApplications from "./ManagedApplications";
 import type { BackendHealth } from "../types/contracts";
@@ -25,10 +24,12 @@ export default function Home({
   health,
   checking,
   checkedAt,
+  onOpenUpdates,
 }: {
   health: BackendHealth | null;
   checking: boolean;
   checkedAt: string;
+  onOpenUpdates: () => void;
 }) {
   const { telemetry, services, telemetryError, servicesError } =
     useHomeMonitoring();
@@ -57,7 +58,7 @@ export default function Home({
               ? "Verifica della connessione a Cora…"
               : "Il backend non è raggiungibile. Avvia Cora sul computer o sul server."}
         </p>
-        <div className="home-update-actions"><SystemUpdate /><ManagedApplications /></div>
+        <div className="home-update-actions"><button className="file-tool" onClick={onOpenUpdates}>Aggiorna Cora</button><ManagedApplications /></div>
         <small>
           {telemetry
             ? "Misurazioni della macchina che esegue Cora · " +
