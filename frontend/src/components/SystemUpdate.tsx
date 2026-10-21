@@ -52,8 +52,8 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
     if (!open) return;
     void refresh();
     // Poll even while disconnected or when no job has been returned yet.
-    const timer = window.setInterval(() => void refresh(), 3000);
-    return () => window.clearInterval(timer);
+    const timer = setInterval(() => void refresh(), 3000);
+    return () => clearInterval(timer);
   }, [open]);
 
   async function invoke(route: string, body?: object) {
