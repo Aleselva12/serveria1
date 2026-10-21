@@ -1,23 +1,46 @@
-"""One-time Google Calendar OAuth helper for a headless server.
+"""One-time Google Calendar OAuth helper for the Dockerized server.
 
-Recommended from the user's computer:
+From the user's computer open an SSH tunnel:
   ssh -L 8765:127.0.0.1:8765 ale@serverale
 
-Then, on the server:
+Then, in another SSH session on the server:
   docker exec -it cora-api-1 python -m core.google_calendar_auth --port 8765 --login-hint you@example.com
 
-Open the printed URL in the computer browser. Google's localhost callback
-travels through the SSH tunnel to this process.
+Open the printed Google URL in the computer browser. Google redirects to
+http://localhost:8765/, which travels through SSH to the server's loopback-only
+Docker port and finally reaches this temporary callback listener.
 """
 from __future__ import annotations
 
 import argparse
 import os
-from pathlib import Path
+from wsgiref.simple_server import make_server
+from wsgiref.util import request_uri
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 from core.google_calendar import CREDENTIALS_PATH, SCOPES, TOKEN_PATH, verify_access
+
+
+class CallbackApp:
+    def __init__(self):
+        self.last_request_uri = None
+
+    def __call__(self, environ, start_response):
+        self.last_request_uri = request_uri(environ)
+        body = (
+            "Google Calendar collegato a Cora. "
+            "Puoi chiudere questa scheda e tornare al terminale."
+        ).encode("utf-8")
+        start_response(
+            "200 OK",
+            [
+                ("Content-Type", "text/plain; charset=utf-8"),
+                ("Content-Length", str(len(body))),
+                ("Cache-Control", "no-store"),
+            ],
+        )
+        return [body]
 
 
 def authorize(port: int, login_hint: str = ""):
@@ -26,27 +49,38 @@ def authorize(port: int, login_hint: str = ""):
             f"Credenziali Google non trovate: {CREDENTIALS_PATH}. "
             "Puoi riutilizzare il client OAuth già usato da Gmail."
         )
+
     flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_PATH), SCOPES)
-    kwargs = {
-        "host": "127.0.0.1",
-        "port": port,
-        "open_browser": False,
-        "authorization_prompt_message": (
-            "\nApri questo URL nel browser del computer collegato via tunnel SSH:\n{url}\n"
-        ),
-        "success_message": "Google Calendar collegato a Cora. Puoi chiudere questa scheda.",
-        "access_type": "offline",
-        "prompt": "consent",
-    }
+    flow.redirect_uri = f"http://localhost:{port}/"
+    params = {"access_type": "offline", "prompt": "consent"}
     if login_hint:
-        kwargs["login_hint"] = login_hint
-    creds = flow.run_local_server(**kwargs)
+        params["login_hint"] = login_hint
+    auth_url, _ = flow.authorization_url(**params)
+
+    callback = CallbackApp()
+    print("\nApri questo URL nel browser del computer con il tunnel SSH attivo:\n")
+    print(auth_url)
+    print("\nIn attesa dell'autorizzazione Google…")
+
+    with make_server("0.0.0.0", port, callback) as server:
+        server.handle_request()
+
+    if not callback.last_request_uri:
+        raise RuntimeError("Callback OAuth non ricevuto.")
+    authorization_response = callback.last_request_uri
+    # oauthlib requires https except for loopback redirect URIs; explicitly allow
+    # the standards-defined localhost exception for this one-time flow.
+    os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
+    flow.fetch_token(authorization_response=authorization_response)
+    creds = flow.credentials
+
     TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
     TOKEN_PATH.write_text(creds.to_json(), encoding="utf-8")
     os.chmod(TOKEN_PATH, 0o600)
+
     if not verify_access():
         raise RuntimeError("Autorizzazione ricevuta ma Calendar non verificabile.")
-    print(f"Google Calendar collegato. Token salvato in {TOKEN_PATH}")
+    print(f"\nGoogle Calendar collegato. Token salvato in {TOKEN_PATH}")
 
 
 def main():
