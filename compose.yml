@@ -54,6 +54,10 @@ services:
       CORA_WHISPER_LOCAL_ONLY: 'true'
       HF_HUB_OFFLINE: '1'
       HF_HUB_DISABLE_IMPLICIT_TOKEN: '1'
+    # Loopback-only callback used only during one-time Google Calendar OAuth.
+    # It is not exposed to the LAN/Tailscale/Internet.
+    ports:
+      - '127.0.0.1:${CORA_GOOGLE_CALENDAR_OAUTH_PORT:-8765}:8765'
     volumes:
       - type: bind
         source: ${CORA_STATE_ROOT:-./state}
