@@ -101,6 +101,8 @@ def history(event_id: str):
 
 @router.get("/proposals")
 def proposals():
+    if google_calendar.token_exists():
+        return []
     return run(store.list_proposals)
 
 
