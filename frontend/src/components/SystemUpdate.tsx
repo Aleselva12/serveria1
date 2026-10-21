@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { apiBaseUrl } from "../services/api";
 import { authenticatedFetch } from "../services/transport";
 
-type Update = { platform: string; status: string; url?: string; directory?: string; commit?: string; phase?: string };
+type UpdateJob = { id: string; kind: string; status: string; phase?: string; commit?: string };
+type Update = { platform: string; status?: string; directory?: string; commit?: string; phase?: string; available?: boolean; reason?: string; active_commit?: string; jobs?: UpdateJob[] };
 
 export default function SystemUpdate() {
   const [open, setOpen] = useState(false);
@@ -18,10 +19,32 @@ export default function SystemUpdate() {
   }
   useEffect(() => { if (open) void refresh(); }, [open]);
   useEffect(() => {
-    if (!open || state?.status !== "running") return;
+    if (!open || (state?.status !== "running" && !state?.jobs?.some(j => ["queued", "running"].includes(j.status)))) return;
     const timer = setInterval(() => void refresh(), 3000);
     return () => clearInterval(timer);
-  }, [open, state?.status]);
+  }, [open, state?.status, state?.jobs]);
+  async function prepareServer() {
+    setBusy(true); setError("");
+    try {
+      const response = await authenticatedFetch(apiBaseUrl + "/api/v1/system/update/server/prepare", { method: "POST" });
+      if (!response.ok) throw Error(await response.text());
+      await refresh();
+    } catch (e) { setError(String(e)); }
+    finally { setBusy(false); }
+  }
+  async function applyServer(job: UpdateJob) {
+    if (!job.commit || !window.confirm("Installare il rilascio " + job.commit.slice(0, 12) + "? Cora si riavvierà. Il servizio host eseguirà backup e controlli prima di confermare il risultato.")) return;
+    setBusy(true); setError("");
+    try {
+      const response = await authenticatedFetch(apiBaseUrl + "/api/v1/system/update/server/apply", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ release_id: job.id, expected_commit: job.commit }),
+      });
+      if (!response.ok) throw Error(await response.text());
+      await refresh();
+    } catch (e) { setError(String(e)); }
+    finally { setBusy(false); }
+  }
   async function prepare() {
     setBusy(true); setError("");
     try {
@@ -47,10 +70,20 @@ export default function SystemUpdate() {
           <p>Prima di attivare: salva un backup PostgreSQL e della cartella data, chiudi i servizi Cora attuali, poi esegui ATTIVA.ps1 nella cartella indicata. Configurazione e dati restano quelli locali. Per tornare al codice precedente serve anche un backup compatibile del database.</p>
           <code>{state.directory}</code>
         </>}
-      </> : state?.url ? <>
-        <p>Server Debian: apri il servizio aggiornamenti del server. Controlla l’esito del job prima di considerare completato l’aggiornamento.</p>
-        <a className="home-update-link" href={state.url} target="_blank" rel="noopener noreferrer">Apri aggiornamenti Debian</a>
-      </> : state && <p>Servizio aggiornamenti Debian non configurato. Imposta CORA_UPDATE_URL con l’indirizzo HTTPS della pagina host e segui updater/README.md. Il servizio richiede configurazione separata dall’app.</p>}
+      </> : state?.platform === "server" ? <>
+        <p>Aggiornamenti integrati: GitHub main → verifiche → backup → installazione. Cora rimane il punto di controllo; il servizio host continua anche durante il riavvio.</p>
+        {!state.available ? <p role="alert">{state.reason || "Updater non configurato: installazione iniziale tramite updater/README.md sul Debian."}</p> : <>
+          <p>Versione installata: <code>{state.active_commit?.slice(0, 12) || "sconosciuta"}</code></p>
+          <button className="file-tool" disabled={busy || state.jobs?.some(j => ["queued", "running"].includes(j.status))} onClick={() => void prepareServer()}>Prepara aggiornamento da GitHub</button>
+          {state.jobs?.filter(j => j.kind === "prepare").slice(0, 5).map(job =>
+            <div className="settings-row" key={job.id}>
+              <div><strong>{job.status}</strong> · {job.phase || "In attesa"} · <code>{job.commit?.slice(0, 12)}</code></div>
+              {job.status === "ready" && <button className="file-tool" disabled={busy} onClick={() => void applyServer(job)}>Installa versione verificata</button>}
+            </div>
+          )}
+          {state.jobs?.filter(j => j.kind === "apply").slice(0, 3).map(job => <p key={job.id}>Installazione: {job.status} · {job.phase || ""}</p>)}
+        </>}
+      </> : null}
     </section>}
   </div>;
 }
