@@ -573,7 +573,8 @@ export default function Calendar() {
           {editing && (
             <>
               <p className="panel-note">
-                Creato da {editing.created_by} · versione {editing.version}
+                Creato da {editing.created_by}
+                {provider.provider !== "google" && <> · versione {editing.version}</>}
                 {!editing.all_day && (
                   <> · {editing.reminder_minutes ? `promemoria ${editing.reminder_minutes} min prima` : "nessun promemoria"}</>
                 )}
@@ -592,7 +593,9 @@ export default function Calendar() {
                     )
                       void mutate(
                         () => calendarApi.remove(editing, token),
-                        "Evento eliminato e recuperabile.",
+                        provider.provider === "google"
+                          ? "Evento eliminato da Google Calendar."
+                          : "Evento eliminato e recuperabile.",
                         true,
                       );
                   }}
@@ -600,18 +603,20 @@ export default function Calendar() {
                   Elimina
                 </button>
               </div>
-              <details className="calendar-history">
-                <summary>Storico modifiche ({history.length})</summary>
-                {history.map((h) => (
-                  <div key={h.id}>
-                    <strong>
-                      {actions[h.action]} · {h.actor}
-                    </strong>
-                    <small>{romeLocal(h.changed_at).replace("T", " ")}</small>
-                    <span>{String(h.snapshot.title ?? "")}</span>
-                  </div>
-                ))}
-              </details>
+              {provider.provider !== "google" && (
+                <details className="calendar-history">
+                  <summary>Storico modifiche ({history.length})</summary>
+                  {history.map((h) => (
+                    <div key={h.id}>
+                      <strong>
+                        {actions[h.action]} · {h.actor}
+                      </strong>
+                      <small>{romeLocal(h.changed_at).replace("T", " ")}</small>
+                      <span>{String(h.snapshot.title ?? "")}</span>
+                    </div>
+                  ))}
+                </details>
+              )}
             </>
           )}
         </aside>
