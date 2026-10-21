@@ -34,7 +34,7 @@ test('Windows preparation is explicit and ready never means installed',async()=>
   await act(async()=>button(r,'Prepara aggiornamento Windows').props.onClick());
   assert.equal(calls.filter(c=>c[1]==='POST').length,1);
   assert.match(text(r.toJSON()),/preparato, non installato/);
-  assert.match(text(r.toJSON()),/backup PostgreSQL/);
+  assert.match(text(r.toJSON()),/backup dei dati/);
  }finally{if(r)await act(async()=>r.unmount());}
 });
 
@@ -58,7 +58,7 @@ test('Debian prepares from GitHub only on click and installs only a verified job
  const oldConfirm=globalThis.window;
  let r, calls=[];
  globalThis.window={confirm:()=>false};
- const release={id:'12345678-1234-1234-1234-123456789abc',kind:'prepare',status:'ready',phase:'ready',commit:'a'.repeat(40)};
+ const release={id:'12345678-1234-1234-1234-123456789abc',kind:'prepare',status:'ready',phase:'ready',commit:'a'.repeat(40),base_commit:'b'.repeat(40)};
  globalThis.__updateFetch=async(path,init={})=>{
    calls.push([path,init.method||'GET']);
    return {ok:true,json:async()=>({platform:'server',available:true,active_commit:'b'.repeat(40),jobs:[release]})};
@@ -89,5 +89,37 @@ test('an uncertain POST is never repeated automatically and remains visible',asy
   await act(async()=>button(r,'Aggiorna Cora').props.onClick());
   await act(async()=>button(r,'Prepara aggiornamento Windows').props.onClick());
   assert.equal(posts,1);assert.match(text(r.toJSON()),/offline/);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('status lost during deployment is shown as stale, never as a live pending phase', async()=>{
+ let calls=0,r;
+ globalThis.__updateFetch=async()=>{
+   calls++;
+   if(calls>1) throw Error('proxy offline');
+   return {ok:true,json:async()=>({platform:'server',available:true,active_commit:'b'.repeat(40),
+      jobs:[{id:'a',kind:'apply',status:'queued',phase:'queued',commit:'a'.repeat(40)}]})};
+ };
+ try {
+   await act(async()=>{r=create(React.createElement(Panel));});
+   await act(async()=>button(r,'Aggiorna Cora').props.onClick());
+   assert.match(text(r.toJSON()),/In attesa/);
+   await act(async()=>button(r,'Verifica stato').props.onClick());
+   assert.match(text(r.toJSON()),/Ultimo stato noto/);
+   assert.match(text(r.toJSON()),/Backend temporaneamente non raggiungibile/);
+   assert.equal(button(r,'Prepara aggiornamento da GitHub').props.disabled,true);
+ } finally {if(r)await act(async()=>r.unmount());}
+});
+
+test('dedicated Updates page starts open and keeps old release un-installable', async()=>{
+ let r;
+ const old={id:'old',kind:'prepare',status:'ready',phase:'ready',commit:'a'.repeat(40),base_commit:'c'.repeat(40)};
+ globalThis.__updateFetch=async()=>({ok:true,json:async()=>({
+   platform:'server',available:true,active_commit:'b'.repeat(40),jobs:[old]
+ })});
+ try {
+   await act(async()=>{r=create(React.createElement(Panel,{standalone:true}));});
+   assert.match(text(r.toJSON()),/Aggiornamenti Cora/);
+   assert.equal(Boolean(button(r,'Installa versione verificata')),false);
  }finally{if(r)await act(async()=>r.unmount());}
 });
