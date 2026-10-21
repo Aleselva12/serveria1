@@ -47,10 +47,27 @@ def audio_status():
     model = os.getenv('CORA_WHISPER_MODEL', 'small')
     local_only = os.getenv('CORA_WHISPER_LOCAL_ONLY', 'false').lower() == 'true'
     installed = importlib.util.find_spec('faster_whisper') is not None
-    model_ready = not local_only or (Path(model).is_dir() and all((Path(model)/name).is_file() for name in ('model.bin','config.json','tokenizer.json')))
+    # The isolated server must never claim readiness based on a model that
+    # *could* be downloaded. Runtime uses only a prepared local model.
+    model_path = Path(model)
+    verified_local = model_path.is_dir() and all(
+        (model_path / name).is_file() for name in ('model.bin', 'config.json', 'tokenizer.json', 'cora-model.json')
+    )
+    if verified_local:
+        try:
+            from audio_agent.model_setup import verify
+            verify(model_path)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError):
+            verified_local = False
+    model_ready = verified_local if local_only else True
     diarization = os.getenv('CORA_DIARIZATION_MODEL', '')
+    reason = ('Dipendenze Faster-Whisper mancanti: usa il target Docker api-audio-cpu.'
+              if not installed else
+              'Modello Whisper locale assente o non verificato: prepara il modello sul Debian.'
+              if not model_ready else '')
     return {'ready': installed and model_ready, 'engineInstalled': installed, 'localModelReady': model_ready,
-            'localOnly': local_only, 'diarizationReady': bool(diarization and Path(diarization).exists() and importlib.util.find_spec('pyannote') is not None)}
+            'localOnly': local_only, 'reason': reason, 'verifiedLocalModel': verified_local,
+            'diarizationReady': bool(diarization and Path(diarization).exists() and importlib.util.find_spec('pyannote') is not None)}
 
 
 @router.get('')

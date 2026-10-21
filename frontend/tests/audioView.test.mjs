@@ -24,7 +24,7 @@ const row={id:'record',title:'Telefonata',name:'call.wav',recordedAt:'2026-10-04
 test('saved recordings show readiness and never offer microphone capture',async()=>{
  globalThis.__audioTest={request:async route=>route.endsWith('/status')?{ready:false,engineInstalled:false,localModelReady:false}:route==='/api/v1/audio'?{items:[]}:assert.fail(route)};
  let tree;await act(async()=>{tree=create(React.createElement(Audio));await flush();});
- assert.match(text(tree.toJSON()),/Dipendenze Audio non installate/);
+ assert.match(text(tree.toJSON()),/Dipendenze Audio assenti/);
  assert.match(text(tree.toJSON()),/senza microfono/);
  assert.equal(tree.root.findAllByType('input').filter(n=>n.props.type==='file')[0].props.accept.includes('.m4a'),true);
  await act(async()=>tree.unmount());

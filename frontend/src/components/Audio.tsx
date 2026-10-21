@@ -10,9 +10,9 @@ export default function Audio() {
   const [record,setRecord]=useState<AudioRecord|null>(null), [text,setText]=useState('');
   const [dirty,setDirty]=useState(false), [busy,setBusy]=useState(false), [error,setError]=useState(''), [notice,setNotice]=useState('');
   const [title,setTitle]=useState(''), [date,setDate]=useState(''), [one,setOne]=useState(''), [two,setTwo]=useState('');
-  const [readiness,setReadiness]=useState<{ready:boolean;engineInstalled:boolean;localModelReady:boolean;diarizationReady:boolean}|null>(null);
+  const [readiness,setReadiness]=useState<{ready:boolean;engineInstalled:boolean;localModelReady:boolean;diarizationReady:boolean;reason?:string}|null>(null);
   const [language,setLanguage]=useState('it'), [diarize,setDiarize]=useState(false);
-  const input=useRef<HTMLInputElement>(null), live=useRef(true), revision=useRef(0), lock=useRef(false);
+  const input=useRef<HTMLInputElement>(null), details=useRef<HTMLDivElement>(null), live=useRef(true), revision=useRef(0), lock=useRef(false);
   async function refresh() { const status=await mediaRequest<NonNullable<typeof readiness>>('/api/v1/audio/status');if(live.current)setReadiness(status);const data=await mediaRequest<{items:AudioRecord[]}>('/api/v1/audio'); if(live.current) setItems(data.items); }
   useEffect(()=>{live.current=true; void refresh().catch(e=>setError(e.message));return()=>{live.current=false;revision.current++;};},[]);
   useEffect(()=>{
@@ -29,6 +29,11 @@ export default function Audio() {
     if(lock.current)return;lock.current=true;setBusy(true);setError('');setNotice('');
     try{await fn();}catch(e){setError(e instanceof Error?e.message:'Operazione non riuscita.');}finally{lock.current=false;setBusy(false);}
   }
+  useEffect(() => {
+    if (record && typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches) {
+      details.current?.scrollIntoView({behavior:'smooth',block:'start'});
+    }
+  }, [record?.id]);
   async function upload(file:File) {
     await action(async()=>{const form=new FormData();form.set('file',file);form.set('title',title);form.set('recorded_at',date);form.set('speaker_one',one);form.set('speaker_two',two);
       const r=await mediaRequest<AudioRecord>('/api/v1/audio',{method:'POST',body:form});await refresh();setSelected(r.id);setNotice('Registrazione salvata. Avvia la trascrizione quando vuoi.');});
@@ -36,19 +41,19 @@ export default function Audio() {
   const working=Boolean(record?.run&&!terminal.has(record.run.status));
   return <section className="media-page">
     <div className="page-heading"><h1>Audio</h1><p>Registrazioni già salvate di telefonate e conversazioni. Trascrizione locale, senza microfono.</p></div>
-    {readiness&&!readiness.ready&&<p className="connection-notice">{!readiness.engineInstalled?"Dipendenze Audio non installate: avvia AVVIO.cmd -ConAudio sul PC oppure usa il profilo Docker Audio.":"Modello Whisper locale non pronto. Prepara il modello prima della trascrizione."} Puoi comunque caricare le registrazioni.</p>}
+    {readiness&&!readiness.ready&&<p className="connection-notice">{readiness.reason || (!readiness.engineInstalled?"Dipendenze Audio assenti. Sul Debian abilita il target api-audio-cpu.":"Modello Whisper locale non pronto.")} Puoi comunque caricare le registrazioni.</p>}
     {error&&<div className="connection-error" role="alert">{error}</div>}{notice&&<p role="status">{notice}</p>}
-    <div className="system-card audio-upload"><h2>Carica una registrazione</h2>
-      <label>Titolo<input value={title} maxLength={200} onChange={e=>setTitle(e.target.value)} disabled={busy}/></label>
-      <label>Data della conversazione<input type="datetime-local" value={date} onChange={e=>setDate(e.target.value)} disabled={busy}/></label>
-      <label>Interlocutore 1<input value={one} maxLength={200} onChange={e=>setOne(e.target.value)} disabled={busy}/></label>
-      <label>Interlocutore 2<input value={two} maxLength={200} onChange={e=>setTwo(e.target.value)} disabled={busy}/></label>
+    <div className="system-card audio-upload"><h2>Carica una registrazione</h2><p>Seleziona un file già registrato dal telefono o dal computer. I campi sotto sono facoltativi.</p>
+      <label>Titolo (facoltativo)<input value={title} maxLength={200} onChange={e=>setTitle(e.target.value)} disabled={busy}/></label>
+      <label>Data della conversazione (facoltativa)<input type="datetime-local" value={date} onChange={e=>setDate(e.target.value)} disabled={busy}/></label>
+      <label>Interlocutore 1 (facoltativo)<input value={one} maxLength={200} onChange={e=>setOne(e.target.value)} disabled={busy}/></label>
+      <label>Interlocutore 2 (facoltativo)<input value={two} maxLength={200} onChange={e=>setTwo(e.target.value)} disabled={busy}/></label>
       <button className="upload-button" disabled={busy} onClick={()=>input.current?.click()}>{busy?'Operazione in corso…':'Seleziona file audio'}</button>
       <input ref={input} hidden type="file" accept=".wav,.mp3,.m4a,.mp4,.aac,.flac,.ogg,.opus,.webm" onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void upload(file);}}/>
     </div>
     <div className="audio-workspace"><aside className="system-card"><h2>Registrazioni</h2><button disabled={busy} onClick={()=>void action(refresh)}>Aggiorna elenco</button>
       {!items.length&&<p>Nessuna registrazione caricata.</p>}{items.map(r=><button className={'audio-item '+(selected===r.id?'selected':'')} key={r.id} disabled={busy||dirty} onClick={()=>setSelected(r.id)}><strong>{r.title}</strong><small>{r.recordedAt||new Date(r.createdAt).toLocaleString('it-IT')} · {r.run?statuses[r.run.status]||r.run.status:'Da trascrivere'}</small></button>)}
-    </aside><div className="system-card audio-detail">{!record?<p>Seleziona una registrazione per vedere i dettagli.</p>:<>
+    </aside><div className="system-card audio-detail" ref={details}>{!record?<p>Seleziona una registrazione per vedere i dettagli.</p>:<>
       <h2>{record.title}</h2><p>{record.name} · {record.recordedAt||'Data non indicata'}</p>
       {record.speakerNames.some(Boolean)&&<p>Interlocutori: {record.speakerNames.filter(Boolean).join(', ')}. Le etichette automatiche vanno verificate: non identificano le persone con certezza.</p>}
       <audio controls preload="none" src={apiBaseUrl+"/api/v1/audio/"+record.id+"/source"}/>
@@ -57,6 +62,7 @@ export default function Audio() {
         <label><input type="checkbox" checked={diarize} onChange={e=>setDiarize(e.target.checked)} disabled={working||busy}/>Distingui due interlocutori (modello locale opzionale)</label>
         <button className="upload-button" disabled={busy||working||record.transcript!==null||!readiness?.ready} onClick={()=>void action(async()=>{const run=await mediaRequest<AudioRecord['run']>('/api/v1/audio/'+record.id+'/transcribe',{method:'POST',body:JSON.stringify({language,diarize,expected_speakers:2,expected_version:record.version})});setRecord({...record,run});})}>Avvia trascrizione</button>
         {working&&record.run&&<button disabled={busy||record.run.status==='cancelling'} onClick={()=>void action(async()=>{await runtimeRequest('/runtime/runs/'+record.run!.id+'/cancel',{method:'POST'});setRecord({...record,run:{...record.run!,status:'cancelling'}});})}>Annulla trascrizione</button>}
+        {!readiness?.ready && <p className="connection-notice" role="status">Per trascrivere questo file devi prima completare l'installazione del motore Audio sul server. Il file originale resta salvato.</p>}
       </div>
       {record.run&&<p role="status">{statuses[record.run.status]||record.run.status}{['failed','timed_out','interrupted'].includes(record.run.status)&&' · Consulta Attività per i dettagli; puoi avviare un nuovo tentativo esplicito.'}</p>}
       {record.result?.diarization_warning&&<p className="connection-notice">{record.result.diarization_warning}</p>}
