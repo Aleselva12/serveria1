@@ -53,6 +53,7 @@ globalThis.__calendarViewApi = {
     return deleted ? [] : events;
   },
   proposals: async () => proposals,
+  provider: async () => ({ connected: false, provider: "local" }),
   save: async (data, token, event) => {
     if (fail) throw new Error("Save failed");
     const result = saved(data);
