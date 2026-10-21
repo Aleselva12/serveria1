@@ -1,5 +1,5 @@
 import LibraryMonitorFeed from "./LibraryMonitorFeed";
-import { Activity, HardDrive, PlugZap, ShieldCheck, Wifi } from "lucide-react";
+import { Activity, ExternalLink, HardDrive, PlugZap, ShieldCheck, Wifi } from "lucide-react";
 import SystemUpdate from "./SystemUpdate";
 import ManagedApplications from "./ManagedApplications";
 import type { BackendHealth } from "../types/contracts";
@@ -332,13 +332,16 @@ export default function Home({
                     {service.detail}
                   </small>
                 </div>
-                <span
-                  className={
-                    "pill " + (service.status === "ready" ? "success" : "")
-                  }
-                >
-                  {statusLabels[service.status]}
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  {service.browserUrl && /^https?:\/\/[^\s]+$/i.test(service.browserUrl) && (
+                    <a className="pill" href={service.browserUrl} target="_blank" rel="noopener noreferrer" aria-label={`Apri ${service.label} in una nuova scheda`}>
+                      Apri <ExternalLink size={13} aria-hidden="true" />
+                    </a>
+                  )}
+                  <span className={"pill " + (service.status === "ready" ? "success" : "")}>
+                    {statusLabels[service.status]}
+                  </span>
+                </div>
               </div>
             ))
           ) : (
