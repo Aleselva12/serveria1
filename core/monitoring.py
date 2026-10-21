@@ -203,11 +203,15 @@ def service_status():
     for identifier, label in [
         ("immich", "Immich"),
         ("nextcloud", "Nextcloud"),
+        ("magazzino_tele", "Magazzino Tele"),
+        ("preventivi", "Preventivi"),
         ("n8n", "n8n"),
     ]:
-        targets.append(
-            (identifier, label, os.getenv(f"CORA_SERVICE_{identifier.upper()}_URL", ""))
-        )
+        configured_url = os.getenv(f"CORA_SERVICE_{identifier.upper()}_URL", "").strip()
+        public_url = os.getenv(f"CORA_SERVICE_{identifier.upper()}_BROWSER_URL", "").strip()
+        if identifier == "n8n" and not configured_url and not public_url:
+            continue
+        targets.append((identifier, label, configured_url))
     for identifier, label, url in targets:
         status, detail = "unknown", "Indirizzo di controllo non configurato"
         if url:
@@ -224,6 +228,7 @@ def service_status():
                 "status": status,
                 "detail": detail,
                 "checkedAt": timestamp,
+                "browserUrl": os.getenv(f"CORA_SERVICE_{identifier.upper()}_BROWSER_URL", "").strip(),
             }
         )
     docker_status, docker_detail = (
