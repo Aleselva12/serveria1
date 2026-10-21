@@ -55,9 +55,16 @@ class DesktopAuthTests(unittest.TestCase):
             self.assertEqual(self.client.post('/api/v1/system/update/prepare').status_code, 403)
             with patch.dict(updates.JOB, {'status':'running'}, clear=True):
                 self.assertEqual(self.client.post('/api/v1/system/update/prepare', headers={'X-Cora-Client':'ui'}).status_code, 409)
-        with patch.object(updates, 'desktop', return_value=False), patch.dict(os.environ, {'CORA_UPDATE_URL':''}):
-            self.assertEqual(self.client.get('/api/v1/system/update').json()['status'], 'unconfigured')
+        with patch.object(updates, 'desktop', return_value=False), \
+             patch('programmer_agent.releases.status', return_value={'available': False, 'reason': 'Non configurato', 'jobs': []}):
+            response = self.client.get('/api/v1/system/update')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()['platform'], 'server')
+            self.assertIs(response.json()['available'], False)
+            self.assertEqual(response.json()['jobs'], [])
             self.assertEqual(self.client.post('/api/v1/system/update/prepare', headers={'X-Cora-Client':'ui'}).status_code, 409)
+            self.assertEqual(self.client.post('/api/v1/system/update/server/prepare').status_code, 403)
+            self.assertEqual(self.client.post('/api/v1/system/update/server/prepare', headers={'X-Cora-Client':'ui'}).status_code, 503)
 
     def test_setup_preserves_owner_or_creates_unusable_random_password(self):
         with patch.object(auth, 'interactive_provision') as prompt, patch.object(auth, 'provision') as provision:
