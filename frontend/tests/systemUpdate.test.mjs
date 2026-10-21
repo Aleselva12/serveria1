@@ -33,7 +33,7 @@ test('Windows preparation is explicit and ready never means installed',async()=>
   assert.equal(calls.length,1); assert.equal(r.root.findAllByType('a').length,0);
   await act(async()=>button(r,'Prepara aggiornamento Windows').props.onClick());
   assert.equal(calls.filter(c=>c[1]==='POST').length,1);
-  assert.match(text(r.toJSON()),/preparato, non installato/);
+  assert.match(text(r.toJSON()),/preparata, non ancora installata/);
   assert.match(text(r.toJSON()),/backup dei dati/);
  }finally{if(r)await act(async()=>r.unmount());}
 });
