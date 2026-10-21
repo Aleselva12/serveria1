@@ -71,7 +71,7 @@ let source = await readFile(
   "utf8",
 );
 source = source.replace(
-  /import \{ calendarApi \} from "..\/services\/calendarApi";/,
+  /import \{ calendarApi, type CalendarProviderStatus \} from "..\/services\/calendarApi";/,
   "const calendarApi=globalThis.__calendarViewApi;",
 );
 let output = compile(source).replace(
