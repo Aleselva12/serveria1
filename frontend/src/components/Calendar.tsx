@@ -724,4 +724,8 @@ export default function Calendar() {
             </article>
           ))}
         </section>
-      </div>\n      )}\n    </section>\n  );\n}
+      </div>
+      )}
+    </section>
+  );
+}
