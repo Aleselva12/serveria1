@@ -414,7 +414,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
           </div>
         </header>
         <main className={"main " + (page === "chat" ? "chat-main" : "")}>
-          {backend.error && (
+          {backend.error && page !== "updates" && (
             <div className="connection-error" role="alert">
               <span>{backend.error}</span>
               <button
