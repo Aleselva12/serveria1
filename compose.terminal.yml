@@ -1,0 +1,33 @@
+# Explicit opt-in. Configure with python3 deploy/terminal_setup.py --user ale.
+services:
+  terminal:
+    image: cora-terminal:local
+    build:
+      context: .
+      target: terminal
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 1
+    tmpfs: [/tmp:rw,nosuid,noexec,size=16m]
+    environment:
+      CORA_AUTH_MODE: ${CORA_AUTH_MODE:?Configure Tailscale login first}
+      CORA_TAILSCALE_LOGIN: ${CORA_TAILSCALE_LOGIN:?Configure Tailscale login first}
+      CORA_TAILSCALE_PROXY_SECRET: ${CORA_TAILSCALE_PROXY_SECRET:?Configure Tailscale login first}
+      CORA_TERMINAL_ORIGIN: ${CORA_TERMINAL_ORIGIN:?Run deploy/terminal_setup.py}
+      CORA_TERMINAL_USER: ${CORA_TERMINAL_USER:?Run deploy/terminal_setup.py}
+      CORA_TERMINAL_KNOWN_HOSTS: /config/known_hosts
+    volumes:
+      - type: bind
+        source: ${CORA_TERMINAL_CONFIG_ROOT:?Run deploy/terminal_setup.py}
+        target: /config
+        read_only: true
+        bind:
+          create_host_path: false
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    # Internal service only; no published ports. SSH credentials are never stored.

@@ -22,3 +22,5 @@ structure_workspace
 **/*.gguf
 **/*.bin
 **/*.safetensors
+deploy.env.before-terminal-*
+.terminal-env-*
