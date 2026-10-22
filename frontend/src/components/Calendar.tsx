@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, CloudUpload, Plus, RefreshCw } from "lucide-react";
 import type {
   CalendarEvent,
   CalendarHistory,
@@ -161,6 +161,33 @@ export default function Calendar() {
       setBusy(false);
     }
   }
+  async function syncGoogle() {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await calendarApi.syncGoogle(token);
+      const parts = [
+        result.sent ? `${result.sent} inviati` : "",
+        result.skipped ? `${result.skipped} già presenti` : "",
+        result.failed ? `${result.failed} non riusciti` : "",
+      ].filter(Boolean);
+      setNotice(
+        parts.length
+          ? "Google Calendar: " + parts.join(" · ") + "."
+          : "Google Calendar: nessun nuovo appuntamento da inviare.",
+      );
+      await refresh(true);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+
   async function save() {
     let start: string, end: string;
     try {
@@ -308,6 +335,14 @@ export default function Calendar() {
               }}
             >
               <RefreshCw size={16} />
+            </button>
+            <button
+              disabled={busy || loading}
+              onClick={() => void syncGoogle()}
+              title="Invia a Google Calendar gli appuntamenti locali futuri non ancora pubblicati"
+            >
+              <CloudUpload size={16} />
+              Invia nuovi su Google
             </button>
             <button
               className="solid-button"

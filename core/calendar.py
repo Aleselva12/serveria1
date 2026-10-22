@@ -75,6 +75,15 @@ def serialize_event(row):
     return result
 
 
+def list_future_events():
+    """Local, non-deleted appointments that can be exported to an external calendar."""
+    with db_connection() as conn:
+        rows = conn.execute("""SELECT * FROM calendar_events
+                              WHERE deleted_at IS NULL AND end_at >= NOW()
+                              ORDER BY start_at, id""").fetchall()
+    return [serialize_event(row) for row in rows]
+
+
 def get_event(event_id: str, *, include_deleted=False, conn=None):
     if conn is None:
         with db_connection() as connection:

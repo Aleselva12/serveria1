@@ -114,6 +114,22 @@ export type CalendarProviderStatus = {
   error?: string;
 };
 
+export type CalendarGoogleSyncResult = {
+  sent: number;
+  skipped: number;
+  failed: number;
+  sentEvents: Array<{
+    localEventId: string;
+    googleEventId?: string | null;
+    title: string;
+  }>;
+  failedEvents: Array<{
+    localEventId: string;
+    title: string;
+    error: string;
+  }>;
+};
+
 export const calendarApi = {
   provider: async (token: string) => {
     const response = await authenticatedFetch(apiBaseUrl + "/api/v1/calendar/provider", {
@@ -124,6 +140,33 @@ export const calendarApi = {
     });
     if (!response.ok) throw new Error("Stato Google Calendar non disponibile.");
     return await response.json() as CalendarProviderStatus;
+  },
+  syncGoogle: async (token: string) => {
+    const response = await authenticatedFetch(apiBaseUrl + "/api/v1/calendar/sync/google", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        ...(token ? { Authorization: "Bearer " + token } : {}),
+      },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        typeof data.detail === "string"
+          ? data.detail
+          : "Sincronizzazione Google Calendar non riuscita.",
+      );
+    }
+    if (
+      typeof data.sent !== "number" ||
+      typeof data.skipped !== "number" ||
+      typeof data.failed !== "number" ||
+      !Array.isArray(data.sentEvents) ||
+      !Array.isArray(data.failedEvents)
+    ) {
+      throw new Error("Risposta sincronizzazione Google Calendar non valida.");
+    }
+    return data as CalendarGoogleSyncResult;
   },
   get: (id: string, token: string) =>
     calendarRequest<CalendarEvent>(`/events/${id}`, token),

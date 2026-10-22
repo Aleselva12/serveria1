@@ -91,3 +91,20 @@ test("malformed lists and proxy HTML are rejected before rendering", async () =>
     /non valida/,
   );
 });
+
+test("Google sync reports sent, skipped and failed counts", async () => {
+  globalThis.fetch = async (url, init) => {
+    assert.ok(url.endsWith("/api/v1/calendar/sync/google"));
+    assert.equal(init.method, "POST");
+    return json({
+      sent: 2,
+      skipped: 1,
+      failed: 0,
+      sentEvents: [],
+      failedEvents: [],
+    });
+  };
+  const result = await calendarApi.syncGoogle("");
+  assert.equal(result.sent, 2);
+  assert.equal(result.skipped, 1);
+});
