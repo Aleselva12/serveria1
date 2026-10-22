@@ -188,7 +188,11 @@ test("Google export button reports successful local event publication", async ()
   proposals = [];
   fail = false;
   const r = await mount();
-  await act(async () => button(r, "Invia nuovi su Google").props.onClick());
+  const syncButton = r.root.findAllByType("button").find(
+    (candidate) => candidate.props.title?.startsWith("Invia a Google Calendar"),
+  );
+  assert.ok(syncButton);
+  await act(async () => syncButton.props.onClick());
   assert.match(
     r.root.findByProps({ role: "status" }).children.join(""),
     /1 inviati/,
