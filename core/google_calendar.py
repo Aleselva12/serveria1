@@ -144,15 +144,17 @@ def _google_body(data: dict) -> dict:
         if reminder is not None
         else {"useDefault": False, "overrides": []}
     )
+    private = {"coraManaged": "true"}
+    local_event_id = str(data.get("local_event_id") or "").strip()
+    if local_event_id:
+        private["coraLocalEventId"] = local_event_id
     return {
         "summary": str(data["title"]).strip(),
         "description": data.get("notes") or "",
         "start": start,
         "end": end,
         "reminders": reminders,
-        "extendedProperties": {
-            "private": {"coraManaged": "true"}
-        },
+        "extendedProperties": {"private": private},
     }
 
 
@@ -179,6 +181,69 @@ def create_event(data: dict) -> dict:
         sendUpdates="none",
     ).execute()
     return normalize(event)
+
+
+def _managed_local_event_ids(calendar_service=None) -> set[str]:
+    calendar_service = calendar_service or service()
+    identifiers: set[str] = set()
+    page_token = None
+    while True:
+        result = calendar_service.events().list(
+            calendarId="primary",
+            privateExtendedProperty="coraManaged=true",
+            maxResults=2500,
+            singleEvents=True,
+            showDeleted=False,
+            pageToken=page_token,
+        ).execute()
+        for event in result.get("items", []):
+            private = ((event.get("extendedProperties") or {}).get("private") or {})
+            local_id = private.get("coraLocalEventId")
+            if local_id:
+                identifiers.add(str(local_id))
+        page_token = result.get("nextPageToken")
+        if not page_token:
+            return identifiers
+
+
+def publish_local_events(events: list[dict]) -> dict:
+    """Idempotently export local future events to the user's primary calendar."""
+    calendar_service = service()
+    existing = _managed_local_event_ids(calendar_service)
+    sent: list[dict] = []
+    skipped: list[str] = []
+    failed: list[dict] = []
+    for local in events:
+        local_id = str(local["id"])
+        if local_id in existing:
+            skipped.append(local_id)
+            continue
+        payload = {**local, "local_event_id": local_id}
+        try:
+            created = calendar_service.events().insert(
+                calendarId="primary",
+                body=_google_body(payload),
+                sendUpdates="none",
+            ).execute()
+            sent.append({
+                "localEventId": local_id,
+                "googleEventId": created.get("id"),
+                "title": local.get("title") or "",
+            })
+            existing.add(local_id)
+        except Exception as error:
+            failed.append({
+                "localEventId": local_id,
+                "title": local.get("title") or "",
+                "error": type(error).__name__,
+            })
+    return {
+        "sent": len(sent),
+        "skipped": len(skipped),
+        "failed": len(failed),
+        "sentEvents": sent,
+        "failedEvents": failed[:20],
+    }
 
 
 def update_event(event_id: str, data: dict) -> dict:
