@@ -11,8 +11,8 @@ import unicodedata
 from docx import Document
 from lxml import etree
 
-DIVIDER = re.compile(r"^\\s*[-—–_]{5,}\\s*$")
-DATE = re.compile(r"^\\s*(?:\\d{1,2}/\\d{1,2}/\\d{2,4}|GIRO DI [A-ZÀ-Ú ]+(?:\\d{2,4})?)\\s*$", re.I)
+DIVIDER = re.compile(r"^\s*[-—–_]{5,}\s*$")
+DATE = re.compile(r"^\s*(?:\d{1,2}/\d{1,2}/\d{2,4}|GIRO DI [A-ZÀ-Ú ]+(?:\d{2,4})?)\s*$", re.I)
 
 
 @dataclass(frozen=True)
@@ -73,7 +73,7 @@ def propose_append(source: bytes, block: CustomerBlock, date: str, note: str) ->
     """Build a candidate in memory, never change the original Word file."""
     if sha256(source).hexdigest() != block.document_sha256:
         raise ValueError("File cambiato: nuova approvazione necessaria.")
-    if not re.fullmatch(r"\\d{2}/\\d{2}/\\d{4}", date):
+    if not re.fullmatch(r"\d{2}/\d{2}/\d{4}", date):
         raise ValueError("Data richiesta GG/MM/AAAA.")
     if not note.strip() or len(note) > 5000:
         raise ValueError("Nota vuota o troppo lunga.")
