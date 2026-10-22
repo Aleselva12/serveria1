@@ -83,7 +83,15 @@ def propose_append(source: bytes, block: CustomerBlock, date: str, note: str) ->
     current = [b for b in parse(source) if b.start == block.start and b.stop == block.stop and b.heading == block.heading]
     if len(current) != 1:
         raise ValueError("Blocco cliente non univoco.")
+    from datetime import datetime
+    try:
+        datetime.strptime(date, "%d/%m/%Y")
+    except ValueError as error:
+        raise ValueError("Data calendario non valida.") from error
     doc = Document(BytesIO(source))
+    # Advanced layouts need a dedicated XML-preserving writer; fail closed.
+    if doc.tables or doc.inline_shapes:
+        raise ValueError("Word con tabelle o oggetti: inserimento automatico non sicuro.")
     signatures = paragraph_signatures(doc)
     if block.stop < len(doc.paragraphs) and not DIVIDER.fullmatch(doc.paragraphs[block.stop].text.strip()):
         raise ValueError("Separatore cliente non valido.")
