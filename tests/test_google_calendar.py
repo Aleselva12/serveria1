@@ -1,11 +1,62 @@
 import unittest
-from unittest.mock import patch
+import os
+from unittest.mock import MagicMock, patch
 from datetime import datetime
 
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
 from core import google_calendar
+from core.calendar_api import router
 
 
 class GoogleCalendarProviderTests(unittest.TestCase):
+    def test_status_without_token_does_not_contact_google_or_expose_path(self):
+        with patch.object(google_calendar, "token_exists", return_value=False), \
+                patch.object(google_calendar, "service") as service:
+            result = google_calendar.status()
+        self.assertFalse(result["connected"])
+        self.assertEqual(result["provider"], "local")
+        self.assertNotIn("tokenPath", result)
+        service.assert_not_called()
+
+    def test_status_success_preserves_provider_fields_without_token_path(self):
+        service = MagicMock()
+        service.events.return_value.list.return_value.execute.return_value = {"nextSyncToken": "secret-sync"}
+        with patch.object(google_calendar, "token_exists", return_value=True), \
+                patch.object(google_calendar, "service", return_value=service):
+            result = google_calendar.status()
+        self.assertTrue(result["connected"])
+        self.assertTrue(result["reachable"])
+        self.assertTrue(result["nextSyncTokenAvailable"])
+        self.assertNotIn("tokenPath", result)
+        self.assertNotIn("secret-sync", str(result))
+
+    def test_provider_api_redacts_credentials_and_upstream_exceptions(self):
+        app = FastAPI()
+        app.include_router(router)
+        secret = "refresh_token=secret-token /private/token.json https://google.test/?key=secret-key"
+        for stage in ("credentials", "request"):
+            with self.subTest(stage=stage):
+                service = MagicMock()
+                service.events.return_value.list.return_value.execute.side_effect = RuntimeError(secret)
+                with patch.dict(os.environ, {"CORA_CALENDAR_TOKEN": "owner"}), \
+                        patch.object(google_calendar, "token_exists", return_value=True), \
+                        patch.object(google_calendar, "service", **(
+                            {"side_effect": ValueError(secret)} if stage == "credentials"
+                            else {"return_value": service}
+                        )), TestClient(app) as client:
+                    self.assertEqual(client.get("/api/v1/calendar/provider").status_code, 401)
+                    response = client.get("/api/v1/calendar/provider", headers={"Authorization": "Bearer owner"})
+                self.assertEqual(response.status_code, 200)
+                result = response.json()
+                self.assertTrue(result["connected"])
+                self.assertFalse(result["reachable"])
+                self.assertEqual(result["error"], "Google Calendar non disponibile. Verifica il collegamento e riprova.")
+                self.assertNotIn("tokenPath", result)
+                for sensitive in ("secret-token", "/private/", "google.test", "secret-key", "ValueError", "RuntimeError"):
+                    self.assertNotIn(sensitive, response.text)
+
     def test_normalize_timed_event_and_popup_reminder(self):
         event = google_calendar.normalize({
             "id": "google-1",
