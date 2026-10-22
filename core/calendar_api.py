@@ -49,6 +49,17 @@ def provider():
     return google_calendar.status()
 
 
+@router.post("/sync/google")
+def sync_google():
+    if not google_calendar.token_exists():
+        raise HTTPException(
+            503,
+            "Google Calendar non è ancora collegato al server. Autorizza prima l'account Google e poi riprova.",
+        )
+    local_events = run(store.list_future_events)
+    return run(google_calendar.publish_local_events, local_events)
+
+
 @router.get("/events")
 def events(start: datetime, end: datetime, deleted: bool = False):
     if google_calendar.token_exists():
