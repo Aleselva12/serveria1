@@ -59,7 +59,6 @@ def status() -> dict:
         return {
             "connected": False,
             "provider": "local",
-            "tokenPath": str(TOKEN_PATH),
             "credentialsAvailable": CREDENTIALS_PATH.is_file(),
         }
     try:
@@ -73,19 +72,19 @@ def status() -> dict:
         return {
             "connected": True,
             "provider": "google",
-            "tokenPath": str(TOKEN_PATH),
             "credentialsAvailable": CREDENTIALS_PATH.is_file(),
             "reachable": True,
             "nextSyncTokenAvailable": bool(result.get("nextSyncToken")),
         }
-    except Exception as error:
+    except Exception:
+        # Provider exceptions may contain OAuth secrets, URLs or local paths.
+        # Keep the public status independent of their message and class.
         return {
             "connected": True,
             "provider": "google",
-            "tokenPath": str(TOKEN_PATH),
             "credentialsAvailable": CREDENTIALS_PATH.is_file(),
             "reachable": False,
-            "error": type(error).__name__ + ": " + str(error),
+            "error": "Google Calendar non disponibile. Verifica il collegamento e riprova.",
         }
 
 
