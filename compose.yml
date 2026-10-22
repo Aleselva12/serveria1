@@ -46,18 +46,12 @@ services:
       CORA_PROGRAMMER_WORKSPACE_ROOT: /state/programmer
       CORA_GMAIL_CREDENTIALS_PATH: /state/gmail/credentials.json
       CORA_GMAIL_TOKEN_PATH: /state/gmail/token.json
-      CORA_GOOGLE_CALENDAR_CREDENTIALS_PATH: ${CORA_GOOGLE_CALENDAR_CREDENTIALS_PATH:-/state/gmail/credentials.json}
-      CORA_GOOGLE_CALENDAR_TOKEN_PATH: ${CORA_GOOGLE_CALENDAR_TOKEN_PATH:-/state/google-calendar/token.json}
       CORA_WHISPER_MODEL: /state/models/whisper
       CORA_WHISPER_DEVICE: cpu
       CORA_WHISPER_COMPUTE_TYPE: int8
       CORA_WHISPER_LOCAL_ONLY: 'true'
       HF_HUB_OFFLINE: '1'
       HF_HUB_DISABLE_IMPLICIT_TOKEN: '1'
-    # Loopback-only callback used only during one-time Google Calendar OAuth.
-    # It is not exposed to the LAN/Tailscale/Internet.
-    ports:
-      - '127.0.0.1:${CORA_GOOGLE_CALENDAR_OAUTH_PORT:-8765}:8765'
     volumes:
       - type: bind
         source: ${CORA_STATE_ROOT:-./state}
