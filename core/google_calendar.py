@@ -188,14 +188,16 @@ def _managed_local_event_ids(calendar_service=None) -> set[str]:
     identifiers: set[str] = set()
     page_token = None
     while True:
-        result = calendar_service.events().list(
-            calendarId="primary",
-            privateExtendedProperty="coraManaged=true",
-            maxResults=2500,
-            singleEvents=True,
-            showDeleted=False,
-            pageToken=page_token,
-        ).execute()
+        params = {
+            "calendarId": "primary",
+            "privateExtendedProperty": "coraManaged=true",
+            "maxResults": 2500,
+            "singleEvents": True,
+            "showDeleted": False,
+        }
+        if page_token:
+            params["pageToken"] = page_token
+        result = calendar_service.events().list(**params).execute()
         for event in result.get("items", []):
             private = ((event.get("extendedProperties") or {}).get("private") or {})
             local_id = private.get("coraLocalEventId")
