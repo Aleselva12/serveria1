@@ -63,3 +63,44 @@ def search(content: bytes, query: str, limit: int = 8) -> list[CustomerBlock]:
         raise ValueError("Ricerca cliente non valida.")
     term = normalize(query)
     return [b for b in parse(content) if term in normalize(b.heading + " " + " ".join(b.identity_lines))][:limit]
+
+
+def paragraph_signatures(document):
+    return [etree.tostring(p._p, method="c14n") for p in document.paragraphs]
+
+
+def propose_append(source: bytes, block: CustomerBlock, date: str, note: str) -> bytes:
+    """Build a candidate in memory, never change the original Word file."""
+    if sha256(source).hexdigest() != block.document_sha256:
+        raise ValueError("File cambiato: nuova approvazione necessaria.")
+    if not re.fullmatch(r"\\d{2}/\\d{2}/\\d{4}", date):
+        raise ValueError("Data richiesta GG/MM/AAAA.")
+    if not note.strip() or len(note) > 5000:
+        raise ValueError("Nota vuota o troppo lunga.")
+    lines = note.strip().splitlines()
+    if len(lines) > 30 or any(len(line) > 500 for line in lines):
+        raise ValueError("Nota troppo lunga.")
+    current = [b for b in parse(source) if b.start == block.start and b.stop == block.stop and b.heading == block.heading]
+    if len(current) != 1:
+        raise ValueError("Blocco cliente non univoco.")
+    doc = Document(BytesIO(source))
+    signatures = paragraph_signatures(doc)
+    if block.stop < len(doc.paragraphs) and not DIVIDER.fullmatch(doc.paragraphs[block.stop].text.strip()):
+        raise ValueError("Separatore cliente non valido.")
+    from docx.oxml import OxmlElement
+    from docx.text.paragraph import Paragraph
+    anchor = doc.paragraphs[block.stop - 1]._p
+    for text in [date, *lines]:
+        element = OxmlElement("w:p")
+        anchor.addnext(element)
+        Paragraph(element, doc._body).add_run(text)
+        anchor = element
+    updated = paragraph_signatures(doc)
+    count = len(lines) + 1
+    if updated[:block.stop] != signatures[:block.stop] or updated[block.stop + count:] != signatures[block.stop:]:
+        raise ValueError("Documento precedente modificato: operazione bloccata.")
+    stream = BytesIO()
+    doc.save(stream)
+    if paragraph_signatures(Document(BytesIO(stream.getvalue()))) != updated:
+        raise ValueError("Il salvataggio ha alterato i paragrafi.")
+    return stream.getvalue()
