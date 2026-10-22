@@ -50,6 +50,50 @@ def digest(path):
     return hasher.hexdigest()
 
 
+def deploy_settings():
+    settings={}
+    for raw in ENV.read_text().splitlines():
+        line=raw.strip()
+        if not line or line.startswith('#') or '=' not in line: continue
+        key,value=line.split('=',1)
+        settings[key.strip()]=value.strip().strip('"\'')
+    return settings
+
+
+def google_calendar_auth(login_hint='', port=8765):
+    """Run one-time Calendar OAuth without changing Compose or exposing a port."""
+    settings=deploy_settings()
+    state=Path(settings.get('CORA_STATE_ROOT','./state'))
+    if not state.is_absolute(): state=ROOT/state
+    state=state.resolve()
+    if not state.is_dir() or state.is_symlink():
+        raise ValueError('CORA_STATE_ROOT non disponibile.')
+
+    result=compose('ps','-q','api',capture_output=True,text=True)
+    containers=[line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if len(containers)!=1:
+        raise ValueError('Serve una sola istanza API attiva per autorizzare Google Calendar.')
+    image=subprocess.run(
+        ['docker','inspect','--format={{.Image}}',containers[0]],
+        check=True,capture_output=True,text=True,
+    ).stdout.strip()
+    if not image:
+        raise ValueError('Immagine API attiva non determinabile.')
+
+    command=[
+        'docker','run','--rm','--network','host',
+        '--mount',f'type=bind,src={state},dst=/state',
+        '-e','CORA_GOOGLE_CALENDAR_CREDENTIALS_PATH=/state/gmail/credentials.json',
+        '-e','CORA_GOOGLE_CALENDAR_TOKEN_PATH=/state/google-calendar/token.json',
+        image,'python','-m','core.google_calendar_auth',
+        '--host','127.0.0.1','--port',str(port),
+    ]
+    if login_hint:
+        command += ['--login-hint',login_hint]
+    subprocess.run(command,check=True)
+    print('Autorizzazione Google Calendar completata.')
+
+
 def check_backup(path):
     manifest=json.loads((path/'manifest.json').read_text())
     if manifest.get('version') not in (1,2):raise ValueError('Formato backup non supportato.')
@@ -111,11 +155,13 @@ def restore(path):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command',choices=('init','check','up','owner','backup','verify-backup','restore','audio-model','audio-check','doctor'))
+    parser.add_argument('command',choices=('init','check','up','owner','backup','verify-backup','restore','audio-model','audio-check','doctor','google-calendar-auth'))
     parser.add_argument('path',nargs='?',type=Path)
     parser.add_argument('--revision',help='Immutable model revision; defaults to resolving the current public revision once')
     parser.add_argument('--compose-file', action='append', default=[], type=Path,
                         help='Additional Compose override; repeat in order for every operation')
+    parser.add_argument('--login-hint', default='', help='Account Google suggerito per Calendar OAuth')
+    parser.add_argument('--port', type=int, default=8765, help='Porta localhost temporanea per OAuth Calendar')
     args=parser.parse_args()
     global COMPOSE_FILES
     COMPOSE_FILES = tuple((path if path.is_absolute() else ROOT/path).resolve() for path in args.compose_file)
@@ -139,6 +185,7 @@ def main():
         compose(*command)
     elif args.command=='audio-check':compose('run','--rm','--no-deps','-T','api','python','-m','audio_agent.model_setup','--check')
     elif args.command=='doctor':compose('exec','-T','api','python','-m','deploy.doctor')
+    elif args.command=='google-calendar-auth':google_calendar_auth(args.login_hint,args.port)
 
 
 if __name__=='__main__':

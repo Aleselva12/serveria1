@@ -25,6 +25,32 @@ class HostDeploymentTests(unittest.TestCase):
                 with self.assertRaises(ValueError):manage.init()
                 self.assertEqual((root/'deploy.env').read_text(),content)
 
+
+    def test_google_calendar_auth_uses_active_image_without_compose_port(self):
+        from subprocess import CompletedProcess
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            state=root/'state';state.mkdir()
+            env=root/'deploy.env';env.write_text('CORA_STATE_ROOT='+str(state)+'\n')
+            calls=[]
+            def compose(*args,**kwargs):
+                self.assertEqual(args,('ps','-q','api'))
+                return CompletedProcess(['docker','compose'],0,stdout='api-container\n')
+            def run(command,**kwargs):
+                calls.append(command)
+                if command[:3]==['docker','inspect','--format={{.Image}}']:
+                    return CompletedProcess(command,0,stdout='sha256:active-api\n')
+                return CompletedProcess(command,0,stdout='')
+            with patch.object(manage,'ROOT',root),patch.object(manage,'ENV',env),patch.object(manage,'compose',side_effect=compose),patch.object(manage.subprocess,'run',side_effect=run):
+                manage.google_calendar_auth('example@example.com',8765)
+            launch=calls[-1]
+            self.assertEqual(launch[:5],['docker','run','--rm','--network','host'])
+            self.assertIn('type=bind,src='+str(state)+',dst=/state',launch)
+            self.assertIn('sha256:active-api',launch)
+            self.assertEqual(launch[launch.index('--host')+1],'127.0.0.1')
+            self.assertEqual(launch[launch.index('--port')+1],'8765')
+            self.assertEqual(launch[launch.index('--login-hint')+1],'example@example.com')
+
     def test_corrupt_or_incomplete_backup_is_rejected_before_restore_stops_services(self):
         with tempfile.TemporaryDirectory() as temporary:
             path=Path(temporary)
