@@ -4,11 +4,13 @@ From the user's computer open an SSH tunnel:
   ssh -L 8765:127.0.0.1:8765 ale@serverale
 
 Then, in another SSH session on the server:
-  docker exec -it cora-api-1 python -m core.google_calendar_auth --port 8765 --login-hint you@example.com
+  python3 deploy/manage.py google-calendar-auth --login-hint you@example.com
 
+The host helper launches the already-installed API image temporarily with host
+networking and the persistent /state mount. The OAuth listener binds only to
+127.0.0.1, so no Compose port is needed and nothing is exposed to LAN/Tailscale.
 Open the printed Google URL in the computer browser. Google redirects to
-http://localhost:8765/, which travels through SSH to the server's loopback-only
-Docker port and finally reaches this temporary callback listener.
+http://localhost:8765/, which travels through SSH to the temporary listener.
 """
 from __future__ import annotations
 
@@ -43,7 +45,7 @@ class CallbackApp:
         return [body]
 
 
-def authorize(port: int, login_hint: str = ""):
+def authorize(port: int, login_hint: str = "", host: str = "127.0.0.1"):
     if not CREDENTIALS_PATH.is_file():
         raise FileNotFoundError(
             f"Credenziali Google non trovate: {CREDENTIALS_PATH}. "
@@ -62,7 +64,7 @@ def authorize(port: int, login_hint: str = ""):
     print(auth_url)
     print("\nIn attesa dell'autorizzazione Google…")
 
-    with make_server("0.0.0.0", port, callback) as server:
+    with make_server(host, port, callback) as server:
         server.handle_request()
 
     if not callback.last_request_uri:
@@ -87,8 +89,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--login-hint", default="")
+    parser.add_argument("--host", default="127.0.0.1")
     args = parser.parse_args()
-    authorize(args.port, args.login_hint)
+    authorize(args.port, args.login_hint, args.host)
 
 
 if __name__ == "__main__":
