@@ -54,6 +54,13 @@ globalThis.__calendarViewApi = {
   },
   proposals: async () => proposals,
   provider: async () => ({ connected: false, provider: "local" }),
+  syncGoogle: async () => ({
+    sent: 1,
+    skipped: 0,
+    failed: 0,
+    sentEvents: [],
+    failedEvents: [],
+  }),
   save: async (data, token, event) => {
     if (fail) throw new Error("Save failed");
     const result = saved(data);
@@ -173,5 +180,18 @@ test("agent proposal is visible and resolved through approval control", async ()
   await act(async () => button(r, "Approva").props.onClick());
   assert.equal(proposals.length, 0);
   assert.equal(button(r, "Approva"), undefined);
+  await unmount(r);
+});
+
+test("Google export button reports successful local event publication", async () => {
+  events = [];
+  proposals = [];
+  fail = false;
+  const r = await mount();
+  await act(async () => button(r, "Invia nuovi su Google").props.onClick());
+  assert.match(
+    r.root.findByProps({ role: "status" }).children.join(""),
+    /1 inviati/,
+  );
   await unmount(r);
 });
