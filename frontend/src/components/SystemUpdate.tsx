@@ -4,7 +4,8 @@ import { authenticatedFetch } from "../services/transport";
 
 type UpdateJob = {
   id: string; kind: string; status: string; phase?: string; commit?: string;
-  base_commit?: string; error?: string; updated_at?: string;
+  base_commit?: string; error?: string; error_stage?: string; error_detail?: string;
+  cleanup_error?: string; updated_at?: string;
 };
 type Update = {
   platform: string; status?: string; directory?: string; commit?: string;
@@ -119,9 +120,17 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
               ready && shown.id === ready.id ? "Versione pronta per l'installazione" :
               "Ultimo risultato: " + role(shown) + " · " + describe(shown)}</strong>
             {running && <p role="status">L'updater è al lavoro sul server. La fase viene aggiornata automaticamente.</p>}
-            {shown.status === "failed" && <p role="alert" style={{color:"#b42318",fontWeight:600}}>
-              Aggiornamento non riuscito. Motivo: {shown.error || "Controlla il log privato del servizio updater sul Debian."}
-            </p>}
+            {shown.status === "failed" && <>
+              <p role="alert" style={{color:"#b42318",fontWeight:600}}>
+                Aggiornamento non riuscito. Motivo: {shown.error || "Controlla il log privato del servizio updater sul Debian."}
+              </p>
+              {(shown.error_stage || shown.error_detail || shown.cleanup_error) && <details className="updater-diagnostic">
+                <summary>Mostra dettagli tecnici</summary>
+                {shown.error_stage && <p><strong>Passaggio:</strong> {shown.error_stage}</p>}
+                {shown.error_detail && <pre>{shown.error_detail}</pre>}
+                {shown.cleanup_error && <p><strong>Pulizia ambiente:</strong> {shown.cleanup_error}</p>}
+              </details>}
+            </>}
             {shown.status === "recovery_required" && <p role="alert" style={{color:"#b42318",fontWeight:600}}>
               È necessario un intervento sul server prima di tentare nuovi aggiornamenti.
             </p>}
@@ -139,7 +148,15 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
         </button>}
         {showHistory && jobs.slice(0, 15).map(job => <div key={job.id} className="settings-row">
           <span>{role(job)} · {job.status} · {describe(job)} · {short(job.commit)}</span>
-          {job.status === "failed" && <span role="alert" style={{color:"#b42318"}}>{job.error || "Dettagli non disponibili"}</span>}
+          {job.status === "failed" && <div className="update-history-error" role="alert">
+            <span style={{color:"#b42318"}}>{job.error || "Dettagli non disponibili"}</span>
+            {(job.error_stage || job.error_detail || job.cleanup_error) && <details className="updater-diagnostic compact">
+              <summary>Dettagli</summary>
+              {job.error_stage && <p><strong>Passaggio:</strong> {job.error_stage}</p>}
+              {job.error_detail && <pre>{job.error_detail}</pre>}
+              {job.cleanup_error && <p><strong>Pulizia ambiente:</strong> {job.cleanup_error}</p>}
+            </details>}
+          </div>}
         </div>)}
       </> : connected === null ? <p>Caricamento stato aggiornamenti…</p> : null}
     </section>}
