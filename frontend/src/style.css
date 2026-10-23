@@ -4032,3 +4032,129 @@ select:disabled {
     width: auto;
   }
 }
+
+
+.conversation-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 4px 8px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: #202020;
+  color: #777;
+}
+.conversation-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #e8e8e8;
+  font-size: 10px;
+}
+.conversation-rename-input {
+  flex: 1;
+  min-width: 0;
+  margin: 4px 3px 4px 7px;
+  border: 1px solid #4a4a4a;
+  border-radius: 6px;
+  background: #171717;
+  color: #fff;
+  padding: 6px 7px;
+  font-size: 10px;
+  outline: none;
+}
+.conversation-project:has(.conversation-row[draggable="true"]:active) {
+  outline: 1px solid transparent;
+}
+.conversation-modal-shade {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: #0008;
+}
+.conversation-modal {
+  width: min(560px, 100%);
+  border: 1px solid #dedede;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 24px 70px #0004;
+  padding: 20px;
+}
+.conversation-modal header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+.conversation-modal header small {
+  color: #8d8d8d;
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+.conversation-modal h3 {
+  margin: 3px 0 0;
+  font-size: 18px;
+}
+.conversation-modal header button {
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  color: #777;
+}
+.conversation-modal > p {
+  color: #6f6f6f;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 14px 0;
+}
+.conversation-modal textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 180px;
+  border: 1px solid #dedede;
+  border-radius: 10px;
+  background: #fafafa;
+  padding: 12px;
+  color: #222;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  outline: none;
+}
+.conversation-modal textarea:focus {
+  border-color: #a8a8a8;
+  box-shadow: 0 0 0 3px #00000008;
+}
+.conversation-modal footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.conversation-modal footer > button:not(.solid-button) {
+  border: 1px solid #ddd;
+  border-radius: 7px;
+  background: #fff;
+  padding: 8px 11px;
+}
+@media (max-width: 620px) {
+  .conversation-modal-shade {
+    align-items: end;
+    padding: 0;
+  }
+  .conversation-modal {
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+  }
+}
