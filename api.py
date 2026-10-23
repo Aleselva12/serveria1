@@ -16,7 +16,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Literal
 
-from core.chat_store import conversation_stats, ensure_conversation, get_messages, list_conversations, recent_context, save_message, refresh_transcript
+from core.chat_store import (
+    conversation_stats, ensure_conversation, get_messages, list_conversations,
+    recent_context, save_message, refresh_transcript, rename_conversation,
+    archive_conversation, move_conversation, delete_conversation,
+)
+from core.conversation_projects import (
+    list_projects, create_project, update_project, delete_project,
+)
 from core.database import database_status
 from core.episodes import create_episode, list_episodes
 from core.logging import logged_operation
@@ -154,6 +161,23 @@ class WorkingMemoryRequest(BaseModel):
     ttl_minutes: int = 120
 
 
+class ConversationUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, max_length=160)
+    archived: bool | None = None
+    project_id: uuid.UUID | None = None
+    clear_project: bool = False
+
+
+class ProjectCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    shared_context: str = Field(default="", max_length=12000)
+
+
+class ProjectUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    shared_context: str | None = Field(default=None, max_length=12000)
+
+
 def _ollama_online() -> bool:
     try:
         with urlopen(f"{get_ollama_base_url()}/api/tags", timeout=1.5):
@@ -227,6 +251,71 @@ def capabilities():
 @app.get("/conversations")
 def conversations(limit: int = 100, include_archived: bool = False):
     return list_conversations(limit=limit, include_archived=include_archived)
+
+
+@app.patch("/conversations/{conversation_id}")
+def update_conversation(conversation_id: str, request: ConversationUpdateRequest):
+    try:
+        row = None
+        if request.title is not None:
+            row = rename_conversation(conversation_id, request.title)
+        if request.archived is not None:
+            row = archive_conversation(conversation_id, request.archived)
+        if request.project_id is not None or request.clear_project:
+            row = move_conversation(
+                conversation_id,
+                None if request.clear_project else str(request.project_id),
+            )
+        if row is None:
+            rows = [
+                item
+                for item in list_conversations(limit=500, include_archived=True)
+                if str(item["id"]) == conversation_id
+            ]
+            if not rows:
+                raise KeyError(conversation_id)
+            row = rows[0]
+        return row
+    except KeyError as error:
+        raise HTTPException(404, "Conversazione o progetto non trovato.") from error
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+
+
+@app.delete("/conversations/{conversation_id}")
+def remove_conversation(conversation_id: str):
+    if not delete_conversation(conversation_id):
+        raise HTTPException(404, "Conversazione non trovata.")
+    return {"deleted": True}
+
+
+@app.get("/conversation-projects")
+def conversation_projects():
+    return list_projects()
+
+
+@app.post("/conversation-projects")
+def add_conversation_project(request: ProjectCreateRequest):
+    return create_project(request.name, request.shared_context)
+
+
+@app.patch("/conversation-projects/{project_id}")
+def edit_conversation_project(project_id: str, request: ProjectUpdateRequest):
+    try:
+        return update_project(
+            project_id,
+            name=request.name,
+            shared_context=request.shared_context,
+        )
+    except KeyError as error:
+        raise HTTPException(404, "Progetto non trovato.") from error
+
+
+@app.delete("/conversation-projects/{project_id}")
+def remove_conversation_project(project_id: str):
+    if not delete_project(project_id):
+        raise HTTPException(404, "Progetto non trovato.")
+    return {"deleted": True}
 
 
 @app.get("/conversations/{conversation_id}/messages")
