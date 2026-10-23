@@ -5,7 +5,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = ROOT / "database" / "schema.sql"
-PROJECT_MIGRATION = ROOT / "database" / "migrations" / "0002_conversation_projects.sql"
+PROJECT_MIGRATION = ROOT / "database" / "migrations" / "0005_conversation_projects.sql"
 
 # Git blob id of database/schema.sql in the installed baseline commit 5161d549e180...
 # This is intentionally fixed: once 0001 is recorded in PostgreSQL, changing it
@@ -22,7 +22,7 @@ class DatabaseMigrationContractTests(unittest.TestCase):
     def test_0001_baseline_is_immutable(self):
         self.assertEqual(git_blob_sha1(BASELINE.read_bytes()), EXPECTED_BASELINE_BLOB)
 
-    def test_conversation_projects_live_in_0002_not_baseline(self):
+    def test_conversation_projects_live_in_0005_not_baseline(self):
         baseline = BASELINE.read_text(encoding="utf-8")
         migration = PROJECT_MIGRATION.read_text(encoding="utf-8")
         self.assertNotIn("conversation_projects", baseline)
