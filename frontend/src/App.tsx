@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import Audio from "./components/Audio";
 import ChatToolPicker from "./components/ChatToolPicker";
+import ConversationSidebar from "./components/ConversationSidebar";
 import { uploadAttachment, attachLibraryFile, type Attachment } from "./services/mediaApi";
 import Home from "./components/Home";
 import SystemUpdate from "./components/SystemUpdate";
@@ -40,7 +41,7 @@ import Architecture from "./components/Architecture";
 import ArchitectureRuntime from "./components/ArchitectureRuntime";
 import MemoryManagement from "./components/MemoryManagement";
 import ModelSettings from "./components/ModelSettings";
-import { apiBaseUrl } from "./services/api";
+import { api, apiBaseUrl } from "./services/api";
 import { useBackend } from "./services/useBackend";
 import { useConversations } from "./services/useConversations";
 
@@ -150,9 +151,9 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
       : "#" + next;
     window.history.replaceState(null, "", url);
   }
-  function newChat() {
+  function newChat(projectId: string | null = null) {
     if (sendLock.current) return;
-    history.newChat();
+    history.newChat(projectId);
     setDraft("");
     setChatError("");
     navigate("chat");
@@ -232,6 +233,9 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
       ...prev,
     ]);
     try {
+      if (!currentChat.persisted) {
+        await api.createConversation(threadId, currentChat.projectId);
+      }
       setLibraryActivity({threadId, items:[]});
       const result = await streamChat(content, threadId, setActiveRun, setLiveText, setRunState, attachments.map(a=>a.id), manualTools, item => setLibraryActivity(previous => ({threadId, items:[...previous.items.slice(-199), item]})), responseLength, setThinking);
       setChats((prev) =>
@@ -299,40 +303,29 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
       {withSidebar && (
         <aside className="global-sidebar">
           <div className="sidebar-top">
-            <button
-              className="sidebar-new"
+            <ConversationSidebar
+              chats={chats}
+              projects={history.projects}
+              currentId={currentChat.id}
               disabled={sending}
-              onClick={newChat}
-            >
-              <span>✧</span> Nuova chat
-            </button>
-            <div className="sidebar-caption">
-              CONVERSAZIONI · STORICO
-            </div>
-            <button className="sidebar-history" disabled={sending || history.historyLoading}
-              onClick={() => void history.refreshHistory()}>
-              <RefreshCw size={14} /> {history.historyLoading ? "Caricamento…" : "Aggiorna storico"}
-            </button>
-            {history.historyError && <div className="sidebar-history-error" role="alert">{history.historyError}</div>}
-            {chats.filter(c => !c.persisted).length > 0 && <small className="sidebar-history-note">Le nuove chat vengono salvate al primo messaggio.</small>}
-            {chats.map((chat) => (
-              <button
-                key={chat.id}
-                disabled={sending}
-                className={
-                  "sidebar-history " +
-                  (chat.id === currentChat.id ? "active" : "")
-                }
-                onClick={() => {
-                  history.selectChat(chat.id);
-                  setDraft("");
-                  setChatError("");
-                  navigate("chat");
-                }}
-              >
-                ◯ &nbsp; {chat.title}
-              </button>
-            ))}
+              loading={history.historyLoading}
+              error={history.historyError}
+              onNew={(projectId) => newChat(projectId ?? null)}
+              onRefresh={() => void history.refreshHistory()}
+              onSelect={(id) => {
+                history.selectChat(id);
+                setDraft("");
+                setChatError("");
+                navigate("chat");
+              }}
+              onRename={history.renameChat}
+              onArchive={history.archiveChat}
+              onDelete={history.deleteChat}
+              onMove={history.moveChat}
+              onCreateProject={history.createProject}
+              onEditProject={history.updateProject}
+              onDeleteProject={history.deleteProject}
+            />
           </div>
           <div className="sidebar-bottom">
             <div className="sidebar-server">
@@ -491,7 +484,6 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                   </div>
                 )}
                 {attachmentBusy&&<p role="status">Caricamento degli allegati…</p>}
-                <ChatToolPicker key={currentChat.threadId} selection={toolDrafts[currentChat.threadId]??null} onChange={names=>setToolDrafts(prev=>({...prev,[currentChat.threadId]:names}))} disabled={sending||attachmentBusy} available={Boolean(backend.health)} />
                 {libraryPicker && <ChatLibraryPicker disabled={sending||attachmentBusy} onClose={()=>setLibraryPicker(false)} onPick={attachFromLibrary} />}
                 <div className="attachment-drafts">{(attachmentDrafts[currentChat.threadId]||[]).map(a=><span className="attachment-chip" key={a.id}>{a.name}{a.truncated?" · estratto limitato":""}<button disabled={sending||attachmentBusy} aria-label={"Rimuovi allegato "+a.name} onClick={()=>setAttachmentDrafts(prev=>({...prev,[currentChat.threadId]:(prev[currentChat.threadId]||[]).filter(x=>x.id!==a.id)}))}>×</button></span>)}</div>
                 <ThinkingPanel key={currentChat.threadId} value={thinking} threadId={currentChat.threadId} running={sending} />
@@ -503,9 +495,24 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                     <button disabled={sending||attachmentBusy||!backend.health} title="Scegli la provenienza del documento" aria-label="Allega file" aria-expanded={attachmentMenu} onClick={()=>setAttachmentMenu(open=>!open)}>
                       <Paperclip size={19} /><span>Allega</span>
                     </button>
-                    {attachmentMenu && <div className="attachment-choice-menu">
-                      <button type="button" onClick={()=>{setAttachmentMenu(false);attachmentInput.current?.click();}}>Carica dal dispositivo</button>
-                      <button type="button" onClick={()=>{setAttachmentMenu(false);setLibraryPicker(true);}}>Scegli dalla Libreria IA</button>
+                    {attachmentMenu && <div className="attachment-choice-menu composer-tools-menu">
+                      <div className="composer-menu-section">
+                        <strong>Allega</strong>
+                        <button type="button" onClick={()=>{setAttachmentMenu(false);attachmentInput.current?.click();}}>Carica dal dispositivo</button>
+                        <button type="button" onClick={()=>{setAttachmentMenu(false);setLibraryPicker(true);}}>Scegli dalla Libreria IA</button>
+                      </div>
+                      <div className="composer-menu-divider" />
+                      <div className="composer-menu-section">
+                        <strong>Strumenti</strong>
+                        <ChatToolPicker
+                          embedded
+                          key={currentChat.threadId}
+                          selection={toolDrafts[currentChat.threadId]??null}
+                          onChange={names=>setToolDrafts(prev=>({...prev,[currentChat.threadId]:names}))}
+                          disabled={sending||attachmentBusy}
+                          available={Boolean(backend.health)}
+                        />
+                      </div>
                     </div>}
                   </div>
                   <textarea
