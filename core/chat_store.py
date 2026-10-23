@@ -123,7 +123,7 @@ def list_conversations(*, limit: int = 100, include_archived: bool = False) -> l
     with db_connection() as connection:
         rows = connection.execute(
             f"""
-            SELECT id, title, created_at, updated_at, archived, transcript_path, metadata
+            SELECT id, title, created_at, updated_at, archived, transcript_path, metadata, project_id
             FROM conversations
             {archived_clause}
             ORDER BY updated_at DESC
@@ -169,12 +169,101 @@ def get_messages(conversation_id: str, *, limit: int | None = None) -> list[dict
 
 
 def recent_context(conversation_id: str) -> list[dict[str, str]]:
+    from core.conversation_projects import project_context_for_conversation
+
     rows = get_messages(conversation_id, limit=CHAT_CONTEXT_MESSAGES)
-    return [
+    result = [
         {"role": row["role"], "content": row["content"]}
         for row in rows
         if row["role"] in {"user", "assistant", "system"}
     ]
+    project_context = project_context_for_conversation(conversation_id)
+    if project_context:
+        result.insert(
+            0,
+            {
+                "role": "system",
+                "content": (
+                    "PROJECT SHARED CONTEXT\n"
+                    "This context is shared by conversations in the same project. "
+                    "Treat it as project-scoped context, not global memory.\n"
+                    + project_context
+                ),
+            },
+        )
+    return result
+
+
+def rename_conversation(conversation_id: str, title: str) -> dict[str, Any]:
+    normalized = " ".join(title.split())[:160]
+    if not normalized:
+        raise ValueError("title non può essere vuoto")
+    with db_connection() as connection:
+        row = connection.execute(
+            """
+            UPDATE conversations
+            SET title=%s, updated_at=NOW()
+            WHERE id=%s
+            RETURNING id, title, created_at, updated_at, archived, project_id, metadata
+            """,
+            (normalized, uuid.UUID(conversation_id)),
+        ).fetchone()
+        if not row:
+            raise KeyError(conversation_id)
+        connection.commit()
+    refresh_transcript(conversation_id)
+    return row
+
+
+def archive_conversation(conversation_id: str, archived: bool = True) -> dict[str, Any]:
+    with db_connection() as connection:
+        row = connection.execute(
+            """
+            UPDATE conversations
+            SET archived=%s, updated_at=NOW()
+            WHERE id=%s
+            RETURNING id, title, created_at, updated_at, archived, project_id, metadata
+            """,
+            (archived, uuid.UUID(conversation_id)),
+        ).fetchone()
+        if not row:
+            raise KeyError(conversation_id)
+        connection.commit()
+    return row
+
+
+def move_conversation(conversation_id: str, project_id: str | None) -> dict[str, Any]:
+    pid = uuid.UUID(project_id) if project_id else None
+    with db_connection() as connection:
+        if pid is not None:
+            exists = connection.execute(
+                "SELECT 1 FROM conversation_projects WHERE id=%s", (pid,)
+            ).fetchone()
+            if not exists:
+                raise KeyError(project_id)
+        row = connection.execute(
+            """
+            UPDATE conversations
+            SET project_id=%s, updated_at=NOW()
+            WHERE id=%s
+            RETURNING id, title, created_at, updated_at, archived, project_id, metadata
+            """,
+            (pid, uuid.UUID(conversation_id)),
+        ).fetchone()
+        if not row:
+            raise KeyError(conversation_id)
+        connection.commit()
+    return row
+
+
+def delete_conversation(conversation_id: str) -> bool:
+    with db_connection() as connection:
+        result = connection.execute(
+            "DELETE FROM conversations WHERE id=%s",
+            (uuid.UUID(conversation_id),),
+        )
+        connection.commit()
+    return result.rowcount > 0
 
 
 def refresh_transcript(conversation_id: str) -> str:
