@@ -154,6 +154,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   function newChat(projectId: string | null = null) {
     if (sendLock.current) return;
     history.newChat(projectId);
+    setAttachmentMenu(false);
     setDraft("");
     setChatError("");
     navigate("chat");
@@ -194,6 +195,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
     setActiveRun("");
     setRunState("queued");
     setChatError("");
+    setAttachmentMenu(false);
     setDraft("");
     setAttachmentDrafts(prev=>({...prev,[currentChat.threadId]:[]}));
     setToolDrafts(prev=>({...prev,[currentChat.threadId]:null}));
@@ -314,12 +316,12 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
               onRefresh={() => void history.refreshHistory()}
               onSelect={(id) => {
                 history.selectChat(id);
+                setAttachmentMenu(false);
                 setDraft("");
                 setChatError("");
                 navigate("chat");
               }}
               onRename={history.renameChat}
-              onArchive={history.archiveChat}
               onDelete={history.deleteChat}
               onMove={history.moveChat}
               onCreateProject={history.createProject}
