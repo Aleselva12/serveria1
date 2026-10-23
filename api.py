@@ -161,6 +161,11 @@ class WorkingMemoryRequest(BaseModel):
     ttl_minutes: int = 120
 
 
+class ConversationCreateRequest(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID | None = None
+
+
 class ConversationUpdateRequest(BaseModel):
     title: str | None = Field(default=None, max_length=160)
     archived: bool | None = None
@@ -251,6 +256,17 @@ def capabilities():
 @app.get("/conversations")
 def conversations(limit: int = 100, include_archived: bool = False):
     return list_conversations(limit=limit, include_archived=include_archived)
+
+
+@app.post("/conversations")
+def create_conversation(request: ConversationCreateRequest):
+    try:
+        return ensure_conversation(
+            str(request.id),
+            project_id=str(request.project_id) if request.project_id else None,
+        )
+    except Exception as error:
+        raise HTTPException(422, str(error)) from error
 
 
 @app.patch("/conversations/{conversation_id}")
