@@ -46,11 +46,6 @@ export default function ConversationSidebar(props: Props) {
     setOpenChat("");
   }
 
-  async function archive(chat: Chat) {
-    await props.onArchive(chat.id);
-    setOpenChat("");
-  }
-
   async function createProject() {
     const name = window.prompt("Nome del nuovo progetto")?.trim();
     if (name) await props.onCreateProject(name);
