@@ -20,6 +20,7 @@ def ensure_conversation(
     *,
     title: str | None = None,
     metadata: dict[str, Any] | None = None,
+    project_id: str | None = None,
 ) -> dict[str, Any]:
     cid = uuid.UUID(conversation_id)
     with db_connection() as connection:
@@ -33,11 +34,16 @@ def ensure_conversation(
         normalized_title = (title or "Nuova chat").strip()[:160] or "Nuova chat"
         row = connection.execute(
             """
-            INSERT INTO conversations (id, title, metadata)
-            VALUES (%s, %s, %s::jsonb)
+            INSERT INTO conversations (id, title, metadata, project_id)
+            VALUES (%s, %s, %s::jsonb, %s)
             RETURNING *
             """,
-            (cid, normalized_title, json.dumps(metadata or {}, ensure_ascii=False)),
+            (
+                cid,
+                normalized_title,
+                json.dumps(metadata or {}, ensure_ascii=False),
+                uuid.UUID(project_id) if project_id else None,
+            ),
         ).fetchone()
         connection.commit()
         return row
