@@ -4158,3 +4158,42 @@ select:disabled {
     border-bottom: 0;
   }
 }
+
+
+.updater-diagnostic {
+  margin-top: 10px;
+  border: 1px solid #ead6d2;
+  border-radius: 8px;
+  background: #fff8f6;
+  padding: 8px 10px;
+  color: #652b22;
+}
+.updater-diagnostic summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+.updater-diagnostic p {
+  margin: 7px 0;
+  font-size: 11px;
+}
+.updater-diagnostic pre {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: 6px;
+  background: #211f1f;
+  color: #f4eeee;
+  padding: 10px;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.updater-diagnostic.compact {
+  margin-top: 6px;
+  padding: 6px 8px;
+}
+.update-history-error {
+  min-width: 0;
+  max-width: 58%;
+}
