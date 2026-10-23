@@ -156,6 +156,12 @@ export const api = {
       throw new ApiError("Elenco conversazioni non valido.", "invalid");
     return data;
   },
+  async createConversation(id: string, projectId: string | null = null): Promise<SavedConversation> {
+    return request<SavedConversation>("/conversations", {
+      method: "POST",
+      body: JSON.stringify({ id, project_id: projectId }),
+    });
+  },
   async updateConversation(id: string, patch: {
     title?: string;
     archived?: boolean;
