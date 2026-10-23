@@ -308,6 +308,15 @@ export type SavedConversation = {
   created_at: string;
   updated_at: string;
   archived: boolean;
+  project_id?: string | null;
+};
+export type ConversationProject = {
+  id: string;
+  name: string;
+  shared_context: string;
+  created_at: string;
+  updated_at: string;
+  conversation_count: number;
 };
 export type SavedMessage = {
   metadata?: {attachments?: import("../services/mediaApi").Attachment[]};
