@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 from http.server import ThreadingHTTPServer
 import httpx
-from updater.engine import Engine, atomic
+from updater.engine import Engine, atomic, CommandFailure, safe_diagnostic
 from updater.service import handler
 
 
@@ -132,6 +132,59 @@ class UpdaterTests(unittest.TestCase):
             self.engine.migration_trial(row,ready['images']['api'])
         self.assertEqual(events,['initializing','ready','restore','migrate'])
         self.assertTrue(row['checks']['migration_copy'])
+
+
+    def test_updater_diagnostics_redact_credentials(self):
+        text = (
+            "postgresql://cora:supersecret@db:5432/cora\n"
+            "PGPASSWORD=anothersecret\n"
+            "Authorization: Bearer token-value\n"
+            "RuntimeError: Applied migration changed: 0001_baseline\n"
+        )
+        safe = safe_diagnostic(text)
+        self.assertNotIn("supersecret", safe)
+        self.assertNotIn("anothersecret", safe)
+        self.assertNotIn("token-value", safe)
+        self.assertIn("Applied migration changed", safe)
+
+    def test_migration_trial_records_exact_failed_stage_and_safe_output(self):
+        ready=self.ready()
+        job=self.engine.submit('apply',commit=ready['commit'],release_id=ready['id'])
+        row=self.engine.load(job['id'])
+        backup=self.engine.path(row['id'])/'backup';backup.mkdir()
+        (backup/'database.dump').write_bytes(b'database copy')
+
+        def command(args, **kwargs):
+            if 'inspect' in args:
+                return 'sha256:postgres'
+            if args[:3] == ['docker','network','create']:
+                return ''
+            if args[:2] == ['docker','run'] and '--name' in args:
+                return 'container-id'
+            if 'pg_isready' in args:
+                return ''
+            if 'pg_restore' in args:
+                return ''
+            if args[:2] == ['docker','run'] and '--entrypoint=python' in args:
+                raise CommandFailure(
+                    args,
+                    1,
+                    "postgresql://cora:hidden@db/cora\nRuntimeError: migration exploded",
+                )
+            if args[:3] == ['docker','rm','--force']:
+                return ''
+            if args[:3] == ['docker','network','rm']:
+                return ''
+            return ''
+
+        with patch.object(self.engine,'compose',return_value='postgres-container'), patch.object(self.engine,'cmd',side_effect=command):
+            with self.assertRaises(CommandFailure):
+                self.engine.migration_trial(row, ready['images']['api'])
+
+        saved=self.engine.load(row['id'])
+        self.assertEqual(saved['error_stage'],'Applicazione migrazioni con immagine API candidata')
+        self.assertIn('migration exploded', saved['error_detail'])
+        self.assertNotIn('hidden', saved['error_detail'])
 
     def test_failed_activation_recovers_previous_images_and_data(self):
         ready=self.ready();public=self.engine.submit('apply',commit=ready['commit'],release_id=ready['id']);row=self.engine.load(public['id'])
