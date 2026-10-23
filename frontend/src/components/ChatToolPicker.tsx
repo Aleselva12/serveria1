@@ -9,11 +9,11 @@ export default function ChatToolPicker({selection,onChange,disabled,available,em
   const [error,setError] = useState("");
   const [revision,setRevision] = useState(0);
   useEffect(()=>{
-    if (!open || !available) return;
+    if ((!open && !embedded) || !available) return;
     let active=true;setLoading(true);setError("");
     chatTools().then(t=>{if(active)setTools(t);}).catch(e=>{if(active){setTools([]);setError(e.message);}}).finally(()=>{if(active)setLoading(false);});
     return ()=>{active=false;};
-  },[open,available,revision]);
+  },[open,available,revision,embedded]);
   const groups=[...new Set(tools.map(t=>t.group))];
   const panel = <div className={embedded ? "chat-tool-panel embedded" : "chat-tool-panel"}>
       <div className="chip-row"><button type="button" className="chip" disabled={disabled} aria-pressed={selection===null} onClick={()=>onChange(null)}>Automatici</button>
