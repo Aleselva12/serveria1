@@ -400,9 +400,15 @@ class Engine:
                 try:
                     self.cmd(['docker','exec',container,'pg_isready','-h','127.0.0.1','-U','cora','-d','cora'],timeout=5)
                     break
-                except CommandFailure:
+                except Exception as probe_error:
+                    # pg_isready is only a readiness probe: any ordinary command
+                    # failure here means "not ready yet". Errors from restore or
+                    # migrations are outside this loop and still fail immediately.
                     if time.monotonic()>deadline:
-                        raise TimeoutError('Database di prova non pronto entro 60 secondi.')
+                        raise TimeoutError(
+                            'Database di prova non pronto entro 60 secondi: '
+                            + safe_diagnostic(str(probe_error))
+                        ) from probe_error
                     time.sleep(.2)
 
             mark('Ripristino backup nel database di prova')
