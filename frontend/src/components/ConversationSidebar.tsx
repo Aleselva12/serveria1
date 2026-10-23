@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Archive,
   Folder,
   FolderPlus,
   MoreHorizontal,
@@ -23,7 +22,6 @@ type Props = {
   onRefresh: () => void;
   onSelect: (id: string) => void;
   onRename: (id: string, title: string) => Promise<void>;
-  onArchive: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onMove: (id: string, projectId: string | null) => Promise<void>;
   onCreateProject: (name: string) => Promise<void>;
@@ -114,7 +112,6 @@ export default function ConversationSidebar(props: Props) {
                   <Folder size={14} /> Rimuovi dal progetto
                 </button>
               )}
-              <button onClick={() => void archive(chat)}><Archive size={14} /> Archivia</button>
               <button className="danger" onClick={() => void remove(chat)}><Trash2 size={14} /> Elimina</button>
             </div>
           )}
