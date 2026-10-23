@@ -6,6 +6,7 @@ import type {
   ExecutionRun,
   ToolInventory,
   SavedConversation,
+  ConversationProject,
   SavedMessage,
   BackendChatResponse,
   BackendHealth,
@@ -154,6 +155,45 @@ export const api = {
       typeof c.archived === "boolean"))
       throw new ApiError("Elenco conversazioni non valido.", "invalid");
     return data;
+  },
+  async updateConversation(id: string, patch: {
+    title?: string;
+    archived?: boolean;
+    project_id?: string;
+    clear_project?: boolean;
+  }): Promise<SavedConversation> {
+    return request<SavedConversation>("/conversations/" + encodeURIComponent(id), {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  },
+  async deleteConversation(id: string): Promise<{ deleted: boolean }> {
+    return request<{ deleted: boolean }>("/conversations/" + encodeURIComponent(id), {
+      method: "DELETE",
+    });
+  },
+  async conversationProjects(): Promise<ConversationProject[]> {
+    return request<ConversationProject[]>("/conversation-projects");
+  },
+  async createConversationProject(name: string, sharedContext = ""): Promise<ConversationProject> {
+    return request<ConversationProject>("/conversation-projects", {
+      method: "POST",
+      body: JSON.stringify({ name, shared_context: sharedContext }),
+    });
+  },
+  async updateConversationProject(id: string, patch: {
+    name?: string;
+    shared_context?: string;
+  }): Promise<ConversationProject> {
+    return request<ConversationProject>("/conversation-projects/" + encodeURIComponent(id), {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  },
+  async deleteConversationProject(id: string): Promise<{ deleted: boolean }> {
+    return request<{ deleted: boolean }>("/conversation-projects/" + encodeURIComponent(id), {
+      method: "DELETE",
+    });
   },
   async conversationMessages(id: string): Promise<SavedMessage[]> {
     const data = await request<SavedMessage[]>(
