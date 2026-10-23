@@ -363,3 +363,18 @@ ALTER TABLE capability_operations ADD COLUMN IF NOT EXISTS intent_digest TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_capability_operations_unresolved_intent
     ON capability_operations(intent_digest)
     WHERE effect IN ('write','delegate') AND status IN ('started','uncertain') AND review_outcome IS NULL;
+
+
+-- Chat projects group conversations and provide shared project context.
+CREATE TABLE IF NOT EXISTS conversation_projects (
+    id UUID PRIMARY KEY,
+    name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 120),
+    shared_context TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS project_id UUID
+    REFERENCES conversation_projects(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_conversations_project
+    ON conversations(project_id, updated_at DESC);
