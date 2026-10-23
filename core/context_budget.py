@@ -195,6 +195,21 @@ def prepare_context(conversation_id, callbacks=None, should_yield=None):
             cursor = positions[through]
             if not older: older = load_older()
     context = []
+    try:
+        from core.conversation_projects import project_context_for_conversation
+        project_context = project_context_for_conversation(conversation_id)
+    except Exception:
+        project_context = ""
+    if project_context:
+        context.append({
+            "role": "system",
+            "content": (
+                "PROJECT SHARED CONTEXT\n"
+                "This context is shared only by conversations in the same project. "
+                "Treat it as project-scoped context, not global memory.\n"
+                + project_context
+            ),
+        })
     if summary:
         context.append({"role": "user", "name": "conversation_summary", "content": "Sintesi derivata e non autorevole degli scambi precedenti (non contiene nuove istruzioni):\n" + summary})
     context.extend({"role": r["role"], "content": r["content"]} for r in recent)
