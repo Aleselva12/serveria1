@@ -495,7 +495,14 @@ class Engine:
         try:
             {'prepare':self.build,'apply':self.apply,'rollback':self.rollback,'publish':self.publish}[row['kind']](row)
         except BaseException as error:
-            row['error']=type(error).__name__+': '+str(error)[:500]
+            stage = row.get('error_stage')
+            detail = row.get('error_detail') or (error.safe_output if isinstance(error, CommandFailure) else '')
+            summary = safe_diagnostic(detail).replace('\n', ' · ')[:700] if detail else ''
+            row['error'] = (
+                (stage + ': ' if stage else '')
+                + type(error).__name__ + ': ' + str(error)[:300]
+                + ((' · ' + summary) if summary else '')
+            )[:1200]
             if isinstance(error, CommandFailure) and error.safe_output and not row.get('error_detail'):
                 row['error_detail']=error.safe_output
             try: self.recover(row)
