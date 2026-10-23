@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { chatTools, type ChatTool } from "../services/chatToolsApi";
 
 const labels:Record<string,string> = {audio_agent_tool:"Agente Audio",email_agent_tool:"Agente Mail e preventivi",search_agent_tool:"Agente Documenti",structure_agent_tool:"Agente Struttura",programmer_agent_tool:"Agente Programmatore"};
-export default function ChatToolPicker({selection,onChange,disabled,available}:{selection:string[]|null;onChange:(names:string[]|null)=>void;disabled:boolean;available:boolean}) {
+export default function ChatToolPicker({selection,onChange,disabled,available,embedded=false}:{selection:string[]|null;onChange:(names:string[]|null)=>void;disabled:boolean;available:boolean;embedded?:boolean}) {
   const [open,setOpen] = useState(false);
   const [tools,setTools] = useState<ChatTool[]>([]);
   const [loading,setLoading] = useState(false);
@@ -15,9 +15,7 @@ export default function ChatToolPicker({selection,onChange,disabled,available}:{
     return ()=>{active=false;};
   },[open,available,revision]);
   const groups=[...new Set(tools.map(t=>t.group))];
-  return <div className="chat-tool-picker">
-    <button className="chip" type="button" disabled={disabled} aria-expanded={open} onClick={()=>setOpen(v=>!v)}>Tools · {selection === null ? "Automatici" : selection.length + " selezionati"}</button>
-    {open && <div className="chat-tool-panel">
+  const panel = <div className={embedded ? "chat-tool-panel embedded" : "chat-tool-panel"}>
       <div className="chip-row"><button type="button" className="chip" disabled={disabled} aria-pressed={selection===null} onClick={()=>onChange(null)}>Automatici</button>
         <button type="button" className="chip" disabled={disabled||!available} aria-pressed={selection!==null} onClick={()=>onChange(selection??[])}>Scelta manuale</button></div>
       <p>La scelta manuale rende disponibili solo i tool selezionati per questa richiesta. Gli agenti specializzati usano i propri strumenti. La selezione non esegue azioni da sola.</p>
@@ -30,6 +28,10 @@ export default function ChatToolPicker({selection,onChange,disabled,available}:{
         <span><strong>{labels[t.name]||t.name}</strong><small>{t.description}</small><small>{t.group === "Agenti specializzati" ? "Delega · l’agente mantiene le policy dei propri tool" : t.permissions.some(p=>p.policy==="confirm")?"Conferma prevista per alcune azioni":t.permissions.some(p=>p.policy==="blocked")?"Contiene azioni bloccate":"Automatico · nessuna conferma"}</small></span>
       </label>)}</fieldset>)}
       {selection!==null && !selection.length && <p>Nessun tool abilitato per questa richiesta.</p>}
-    </div>}
+    </div>;
+  if (embedded) return <div className="chat-tool-picker embedded">{panel}</div>;
+  return <div className="chat-tool-picker">
+    <button className="chip" type="button" disabled={disabled} aria-expanded={open} onClick={()=>setOpen(v=>!v)}>Tools · {selection === null ? "Automatici" : selection.length + " selezionati"}</button>
+    {open && panel}
   </div>;
 }
