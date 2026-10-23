@@ -47,13 +47,23 @@ export function useConversations(connected: boolean, sending: boolean) {
     setHistoryLoading(true);
     setHistoryError("");
     try {
-      const [saved, savedProjects] = await Promise.all([
-        api.conversations(),
-        api.conversationProjects(),
-      ]);
+      const saved = await api.conversations();
       if (!live.current || request !== listRequest.current) return;
 
-      setProjects(savedProjects);
+      // Projects enrich the sidebar but must never make canonical chat history fail.
+      // This also keeps the history compatible while backend/frontend versions
+      // briefly differ during an update.
+      if (typeof api.conversationProjects === "function") {
+        void api
+          .conversationProjects()
+          .then((savedProjects) => {
+            if (live.current && request === listRequest.current)
+              setProjects(savedProjects);
+          })
+          .catch(() => {
+            // Conversation history remains usable if project metadata is unavailable.
+          });
+      }
       setChats((previous) => {
         const ids = new Set(saved.map((c) => c.id));
         const drafts = previous.filter((c) => !c.persisted && !ids.has(c.id));
