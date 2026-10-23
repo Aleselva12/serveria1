@@ -22,6 +22,26 @@ def now(): return datetime.now(timezone.utc).isoformat()
 def sha(value): return hashlib.sha256(value).hexdigest()
 
 
+def safe_diagnostic(text):
+    """Return a short operator-facing diagnostic without credentials."""
+    value = str(text or "")
+    value = re.sub(r'(?i)(postgresql://[^:\s/@]+:)[^@\s/]+(@)', r'\1***\2', value)
+    value = re.sub(r'(?i)\b(PGPASSWORD|POSTGRES_PASSWORD|TOKEN|SECRET|PASSWORD)=([^\s]+)', r'\1=***', value)
+    value = re.sub(r'(?i)(authorization:\s*bearer\s+)[^\s]+', r'\1***', value)
+    lines = [line.strip() for line in value.splitlines() if line.strip()]
+    return "\n".join(lines[-30:])[-5000:]
+
+
+class CommandFailure(RuntimeError):
+    def __init__(self, command, returncode, output):
+        self.command = Path(command[0]).name if command else "command"
+        self.returncode = int(returncode)
+        self.safe_output = safe_diagnostic(output)
+        super().__init__(
+            "Comando " + self.command + " non riuscito (codice " + str(self.returncode) + ")."
+        )
+
+
 def file_digest(path):
     digest=hashlib.sha256()
     with path.open('rb') as source:
@@ -68,8 +88,8 @@ class Engine:
         if process.returncode:
             (self.root/'last-error.log').write_text(text)
             (self.root/'last-error.log').chmod(0o600)
-            # Command output may contain database values or interpolated configuration.
-            raise RuntimeError('Comando '+Path(arguments[0]).name+' non riuscito (codice '+str(process.returncode)+').')
+            # Keep the raw tail private on disk; only a redacted tail may reach the UI.
+            raise CommandFailure(arguments, process.returncode, text)
         return text.strip()
 
     def git(self, *args, cwd=None):
@@ -90,7 +110,7 @@ class Engine:
     def save(self, row):
         row['updated_at'] = now(); atomic(self.path(row['id'])/'job.json', row)
     def public(self, row):
-        keys = ('id','workspace_id','kind','status','phase','commit','base_commit','created_at','updated_at','error','checks','rollback','backup_valid','previous_commit','branch','compare_url')
+        keys = ('id','workspace_id','kind','status','phase','commit','base_commit','created_at','updated_at','error','error_stage','error_detail','cleanup_error','checks','rollback','backup_valid','previous_commit','branch','compare_url')
         return {key: row[key] for key in keys if key in row}
     def list_jobs(self):
         return sorted([self.public(json.loads(p.read_text())) for p in self.jobs.glob('*/job.json')], key=lambda r:r['created_at'], reverse=True)[:100]
@@ -350,36 +370,80 @@ class Engine:
     def migration_trial(self, row, image):
         """Run schema upgrades on a disposable copy, never on the live database."""
         network='cora-trial-'+row['id']; container=network+'-db'; password=secrets.token_hex(24)
-        pg=self.compose('ps','-q','postgres',timeout=30)
-        pg_image=self.cmd(['docker','inspect','--format={{.Image}}',pg],timeout=30)
-        created_network=False;created_container=False
+        created_network=False; created_container=False; primary_error=None
         self.phase(row,'migration_trial')
+
+        def mark(stage):
+            row['error_stage']=stage
+            row.pop('error_detail',None)
+            self.save(row)
+
         try:
-            self.cmd(['docker','network','create','--internal',network],timeout=30);created_network=True
+            mark('Individuazione immagine PostgreSQL')
+            pg=self.compose('ps','-q','postgres',timeout=30)
+            pg_image=self.cmd(['docker','inspect','--format={{.Image}}',pg],timeout=30)
+
+            mark('Creazione rete Docker di prova')
+            self.cmd(['docker','network','create','--internal',network],timeout=30)
+            created_network=True
+
+            mark('Avvio PostgreSQL temporaneo')
             self.cmd(['docker','run','--detach','--pull=never','--name',container,'--network',network,
                       '--memory=2g','--pids-limit=256','--tmpfs=/var/lib/postgresql/data:rw,nosuid,size=2g',
                       '-e','POSTGRES_USER=cora','-e','POSTGRES_DB=cora','-e','POSTGRES_PASSWORD='+password,pg_image],timeout=30)
             created_container=True
+
+            mark('Attesa PostgreSQL temporaneo')
             import time
             deadline=time.monotonic()+60
             while True:
-                # The entrypoint's temporary initialization server only listens on a
-                # Unix socket. Wait for TCP so restore cannot race its shutdown.
-                try:self.cmd(['docker','exec',container,'pg_isready','-h','127.0.0.1','-U','cora','-d','cora'],timeout=5);break
-                except RuntimeError:
-                    if time.monotonic()>deadline:raise TimeoutError('Database di prova non pronto.')
+                try:
+                    self.cmd(['docker','exec',container,'pg_isready','-h','127.0.0.1','-U','cora','-d','cora'],timeout=5)
+                    break
+                except CommandFailure:
+                    if time.monotonic()>deadline:
+                        raise TimeoutError('Database di prova non pronto entro 60 secondi.')
                     time.sleep(.2)
+
+            mark('Ripristino backup nel database di prova')
             with (self.path(row['id'])/'backup'/'database.dump').open('rb') as source:
-                self.cmd(['docker','exec','-i','-e','PGPASSWORD='+password,container,'pg_restore','-h','127.0.0.1','-U','cora','-d','cora','--exit-on-error','--no-owner','--no-privileges'],stdin=source)
-            self.cmd(['docker','run','--rm','--network',network,'--read-only','--cap-drop=ALL','--security-opt=no-new-privileges',
-                      '--pids-limit=128','--memory=1g','--tmpfs=/tmp:rw,nosuid,size=128m',
+                self.cmd(['docker','exec','-i','-e','PGPASSWORD='+password,container,'pg_restore','-h','127.0.0.1',
+                          '-U','cora','-d','cora','--exit-on-error','--no-owner','--no-privileges'],stdin=source)
+
+            mark('Applicazione migrazioni con immagine API candidata')
+            self.cmd(['docker','run','--rm','--network',network,'--read-only','--cap-drop=ALL',
+                      '--security-opt=no-new-privileges','--pids-limit=128','--memory=1g',
+                      '--tmpfs=/tmp:rw,nosuid,size=128m',
                       '-e','CORA_DATABASE_URL=postgresql://cora:'+password+'@'+container+':5432/cora',
                       '--entrypoint=python',image,'-c',
-                      "from core.database import db_connection; c=db_connection(); conn=c.__enter__();conn.execute('SELECT 1');c.__exit__(None,None,None)"],timeout=300)
-            row['checks']={'migration_copy':True};self.save(row)
+                      "from core.database import db_connection; c=db_connection(); conn=c.__enter__();"
+                      "conn.execute('SELECT 1');c.__exit__(None,None,None)"],timeout=300)
+
+            row['checks']={**row.get('checks',{}),'migration_copy':True}
+            row.pop('error_stage',None); row.pop('error_detail',None); row.pop('cleanup_error',None)
+            self.save(row)
+        except BaseException as error:
+            primary_error=error
+            if isinstance(error, CommandFailure) and error.safe_output:
+                row['error_detail']=error.safe_output
+            elif str(error):
+                row['error_detail']=safe_diagnostic(str(error))
+            self.save(row)
+            raise
         finally:
-            if created_container:self.cmd(['docker','rm','--force',container],timeout=30)
-            if created_network:self.cmd(['docker','network','rm',network],timeout=30)
+            cleanup=[]
+            if created_container:
+                try:self.cmd(['docker','rm','--force',container],timeout=30)
+                except BaseException as error:cleanup.append('container: '+str(error))
+            if created_network:
+                try:self.cmd(['docker','network','rm',network],timeout=30)
+                except BaseException as error:cleanup.append('rete: '+str(error))
+            if cleanup:
+                row['cleanup_error']=safe_diagnostic('; '.join(cleanup))
+                self.save(row)
+                # Cleanup must never hide the actual migration failure.
+                if primary_error is None:
+                    raise RuntimeError('Pulizia ambiente di prova non completata: '+row['cleanup_error'])
 
     def apply(self, row):
         release=self.load(row['release_id'])
@@ -431,7 +495,9 @@ class Engine:
         try:
             {'prepare':self.build,'apply':self.apply,'rollback':self.rollback,'publish':self.publish}[row['kind']](row)
         except BaseException as error:
-            row['error']=type(error).__name__+': '+str(error)[:300]
+            row['error']=type(error).__name__+': '+str(error)[:500]
+            if isinstance(error, CommandFailure) and error.safe_output and not row.get('error_detail'):
+                row['error_detail']=error.safe_output
             try: self.recover(row)
             except BaseException:
                 row['status']='recovery_required'; row['error']='Ripristino non completato: controllare il servizio updater dal server.'; self.save(row)
