@@ -199,13 +199,37 @@ def get_event(event_id: str) -> dict:
     return normalize(service().events().get(calendarId="primary", eventId=event_id).execute())
 
 
-def create_event(data: dict) -> dict:
-    event = service().events().insert(
-        calendarId="primary",
-        body=_google_body(data),
-        sendUpdates="none",
-    ).execute()
-    return normalize(event)
+def create_event(data: dict, *, request_id: str | None = None) -> dict:
+    """Use caller's stable request ID to reconcile uncertain create responses."""
+    calendar_service = service()
+    body = _google_body(data)
+    event_id = _local_google_id("manual:" + request_id) if request_id else None
+    if event_id:
+        body["id"] = event_id
+    try:
+        event = calendar_service.events().insert(
+            calendarId="primary", body=body, sendUpdates="none",
+        ).execute()
+        return normalize(event)
+    except Exception:
+        if not event_id:
+            raise
+        # Never retry the external write. A timed-out commit or 409 may
+        # already have created this exact ID.
+        try:
+            existing = calendar_service.events().get(
+                calendarId="primary", eventId=event_id
+            ).execute()
+        except Exception:
+            raise  # Original request outcome stays unconfirmed to the caller.
+        if existing.get("summary") != body["summary"] or (
+            (existing.get("start") or {}).get("dateTime") !=
+            (body["start"] or {}).get("dateTime")
+            and (existing.get("start") or {}).get("date") !=
+            (body["start"] or {}).get("date")
+        ):
+            raise ValueError("Chiave richiesta già usata per un evento diverso.")
+        return normalize(existing)
 
 
 def _managed_local_event_ids(calendar_service=None) -> set[str]:
