@@ -2,14 +2,22 @@
 import tempfile
 import unittest
 from pathlib import Path
-from hashlib import sha256
 from io import BytesIO
 from uuid import uuid4
 from unittest.mock import patch
 from docx import Document
 
 from core import commercial_notes
-from tests.test_commercial_word import sample
+def sample():
+    document = Document()
+    for line in ("LIDO TEST UNO", "Mario", "21/10/2026", "Vecchia annotazione",
+                 "---------------------------------------------------------",
+                 "HOTEL TEST DUE", "Lucia", "21/10/2026", "Seconda annotazione",
+                 "---------------------------------------------------------"):
+        document.add_paragraph(line)
+    stream = BytesIO()
+    document.save(stream)
+    return stream.getvalue()
 
 
 class CommercialNotesTests(unittest.TestCase):
