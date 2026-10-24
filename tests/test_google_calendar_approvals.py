@@ -56,6 +56,21 @@ class GoogleCalendarApprovalTests(unittest.TestCase):
         self.assertEqual(request.headers["If-Match"], '"old"')
         self.assertEqual(result["id"], current["id"])
 
+    def test_google_update_rejects_etag_changed_during_request(self):
+        from httplib2 import Response
+        from googleapiclient.errors import HttpError
+        current = {"id": "non-uuid-id", "etag": '"old"', "version": 42}
+        request = Mock()
+        request.headers = {}
+        request.execute.side_effect = HttpError(Response({"status": 412}), b"precondition failed")
+        service = Mock()
+        service.events.return_value.patch.return_value = request
+        with patch.object(google_calendar, "get_event", return_value=current), \
+             patch.object(google_calendar, "service", return_value=service):
+            with self.assertRaises(local.CalendarConflict):
+                google_calendar.update_event(current["id"], DATA, expected_version=42)
+        self.assertEqual(request.headers["If-Match"], '"old"')
+
     def test_google_agent_write_is_durable_proposal_not_a_direct_write(self):
         tool = next(t for t in calendar_tools_for("supervisor") if t.name == "calendar_create_event")
         with patch.object(google_calendar, "token_exists", return_value=True), \
