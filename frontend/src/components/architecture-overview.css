@@ -3,3 +3,4 @@
 .agent-catalog .agent-card-grid{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:1000px){.agent-catalog .agent-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.agent-catalog .agent-card-grid{grid-template-columns:minmax(0,1fr)}}
 
 .agent-catalog .model-proof{border-top:1px solid var(--catalog-line);margin-top:18px;padding-top:4px}.agent-catalog .model-proof p{overflow-wrap:anywhere}.agent-catalog form>button{margin-right:8px;margin-bottom:7px}
+.agent-catalog .model-proof pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}.agent-catalog .model-proof ol{padding-left:20px;color:var(--catalog-muted);font-size:12px;line-height:1.7}

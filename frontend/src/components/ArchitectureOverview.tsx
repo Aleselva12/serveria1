@@ -20,6 +20,7 @@ function AgentDetails({ agent, targets, onSaved, onClose }: { agent: AgentCard; 
   const [verifying, setVerifying] = useState(false);
   const [verificationId, setVerificationId] = useState('');
   const [verificationMessage, setVerificationMessage] = useState('');
+  const [downloading, setDownloading] = useState(false);
   const baselineMachine = agent.assignment?.machine_id || 'inherit';
   useEffect(() => { setMachine(baselineMachine); setModel(agent.model); }, [agent.id, agent.model, baselineMachine, agent.configuration?.configuration_id]);
   useEffect(() => {
@@ -51,6 +52,12 @@ function AgentDetails({ agent, targets, onSaved, onClose }: { agent: AgentCard; 
     try { const result = await architectureApi.reloadTranscription(); setMessage(result.note); await onSaved(); }
     catch (e) { setError(e instanceof Error ? e.message : 'Ricarica non riuscita.'); }
   }
+  async function downloadWorker() {
+    setDownloading(true); setError('');
+    try { await architectureApi.downloadWorkerUpdate(); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Download non riuscito.'); }
+    finally { setDownloading(false); }
+  }
   useEffect(() => {
     let active = true;
     setCatalog(null); setError('');
@@ -73,7 +80,8 @@ function AgentDetails({ agent, targets, onSaved, onClose }: { agent: AgentCard; 
       const current = readback.agents.find(a => a.id === agent.id);
       if (saved.configuration && current?.configuration?.configuration_id !== saved.configuration.configuration_id) throw Error('Configurazione salvata ma riletta diversa. Ricarica prima di avviare una chat.');
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('cora:model-config-changed'));
-      setMessage(`Assegnazione salvata e riletta: ${current?.model || model} su ${current?.machine_name || machine}. Attiva dalla prossima chiamata; nessun riavvio richiesto.`);
+      const needsUpdate = machine !== 'inherit' && machine !== 'local' && !catalog?.agent_chat;
+      setMessage(`Assegnazione salvata e riletta: ${current?.model || model} su ${current?.machine_name || machine}. ${needsUpdate ? 'Serve aggiornare il worker desktop prima di usarla. La chat non userà un altro modello al suo posto.' : 'Attiva dalla prossima chiamata; nessun riavvio di Cora richiesto.'}`);
     }
     catch (e) { setError((stored ? 'Salvataggio confermato, ma verifica di rilettura non riuscita: ' : '') + (e instanceof Error ? e.message : 'Salvataggio non riuscito.')); }
     finally { setSaving(false); }
@@ -97,10 +105,10 @@ function AgentDetails({ agent, targets, onSaved, onClose }: { agent: AgentCard; 
         <button type="button" disabled={loading || saving} onClick={() => setReload(n => n + 1)}>Ricarica modelli</button>
         {machine !== 'local' && <p>Il worker usa soltanto il modello selezionato da te in Macchine. ON/OFF e scelta restano manuali: se cambi modello, aggiorna anche l’assegnazione di questo agente.</p>}
         {catalog && !catalog.enabled && <p role="status">Worker OFF: abilitalo dalla pagina Macchine.</p>}
-        {catalog && !catalog.agent_chat && <p role="status">Aggiorna il container worker sul desktop per abilitare le conversazioni degli agenti.</p>}
+        {catalog && !catalog.agent_chat && <div className="model-proof" role="status"><h3>Worker da aggiornare per la chat</h3><p>Puoi salvare questa assegnazione. Per usarla serve aggiornare il container sul desktop: il test positivo in Macchine prova solo l’inferenza /generate, mentre gli agenti usano /chat con messaggi e tool.</p><button type="button" disabled={downloading} onClick={() => void downloadWorker()}>{downloading ? 'Download…' : 'Scarica aggiornamento worker'}</button><ol><li>Sul desktop estrai lo ZIP nella cartella worker esistente. Conserva il file .env con il token e le eventuali personalizzazioni di Compose. Leggi UPDATE.md incluso.</li><li>Da PowerShell, nella cartella worker, esegui:<pre>docker compose up -d --build --force-recreate worker</pre></li><li>Premi Ricarica modelli qui, poi Verifica modello con una chiamata.</li></ol><p>L’aggiornamento va eseguito sul desktop; ricaricare la pagina o riavviare solo Cora non aggiorna quel container.</p></div>}
       </>}
       {error && <p role="alert" className="catalog-error">{error}</p>}{message && <p role="status">{message}</p>}
-      <button className="catalog-save" disabled={saving || verifying || (machine !== 'inherit' && (loading || !catalog?.enabled || !catalog?.agent_chat || !model))}>{saving ? 'Salvataggio…' : 'Salva assegnazione'}</button>
+      <button className="catalog-save" disabled={saving || verifying || (machine !== 'inherit' && (loading || !catalog?.enabled || !model))}>{saving ? 'Salvataggio…' : 'Salva assegnazione'}</button>
       <button type="button" disabled={saving || verifying || dirty} onClick={() => void verify()}>{verifying ? 'Verifica in corso…' : 'Verifica modello con una chiamata'}</button><p className="catalog-fineprint">Invia una breve richiesta al modello salvato, senza usare tool.{dirty ? ' Salva le modifiche prima della verifica.' : ''}</p>{verificationMessage && <p role="status">{verificationMessage}</p>}
       <p className="catalog-fineprint">Gli strumenti continuano a essere eseguiti da Cora. La macchina selezionata esegue l’inferenza del modello.</p>
     </form></div>

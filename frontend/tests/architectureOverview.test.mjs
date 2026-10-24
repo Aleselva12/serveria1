@@ -11,15 +11,16 @@ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 globalThis.requestAnimationFrame=fn=>fn();
 const tool={id:'read',name:'read_document',description:'Reads an authorized document',parameters:['path']};
 const agent=id=>({id,name:id,description:'Description '+id,role:id,available:true,capabilities:[],configuration:{role:id,model:'local-model',machine_id:'local',source:'global_selection',configuration_id:'base-'+id},model:'local-model',machine_name:'Ollama di Cora',assignment:null,runtime:{status:'ready',checks:{}},tools:[tool]});
-let fixture,offline=false,failSave=false,saved=[];
-const reset=()=>{fixture={agents:[agent('supervisor'),agent('local_research_agent')],components:[],inventory_errors:[]};offline=false;failSave=false;saved=[];};reset();
+let fixture,offline=false,failSave=false,legacy=false,downloads=0,saved=[];
+const reset=()=>{fixture={agents:[agent('supervisor'),agent('local_research_agent')],components:[],inventory_errors:[]};offline=false;failSave=false;legacy=false;downloads=0;saved=[];};reset();
 globalThis.__overviewApi={
+ downloadWorkerUpdate:async()=>{downloads++;},
  verify:async id=>({run_id:'verify-'+id}),
  verification:async()=>({id:'verify-supervisor',status:'completed',result:{reported_model:'provider-model',configuration:fixture.agents[0].configuration,duration_ms:10}}),
  reloadTranscription:async()=>({note:'Cache Whisper ricaricata'}),
  agents:async()=>{if(offline)throw Error('Offline');return {...fixture,agents:[...fixture.agents]};},
  targets:async()=>[{id:'local',name:'Ollama di Cora',enabled:true},{id:'pc',name:'Desktop',enabled:true}],
- models:async id=>({models:[{name:id==='pc'?'desktop-model':'local-model'}],enabled:true,agent_chat:true,active_model:id==='pc'?'desktop-model':null}),
+ models:async id=>({models:[{name:id==='pc'?'desktop-model':'local-model'}],enabled:true,agent_chat:!legacy,active_model:id==='pc'?'desktop-model':null}),
  save:async(id,machine,model)=>{if(failSave)throw Error('Worker OFF');saved.push({id,machine,model});fixture.agents=fixture.agents.map(a=>a.id===id?{...a,assignment:{machine_id:machine,model},configuration:{role:a.role,model,machine_id:machine,source:'agent_assignment',configuration_id:'saved-'+id},model,machine_name:'Desktop'}:a);return {configuration:fixture.agents.find(a=>a.id===id).configuration,requires_restart:false};},
 };
 globalThis.__servicesApi={services:async()=>({services:[{id:'immich',label:'Immich',status:'unknown',detail:'Non configurato',checkedAt:'2026-10-24T18:00:00Z'}]})};
@@ -88,5 +89,24 @@ test('Audio distinguishes the LLM from the Whisper transcription engine', async(
  reset();fixture.agents[1]={...fixture.agents[1],id:'audio_agent',transcription:{engine:'Faster-Whisper',model:'small',model_label:'small',device:'cpu',compute_type:'int8',ready:true,loaded:null}};
  let r;await act(async()=>{r=create(React.createElement(App));});await act(async()=>card(r)[1].props.onClick());
  const text=JSON.stringify(r.toJSON());assert.ok(text.includes('Faster-Whisper'));assert.ok(text.includes('small'));assert.ok(text.includes('Non ancora caricato'));assert.ok(text.toLowerCase().includes('non cambia whisper'));
+ await act(async()=>r.unmount());
+});
+
+test('legacy worker can save the desktop choice and offers concrete update instructions', async()=>{
+ reset();legacy=true;let r;await act(async()=>{r=create(React.createElement(App));});
+ await act(async()=>card(r)[0].props.onClick());
+ await act(async()=>r.root.findAllByType('select')[0].props.onChange({target:{value:'pc'}}));
+ assert.equal(button(r,'Salva assegnazione').props.disabled,false);
+ assert.ok(JSON.stringify(r.toJSON()).includes('/generate'));
+ await act(async()=>button(r,'Scarica aggiornamento worker').props.onClick());
+ assert.equal(downloads,1);
+ await act(async()=>r.root.findByType('form').props.onSubmit({preventDefault(){}}));
+ assert.deepEqual(saved,[{id:'supervisor',machine:'pc',model:'desktop-model'}]);
+ assert.ok(JSON.stringify(r.toJSON()).includes('Serve aggiornare il worker desktop'));
+ assert.ok(!JSON.stringify(r.toJSON()).includes('Attiva dalla prossima chiamata'));
+ legacy=false;
+ await act(async()=>button(r,'Ricarica modelli').props.onClick());
+ assert.equal(button(r,'Scarica aggiornamento worker'),undefined);
+ assert.equal(r.root.findAllByType('select')[0].props.value,'pc');
  await act(async()=>r.unmount());
 });
