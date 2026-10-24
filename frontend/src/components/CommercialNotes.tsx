@@ -63,6 +63,7 @@ export default function CommercialNotes({ record, disabled }: {record: AudioReco
           } else {
             setNote(run.result.analysis.note);
             setQuery(run.result.analysis.customerQuery);
+            setMatches([]); setSelected(null);
             setNotice("Analisi disponibile: controlla cliente e appunto prima di proporre.");
           }
           setAnalysisId("");
@@ -145,7 +146,8 @@ export default function CommercialNotes({ record, disabled }: {record: AudioReco
       </button>
     </div>
     <label>Nome cliente da cercare
-      <input value={query} maxLength={200} disabled={busy || !!analysisId} onChange={e => setQuery(e.target.value)} />
+      <input value={query} maxLength={200} disabled={busy || !!analysisId}
+        onChange={e => { setQuery(e.target.value); setMatches([]); setSelected(null); }} />
     </label>
     <button disabled={disabled || busy || !!analysisId || query.trim().length < 2} onClick={() => void search()}>
       Cerca nei Word della Libreria IA
