@@ -656,11 +656,10 @@ export default function Calendar() {
           )}
         </aside>
       </div>
-      {provider.provider !== "google" && (
       <div className="calendar-bottom">
         <section className="section-card">
           <h2>Proposte degli agenti</h2>
-          <p>Le proposte diventano effettive solo dopo la tua approvazione.</p>
+          <p>Le proposte diventano effettive solo dopo la tua approvazione. Per Google Calendar l'esito non confermato non va ripetuto: controlla l'appuntamento e lo stato in Attività.</p>
           {!proposals.length && (
             <p className="panel-note">Nessuna proposta in attesa.</p>
           )}
@@ -735,7 +734,7 @@ export default function Calendar() {
             </article>
           ))}
         </section>
-        <section className="section-card">
+        {provider.provider !== "google" && <section className="section-card">
           <h2>Eliminati nel periodo</h2>
           <p>Gli eventi eliminati conservano lo storico.</p>
           {!trash.length && (
@@ -758,9 +757,8 @@ export default function Calendar() {
               </button>
             </article>
           ))}
-        </section>
+        </section>}
       </div>
-      )}
     </section>
   );
 }
