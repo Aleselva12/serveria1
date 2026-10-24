@@ -230,5 +230,34 @@ class GoogleCalendarProviderTests(unittest.TestCase):
         self.assertEqual(fake.resource.inserts, 1)
 
 
+    def test_manual_create_reuses_request_id_after_lost_ack(self):
+        class Request:
+            def __init__(self, call): self.call = call
+            def execute(self): return self.call()
+        class Events:
+            def __init__(self): self.saved = {}; self.created = 0
+            def insert(self, **kwargs):
+                body = kwargs["body"]
+                def insert_once():
+                    if body["id"] in self.saved:
+                        raise TimeoutError("lost acknowledgement")
+                    self.created += 1
+                    self.saved[body["id"]] = {**body, "etag": '"v1"'}
+                    return self.saved[body["id"]]
+                return Request(insert_once)
+            def get(self, **kwargs): return Request(lambda: self.saved[kwargs["eventId"]])
+        class Service:
+            def __init__(self): self.resource = Events()
+            def events(self): return self.resource
+        data = {"title":"Impegno", "start":"2026-10-24T10:00:00+02:00",
+                "end":"2026-10-24T11:00:00+02:00", "all_day":False}
+        fake = Service()
+        with patch.object(google_calendar, "service", return_value=fake):
+            first = google_calendar.create_event(data, request_id="stable-key")
+            again = google_calendar.create_event(data, request_id="stable-key")
+        self.assertEqual(first["id"], again["id"])
+        self.assertEqual(fake.resource.created, 1)
+
+
 if __name__ == "__main__":
     unittest.main()
