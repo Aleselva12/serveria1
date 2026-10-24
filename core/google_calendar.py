@@ -102,7 +102,8 @@ def _event_times(event: dict) -> tuple[str, str, bool]:
     start = event.get("start") or {}
     end = event.get("end") or {}
     if start.get("date"):
-        return start["date"] + "T00:00:00+00:00", end["date"] + "T00:00:00+00:00", True
+        return (datetime.fromisoformat(start["date"]).replace(tzinfo=ROME).isoformat(),
+                datetime.fromisoformat(end["date"]).replace(tzinfo=ROME).isoformat(), True)
     return start["dateTime"], end["dateTime"], False
 
 
@@ -173,15 +174,25 @@ def _google_body(data: dict) -> dict:
 
 
 def list_events(start: datetime, end: datetime) -> list[dict]:
-    result = service().events().list(
-        calendarId="primary",
-        timeMin=start.astimezone(timezone.utc).isoformat(),
-        timeMax=end.astimezone(timezone.utc).isoformat(),
-        singleEvents=True,
-        orderBy="startTime",
-        maxResults=2500,
-    ).execute()
-    return [normalize(event) for event in result.get("items", []) if event.get("status") != "cancelled"]
+    if (start.tzinfo is None or end.tzinfo is None or end <= start
+            or end - start > timedelta(days=370)):
+        raise ValueError("Intervallo non valido: indica il fuso e al massimo 370 giorni.")
+    calendar_service = service()
+    items: list[dict] = []
+    page_token = None
+    while True:
+        params = dict(calendarId="primary",
+                      timeMin=start.astimezone(timezone.utc).isoformat(),
+                      timeMax=end.astimezone(timezone.utc).isoformat(),
+                      singleEvents=True, orderBy="startTime", maxResults=2500)
+        if page_token:
+            params["pageToken"] = page_token
+        result = calendar_service.events().list(**params).execute()
+        items.extend(normalize(event) for event in result.get("items", [])
+                     if event.get("status") != "cancelled")
+        page_token = result.get("nextPageToken")
+        if not page_token:
+            return items
 
 
 def get_event(event_id: str) -> dict:
