@@ -193,3 +193,95 @@ def copy_to_library(ident: uuid.UUID):
     # Version in the filename avoids overwriting an earlier imported transcript.
     name = 'trascrizione-'+str(ident)+'-v'+str(row['version'])+'.txt'
     return upload_copy('', UploadFile(filename=name, file=BytesIO(row['transcript'].encode('utf-8'))))
+
+
+# Commercial call notes are an explicit, separate stage after transcription.
+# The target is an IA Library COPY; original NAS files are never touched.
+class CommercialMatch(BaseModel):
+    path: str = Field(min_length=1, max_length=1000)
+    heading: str = Field(min_length=1, max_length=200)
+    start: int = Field(ge=0)
+    stop: int = Field(ge=1)
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class CommercialProposalRequest(BaseModel):
+    expected_audio_version: int = Field(ge=1)
+    selected: CommercialMatch
+    date: str = Field(pattern=r"^\d{2}/\d{2}/\d{4}$")
+    note: str = Field(min_length=1, max_length=5000)
+
+
+class CommercialDecision(BaseModel):
+    approve: bool
+
+
+@router.post('/{ident}/commercial/analyze', status_code=202)
+def analyze_commercial(ident: uuid.UUID, expected_version: int):
+    from core import commercial_notes
+    row = get_record(ident)
+    if row['transcript'] is None or row['version'] != expected_version:
+        raise HTTPException(409, 'Trascrizione cambiata o non disponibile.')
+    def work(run):
+        result = commercial_notes.analyze(row['transcript'])
+        checkpoint()
+        if get_record(ident)['version'] != expected_version:
+            raise ValueError('Trascrizione modificata durante analisi: riavvia manualmente.')
+        return {'analysis': result, 'audio_version': expected_version}
+    try:
+        run = runtime.submit('commercial:'+str(ident), work, graph_version='commercial-audio-v1',
+                             kind='commercial', target='local_research_agent')
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(503, 'Runtime non disponibile.') from error
+    return run.snapshot()
+
+
+@router.get('/{ident}/commercial/customers')
+def commercial_customers(ident: uuid.UUID, query: str):
+    from core import commercial_notes
+    row = get_record(ident)
+    if row['transcript'] is None:
+        raise HTTPException(409, 'Trascrivi prima la registrazione.')
+    try:
+        return commercial_notes.find_customers(query)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+
+
+@router.get('/{ident}/commercial/proposals')
+def commercial_proposals(ident: uuid.UUID):
+    from core import commercial_notes
+    get_record(ident)
+    return commercial_notes.proposals(ident)
+
+
+@router.post('/{ident}/commercial/proposals', status_code=201)
+def commercial_propose(ident: uuid.UUID, body: CommercialProposalRequest):
+    from core import commercial_notes
+    try:
+        return commercial_notes.create_proposal(
+            ident, body.expected_audio_version, body.selected.model_dump(), body.date, body.note)
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from error
+    except Exception as error:
+        from psycopg import errors
+        if isinstance(error, errors.UniqueViolation):
+            raise HTTPException(409, 'Questa annotazione è già stata proposta o approvata.') from error
+        raise
+
+
+@router.post('/{ident}/commercial/proposals/{proposal_id}/resolve')
+def commercial_resolve(ident: uuid.UUID, proposal_id: uuid.UUID, body: CommercialDecision):
+    from core import commercial_notes
+    if proposal_id not in {uuid.UUID(p['id']) for p in commercial_notes.proposals(ident)}:
+        raise HTTPException(404, 'Proposta della registrazione non trovata.')
+    try:
+        return commercial_notes.resolve_proposal(proposal_id, body.approve)
+    except KeyError as error:
+        raise HTTPException(404, str(error)) from error
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(409, str(error)) from error
