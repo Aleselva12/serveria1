@@ -181,7 +181,7 @@ def _publish(row: dict) -> str:
         try:
             handle, name = tempfile.mkstemp(prefix=".cora-note-", suffix=".docx", dir=target.parent)
             temporary = Path(name)
-            os.fchmod(handle, stat.S_IMODE(target.stat().st_mode))
+            os.chmod(temporary, stat.S_IMODE(target.stat().st_mode))
             with os.fdopen(handle, "wb") as output:
                 output.write(candidate)
                 output.flush()
