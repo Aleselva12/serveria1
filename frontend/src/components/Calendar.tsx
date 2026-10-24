@@ -53,6 +53,7 @@ export default function Calendar() {
     connected: false,
     provider: "local",
   });
+  const creationId = useRef<{fingerprint:string; key:string}|null>(null);
   const lock = useRef(false),
     generation = useRef(0),
     historyGeneration = useRef(0);
@@ -113,12 +114,14 @@ export default function Calendar() {
     };
   }, [refresh]);
   function newEvent(date = day, hour = 9) {
+    creationId.current = null;
     ++historyGeneration.current;
     setEditing(undefined);
     setHistory([]);
     setForm(initialForm(date, hour));
   }
   async function select(event: CalendarEvent) {
+    creationId.current = null;
     const current = ++historyGeneration.current;
     setEditing(event);
     setHistory([]);
@@ -223,17 +226,20 @@ export default function Calendar() {
     );
     await mutate(
       async () => {
+        const payload = {
+          title: form.title.trim(),
+          start, end,
+          all_day: form.all_day,
+          notes: form.notes,
+          reminder_minutes: form.all_day ? null : form.reminder_minutes,
+        };
+        // Keep the same request ID after a timeout. Editing the draft
+        // generates a different ID, while duplicate clicks cannot reinsert.
+        const fingerprint = JSON.stringify(payload);
+        if (!editing && creationId.current?.fingerprint !== fingerprint)
+          creationId.current = {fingerprint, key: crypto.randomUUID()};
         const saved = await calendarApi.save(
-          {
-            title: form.title.trim(),
-            start,
-            end,
-            all_day: form.all_day,
-            notes: form.notes,
-            reminder_minutes: form.all_day ? null : form.reminder_minutes,
-          },
-          token,
-          editing,
+          payload, token, editing, editing ? undefined : creationId.current?.key,
         );
         await select(saved);
       },
