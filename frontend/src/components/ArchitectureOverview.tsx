@@ -50,7 +50,7 @@ function AgentDetails({ agent, targets, onSaved, onClose }: { agent: AgentCard; 
       {machine === 'inherit' ? <p>Rimuove l’assegnazione specifica e ripristina la configurazione generale.</p> : <>
         <label>Modello installato<select aria-label="Modello installato" disabled={saving || loading || !catalog} value={model} onChange={e => setModel(e.target.value)}>{!catalog?.models.length && <option value="">{loading ? 'Caricamento…' : 'Nessun modello disponibile'}</option>}{catalog?.models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}</select></label>
         <button type="button" disabled={loading || saving} onClick={() => setReload(n => n + 1)}>Ricarica modelli</button>
-        {machine !== 'local' && <p>Il desktop usa il modello del profilo attivo in Macchine. ON/OFF e profilo restano manuali.</p>}
+        {machine !== 'local' && <p>Il worker usa soltanto il modello selezionato da te in Macchine. ON/OFF e scelta restano manuali: se cambi modello, aggiorna anche l’assegnazione di questo agente.</p>}
         {catalog && !catalog.enabled && <p role="status">Worker OFF: abilitalo dalla pagina Macchine.</p>}
         {catalog && !catalog.agent_chat && <p role="status">Aggiorna il container worker sul desktop per abilitare le conversazioni degli agenti.</p>}
       </>}

@@ -46,9 +46,11 @@ l'API nativa Ollama `/api/chat`; le chiamate ai tool tornano a Cora, che applica
 i suoi strumenti e permessi. Solo l'inferenza viene spostata al desktop.
 Whisper, memoria, file e gli altri tool non sono trasferiti al worker.
 
-Resta un solo profilo attivo per worker. La scheda permette di scegliere il suo
-modello attivo, non di cambiare profilo automaticamente. Se il worker viene spento,
-il profilo cambia o il modello sparisce, la chiamata remota fallisce esplicitamente:
+In Macchine viene elencato ogni modello già installato sul worker. Il proprietario
+ne sceglie uno solo. Le vecchie impostazioni heavy/medium/light sono conservate
+per compatibilità, ma non determinano più il modello dopo la selezione esplicita.
+Se il worker viene spento, viene selezionato un modello diverso da quello assegnato
+all'agente, oppure il modello sparisce, la chiamata remota fallisce esplicitamente:
 nessun cambio modello, riattivazione o fallback automatico. OFF non annulla una
 chiamata già partita. Il profilo `isolated` continua a bloccare l'inferenza remota.
 

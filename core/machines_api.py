@@ -39,11 +39,19 @@ class NoRedirect(HTTPRedirectHandler):
 
 def _settings(machine):
     saved = machine.get("profiles") if isinstance(machine.get("profiles"), dict) else {}
+    active = machine.get("active_profile") if machine.get("active_profile") in PROFILES else "heavy"
+    profiles = {profile: saved.get(profile) if isinstance(saved.get(profile), str)
+                else model for profile, model in DEFAULT_MODELS.items()}
+    # Migrates old worker records without changing their model silently.
+    # Fresh registrations require an explicit owner selection.
+    selected = machine.get("selected_model")
+    if not isinstance(selected, str):
+        selected = profiles[active] if "profiles" in machine else ""
     return {
         "enabled": machine.get("enabled") is True,
-        "active_profile": machine.get("active_profile") if machine.get("active_profile") in PROFILES else "heavy",
-        "profiles": {profile: saved.get(profile) if isinstance(saved.get(profile), str)
-                     else model for profile, model in DEFAULT_MODELS.items()},
+        "selected_model": selected,
+        "active_profile": active,
+        "profiles": profiles,
     }
 
 
@@ -51,6 +59,15 @@ class WorkerSettings(BaseModel):
     enabled: bool
     active_profile: Literal["heavy", "medium", "light"]
     profiles: dict[str, str]
+    # Optional to accept older clients that still save three profiles.
+    selected_model: str | None = None
+
+    @field_validator("selected_model")
+    @classmethod
+    def selected_model_valid(cls, value):
+        if value is not None and value != "" and not _MODEL.fullmatch(value):
+            raise ValueError("Nome modello Ollama non valido.")
+        return value
 
     @field_validator("profiles")
     @classmethod
@@ -285,7 +302,15 @@ def save_settings(machine_id: str, body: WorkerSettings):
         machines = _read()
         for item in machines:
             if item.get("id") == machine_id:
-                item.update(body.model_dump())
+                before = _settings(item)
+                item.update(body.model_dump(exclude={"selected_model"}))
+                if body.selected_model is not None:
+                    item["selected_model"] = body.selected_model
+                elif not before["selected_model"]:
+                    # Compatibility with existing clients that save legacy profiles.
+                    item["selected_model"] = body.profiles[body.active_profile]
+                if body.enabled and not _settings(item)["selected_model"]:
+                    raise HTTPException(409, "Seleziona prima un modello installato.")
                 _write(machines)
                 return _settings(item)
     raise HTTPException(404, "Worker non registrato.")
@@ -297,7 +322,7 @@ def generate(machine_id: str, body: InferencePrompt):
     settings = _settings(machine)
     if not settings["enabled"]:
         raise HTTPException(409, "Worker disattivato manualmente.")
-    model = settings["profiles"][settings["active_profile"]]
+    model = settings["selected_model"]
     # No caller-supplied model identifier and no model-switch tool for agents.
     available = _worker_call(machine, "/models").get("models", [])
     if model not in {row.get("name") for row in available if isinstance(row, dict)}:

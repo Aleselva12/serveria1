@@ -152,7 +152,7 @@ def model_targets():
     from core.machines_api import _read, _settings
     return {'targets': [dict(id='local', name='Ollama di Cora', enabled=True, active_model=None)] + [
         dict(id=m['id'], name=m['name'], enabled=_settings(m)['enabled'],
-             active_model=_settings(m)['profiles'][_settings(m)['active_profile']]) for m in _read()]}
+             active_model=_settings(m)['selected_model']) for m in _read()]}
 
 
 @router.get('/architecture/model-targets/{machine_id}')
@@ -167,8 +167,8 @@ def target_models(machine_id: str):
     machine = _find(machine_id)
     result = _worker_call(machine, '/models')
     settings = _settings(machine)
-    active_model = settings['profiles'][settings['active_profile']]
-    # Only the manually active worker profile can be used by agents.
+    active_model = settings['selected_model']
+    # Only the model explicitly selected in Macchine can be used by agents.
     return {'models': [dict(name=m['name']) for m in result.get('models', []) if m.get('name') == active_model],
             'enabled': settings['enabled'], 'active_model': active_model, 'agent_chat': result.get('agent_chat') is True}
 

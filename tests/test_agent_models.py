@@ -63,6 +63,19 @@ class AssignmentTests(unittest.TestCase):
             with self.assertRaises(HTTPException): models.get_chat_model('audio').invoke([HumanMessage(content='test')])
         self.assertEqual(models.get_model_name('audio'), 'small')
 
+    def test_single_manual_selection_prevents_unapproved_agent_switch(self):
+        row = {"id": "pc", "enabled": True, "selected_model": "qwen3-coder:30b-a3b-q4_K_M",
+               "active_profile": "light",
+               "profiles": {"heavy": "old-heavy", "medium": "old-medium", "light": "old-light"}}
+        with patch.dict(os.environ, {"CORA_RUNTIME_MODE": "server"}), \
+             patch("core.machines_api._find", return_value=row), \
+             patch("core.machines_api._worker_call") as remote:
+            assignments.remote_machine("pc", "qwen3-coder:30b-a3b-q4_K_M")
+            with self.assertRaises(HTTPException) as denied:
+                assignments.remote_machine("pc", "old-light")
+            self.assertEqual(denied.exception.status_code, 409)
+            remote.assert_not_called()
+
     def test_remote_chat_preserves_native_tools_and_async_messages(self):
         @tool
         def note(content: str) -> str:
