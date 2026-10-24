@@ -155,7 +155,14 @@ def resolve(proposal_id: UUID, decision: Decision):
                                 }}
         if str(proposal_id) not in calendar_pending_ids:
             raise HTTPException(404, "Proposta calendario non trovata o già gestita.")
-        result = run(governance.resolve, str(proposal_id), decision.approve, "user")
+        try:
+            result = governance.resolve(str(proposal_id), decision.approve, "user")
+        except RuntimeError as error:
+            # A failed or uncertain external write must never be retried by
+            # this endpoint. The action approval records its durable outcome.
+            raise HTTPException(
+                409, "Esito della proposta non confermato. Verifica Attività e Google Calendar prima di creare una nuova richiesta."
+            ) from error
         native = result.get("result") or {}
         return {"proposal": {"id": str(proposal_id), "status": result["status"]},
                 "event": native.get("event") if isinstance(native, dict) else None}
