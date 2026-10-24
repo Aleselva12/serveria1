@@ -38,3 +38,17 @@ cd /srv/cora-server-test && git fetch origin main && git merge --ff-only origin/
 
   `deploy/update_once.py` verifica il target `api-audio-cpu`, l'assenza di altri job attivi, la corrispondenza esatta del commit proveniente dal repository configurato; chiede al servizio host di preparare, testare e poi applicare il rilascio, aspettandone l'esito. Backup e ripristino restano responsabilità dell'updater, non del checkout Git. Non usare `docker compose down -v`.
 - La pagina e il comando devono essere collaudati sul Debian dopo la CI; non indicare operativo senza verifica.
+
+## Audit — implementazioni aggiunte nella PR #84 (2026-10-24, non ancora operative)
+
+### Google Calendar — prevenzione duplicati
+- L'esportazione dei vecchi eventi PostgreSQL ora assegna ID Google deterministici basati sull'identificativo Cora: evita duplicazioni causate da richieste simultanee o da retry dopo timeout.
+- L'interfaccia Calendario passa una chiave di idempotenza anche alle nuove creazioni manuali su Google: un retry della stessa bozza usa la stessa chiave. Il backend rifiuta richieste Google prive di questa chiave.
+- Gli eventi **già duplicati** non vengono cancellati o fusi automaticamente. Serve verifica del proprietario, perché eventi con stessi orari/titoli possono anche essere legittimi.
+- Le proposte agentiche Google Calendar passano attraverso approvazione proprietario e confronto revisioni ETag. **Non collaudato** sul provider reale.
+
+### Audio commerciale -> Word Libreria IA
+- Implementata UI manuale in pagina Audio: analisi Ollama della trascrizione, ricerca clienti nei DOCX della Libreria IA, selezione esplicita cliente, revisione nota, proposta persistente con scadenza 24 ore, approvazione/rifiuto.
+- Migrazione incrementale 0006: proposte ancorate a registrazione/versione/hash Word/blocco cliente. Nessun effetto su Word durante analisi o proposta.
+- In approvazione: backup privato e append-only su **copia della Libreria IA**; mai sull'originale NAS. Hash/documento cambiato comporta rifiuto e nuova proposta; esito incerto non viene ripetuto automaticamente.
+- Test unitari sintetici aggiunti; **nessun test operativo Debian o Word reale eseguito in questa tranche**. La qualità del parsing dipende dai separatori dei documenti multi-cliente; i formati Word avanzati sono rifiutati. Necessario collaudo con copia dei documenti autentici prima dell'uso quotidiano.

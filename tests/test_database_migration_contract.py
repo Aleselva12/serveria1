@@ -20,7 +20,7 @@ def git_blob_sha1(data: bytes) -> str:
 
 class DatabaseMigrationContractTests(unittest.TestCase):
     def test_0001_baseline_is_immutable(self):
-        self.assertEqual(git_blob_sha1(BASELINE.read_bytes()), EXPECTED_BASELINE_BLOB)
+        self.assertEqual(git_blob_sha1(BASELINE.read_bytes().replace(b'\r\n', b'\n')), EXPECTED_BASELINE_BLOB)
 
     def test_conversation_projects_live_in_0005_not_baseline(self):
         baseline = BASELINE.read_text(encoding="utf-8")

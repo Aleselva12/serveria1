@@ -240,7 +240,10 @@ def _worker_call(machine: dict, path: str, payload: dict | None = None, timeout:
     token = os.getenv("CORA_WORKER_SHARED_TOKEN", "")
     if len(token) < 32:
         raise HTTPException(503, "Configura CORA_WORKER_SHARED_TOKEN nel backend e CORA_WORKER_TOKEN sul desktop.")
-    fqdn = MachineRegistration(name=machine["name"], fqdn=machine["fqdn"]).fqdn
+    try:
+        fqdn = MachineRegistration(name=machine["name"], fqdn=machine["fqdn"]).fqdn
+    except (ValueError, KeyError) as error:
+        raise HTTPException(503, "Configurazione worker non valida per la tailnet corrente.") from error
     suffix = os.getenv("CORA_TAILSCALE_DNS_SUFFIX", "").strip().lower().lstrip(".")
     if not suffix or not suffix.endswith(".ts.net") or not fqdn.endswith("." + suffix):
         raise HTTPException(503, "Imposta CORA_TAILSCALE_DNS_SUFFIX prima di collegare worker remoti.")

@@ -6,6 +6,7 @@ reauthorized without touching mail access. Client credentials may be shared.
 from __future__ import annotations
 
 import os
+import hashlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -34,6 +35,15 @@ class GoogleCalendarNotConnected(RuntimeError):
 
 def token_exists() -> bool:
     return TOKEN_PATH.is_file()
+
+
+def connection_fingerprint() -> str:
+    """Pin an approval to one OAuth account without persisting its token."""
+    credentials = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
+    if not credentials.refresh_token:
+        raise GoogleCalendarNotConnected("Token Google senza refresh token: ricollega l'account.")
+    identity = (str(credentials.client_id or "") + ":" + credentials.refresh_token).encode("utf-8")
+    return hashlib.sha256(identity).hexdigest()
 
 
 def _credentials() -> Credentials:
@@ -92,7 +102,8 @@ def _event_times(event: dict) -> tuple[str, str, bool]:
     start = event.get("start") or {}
     end = event.get("end") or {}
     if start.get("date"):
-        return start["date"] + "T00:00:00+00:00", end["date"] + "T00:00:00+00:00", True
+        return (datetime.fromisoformat(start["date"]).replace(tzinfo=ROME).isoformat(),
+                datetime.fromisoformat(end["date"]).replace(tzinfo=ROME).isoformat(), True)
     return start["dateTime"], end["dateTime"], False
 
 
@@ -108,6 +119,10 @@ def normalize(event: dict) -> dict:
     start, end, all_day = _event_times(event)
     created = event.get("created") or event.get("updated") or datetime.now(timezone.utc).isoformat()
     updated = event.get("updated") or created
+    # Google sequence may stay unchanged after an ordinary edit; its ETag is the revision.
+    etag = event.get("etag")
+    version = (int(hashlib.sha256(etag.encode("utf-8")).hexdigest()[:12], 16) + 1
+               if isinstance(etag, str) and etag else max(1, int(event.get("sequence") or 0) + 1))
     return {
         "id": event["id"],
         "title": event.get("summary") or "(senza titolo)",
@@ -116,7 +131,8 @@ def normalize(event: dict) -> dict:
         "all_day": all_day,
         "notes": event.get("description") or "",
         "reminder_minutes": _reminder_minutes(event),
-        "version": max(1, int(event.get("sequence") or 0) + 1),
+        "version": version,
+        "etag": etag,
         "created_by": "Google Calendar",
         "updated_by": "Google Calendar",
         "created_at": created,
@@ -158,28 +174,70 @@ def _google_body(data: dict) -> dict:
 
 
 def list_events(start: datetime, end: datetime) -> list[dict]:
-    result = service().events().list(
-        calendarId="primary",
-        timeMin=start.astimezone(timezone.utc).isoformat(),
-        timeMax=end.astimezone(timezone.utc).isoformat(),
-        singleEvents=True,
-        orderBy="startTime",
-        maxResults=2500,
-    ).execute()
-    return [normalize(event) for event in result.get("items", []) if event.get("status") != "cancelled"]
+    if (start.tzinfo is None or end.tzinfo is None or end <= start
+            or end - start > timedelta(days=370)):
+        raise ValueError("Intervallo non valido: indica il fuso e al massimo 370 giorni.")
+    calendar_service = service()
+    items: list[dict] = []
+    page_token = None
+    while True:
+        params = dict(calendarId="primary",
+                      timeMin=start.astimezone(timezone.utc).isoformat(),
+                      timeMax=end.astimezone(timezone.utc).isoformat(),
+                      singleEvents=True, orderBy="startTime", maxResults=2500)
+        if page_token:
+            params["pageToken"] = page_token
+        result = calendar_service.events().list(**params).execute()
+        items.extend(normalize(event) for event in result.get("items", [])
+                     if event.get("status") != "cancelled")
+        page_token = result.get("nextPageToken")
+        if not page_token:
+            return items
 
 
 def get_event(event_id: str) -> dict:
     return normalize(service().events().get(calendarId="primary", eventId=event_id).execute())
 
 
-def create_event(data: dict) -> dict:
-    event = service().events().insert(
-        calendarId="primary",
-        body=_google_body(data),
-        sendUpdates="none",
-    ).execute()
-    return normalize(event)
+def create_event(data: dict, *, request_id: str | None = None) -> dict:
+    """Use caller's stable request ID to reconcile uncertain create responses."""
+    calendar_service = service()
+    body = _google_body(data)
+    event_id = _local_google_id("manual:" + request_id) if request_id else None
+    if event_id:
+        body["id"] = event_id
+    try:
+        event = calendar_service.events().insert(
+            calendarId="primary", body=body, sendUpdates="none",
+        ).execute()
+        return normalize(event)
+    except Exception:
+        if not event_id:
+            raise
+        # Never retry the external write. A timed-out commit or 409 may
+        # already have created this exact ID.
+        try:
+            existing = calendar_service.events().get(
+                calendarId="primary", eventId=event_id
+            ).execute()
+        except Exception:
+            raise  # Original request outcome stays unconfirmed to the caller.
+        # Compare every user-controlled field. Missing all-day dates must not
+        # make two different timed events appear equal (None == None).
+        def boundary(value):
+            if value.get("dateTime"):
+                return ("timed", datetime.fromisoformat(value["dateTime"].replace("Z", "+00:00")))
+            return ("day", value.get("date"))
+        def reminder(value):
+            return (bool(value.get("useDefault")), sorted(
+                (item.get("method"), item.get("minutes")) for item in value.get("overrides", [])))
+        if (existing.get("status") == "cancelled"
+            or existing.get("summary") != body["summary"]
+            or (existing.get("description") or "") != body["description"]
+            or any(boundary(existing.get(key) or {}) != boundary(body[key]) for key in ("start", "end"))
+            or reminder(existing.get("reminders") or {}) != reminder(body["reminders"])):
+            raise ValueError("Chiave richiesta già usata per un evento diverso.")
+        return normalize(existing)
 
 
 def _managed_local_event_ids(calendar_service=None) -> set[str]:
@@ -207,8 +265,27 @@ def _managed_local_event_ids(calendar_service=None) -> set[str]:
             return identifiers
 
 
+def _local_google_id(local_id: str) -> str:
+    """Stable Google-compatible ID for an event originating in Cora.
+
+    Google accepts base32hex (0-9, a-v), satisfied by SHA-256 hex digits.
+    Deterministic IDs prevent duplicate inserts after timeouts or parallel sync.
+    """
+    return "cora" + hashlib.sha256(local_id.encode("utf-8")).hexdigest()[:40]
+
+
+def _matches_local_identity(event: dict, local_id: str) -> bool:
+    private = ((event.get("extendedProperties") or {}).get("private") or {})
+    return private.get("coraLocalEventId") == local_id and private.get("coraManaged") == "true"
+
+
 def publish_local_events(events: list[dict]) -> dict:
-    """Idempotently export local future events to the user's primary calendar."""
+    """Export with stable event IDs: retries and parallel requests cannot duplicate.
+
+    Previously, listing all managed events and then inserting with server-assigned
+    IDs left a race between concurrent syncs and uncertain network responses.
+    Existing legacy events are recognized by private local IDs; never remove them.
+    """
     calendar_service = service()
     existing = _managed_local_event_ids(calendar_service)
     sent: list[dict] = []
@@ -219,52 +296,73 @@ def publish_local_events(events: list[dict]) -> dict:
         if local_id in existing:
             skipped.append(local_id)
             continue
-        payload = {**local, "local_event_id": local_id}
         try:
+            event_id = _local_google_id(local_id)
+            payload = {**local, "local_event_id": local_id}
+            body = {**_google_body(payload), "id": event_id}
             created = calendar_service.events().insert(
-                calendarId="primary",
-                body=_google_body(payload),
-                sendUpdates="none",
+                calendarId="primary", body=body, sendUpdates="none",
             ).execute()
-            sent.append({
-                "localEventId": local_id,
-                "googleEventId": created.get("id"),
-                "title": local.get("title") or "",
-            })
+            sent.append({"localEventId": local_id,
+                         "googleEventId": created.get("id") or event_id,
+                         "title": local.get("title") or ""})
             existing.add(local_id)
+            continue
         except Exception as error:
-            failed.append({
-                "localEventId": local_id,
-                "title": local.get("title") or "",
-                "error": type(error).__name__,
-            })
-    return {
-        "sent": len(sent),
-        "skipped": len(skipped),
-        "failed": len(failed),
-        "sentEvents": sent,
-        "failedEvents": failed[:20],
-    }
+            # A 409 or a timeout after commit may mean our event exists already.
+            # Read by the deterministic ID, not by title/date (which could refer
+            # to unrelated appointments). Never perform a second insert here.
+            try:
+                remote = calendar_service.events().get(
+                    calendarId="primary", eventId=event_id
+                ).execute()
+                if _matches_local_identity(remote, local_id):
+                    existing.add(local_id)
+                    skipped.append(local_id)
+                    continue
+            except Exception:
+                pass
+            failed.append({"localEventId": local_id, "title": local.get("title") or "",
+                           "error": type(error).__name__})
+    return {"sent": len(sent), "skipped": len(skipped),
+            "failed": len(failed), "sentEvents": sent, "failedEvents": failed[:20]}
 
-
-def update_event(event_id: str, data: dict) -> dict:
-    event = service().events().patch(
-        calendarId="primary",
-        eventId=event_id,
-        body=_google_body(data),
-        sendUpdates="none",
-    ).execute()
-    return normalize(event)
-
-
-def delete_event(event_id: str) -> dict:
+def _conditional_event_request(event_id: str, expected_version: int, *, data: dict | None = None) -> dict:
+    """Reject stale revisions, then atomically enforce ETag using Google's If-Match."""
+    from core.calendar import CalendarConflict
     previous = get_event(event_id)
-    service().events().delete(
-        calendarId="primary",
-        eventId=event_id,
-        sendUpdates="none",
-    ).execute()
+    if previous["version"] != expected_version:
+        raise CalendarConflict("L'evento Google è cambiato: rileggilo prima di procedere.")
+    etag = previous.get("etag")
+    if not etag:
+        raise CalendarConflict("Google non ha fornito una revisione verificabile: modifica rifiutata.")
+    calendar_service = service()
+    if data is None:
+        request = calendar_service.events().delete(
+            calendarId="primary", eventId=event_id, sendUpdates="none",
+        )
+    else:
+        request = calendar_service.events().patch(
+            calendarId="primary", eventId=event_id, body=_google_body(data), sendUpdates="none",
+        )
+    request.headers["If-Match"] = etag
+    try:
+        result = request.execute()
+    except HttpError as error:
+        if error.resp.status == 412:
+            raise CalendarConflict("L'evento è cambiato su Google Calendar: aggiorna prima di approvare.") from error
+        raise
+    if data is not None:
+        return normalize(result)
     return {**previous, "deleted_at": datetime.now(timezone.utc).isoformat()}
+
+
+def update_event(event_id: str, data: dict, *, expected_version: int) -> dict:
+    return _conditional_event_request(event_id, expected_version, data=data)
+
+
+def delete_event(event_id: str, *, expected_version: int) -> dict:
+    return _conditional_event_request(event_id, expected_version)
 
 
 def verify_access() -> bool:

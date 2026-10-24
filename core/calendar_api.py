@@ -7,6 +7,7 @@ from googleapiclient.errors import HttpError
 
 from core import calendar as store
 from core import google_calendar
+from core import governance
 from core.access import require_owner
 
 
@@ -15,6 +16,10 @@ def calendar_owner(request: Request):
 
 
 router = APIRouter(prefix="/api/v1/calendar", tags=["calendar"], dependencies=[Depends(calendar_owner)])
+
+
+class EventCreate(store.EventInput):
+    request_id: UUID | None = None
 
 
 class EventUpdate(store.EventInput):
@@ -68,10 +73,13 @@ def events(start: datetime, end: datetime, deleted: bool = False):
 
 
 @router.post("/events", status_code=201)
-def create_event(data: store.EventInput):
+def create_event(data: EventCreate):
+    payload = data.model_dump(exclude={"request_id"}, mode="json")
     if google_calendar.token_exists():
-        return run(google_calendar.create_event, data.model_dump(mode="json"))
-    return run(store.write_event, "create", data=data.model_dump())
+        if not data.request_id:
+            raise HTTPException(422, "Richiesta senza ID univoco: aggiorna l'interfaccia prima di creare un evento Google.")
+        return run(google_calendar.create_event, payload, request_id=str(data.request_id))
+    return run(store.write_event, "create", data=payload)
 
 
 @router.get("/events/{event_id}")
@@ -84,7 +92,7 @@ def event(event_id: str):
 @router.patch("/events/{event_id}")
 def update_event(event_id: str, data: EventUpdate):
     if google_calendar.token_exists():
-        return run(google_calendar.update_event, event_id, data.model_dump(exclude={"version"}, mode="json"))
+        return run(google_calendar.update_event, event_id, data.model_dump(exclude={"version"}, mode="json"), expected_version=data.version)
     return run(store.write_event, "update", event_id=event_id, version=data.version,
                data=data.model_dump(exclude={"version"}))
 
@@ -92,7 +100,7 @@ def update_event(event_id: str, data: EventUpdate):
 @router.delete("/events/{event_id}")
 def delete_event(event_id: str, version: int = Query(ge=1)):
     if google_calendar.token_exists():
-        return run(google_calendar.delete_event, event_id)
+        return run(google_calendar.delete_event, event_id, expected_version=version)
     return run(store.write_event, "delete", event_id=event_id, version=version)
 
 
@@ -110,15 +118,59 @@ def history(event_id: str):
     return run(store.event_history, event_id)
 
 
+def _google_proposal(row: dict) -> dict:
+    """Project a generic approval into the existing Calendar UI contract."""
+    actor = row["actor"]
+    action = row["capability_id"].split(".calendar_", 1)[1].removesuffix("_event")
+    payload = row["payload"]
+    return {
+        "id": str(row["id"]),
+        "actor": actor,
+        "action": action,
+        "event_id": payload.get("event_id"),
+        "expected_version": payload.get("version"),
+        "payload": {name: payload[name] for name in
+                    ("title", "start", "end", "all_day", "notes") if name in payload},
+        "previous": {},
+        "reason": payload.get("reason") or "",
+        "status": row["status"],
+        "created_at": row["created_at"].isoformat(),
+        "provider": "google",
+    }
+
+
 @router.get("/proposals")
 def proposals():
     if google_calendar.token_exists():
-        return []
+        rows = run(governance.list_approvals)
+        return [_google_proposal(row) for row in rows
+                if row.get("capability_id") in {
+                    f"{row['actor']}.calendar_{action}_event"
+                    for action in ("create", "update", "delete")
+                }]
     return run(store.list_proposals)
 
 
 @router.post("/proposals/{proposal_id}/resolve")
 def resolve(proposal_id: UUID, decision: Decision):
     if google_calendar.token_exists():
-        raise HTTPException(409, "Le proposte agentiche verso Google Calendar saranno abilitate nel passo successivo.")
+        # This endpoint must never authorize an unrelated generic tool.
+        calendar_pending_ids = {str(row["id"]) for row in run(governance.list_approvals)
+                                if row.get("capability_id") in {
+                                    f"{row['actor']}.calendar_{action}_event"
+                                    for action in ("create", "update", "delete")
+                                }}
+        if str(proposal_id) not in calendar_pending_ids:
+            raise HTTPException(404, "Proposta calendario non trovata o già gestita.")
+        try:
+            result = governance.resolve(str(proposal_id), decision.approve, "user")
+        except RuntimeError as error:
+            # A failed or uncertain external write must never be retried by
+            # this endpoint. The action approval records its durable outcome.
+            raise HTTPException(
+                409, "Esito della proposta non confermato. Verifica Attività e Google Calendar prima di creare una nuova richiesta."
+            ) from error
+        native = result.get("result") or {}
+        return {"proposal": {"id": str(proposal_id), "status": result["status"]},
+                "event": native.get("event") if isinstance(native, dict) else None}
     return run(store.resolve_proposal, str(proposal_id), decision.approve)

@@ -150,6 +150,12 @@ def execute_capability(identifier, payload):
         try:
             from core.permissions import get_permission_rule
             required = sorted({needed.action} | {a for a in contract.required_actions if get_permission_rule(contract.actor,a).policy.value == "confirm"})
+            if contract.approval == "calendar":
+                from core import google_calendar
+                if google_calendar.token_exists():
+                    # Pin the generic approval to the Google OAuth account.
+                    # It may not later execute on a different account or local DB.
+                    required.append("calendar_google_provider:" + google_calendar.connection_fingerprint())
             row = propose(needed.actor, needed.action, tool_id, payload, actions=required)
             if run: run.approvals.append(str(row["id"]))
             result.status, result.approval_id = "pending", str(row["id"])

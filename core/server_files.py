@@ -24,7 +24,7 @@ from core.access import is_loopback, require_owner
 from core.file_paths import ORIGINALS_ID, original_resource
 
 BASE = Path(__file__).resolve().parent.parent
-RESERVED = {".cora-trash", ".cora-staging"}
+RESERVED = {".cora-trash", ".cora-staging", ".cora-commercial-backups"}
 LOCK = threading.RLock()
 
 

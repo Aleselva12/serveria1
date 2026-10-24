@@ -53,6 +53,7 @@ export default function Calendar() {
     connected: false,
     provider: "local",
   });
+  const creationId = useRef<{fingerprint:string; key:string}|null>(null);
   const lock = useRef(false),
     generation = useRef(0),
     historyGeneration = useRef(0);
@@ -113,12 +114,14 @@ export default function Calendar() {
     };
   }, [refresh]);
   function newEvent(date = day, hour = 9) {
+    creationId.current = null;
     ++historyGeneration.current;
     setEditing(undefined);
     setHistory([]);
     setForm(initialForm(date, hour));
   }
   async function select(event: CalendarEvent) {
+    creationId.current = null;
     const current = ++historyGeneration.current;
     setEditing(event);
     setHistory([]);
@@ -155,6 +158,9 @@ export default function Calendar() {
       if (reset) newEvent();
       await refresh(true);
     } catch (e) {
+      // A remote approval may have been claimed even if execution failed.
+      // Refresh the durable state; never automatically retry the mutation.
+      await refresh(true);
       setError(errorText(e));
     } finally {
       lock.current = false;
@@ -220,17 +226,20 @@ export default function Calendar() {
     );
     await mutate(
       async () => {
+        const payload = {
+          title: form.title.trim(),
+          start, end,
+          all_day: form.all_day,
+          notes: form.notes,
+          reminder_minutes: form.all_day ? null : form.reminder_minutes,
+        };
+        // Keep the same request ID after a timeout. Editing the draft
+        // generates a different ID, while duplicate clicks cannot reinsert.
+        const fingerprint = JSON.stringify(payload);
+        if (!editing && creationId.current?.fingerprint !== fingerprint)
+          creationId.current = {fingerprint, key: crypto.randomUUID()};
         const saved = await calendarApi.save(
-          {
-            title: form.title.trim(),
-            start,
-            end,
-            all_day: form.all_day,
-            notes: form.notes,
-            reminder_minutes: form.all_day ? null : form.reminder_minutes,
-          },
-          token,
-          editing,
+          payload, token, editing, editing ? undefined : creationId.current?.key,
         );
         await select(saved);
       },
@@ -656,11 +665,10 @@ export default function Calendar() {
           )}
         </aside>
       </div>
-      {provider.provider !== "google" && (
       <div className="calendar-bottom">
         <section className="section-card">
           <h2>Proposte degli agenti</h2>
-          <p>Le proposte diventano effettive solo dopo la tua approvazione.</p>
+          <p>Le proposte diventano effettive solo dopo la tua approvazione. Per Google Calendar l'esito non confermato non va ripetuto: controlla l'appuntamento e lo stato in Attività.</p>
           {!proposals.length && (
             <p className="panel-note">Nessuna proposta in attesa.</p>
           )}
@@ -735,7 +743,7 @@ export default function Calendar() {
             </article>
           ))}
         </section>
-        <section className="section-card">
+        {provider.provider !== "google" && <section className="section-card">
           <h2>Eliminati nel periodo</h2>
           <p>Gli eventi eliminati conservano lo storico.</p>
           {!trash.length && (
@@ -758,9 +766,8 @@ export default function Calendar() {
               </button>
             </article>
           ))}
-        </section>
+        </section>}
       </div>
-      )}
     </section>
   );
 }
