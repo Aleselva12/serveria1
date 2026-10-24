@@ -26,6 +26,13 @@ class ConsultationTests(unittest.TestCase):
         import json
         from deploy.render_roadmap import ROOT,render
         rows=json.loads((ROOT/'docs/roadmap.json').read_text(encoding='utf-8'))
+        current=json.loads((ROOT/'docs/project-status.json').read_text(encoding='utf-8'))
+        self.assertEqual((ROOT/'frontend/src/project-status.generated.json').read_text(encoding='utf-8'),
+                         (ROOT/'docs/project-status.json').read_text(encoding='utf-8'))
+        self.assertEqual({c['id'] for c in current['categories']},{'M1','M2','M3','M4'})
+        self.assertEqual(len(current['goals']),len({g['id'] for g in current['goals']}))
+        self.assertTrue(all(g['category'] in {'M1','M2','M3','M4'} for g in current['goals']))
+        self.assertFalse(any(g['id'] in {'DB-01','SEMANTIC-MONITOR'} for g in current['goals']))
         self.assertEqual(len(rows),17)
         self.assertEqual(rows[12]['state'],'Escluso')
         self.assertIn('causa utente',rows[5]['state'])

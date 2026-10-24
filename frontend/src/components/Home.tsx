@@ -4,7 +4,8 @@ import CurrentCommit from "./CurrentCommit";
 import ManagedApplications from "./ManagedApplications";
 import type { BackendHealth } from "../types/contracts";
 import { useHomeMonitoring } from "../services/useHomeMonitoring";
-import { homeRoadmap, missingConnections } from "../services/connections";
+import ProjectRoadmap from "./ProjectRoadmap";
+import { serviceStatusLabels } from "../services/homeStatus";
 
 const bytes = (value: number) =>
   (value / 1024 ** 3).toLocaleString("it-IT", { maximumFractionDigits: 1 }) +
@@ -12,13 +13,7 @@ const bytes = (value: number) =>
 const rate = (value: number) =>
   (value / 1e6).toLocaleString("it-IT", { maximumFractionDigits: 2 }) +
   " Mbit/s";
-const statusLabels = {
-  ready: "Raggiungibile",
-  busy: "Occupato",
-  offline: "Offline",
-  error: "Errore",
-  unknown: "Non verificato",
-};
+
 
 export default function Home({
   health,
@@ -47,13 +42,13 @@ export default function Home({
   return (
     <section className="home-page">
       <div className="home-hero system-card">
-        <h1>Ciao, Alessandro</h1>
-        <p>
-          <ShieldCheck size={16} />
+        <h1>Il tuo server</h1>
+        <p className={"home-connection " + (health ? "is-connected" : "is-unknown")}>
+          {health ? <ShieldCheck size={16} /> : <Wifi size={16} />}
           {health
             ? health.ollama_online
-              ? "Cora è collegata. Ollama è raggiungibile."
-              : "Il backend è collegato. Ollama è offline."
+              ? "Cora è raggiungibile. Ollama locale risponde."
+              : "Cora è raggiungibile. Ollama locale non risponde."
             : checking
               ? "Verifica della connessione a Cora…"
               : "Il backend non è raggiungibile. Avvia Cora sul computer o sul server."}
@@ -61,99 +56,13 @@ export default function Home({
         <div className="home-update-actions"><button className="file-tool" onClick={onOpenUpdates}>Aggiorna Cora</button><ManagedApplications /></div>
         <small>
           {telemetry
-            ? "Misurazioni della macchina che esegue Cora · " +
+            ? "Misurazioni visibili al processo Cora · " +
               new Date(telemetry.sampledAt).toLocaleTimeString("it-IT")
             : "In attesa delle misurazioni del server"}
           <CurrentCommit />
         </small>
       </div>
-      <div className="system-card home-backlog">
-        <div className="metric-head">
-          <div>
-            <span>STATO DEL PROGETTO</span>
-            <h2>Prossimi passi</h2>
-          </div>
-          <span className="pill pending">
-            {Object.keys(missingConnections).length} collegamenti da completare
-          </span>
-        </div>
-        <p className="home-backlog-intro">
-          Quadro di progetto aggiornato al {homeRoadmap.updatedAt}: separa codice presente, riscontri sul server, lavori aperti e attività rinviate. Le metriche e i servizi sottostanti mostrano lo stato live, non sostituiscono i collaudi.
-        </p>
-        <details>
-          <summary>Già disponibile nel codice</summary>
-          {homeRoadmap.available.map((item) => (
-            <div className="settings-row" key={item.label}>
-              <div><strong>{item.label}</strong><p>{item.detail}</p></div>
-              <span className="pill success">Implementato</span>
-            </div>
-          ))}
-        </details>
-        <details>
-          <summary>Riscontri sul server · {homeRoadmap.updatedAt}</summary>
-          <p>Esiti della sessione di installazione, distinti dallo stato live e dai collaudi ancora aperti.</p>
-          {homeRoadmap.serverEvidence.map((item) => (
-            <div className="settings-row" key={item.label}>
-              <div><strong>{item.label}</strong><p>{item.detail}</p></div>
-              <span className="pill success">Riscontrato</span>
-            </div>
-          ))}
-        </details>
-        <h3>Le cinque priorità operative</h3>
-        <p className="home-backlog-intro">
-          Ordine di lavoro concordato. Ogni attività passerà a completata solo dopo implementazione e prove adeguate, non per la sola presenza di un pulsante o di una bozza.
-        </p>
-        {homeRoadmap.priorities.map((item) => (
-          <div className="settings-row" key={item.id}>
-            <div><strong>{item.label}</strong><p>{item.detail}</p><small>{item.id}</small></div>
-            <span className="pill pending">{item.state}</span>
-          </div>
-        ))}
-        <details>
-          <summary>Verifiche tecniche ancora aperte</summary>
-          {homeRoadmap.next.map((item) => (
-            <div className="settings-row" key={item.id}>
-              <div><strong>{item.label}</strong><p>{item.detail}</p><small>{item.id}</small></div>
-              <span className="pill pending">{item.state}</span>
-            </div>
-          ))}
-        </details>
-        <details>
-          <summary>Programmatore e prestazioni · rinviati all’upgrade hardware</summary>
-          <p>Il codice esiste e va preservato. Rimangono aperti i collaudi end-to-end e l’ottimizzazione su hardware idoneo, senza bloccare le altre attività.</p>
-          {homeRoadmap.paused.map((item) => (
-            <div className="settings-row" key={item.label}>
-              <div><strong>{item.label}</strong><p>{item.detail}</p></div>
-              <span className="pill">Rinviato</span>
-            </div>
-          ))}
-        </details>
-        <h3>Collegamenti da completare</h3>
-        {Object.entries(missingConnections).map(([id, item]) => (
-          <div className="connection-backlog" key={id}>
-            <div className="settings-row">
-              <div>
-                <strong>{item.label}</strong>
-                <p>{item.detail}</p>
-              </div>
-              <span className="pill pending">Da fare</span>
-            </div>
-            <details>
-              <summary>Dettagli tecnici del collegamento</summary>
-              <code>{item.endpoints}</code>
-            </details>
-          </div>
-        ))}
-        <details>
-          <summary>Obiettivi rinviati</summary>
-          {homeRoadmap.deferred.map((item) => (
-            <div className="settings-row" key={item.label}>
-              <div><strong>{item.label}</strong><p>{item.detail}</p></div>
-              <span className="pill">Rinviato</span>
-            </div>
-          ))}
-        </details>
-      </div>
+      <ProjectRoadmap />
       {telemetryError && (
         <div className="connection-notice" role="alert">
           {telemetryError}
@@ -325,6 +234,7 @@ export default function Home({
         </div>
         <div className="system-card home-placeholder">
           <h2>Stato dei servizi</h2>
+          <p className="home-backlog-intro">Un servizio raggiungibile risponde al controllo; il suo funzionamento completo richiede un collaudo.</p>
           {servicesError && <p role="alert">{servicesError}</p>}
           {services.length ? (
             services.map((service) => (
@@ -342,7 +252,7 @@ export default function Home({
                     </a>
                   )}
                   <span className={"pill " + (service.status === "ready" ? "success" : "")}>
-                    {statusLabels[service.status]}
+                    {serviceStatusLabels[service.status]}
                   </span>
                 </div>
               </div>
@@ -360,12 +270,12 @@ export default function Home({
                 </span>
               </div>
               <div className="settings-row">
-                <strong>Ollama</strong>
+                <strong>Ollama locale</strong>
                 <span className="pill">
                   {health
                     ? health.ollama_online
                       ? "Raggiungibile"
-                      : "Offline"
+                      : "Non raggiungibile"
                     : "Non verificato"}
                 </span>
               </div>
