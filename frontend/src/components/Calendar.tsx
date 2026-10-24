@@ -156,6 +156,9 @@ export default function Calendar() {
       await refresh(true);
     } catch (e) {
       setError(errorText(e));
+      // A remote approval may have been claimed even if execution failed.
+      // Refresh the durable state; never automatically retry the mutation.
+      await refresh(true);
     } finally {
       lock.current = false;
       setBusy(false);
