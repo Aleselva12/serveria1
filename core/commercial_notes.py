@@ -5,7 +5,7 @@ import json
 import os
 import stat
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
 from fastapi import HTTPException
@@ -149,9 +149,17 @@ def proposals(audio_id: UUID) -> list[dict]:
         rows = conn.execute("""SELECT * FROM commercial_note_proposals
           WHERE audio_id=%s ORDER BY created_at DESC LIMIT 100""", (audio_id,)).fetchall()
     now = datetime.now(timezone.utc)
-    return [_public({**row, "status": "expired"}
-                    if row["status"] == "pending" and row["expires_at"] <= now else row)
-            for row in rows]
+    visible = []
+    for row in rows:
+        if row["status"] == "pending" and row["expires_at"] <= now:
+            row = {**row, "status": "expired"}
+        elif (row["status"] == "executing" and row["resolved_at"] and
+              row["resolved_at"] < now - timedelta(minutes=5)):
+            # A crashed worker may have written the Word before confirming DB.
+            # Expose as uncertain; never automatically replay it.
+            row = {**row, "status": "uncertain", "error_code": "ExecutionUnconfirmed"}
+        visible.append(_public(row))
+    return visible
 
 
 def _publish(row: dict) -> str:
