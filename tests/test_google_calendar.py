@@ -164,5 +164,71 @@ class GoogleCalendarProviderTests(unittest.TestCase):
         self.assertEqual(body["reminders"], {"useDefault": False, "overrides": []})
 
 
+    def test_sync_uses_deterministic_ids_even_when_listing_is_stale(self):
+        from googleapiclient.errors import HttpError
+        from httplib2 import Response
+        class Request:
+            def __init__(self, call): self.call = call
+            def execute(self): return self.call()
+        class Events:
+            def __init__(self): self.saved = {}; self.insert_count = 0
+            def list(self, **kwargs): return Request(lambda: {"items": []})
+            def insert(self, **kwargs):
+                body = kwargs["body"]
+                def insert_once():
+                    if body["id"] in self.saved:
+                        raise HttpError(Response({"status": 409}), b"Duplicate ID")
+                    self.insert_count += 1
+                    self.saved[body["id"]] = body
+                    return body
+                return Request(insert_once)
+            def get(self, **kwargs):
+                return Request(lambda: self.saved[kwargs["eventId"]])
+        class Service:
+            def __init__(self): self.resource = Events()
+            def events(self): return self.resource
+        fake = Service()
+        local = [{
+            "id": "local-1", "title": "Prova", "start": "2026-10-24T10:00:00+02:00",
+            "end": "2026-10-24T11:00:00+02:00", "all_day": False,
+            "notes": "", "reminder_minutes": None,
+        }]
+        with patch.object(google_calendar, "service", return_value=fake):
+            first = google_calendar.publish_local_events(local)
+            second = google_calendar.publish_local_events(local)
+        self.assertEqual(first["sent"], 1)
+        self.assertEqual(second["sent"], 0)
+        self.assertEqual(second["skipped"], 1)
+        self.assertEqual(fake.resource.insert_count, 1)
+
+    def test_timeout_after_insert_is_reconciled_without_retry(self):
+        class Request:
+            def __init__(self, call): self.call = call
+            def execute(self): return self.call()
+        class Events:
+            def __init__(self): self.saved = {}; self.inserts = 0
+            def list(self, **kwargs): return Request(lambda: {"items":[]})
+            def insert(self, **kwargs):
+                def commit_then_timeout():
+                    self.inserts += 1
+                    self.saved[kwargs["body"]["id"]] = kwargs["body"]
+                    raise TimeoutError("connection lost after commit")
+                return Request(commit_then_timeout)
+            def get(self, **kwargs):
+                return Request(lambda: self.saved[kwargs["eventId"]])
+        class Service:
+            def __init__(self): self.resource = Events()
+            def events(self): return self.resource
+        fake = Service()
+        with patch.object(google_calendar, "service", return_value=fake):
+            result = google_calendar.publish_local_events([{
+                "id":"id-1", "title":"Test", "start":"2026-10-24T10:00:00+02:00",
+                "end":"2026-10-24T11:00:00+02:00", "all_day":False,
+            }])
+        self.assertEqual(result["skipped"], 1)
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(fake.resource.inserts, 1)
+
+
 if __name__ == "__main__":
     unittest.main()
