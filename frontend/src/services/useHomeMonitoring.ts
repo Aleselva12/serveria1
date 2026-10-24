@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import type { ServerTelemetry, ServiceStatus } from "../types/contracts";
 
@@ -7,6 +7,8 @@ export function useHomeMonitoring() {
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [telemetryError, setTelemetryError] = useState("");
   const [servicesError, setServicesError] = useState("");
+  const refreshCurrent = useRef<() => void>(() => {});
+  const refresh = useCallback(() => refreshCurrent.current(), []);
   useEffect(() => {
     let live = true;
     let metricsPending = false;
@@ -55,15 +57,16 @@ export function useHomeMonitoring() {
         servicesPending = false;
       }
     }
-    void metrics();
-    void status();
+    refreshCurrent.current = () => { void metrics(); void status(); };
+    refreshCurrent.current();
     const metricTimer = window.setInterval(() => void metrics(), 5000);
     const serviceTimer = window.setInterval(() => void status(), 15000);
     return () => {
       live = false;
+      refreshCurrent.current = () => {};
       clearInterval(metricTimer);
       clearInterval(serviceTimer);
     };
   }, []);
-  return { telemetry, services, telemetryError, servicesError };
+  return { telemetry, services, telemetryError, servicesError, refresh };
 }

@@ -1,0 +1,137 @@
+{
+  "updatedAt": "25/10/2026",
+  "basis": "Quadro basato sul codice e sulla documentazione. Lo stato della macchina installata richiede un riscontro separato.",
+  "categories": [
+    {
+      "id": "M1",
+      "label": "Definire l’architettura",
+      "detail": "Decisioni hardware e software ancora da chiudere."
+    },
+    {
+      "id": "M2",
+      "label": "Verificare ciò che è implementato",
+      "detail": "Funzioni presenti nel codice da provare nella configurazione reale."
+    },
+    {
+      "id": "M3",
+      "label": "Completare servizi e applicazioni",
+      "detail": "Estensioni e programmi di lavoro ancora da realizzare o integrare."
+    },
+    {
+      "id": "M4",
+      "label": "Costruire le automazioni",
+      "detail": "Flussi futuri, con permessi, approvazioni e recupero degli errori."
+    }
+  ],
+  "goals": [
+    {
+      "id": "ARCH-HW",
+      "category": "M1",
+      "label": "Architettura hardware definitiva",
+      "state": "Da definire",
+      "detail": "Confermare dischi, ridondanza, alimentazione e distribuzione tra server e altre macchine, in base ai carichi e ai dati da conservare."
+    },
+    {
+      "id": "ARCH-SW",
+      "category": "M1",
+      "label": "Architettura software e gestione dei dati",
+      "state": "Da definire",
+      "detail": "Fissare il ruolo di Cora, servizi foto/drive e applicazioni esterne, dove risiedono originali e copie IA, accessi Tailscale e responsabilità di backup. Il Compose base di Cora non installa tutti questi servizi."
+    },
+    {
+      "id": "FILES-PHOTOS",
+      "category": "M2",
+      "label": "File, foto e accesso remoto",
+      "state": "Da collaudare",
+      "detail": "Verificare risorse autorizzate, permessi, upload e ripristino, accesso da telefono e servizi foto/drive realmente installati. Ridurre gli abbonamenti solo dopo migrazione e recupero dei dati provati."
+    },
+    {
+      "id": "AUDIO-WORD",
+      "category": "M2",
+      "label": "Agente audio e appunti Word",
+      "state": "Da collaudare",
+      "detail": "Trascrizione, correzioni e proposte di note sulle copie Word sono implementate. Provare qualità su audio reale, diarizzazione opzionale e approvazione delle aggiunte senza alterare gli originali."
+    },
+    {
+      "id": "CALENDAR-MAIL",
+      "category": "M2",
+      "label": "Calendario e strumenti email",
+      "state": "Da collaudare",
+      "detail": "Calendario locale/Google, approvazioni, bozze Gmail e PDF sono presenti. Verificare account reali, eventi, conflitti e promemoria. L’invio email automatico resta bloccato."
+    },
+    {
+      "id": "RUNTIME-MEMORY",
+      "category": "M2",
+      "label": "Affidabilità di Cora e gestione della memoria",
+      "state": "Da collaudare",
+      "detail": "Provare cronologia, versioni della memoria, permessi, annullamento, riavvio e operazioni incerte. Controllare anche recupero dei documenti e contesto degli specialisti; i test di sviluppo non chiudono il collaudo reale."
+    },
+    {
+      "id": "MODELS-WORKER",
+      "category": "M2",
+      "label": "Modelli IA e lavoro su più macchine",
+      "state": "Da collaudare",
+      "detail": "Scelte per agente e bridge desktop sono implementati. Verificare modello e macchina effettivi, compatibilità del worker, capacità dichiarate e prestazioni. Il worker remoto restituisce la risposta al termine."
+    },
+    {
+      "id": "BACKUP-UPDATE",
+      "category": "M2",
+      "label": "Backup, ripristino e aggiornamenti",
+      "state": "Da collaudare",
+      "detail": "Backup ordinari, backup cifrati opzionali e updater esistono nel codice. Verificare configurazione installata, copertura dei dati, restore su ambiente vuoto e rollback. Un checksum valido non prova il recupero."
+    },
+    {
+      "id": "PROGRAMMER",
+      "category": "M2",
+      "label": "Programmatore: lavoro completo e verifiche",
+      "state": "Rinviato: hardware",
+      "detail": "Workspace, check e release su richiesta sono presenti. Rimane la prova completa con modello reale, file, test e risposta finale; ottimizzazione rinviata all’upgrade hardware."
+    },
+    {
+      "id": "WORK-APPS",
+      "category": "M3",
+      "label": "Magazzino Tele e applicazione preventivi",
+      "state": "Da verificare e completare",
+      "detail": "Cora contiene un bridge verso Magazzino Tele, non il suo codice completo. Accertare lo stato dei progetti esterni, completare database e flussi di lavoro e provarne importazione, uso e ripristino."
+    },
+    {
+      "id": "DOCUMENTS-OCR",
+      "category": "M3",
+      "label": "OCR e gestione documentale avanzata",
+      "state": "Da estendere",
+      "detail": "Lettura di PDF testuali e Word e modifiche controllate sono presenti. OCR dei PDF scansionati e ulteriori operazioni strutturali restano da implementare."
+    },
+    {
+      "id": "FILES-ADVANCED",
+      "category": "M3",
+      "label": "Sincronizzazione IA e strumenti avanzati sui file",
+      "state": "Rinviato: hardware",
+      "detail": "La consultazione Libreria e le modifiche supportate esistono già. Sincronizzazione originali/copie, conflitti e nuove capacità agentiche di gestione e ripristino dei file restano rinviati."
+    },
+    {
+      "id": "AUTO-QUOTES",
+      "category": "M4",
+      "label": "Dalla richiesta email al preventivo",
+      "state": "Da progettare",
+      "detail": "Collegare il programma preventivi a un flusso email con dati controllati, revisione, autorizzazione all’invio e gestione degli errori. Le bozze Gmail attuali non costituiscono una risposta automatica."
+    },
+    {
+      "id": "AUTO-EXEC",
+      "category": "M4",
+      "label": "Eseguire e pianificare le automazioni grafiche",
+      "state": "Da implementare",
+      "detail": "Editor e validazione delle bozze sono presenti. Mancano esecutore, pianificazione, annullamento e gestione controllata degli effetti."
+    },
+    {
+      "id": "CONTEXT-REGISTRY",
+      "category": "M4",
+      "label": "Evoluzione governata di contesto e memoria simbolica",
+      "state": "Da progettare",
+      "detail": "Le pagine di contesto e la memoria versionata esistono. Definire pubblicazione e versionamento delle nuove pagine e un eventuale agente di revisione dei valori simbolici, con approvazioni esplicite. Il monitor semantico della Libreria resta escluso."
+    }
+  ],
+  "limits": [
+    "I punti già chiusi non compaiono tra gli obiettivi aperti. I rinvii hardware e l’esclusione del monitor semantico restano validi.",
+    "La raggiungibilità di un servizio e la presenza di test non dimostrano che un flusso di lavoro sia collaudato. Il congelamento della versione resta successivo alle verifiche finali."
+  ]
+}

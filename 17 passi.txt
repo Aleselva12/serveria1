@@ -1,7 +1,7 @@
-17 PASSI — ROADMAP CANONICA
+17 PASSI — DECISIONI STORICHE
 Decisioni del proprietario, 18 ottobre 2026
 
-Fonte unica degli stati: docs/roadmap.json (usata anche dalla Home).
+Fonte dei 17 passi storici: docs/roadmap.json. La Home attuale usa docs/project-status.json.
 Il documento originale è una fotografia storica, non un elenco di attività autorizzate.
 La numerazione resta stabile: i collaudi sono riuniti al 17; il 16 prepara la baseline.
 I test di sviluppo verificano il codice e non sostituiscono il collaudo finale sul server.

@@ -10,6 +10,8 @@ import {
   Settings,
   Server,
 } from "lucide-react";
+import ProjectRoadmap from "./ProjectRoadmap";
+import { serviceStatusLabels, serviceSummary } from "../services/homeStatus";
 import type { BackendHealth } from "../types/contracts";
 import { useHomeMonitoring } from "../services/useHomeMonitoring";
 import {
@@ -23,8 +25,8 @@ import {
 type MobilePage = "photos" | "files" | "audio" | "calendar" | "chat" | "activity" | "settings";
 
 const bytes = (value: number) => {
-  if (!Number.isFinite(value) || value <= 0) return "0 GB";
-  return (value / 1024 ** 3).toFixed(value >= 100 * 1024 ** 3 ? 0 : 1) + " GB";
+  if (!Number.isFinite(value) || value <= 0) return "0 GiB";
+  return (value / 1024 ** 3).toFixed(value >= 100 * 1024 ** 3 ? 0 : 1) + " GiB";
 };
 
 export default function MobileHome({
@@ -38,7 +40,7 @@ export default function MobileHome({
   onRefresh: () => void;
   onNavigate: (page: MobilePage) => void;
 }) {
-  const { telemetry, services, telemetryError, servicesError } = useHomeMonitoring();
+  const { telemetry, services, telemetryError, servicesError, refresh } = useHomeMonitoring();
   const [pushState, setPushState] = useState<PushState>({
     supported: false,
     permission: typeof Notification === "undefined" ? "unsupported" : Notification.permission,
@@ -49,8 +51,13 @@ export default function MobileHome({
   const disks = telemetry?.disks ?? [];
   const disk = disks[0];
   const coreOk = Boolean(health);
-  const ready = services.filter((service) => service.status === "ready").length;
-  const issues = services.filter((service) => ["offline", "error"].includes(service.status)).length;
+  const displayedServices = [...services];
+  if (!services.some(service => service.id === "fastapi")) displayedServices.unshift({
+    id: "fastapi", label: "Cora / FastAPI", status: coreOk ? "ready" : "unknown", checkedAt: "",
+  });
+  if (!services.some(service => service.id === "ollama")) displayedServices.push({
+    id: "ollama", label: "Ollama locale", status: health ? health.ollama_online ? "ready" : "offline" : "unknown", checkedAt: "",
+  });
 
   useEffect(() => {
     let live = true;
@@ -80,24 +87,20 @@ export default function MobileHome({
       <div className="mobile-hero">
         <div>
           <span className="mobile-kicker">CORA MOBILE</span>
-          <h1>{coreOk ? "Server online" : checking ? "Controllo server…" : "Server non raggiungibile"}</h1>
+          <h1>{coreOk ? "Cora raggiungibile" : checking ? "Controllo server…" : "Server non raggiungibile"}</h1>
           <p>
             {coreOk
-              ? issues
-                ? `${issues} servizio${issues === 1 ? "" : "i"} da controllare`
-                : services.length
-                  ? `${ready}/${services.length} servizi operativi`
-                  : "Backend collegato"
-              : "Verifica Tailscale, rete e servizi del server."}
+              ? serviceSummary(services, servicesError)
+              : checking ? "Verifica della connessione in corso…" : "Verifica Tailscale, rete e servizi del server."}
           </p>
         </div>
-        <button className="mobile-icon-button" onClick={onRefresh} disabled={checking} aria-label="Aggiorna stato server">
+        <button className="mobile-icon-button" onClick={() => { onRefresh(); refresh(); }} disabled={checking} aria-label="Aggiorna stato server">
           <RefreshCw size={19} className={checking ? "spin" : ""} />
         </button>
       </div>
 
       <div className="mobile-primary-grid">
-        <button onClick={() => onNavigate("photos")}><Images /><strong>Foto</strong><span>Immich e raccolta foto</span></button>
+        <button onClick={() => onNavigate("photos")}><Images /><strong>Foto</strong><span>Collegamento al servizio foto</span></button>
         <button onClick={() => onNavigate("files")}><Files /><strong>File</strong><span>Drive del server</span></button>
         <button onClick={() => onNavigate("audio")}><FileAudio /><strong>Audio</strong><span>Carica e trascrivi</span></button>
         <button onClick={() => onNavigate("calendar")}><CalendarDays /><strong>Agenda</strong><span>Impegni e appuntamenti</span></button>
@@ -105,7 +108,7 @@ export default function MobileHome({
 
       <div className="mobile-status-card">
         <div className="mobile-section-title">
-          <div><span className="mobile-kicker">STATO</span><h2>Server</h2></div>
+          <div><span className="mobile-kicker">STATO</span><h2>Misurazioni di Cora</h2></div>
           <Server size={20} />
         </div>
         <div className="mobile-metrics">
@@ -115,18 +118,10 @@ export default function MobileHome({
         </div>
         {(telemetryError || servicesError) && <p className="mobile-inline-error">{telemetryError || servicesError}</p>}
         <div className="mobile-service-list">
-          <div className="mobile-service-row">
-            <span><i className={coreOk ? "ok" : "down"} />Cora / FastAPI</span>
-            <strong>{coreOk ? "Online" : "Offline"}</strong>
-          </div>
-          <div className="mobile-service-row">
-            <span><i className={health?.ollama_online ? "ok" : "down"} />Ollama</span>
-            <strong>{health?.ollama_online ? "Online" : "Offline"}</strong>
-          </div>
-          {services.map((service) => (
+          {displayedServices.map((service) => (
             <div className="mobile-service-row" key={service.id}>
               <span><i className={service.status === "ready" ? "ok" : service.status === "unknown" ? "unknown" : "down"} />{service.label}</span>
-              <strong>{service.status === "ready" ? "Online" : service.status === "busy" ? "Occupato" : service.status === "unknown" ? "N/D" : "Problema"}</strong>
+              <strong>{serviceStatusLabels[service.status]}</strong>
             </div>
           ))}
         </div>
@@ -151,7 +146,7 @@ export default function MobileHome({
             <button
               className="mobile-secondary-button"
               disabled={pushBusy || !pushState.supported || pushState.permission === "denied"}
-              onClick={() => void pushAction(() => enablePushNotifications("iPhone"), "Notifiche calendario attivate su questo dispositivo.")}
+              onClick={() => void pushAction(() => enablePushNotifications("Dispositivo mobile"), "Notifiche calendario attivate su questo dispositivo.")}
             >
               {pushBusy ? "Attivazione…" : "Attiva notifiche calendario"}
             </button>
@@ -169,12 +164,14 @@ export default function MobileHome({
                 disabled={pushBusy}
                 onClick={() => void pushAction(() => disablePushNotifications(), "Notifiche disattivate su questo dispositivo.")}
               >
-                Disattiva su questo iPhone
+                Disattiva su questo dispositivo
               </button>
             </>
           )}
         </div>
       </div>
+
+      <ProjectRoadmap />
 
       <div className="mobile-secondary-links">
         <button onClick={() => onNavigate("chat")}><MessageCircle size={18} /><span>Chat Cora</span></button>
