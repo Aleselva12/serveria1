@@ -1,0 +1,7 @@
+FROM python:3.12-alpine
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 CORA_WORKER_PORT=8765
+WORKDIR /app
+COPY worker.py /app/worker.py
+USER 65534:65534
+EXPOSE 8765
+CMD ["python", "/app/worker.py"]

@@ -25,6 +25,7 @@ import {
   Send,
   Settings,
   Save,
+  Server,
 } from "lucide-react";
 import Audio from "./components/Audio";
 import ChatToolPicker from "./components/ChatToolPicker";
@@ -38,6 +39,7 @@ import Programmer from "./components/Programmer";
 import Calendar from "./components/Calendar";
 import FileManager from "./components/FileManager";
 import Architecture from "./components/Architecture";
+import Machines from "./components/Machines";
 import ArchitectureRuntime from "./components/ArchitectureRuntime";
 import MemoryManagement from "./components/MemoryManagement";
 import ModelSettings from "./components/ModelSettings";
@@ -50,6 +52,7 @@ type Page =
   | "chat"
   | "photos"
   | "architecture"
+  | "machines"
   | "code"
   | "calendar"
   | "files"
@@ -59,7 +62,7 @@ type Page =
   | "settings"
   | "memory-management";
 const validPages: ReadonlySet<Page> = new Set([
-  "home", "chat", "photos", "architecture", "code", "calendar",
+  "home", "chat", "photos", "architecture", "machines", "code", "calendar",
   "files", "audio", "activity", "updates", "settings", "memory-management",
 ]);
 function isPage(value: string): value is Page {
@@ -77,9 +80,11 @@ const primary: { id: Page; label: string }[] = [
   { id: "architecture", label: "Architettura" },
   { id: "code", label: "Programma" },
   { id: "calendar", label: "Calendario" },
+  { id: "files", label: "File" },
+  { id: "machines", label: "Macchine" },
+  { id: "audio", label: "Audio" },
 ];
 const secondary: { id: Page; label: string; icon: typeof FileText }[] = [
-  { id: "audio", label: "Audio", icon: FileText },
   { id: "activity", label: "Attività", icon: Activity },
   { id: "updates", label: "Aggiornamenti", icon: RefreshCw },
   { id: "settings", label: "Impostazioni", icon: Settings },
@@ -304,7 +309,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
       void history.refreshHistory();
     }
   }
-  const withSidebar = !["home", "photos", "files", "audio", "architecture", "code", "calendar"].includes(page);
+  const withSidebar = !["home", "photos", "files", "audio", "architecture", "code", "calendar", "machines"].includes(page);
   return (
     <div
       className={"app app-" + page + " " + (withSidebar ? "has-sidebar" : "")}
@@ -362,12 +367,6 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 {item.label}
               </button>
             ))}
-            <button
-              onClick={() => navigate("files")}
-              className={page === "files" ? "active" : ""}
-            >
-              File
-            </button>
           </nav>
           <div className="header-right">
             <span
@@ -409,6 +408,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 <div className="dropdown mobile-dropdown">
                   <button onClick={() => navigate("chat")}><span>✦</span> Chat Cora</button>
                   <button onClick={() => navigate("activity")}><Activity size={17} /> Attività</button>
+                  <button onClick={() => navigate("machines")}><Server size={17} /> Macchine</button>
                   <button onClick={() => navigate("settings")}><Settings size={17} /> Impostazioni</button>
                 </div>
               )}
@@ -587,6 +587,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
               )}
             </>
           )}
+          {page === "machines" && <Machines />}
           {page === "code" && <Programmer />}
           {page === "calendar" && <Calendar />}
           {page === "files" && <FileManager />}

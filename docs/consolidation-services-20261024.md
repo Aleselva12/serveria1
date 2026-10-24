@@ -46,3 +46,12 @@ Questi sono test locali in contenitori e con servizi temporanei, distinti dalla 
 La pubblicazione Word protegge con hash e lock interno, ma un editor esterno non rispetta quel lock: il controllo hash prima di os.replace non costituisce una transazione filesystem con software esterno. Serve collaudo su copie e coordinamento delle scritture. Nessun duplicato storico Google viene cancellato automaticamente.
 
 Nessun merge, deploy, modifica a main, accesso al server Debian o uso di dati reali.
+
+
+## Chiusura dopo i merge #85 e #86
+
+Integrato nel solo branch PR lo stato main `04098f315e6409b2e71e043cb9af9a1fe75d146e` (merge #86, successivo al merge #85). Risolti i due hunk in App.tsx conservando la validazione centralizzata dei deep link, aggiungendo machines all'elenco e mantenendo la navigazione desktop/mobile dei nuovi merge. Nessuna modifica al branch main e nessun merge della PR #84.
+
+Corretto inoltre un errore eseguibile proveniente dal nuovo codice Macchine: la rivalidazione di un worker fuori dalla tailnet sollevava ValidationError non gestita; restituisce ora HTTP 503 prima di qualsiasi richiesta remota, come richiesto dal test già presente.
+
+Verifica della versione combinata: 124 test backend Windows previsti dal progetto più regressioni Macchine/Google/Word, OK con una esclusione PostgreSQL; 113 test frontend e build TypeScript/Vite, OK. Nessun conflitto residuo nell'indice e diff controllato. I 482 test Linux/pgvector precedentemente superati riguardano la versione precedente ai due merge: Docker non era più disponibile durante la chiusura, quindi la suite Linux/PostgreSQL combinata NON è dichiarata rieseguita. Anche la rimozione dei contenitori temporanei resta indisponibile finché il motore Docker locale è spento; contengono solo dati sintetici. CI del commit finale da verificare separatamente.
