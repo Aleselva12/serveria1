@@ -4197,3 +4197,29 @@ select:disabled {
   min-width: 0;
   max-width: 58%;
 }
+
+/* Keep all primary destinations reachable without widening the page. */
+.primary-nav {
+  min-width: 0;
+  overflow-x: auto;
+}
+.primary-nav button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.header-right {
+  flex-shrink: 0;
+}
+@media (max-width: 620px) {
+  .primary-nav {
+    flex: 1;
+  }
+  .header-right {
+    display: flex;
+    width: auto;
+    margin-left: 12px;
+  }
+  .header-right .connection-tag {
+    display: none;
+  }
+}
