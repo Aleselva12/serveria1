@@ -149,7 +149,7 @@ def _probe(fqdn: str) -> tuple[bool, list[str]]:
         return False, []
     try:
         req = Request("https://" + fqdn + "/health", headers={"Accept": "application/json"})
-        with urlopen(req, timeout=2) as response:
+        with build_opener(ProxyHandler({}), NoRedirect()).open(req, timeout=2) as response:
             if response.status != 200:
                 return False, []
             raw = response.read(8193)
@@ -241,6 +241,9 @@ def _worker_call(machine: dict, path: str, payload: dict | None = None, timeout:
     if len(token) < 32:
         raise HTTPException(503, "Configura CORA_WORKER_SHARED_TOKEN nel backend e CORA_WORKER_TOKEN sul desktop.")
     fqdn = MachineRegistration(name=machine["name"], fqdn=machine["fqdn"]).fqdn
+    suffix = os.getenv("CORA_TAILSCALE_DNS_SUFFIX", "").strip().lower().lstrip(".")
+    if not suffix or not suffix.endswith(".ts.net") or not fqdn.endswith("." + suffix):
+        raise HTTPException(503, "Imposta CORA_TAILSCALE_DNS_SUFFIX prima di collegare worker remoti.")
     raw = None if payload is None else json.dumps(payload).encode()
     req = Request("https://" + fqdn + path,
                   data=raw,
