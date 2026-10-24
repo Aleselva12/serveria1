@@ -37,6 +37,15 @@ def token_exists() -> bool:
     return TOKEN_PATH.is_file()
 
 
+def connection_fingerprint() -> str:
+    """Pin an approval to one OAuth account without persisting its token."""
+    credentials = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
+    if not credentials.refresh_token:
+        raise GoogleCalendarNotConnected("Token Google senza refresh token: ricollega l'account.")
+    identity = (str(credentials.client_id or "") + ":" + credentials.refresh_token).encode("utf-8")
+    return hashlib.sha256(identity).hexdigest()
+
+
 def _credentials() -> Credentials:
     if not TOKEN_PATH.is_file():
         raise GoogleCalendarNotConnected("Google Calendar non collegato.")
