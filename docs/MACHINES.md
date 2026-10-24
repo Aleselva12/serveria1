@@ -77,8 +77,49 @@ curl.exe http://127.0.0.1:8765/health
 Docker Compose legge automaticamente il file `.env` per la variabile
 `CORA_WORKER_TOKEN`. Non mostrare il contenuto del file in chat.
 
-Il backend Debian deve essere riavviato tramite la normale procedura di
-aggiornamento dopo avere modificato il proprio `deploy.env`.
+### Debian con updater a configurazione Compose congelata
+
+**Importante:** l'updater conserva un `compose.json` risolto al momento
+dell'installazione. Modificare soltanto `deploy.env` NON aggiunge automaticamente
+`CORA_WORKER_SHARED_TOKEN` all'ambiente del container API già in esecuzione,
+neppure dopo un normale update del codice. Non usare un Compose generico dal
+checkout: potresti perdere gli override del server.
+
+Verifica senza stampare segreti:
+
+```bash
+API=$(docker ps -q --filter "label=com.docker.compose.service=api" | head -n 1)
+docker exec "$API" python -c "import os; print('Token API:', len(os.getenv('CORA_WORKER_SHARED_TOKEN',''))>=32); print('Tailnet:',os.getenv('CORA_TAILSCALE_DNS_SUFFIX')=='tail7b83c3.ts.net')"
+```
+
+Se i valori sono False e `deploy.env` contiene già le chiavi corrette,
+dopo aver verificato che non ci siano job di aggiornamento in corso,
+preparare e applicare la correzione **solo** nella configurazione privata
+dell'updater (il programma salva automaticamente un backup):
+
+```bash
+cd /srv/cora-server-test
+python3 -m deploy.worker_updater_env
+sudo systemctl stop cora-updater
+python3 -m deploy.worker_updater_env --apply
+```
+
+A quel punto ricreare **solo** API con gli esatti due file Compose dell'updater,
+conservando immagini, database, web e mount. Controllare prima il progetto
+del container attivo con `docker inspect`:
+
+```bash
+API=$(docker ps -q --filter "label=com.docker.compose.service=api" | head -n 1)
+PROJECT=$(docker inspect "$API" --format '{{ index .Config.Labels "com.docker.compose.project" }}')
+docker compose -p "$PROJECT" -f /srv/cora-tools/updater/compose.json -f /srv/cora-tools/updater/images.json up -d --no-deps --force-recreate api
+sudo systemctl start cora-updater
+```
+
+**Non procedere** se lo stato dell'updater non è chiaro, un job è in corso,
+o il layout dei file differisce. Ricontrollare i due flag di ambiente nel
+container API dopo il riavvio. Non mostrare token, `compose.json` o `deploy.env`
+nelle chat: contengono credenziali private. Per una installazione senza updater,
+seguire il normale deployment documentato in `deploy/README.md`.
 
 ## 3. Ollama Windows raggiungibile dal container
 
