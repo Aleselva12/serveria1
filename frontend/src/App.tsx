@@ -25,6 +25,7 @@ import {
   Send,
   Settings,
   Save,
+  Server,
 } from "lucide-react";
 import Audio from "./components/Audio";
 import ChatToolPicker from "./components/ChatToolPicker";
@@ -38,6 +39,7 @@ import Programmer from "./components/Programmer";
 import Calendar from "./components/Calendar";
 import FileManager from "./components/FileManager";
 import Architecture from "./components/Architecture";
+import Machines from "./components/Machines";
 import ArchitectureRuntime from "./components/ArchitectureRuntime";
 import MemoryManagement from "./components/MemoryManagement";
 import ModelSettings from "./components/ModelSettings";
@@ -50,6 +52,7 @@ type Page =
   | "chat"
   | "photos"
   | "architecture"
+  | "machines"
   | "code"
   | "calendar"
   | "files"
@@ -68,6 +71,7 @@ const primary: { id: Page; label: string }[] = [
   { id: "home", label: "Home" },
   { id: "chat", label: "Chat" },
   { id: "architecture", label: "Architettura" },
+  { id: "machines", label: "Macchine" },
   { id: "code", label: "Programma" },
   { id: "calendar", label: "Calendario" },
 ];
@@ -88,7 +92,7 @@ const uid = () => crypto.randomUUID();
 export default function App({ authMode = "password" }: { authMode?: string } = {}) {
   const [page, setPage] = useState<Page>(() => {
     const requested = window.location.hash.replace(/^#/, "");
-    return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "updates", "settings"].includes(requested) ? requested as Page : "home";
+    return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "updates", "settings", "machines"].includes(requested) ? requested as Page : "home";
   });
   const [menu, setMenu] = useState(false);
   const [mobileUi, setMobileUi] = useState(() => window.matchMedia("(max-width: 620px)").matches);
@@ -128,7 +132,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   useEffect(() => {
     const syncHash = () => {
       const requested = window.location.hash.replace(/^#/, "");
-      if (["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested)) setPage(requested as Page);
+      if (["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings", "machines"].includes(requested)) setPage(requested as Page);
     };
     window.addEventListener("hashchange", syncHash);
     return () => window.removeEventListener("hashchange", syncHash);
@@ -297,7 +301,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
       void history.refreshHistory();
     }
   }
-  const withSidebar = !["home", "photos", "files", "audio", "architecture", "code", "calendar"].includes(page);
+  const withSidebar = !["home", "photos", "files", "audio", "architecture", "code", "calendar", "machines"].includes(page);
   return (
     <div
       className={"app app-" + page + " " + (withSidebar ? "has-sidebar" : "")}
@@ -402,6 +406,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 <div className="dropdown mobile-dropdown">
                   <button onClick={() => navigate("chat")}><span>✦</span> Chat Cora</button>
                   <button onClick={() => navigate("activity")}><Activity size={17} /> Attività</button>
+                  <button onClick={() => navigate("machines")}><Server size={17} /> Macchine</button>
                   <button onClick={() => navigate("settings")}><Settings size={17} /> Impostazioni</button>
                 </div>
               )}
@@ -580,6 +585,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
               )}
             </>
           )}
+          {page === "machines" && <Machines />}
           {page === "code" && <Programmer />}
           {page === "calendar" && <Calendar />}
           {page === "files" && <FileManager />}
