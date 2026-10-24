@@ -1,4 +1,4 @@
-"""Read-only topology extracted from the executable compiled LangGraphs."""
+"""Agent catalog and owner model assignment; legacy topology remains read-only."""
 import hashlib
 import importlib
 import json
@@ -115,3 +115,80 @@ def architecture_overview():
 @router.get("/architecture/overview")
 def overview_endpoint():
     return architecture_overview()
+
+
+@router.get('/architecture/agents')
+def agents_catalog():
+    from core.agent_models import ROLES, bindings
+    from core.registry import get_registry
+    from core.models import get_model_name
+    from core.tool_inventory import inventory, SOURCES
+    from core.runtime_status import component_runtime_status
+    from core.machines_api import _read
+    configured = bindings()
+    machines = {m['id']: m['name'] for m in _read()}
+    owners = dict(zip(('supervisor', 'programmer_agent', 'structure_agent', 'local_research_agent', 'audio_agent', 'email_quotes_agent'),
+                      (row[3] for row in SOURCES)))
+    tools = inventory()
+    runtime = component_runtime_status()['components']
+    registry = get_registry()
+    agents = []
+    for component in registry['components']:
+        identifier = component['id']
+        if identifier not in ROLES:
+            continue
+        assignment = configured.get(ROLES[identifier])
+        machine = assignment['machine_id'] if assignment else 'local'
+        agents.append({**component, 'role': ROLES[identifier], 'model': get_model_name(ROLES[identifier]),
+                       'assignment': assignment, 'machine_name': 'Ollama di Cora' if machine == 'local' else machines.get(machine, 'Worker non registrato'),
+                       'runtime': runtime.get(identifier, {'status': 'unknown', 'checks': {}}),
+                       'tools': [e for e in tools['entries'] if e['kind'] == 'tool' and owners[identifier] in e['agents']]})
+    return {'agents': agents, 'components': [c for c in registry['components'] if c['kind'] == 'core' and c['id'] not in ROLES],
+            'inventory_errors': tools['errors']}
+
+
+@router.get('/architecture/model-targets')
+def model_targets():
+    from core.machines_api import _read, _settings
+    return {'targets': [dict(id='local', name='Ollama di Cora', enabled=True, active_model=None)] + [
+        dict(id=m['id'], name=m['name'], enabled=_settings(m)['enabled'],
+             active_model=_settings(m)['profiles'][_settings(m)['active_profile']]) for m in _read()]}
+
+
+@router.get('/architecture/model-targets/{machine_id}')
+def target_models(machine_id: str):
+    from core.models import list_ollama_models
+    from core.machines_api import _find, _worker_call, _settings
+    if machine_id == 'local':
+        try:
+            return {'models': list_ollama_models(), 'enabled': True, 'active_model': None, 'agent_chat': True}
+        except (OSError, ValueError) as error:
+            raise HTTPException(503, 'Ollama di Cora non raggiungibile.') from error
+    machine = _find(machine_id)
+    result = _worker_call(machine, '/models')
+    settings = _settings(machine)
+    active_model = settings['profiles'][settings['active_profile']]
+    # Only the manually active worker profile can be used by agents.
+    return {'models': [dict(name=m['name']) for m in result.get('models', []) if m.get('name') == active_model],
+            'enabled': settings['enabled'], 'active_model': active_model, 'agent_chat': result.get('agent_chat') is True}
+
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class AgentModelSelection(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    machine_id: str = Field(min_length=1, max_length=100)
+    model: str = Field(default='', max_length=180)
+
+
+@router.put('/architecture/agents/{agent_id}/model')
+def select_agent_model(agent_id: str, selection: AgentModelSelection):
+    from core.agent_models import save_binding
+    try:
+        saved = save_binding(agent_id, selection.machine_id, selection.model)
+    except HTTPException:
+        raise
+    except OSError as error:
+        raise HTTPException(503, 'Provider non raggiungibile o stato non salvabile. Nessuna conferma di modifica.') from error
+    return {'assignment': saved}

@@ -65,7 +65,7 @@ class AuditClosureTests(unittest.TestCase):
             with self.assertRaises(HTTPException) as error: api.select_runtime_model(api.ModelSelectionRequest(model='new'))
             self.assertEqual(error.exception.status_code,500)
             listing.assert_called_once()
-        with patch.object(api,'list_ollama_models',return_value=models) as listing, patch.object(api,'save_runtime_model'), patch.object(api,'get_model_name',return_value='new'):
+        with patch.object(api,'list_ollama_models',return_value=models) as listing, patch.object(api,'save_runtime_model'), patch.object(api,'get_default_model_name',return_value='new'):
             self.assertEqual(api.select_runtime_model(api.ModelSelectionRequest(model='new')),{'active':'new','models':models})
             listing.assert_called_once()
 

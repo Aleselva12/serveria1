@@ -72,6 +72,26 @@ def component_runtime_status() -> dict:
             "checks": database,
         },
     }
+    from core.agent_models import ROLES, binding, remote_ready
+    from concurrent.futures import ThreadPoolExecutor
+    assignments = {identifier: binding(role) for identifier, role in ROLES.items()}
+    keys = {(s['machine_id'], s['model']) for s in assignments.values() if s and s['machine_id'] != 'local'}
+    remote_checks = {}
+    if keys:
+        with ThreadPoolExecutor(max_workers=4) as probes:
+            remote_checks = dict(zip(keys, probes.map(lambda key: remote_ready(*key), keys)))
+    for identifier, role in ROLES.items():
+        selected = assignments[identifier]
+        if selected and selected['machine_id'] != 'local':
+            key = (selected['machine_id'], selected['model'])
+            ready = remote_checks[key]
+            state = components[identifier]
+            state['checks']['ollama'] = ready
+            state['checks']['machine_id'] = selected['machine_id']
+            extra_ready = all(bool(v) for k, v in state['checks'].items() if k in {'faster_whisper', 'knowledge_root', 'gmail_token'})
+            if identifier == 'email_quotes_agent':
+                extra_ready = state['checks']['gmail_token'] or state['checks']['gmail_credentials']
+            state['status'] = 'offline' if not ready else 'ready' if extra_ready else 'degraded'
     live = component_bus.snapshot()
     for identifier, state in live.items():
         if identifier in components and state.get("status") == "busy":

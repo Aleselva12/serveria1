@@ -39,12 +39,23 @@ def preserve_tool_argument_types(response):
 class ConfiguredChatOllama(ChatOllama):
     """Pass min_p through Ollama options; ChatOllama 1.1 omits that field."""
     min_p: float | None = None
+    remote_machine_id: str | None = None
 
     def _create_chat_stream(self, messages, stop=None, **kwargs):
+        if self.remote_machine_id:
+            from core.agent_models import chat_on_worker
+            yield preserve_tool_argument_types(chat_on_worker(self.remote_machine_id, self.model, self._chat_params(messages, stop=stop, **kwargs)))
+            return
         for response in super()._create_chat_stream(messages, stop, **kwargs):
             yield preserve_tool_argument_types(response)
 
     async def _acreate_chat_stream(self, messages, stop=None, **kwargs):
+        if self.remote_machine_id:
+            import asyncio
+            from core.agent_models import chat_on_worker
+            response = await asyncio.to_thread(chat_on_worker, self.remote_machine_id, self.model, self._chat_params(messages, stop=stop, **kwargs))
+            yield preserve_tool_argument_types(response)
+            return
         async for response in super()._acreate_chat_stream(messages, stop, **kwargs):
             yield preserve_tool_argument_types(response)
 
@@ -146,10 +157,19 @@ def get_model_name(role: str = "default") -> str:
     """
     Resolve the model assigned to a role.
 
-    The persisted operator selection wins for every role, then CORA_MODEL_*.
+    A per-agent assignment wins, then the persisted global selection and CORA_MODEL_*.
     OLLAMA_MODEL remains the
     backwards-compatible global fallback.
     """
+    from core.agent_models import binding
+    selected = binding(role)
+    if selected:
+        return selected['model']
+    return get_default_model_name(role)
+
+
+def get_default_model_name(role: str = "default") -> str:
+    """Global selection and environment, without a per-agent assignment."""
     runtime_model = str(_runtime_settings().get("model", "")).strip()
     if runtime_model:
         return runtime_model
@@ -179,7 +199,10 @@ def get_chat_model(
 ) -> ChatOllama:
     """Create the local chat model assigned to a Cora role."""
     from core.context_budget import limit_tokens
+    from core.agent_models import binding
+    selected = binding(role)
     model = get_model_name(role)
+    remote_id = selected['machine_id'] if selected and selected['machine_id'] != 'local' else None
     profile = model_options(model)
     temperature = profile.pop("temperature", temperature)
     kwargs.update(profile)
@@ -192,6 +215,7 @@ def get_chat_model(
     # Keep tool-capable models on the native /api/chat path.
     return ConfiguredChatOllama(
         model=model,
+        remote_machine_id=remote_id,
         base_url=get_ollama_base_url(),
         temperature=temperature,
         **kwargs,
@@ -209,13 +233,19 @@ def performance_configuration(target: str = "supervisor") -> dict:
         "programmer_agent": "programmer",
     }
     role = role_map.get(target, target if target in ROLE_MODEL_ENV else "supervisor")
+    from core.agent_models import binding
+    selected = binding(role)
+    machine_id = selected['machine_id'] if selected else 'local'
     return {
+        "inference_machine": machine_id,
+        "inference_transport": "local-ollama" if machine_id == 'local' else 'worker-chat',
+
         "profile": os.getenv("CORA_PERFORMANCE_PROFILE", "default"),
         "target": target,
         "role": role,
         "model": get_model_name(role),
         "models": {name: get_model_name(name) for name in ROLE_MODEL_ENV},
-        "ollama_base_url": get_ollama_base_url(),
+        "ollama_base_url": get_ollama_base_url() if machine_id == "local" else "worker:" + machine_id,
         "keep_alive": get_model_keep_alive(),
         "sampling": model_options(get_model_name(role)),
         "context_tokens": int(os.getenv("CORA_CONTEXT_TOKENS", "16384")),

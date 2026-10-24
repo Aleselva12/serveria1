@@ -33,7 +33,7 @@ from core.system_context import get_system_context, update_system_context
 from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
 from core.calendar_api import router as calendar_router
 from core.notifications import router as notifications_router, worker as notification_worker
-from core.models import get_model_name, list_ollama_models, save_runtime_model, RuntimeSettingsError
+from core.models import get_default_model_name, get_model_name, list_ollama_models, save_runtime_model, RuntimeSettingsError
 from core.runtime_profile import validate_runtime_profile, runtime_mode
 from core.monitoring import router as monitoring_router
 from core.server_files import router as files_router
@@ -186,6 +186,10 @@ class ProjectUpdateRequest(BaseModel):
 
 
 def _ollama_online() -> bool:
+    from core.agent_models import binding, remote_ready
+    selected = binding('supervisor')
+    if selected and selected['machine_id'] != 'local':
+        return remote_ready(selected['machine_id'], selected['model'])
     try:
         with urlopen(f"{get_ollama_base_url()}/api/tags", timeout=1.5):
             return True
@@ -219,7 +223,7 @@ def runtime_models():
         models = list_ollama_models()
     except Exception as error:
         raise HTTPException(503, "Ollama non raggiungibile.") from error
-    return {"active": get_model_name("supervisor"), "models": models}
+    return {"active": get_default_model_name("supervisor"), "models": models}
 
 
 @app.put("/runtime/model")
@@ -233,7 +237,7 @@ def select_runtime_model(request: ModelSelectionRequest):
         raise HTTPException(422, str(error)) from error
     except Exception as error:
         raise HTTPException(503, "Ollama non raggiungibile.") from error
-    return {"active": get_model_name("supervisor"), "models": models}
+    return {"active": get_default_model_name("supervisor"), "models": models}
 
 
 @app.get("/tools/inventory")
