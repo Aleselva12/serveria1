@@ -58,6 +58,13 @@ type Page =
   | "updates"
   | "settings"
   | "memory-management";
+const validPages: ReadonlySet<Page> = new Set([
+  "home", "chat", "photos", "architecture", "code", "calendar",
+  "files", "audio", "activity", "updates", "settings", "memory-management",
+]);
+function isPage(value: string): value is Page {
+  return validPages.has(value as Page);
+}
 type RequestActivity = {
   id: string;
   title: string;
@@ -88,7 +95,7 @@ const uid = () => crypto.randomUUID();
 export default function App({ authMode = "password" }: { authMode?: string } = {}) {
   const [page, setPage] = useState<Page>(() => {
     const requested = window.location.hash.replace(/^#/, "");
-    return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "updates", "settings"].includes(requested) ? requested as Page : "home";
+    return isPage(requested) ? requested : "home";
   });
   const [menu, setMenu] = useState(false);
   const [mobileUi, setMobileUi] = useState(() => window.matchMedia("(max-width: 620px)").matches);
@@ -128,7 +135,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   useEffect(() => {
     const syncHash = () => {
       const requested = window.location.hash.replace(/^#/, "");
-      if (["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings"].includes(requested)) setPage(requested as Page);
+      if (isPage(requested)) setPage(requested);
     };
     window.addEventListener("hashchange", syncHash);
     return () => window.removeEventListener("hashchange", syncHash);
