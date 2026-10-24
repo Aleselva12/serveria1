@@ -10,6 +10,7 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from uuid import UUID
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -233,8 +234,27 @@ def _managed_local_event_ids(calendar_service=None) -> set[str]:
             return identifiers
 
 
+def _local_google_id(local_id: str) -> str:
+    """A stable Google-compatible event ID for one local UUID.
+
+    Google accepts base32hex (0-9, a-v); UUID hex satisfies that alphabet.
+    Reusing the ID prevents duplicates after timeouts and concurrent requests.
+    """
+    return "cora" + UUID(local_id).hex
+
+
+def _matches_local_identity(event: dict, local_id: str) -> bool:
+    private = ((event.get("extendedProperties") or {}).get("private") or {})
+    return private.get("coraLocalEventId") == local_id and private.get("coraManaged") == "true"
+
+
 def publish_local_events(events: list[dict]) -> dict:
-    """Idempotently export local future events to the user's primary calendar."""
+    """Export with stable event IDs: retries and parallel requests cannot duplicate.
+
+    Previously, listing all managed events and then inserting with server-assigned
+    IDs left a race between concurrent syncs and uncertain network responses.
+    Existing legacy events are recognized by private local IDs; never remove them.
+    """
     calendar_service = service()
     existing = _managed_local_event_ids(calendar_service)
     sent: list[dict] = []
@@ -245,33 +265,36 @@ def publish_local_events(events: list[dict]) -> dict:
         if local_id in existing:
             skipped.append(local_id)
             continue
-        payload = {**local, "local_event_id": local_id}
         try:
+            event_id = _local_google_id(local_id)
+            payload = {**local, "local_event_id": local_id}
+            body = {**_google_body(payload), "id": event_id}
             created = calendar_service.events().insert(
-                calendarId="primary",
-                body=_google_body(payload),
-                sendUpdates="none",
+                calendarId="primary", body=body, sendUpdates="none",
             ).execute()
-            sent.append({
-                "localEventId": local_id,
-                "googleEventId": created.get("id"),
-                "title": local.get("title") or "",
-            })
+            sent.append({"localEventId": local_id,
+                         "googleEventId": created.get("id") or event_id,
+                         "title": local.get("title") or ""})
             existing.add(local_id)
+            continue
         except Exception as error:
-            failed.append({
-                "localEventId": local_id,
-                "title": local.get("title") or "",
-                "error": type(error).__name__,
-            })
-    return {
-        "sent": len(sent),
-        "skipped": len(skipped),
-        "failed": len(failed),
-        "sentEvents": sent,
-        "failedEvents": failed[:20],
-    }
-
+            # A 409 or a timeout after commit may mean our event exists already.
+            # Read by the deterministic ID, not by title/date (which could refer
+            # to unrelated appointments). Never perform a second insert here.
+            try:
+                remote = calendar_service.events().get(
+                    calendarId="primary", eventId=event_id
+                ).execute()
+                if _matches_local_identity(remote, local_id):
+                    existing.add(local_id)
+                    skipped.append(local_id)
+                    continue
+            except Exception:
+                pass
+            failed.append({"localEventId": local_id, "title": local.get("title") or "",
+                           "error": type(error).__name__})
+    return {"sent": len(sent), "skipped": len(skipped),
+            "failed": len(failed), "sentEvents": sent, "failedEvents": failed[:20]}
 
 def _conditional_event_request(event_id: str, expected_version: int, *, data: dict | None = None) -> dict:
     """Reject stale revisions, then atomically enforce ETag using Google's If-Match."""
