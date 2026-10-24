@@ -248,7 +248,7 @@ export default function Machines() {
           <span className="pill">{m.type === "coordinator" ? "Server" : m.type === "worker" ? "Worker" : "Tailscale"}</span>
         </div>
         <p className="muted" style={{overflowWrap:"anywhere"}}>{m.fqdn || "Debian / API Cora"}</p>
-        <p>{m.type === "coordinator" ? "● API raggiungibile" : m.worker_ready ? "● Worker raggiungibile" :
+        <p>{m.type === "coordinator" ? "● API raggiungibile" : m.worker_ready ? "● Connessione HTTP al worker OK (modelli da verificare)" :
           m.online === false ? "● Tailscale offline" : m.type === "worker" ? "● Worker non raggiungibile" :
           m.online ? "● Connesso a Tailscale" : "● Stato non verificato"}</p>
         {m.type === "worker" && <details style={{marginTop:10}}>
