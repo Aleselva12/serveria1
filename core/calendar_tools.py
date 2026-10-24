@@ -22,8 +22,12 @@ def _reject_provider_switch():
     # if OAuth gets disconnected before the owner confirms the proposal.
     from core.governance import approved_action
     grant = approved_action.get()
-    if grant and "calendar_google_provider" in grant[1] and not google_calendar.token_exists():
-        raise PermissionError("Google Calendar scollegato: la proposta non può usare il calendario locale.")
+    if grant:
+        pinned = [action.split(":", 1)[1] for action in grant[1]
+                  if action.startswith("calendar_google_provider:")]
+        if pinned and (not google_calendar.token_exists() or
+                       google_calendar.connection_fingerprint() not in pinned):
+            raise PermissionError("Proposta riferita a un altro account Google Calendar: crea una nuova proposta.")
 
 
 def calendar_tools_for(actor: str):
