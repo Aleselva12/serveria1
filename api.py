@@ -36,6 +36,7 @@ from core.notifications import router as notifications_router, worker as notific
 from core.models import get_default_model_name, get_model_name, list_ollama_models, save_runtime_model, RuntimeSettingsError
 from core.runtime_profile import validate_runtime_profile, runtime_mode
 from core.monitoring import router as monitoring_router
+from core.project_checks import router as project_checks_router
 from core.server_files import router as files_router
 from core.ia_library import router as library_router
 from core.chat_attachments import router as attachments_router, attachment_rows, request_content, public as attachment_public
@@ -72,11 +73,14 @@ async def lifespan(app):
     background_embeddings.start()
     from core import library_monitor
     library_monitor.start()
+    from core import project_checks
+    project_checks.start()
     notification_worker.start()
     yield
     notification_worker.stop()
     runtime.shutdown()
     library_monitor.stop()
+    project_checks.stop()
     background_embeddings.stop()
     archive.stop()
     close_pool()
@@ -96,6 +100,7 @@ app.include_router(machines_router)
 app.include_router(runtime_router)
 app.include_router(permissions_router)
 app.include_router(monitoring_router)
+app.include_router(project_checks_router)
 app.include_router(files_router)
 app.include_router(library_router)
 app.include_router(attachments_router)
