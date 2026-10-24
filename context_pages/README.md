@@ -8,6 +8,7 @@ cartella vengono selezionate deterministicamente dal testo dell'utente; nessuna
 seconda inferenza LLM viene usata per scegliere il contesto.
 
 Ogni pagina eseguibile usa frontmatter TOML delimitato da `+++` e dichiara:
+
 - trigger lessicali;
 - capability/tool da esporre al modello;
 - poche istruzioni specifiche del dominio.
@@ -18,7 +19,7 @@ Le metriche del run registrano `context_pages`, `selected_tools` e
 
 La selezione automatica usa parole intere e frasi normalizzate, senza confronti
 per sottostringa. Mail e Audio hanno pagine dedicate. Le continuazioni brevi
-(per esempio `sÃ¬, procedi`) riprendono il tema precedente dellâ€™utente;
+(per esempio `sì, procedi`) riprendono il tema precedente dell’utente;
 gli estratti degli allegati non attivano strumenti.
 
 La chat permette anche la scelta manuale per il singolo invio: `manual_tools`
@@ -31,10 +32,10 @@ non concede permessi. Le metriche registrano anche `tool_selection`.
 ## Owner context on demand
 
 Il contenuto configurato in Gestione Memoria come contesto persistente non viene
-piÃ¹ concatenato a ogni prompt. La pagina `owner_context` precarica
+più concatenato a ogni prompt. La pagina `owner_context` precarica
 il contenuto tramite `owner_context`, senza esporre un tool aggiuntivo: il Supervisor carica quel contenuto solo quando il task
 dipende davvero dal profilo/contesto mantenuto dal proprietario o quando l'utente
-chiede esplicitamente di usarlo. Anche la memoria semantica non viene piÃ¹
+chiede esplicitamente di usarlo. Anche la memoria semantica non viene più
 recuperata automaticamente in ogni turno: la pagina `memory` espone i relativi
 tool quando il task lo richiede.
 

@@ -3,6 +3,7 @@
 Cora uses PostgreSQL with the pgvector extension as the authoritative persistent store.
 
 Stored in PostgreSQL:
+
 - conversations and messages;
 - semantic embeddings for messages and memories;
 - consolidated memories and their relations;
@@ -26,7 +27,7 @@ Application access is protected by an owner account and revocable seven-day sess
 Provision/reset it interactively with `python -m core.auth`; credentials are hashed with
 scrypt, session tokens are stored only as SHA-256 hashes. The schema also stores tool
 policy overrides, exact generic action approvals and derived conversation summaries.
-The connection pool defaults to 1â€“4 connections, with bounded waiting and SQL timeouts.
+The connection pool defaults to 1–4 connections, with bounded waiting and SQL timeouts.
 Messages are persisted first and indexed by the idle background worker; a failed index
 does not erase source text. SQLite is not used.
 
@@ -34,7 +35,7 @@ Test URLs must point to a disposable database: the integration tests truncate ta
 For a PostgreSQL-protocol emulator that does not support prepared statements, set
 `CORA_DB_PREPARE_THRESHOLD=none`; ordinary PostgreSQL defaults to threshold 5.
 
-Le sintesi incrementali usano `conversation_summaries.through_message_id`; `context_jobs` conserva le conversazioni da preparare durante lâ€™inattivitÃ . Sono dati derivati: i messaggi originali restano la fonte.
+Le sintesi incrementali usano `conversation_summaries.through_message_id`; `context_jobs` conserva le conversazioni da preparare durante l’inattività. Sono dati derivati: i messaggi originali restano la fonte.
 
 Memory edits are versioned in `memory_versions`, with an optimistic expected version and transactional key/row locks. Owner/legacy memories remain protected against unapproved agent updates. Existing classifications are unknown, not inferred during migration. `system_context_versions` preserves owner settings revisions. Memory embeddings are derived asynchronously and applied only to the indexed version. Memory deletion cascades to its revisions and source rows; this does not delete separate conversation/run archives.
 
