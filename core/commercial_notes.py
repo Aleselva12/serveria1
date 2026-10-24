@@ -229,6 +229,14 @@ def resolve_proposal(proposal_id: UUID, approve: bool) -> dict:
            resolved_at=NOW(),resolved_by='owner' WHERE id=%s""", (proposal_id,))
     try:
         backup = _publish(row)
+    except ValueError as error:
+        # A stale Word/hash or unsupported structure was rejected before replace.
+        # A new proposal may be prepared from the current document.
+        with db_connection() as conn:
+            conn.execute("""UPDATE commercial_note_proposals SET status='failed',
+                error_code=%s WHERE id=%s AND status='executing'""",
+                (type(error).__name__, proposal_id))
+        raise ValueError("Word cambiato o non sicuro: nessuna aggiunta confermata. Cerca il cliente e crea una nuova proposta.") from error
     except Exception as error:
         with db_connection() as conn:
             conn.execute("""UPDATE commercial_note_proposals SET status='uncertain',
