@@ -176,7 +176,7 @@ export const calendarApi = {
         new URLSearchParams({ start, end, deleted: String(deleted) }),
       token,
     ),
-  save: (data: CalendarInput, token: string, event?: CalendarEvent) =>
+  save: (data: CalendarInput, token: string, event?: CalendarEvent, requestId?: string) =>
     calendarRequest<CalendarEvent>(
       "/events" + (event ? "/" + event.id : ""),
       token,
@@ -184,7 +184,7 @@ export const calendarApi = {
         method: event ? "PATCH" : "POST",
         body: JSON.stringify({
           ...data,
-          ...(event ? { version: event.version } : {}),
+          ...(event ? { version: event.version } : requestId ? { request_id: requestId } : {}),
         }),
       },
     ),
