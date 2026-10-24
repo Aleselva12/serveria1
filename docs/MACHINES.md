@@ -1,4 +1,4 @@
-# Cora: Macchine e tre profili manuali per worker Windows
+# Cora: Macchine e selezione manuale dei modelli Ollama Windows
 
 ## Stato e limiti
 
@@ -7,8 +7,8 @@
   esegue LLM, non accede alla GPU, al filesystem di Windows o al Docker Engine.
 - Ollama viene installato **sull'host Windows**: è Ollama a usare la Radeon RX 6800
   (16 GB VRAM nominali) e la RAM di sistema secondo driver, contesto e modello.
-- La pagina Macchine consente a un proprietario di configurare profili pesante,
-  medio e leggero; scegliere uno per volta; salvare ON/OFF. Non ci sono tool
+- La pagina Macchine mostra tutti i modelli installati nell'Ollama del desktop e
+  permette al proprietario di selezionarne esattamente uno, con ON/OFF. Non ci sono tool
   agentici che possano modificare questi parametri. I modelli non vengono
   scaricati automaticamente e non restano obbligatoriamente in memoria.
 - L'interruttore OFF blocca le chiamate di inferenza tramite Cora, non arresta
@@ -128,14 +128,24 @@ Aprire **Macchine** dopo aver installato la PR. Registrare:
 - Nome: Desktop
 - FQDN: `desktop-q8ptjrm.tail7b83c3.ts.net`
 
-Alla prima registrazione lo stato è OFF, profilo pesante selezionato,
-ma nessun modello viene avviato. Entrare nel dettaglio per:
-1. Ricaricare **Modelli installati**: leggere l'elenco da Ollama sul PC.
-2. Associare ai tre profili uno dei modelli disponibili (tre dropdown).
-3. Selezionare manualmente il profilo tramite radio.
-4. Impostare ON per consentire una prova; OFF lo blocca immediatamente
-   dal backend Cora anche se il PC resta acceso.
-5. Premere **Prova inferenza**. Controllare `ollama ps` su Windows.
+Alla prima registrazione lo stato è **OFF** e nessun modello viene
+selezionato né avviato automaticamente. Apri il riquadro **Desktop →
+Gestisci modelli e risorse** per:
+1. Leggere l'elenco completo dei modelli già installati da Ollama Windows,
+   con la dimensione dei pesi su disco. Comprende anche i modelli di coding,
+   per esempio `qwen3-coder:30b-a3b-q4_K_M`, se presenti in `ollama list`.
+2. Selezionare esattamente un modello dal menu a tendina o dalla lista radio.
+   L'impostazione viene salvata sul server; non avvia subito il modello.
+3. Attivare manualmente il worker su **ON** oppure mantenerlo **OFF**.
+4. Premere **Prova inferenza**; il modello viene caricato da Ollama Windows
+   quando la richiesta parte. Usa `ollama ps` sul PC per verificare RAM/VRAM.
+5. Se un agente era associato a un modello diverso in Architettura,
+   aggiornarne manualmente l'assegnazione: non esiste fallback o sostituzione
+   automatica del modello.
+
+Le impostazioni dei tre profili delle versioni precedenti rimangono nei dati
+per compatibilità e migrazione, ma la pagina di selezione mostra un solo
+modello attivo per worker. Nessun modello viene scaricato automaticamente.
 
 La connessione del nodo resta visibile anche con la selezione OFF.
 La registrazione, i profili e il selettore sono conservati in
