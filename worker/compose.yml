@@ -1,4 +1,6 @@
-# Execute from this directory: docker compose up -d --build
+# Execute from worker/ with docker compose up -d --build
+# This container is only a tiny HTTPS-via-Tailscale control bridge.
+# GPU inference runs through native Ollama on the Windows host.
 services:
   worker:
     build: .
@@ -12,6 +14,10 @@ services:
       - ALL
     pids_limit: 64
     mem_limit: 128m
+    environment:
+      CORA_WORKER_PORT: "8765"
+      CORA_WORKER_TOKEN: ${CORA_WORKER_TOKEN:-}
+      CORA_OLLAMA_BASE_URL: "http://host.docker.internal:11434"
     ports:
       - "127.0.0.1:8765:8765"
     healthcheck:
