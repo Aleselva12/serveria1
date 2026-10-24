@@ -306,8 +306,8 @@ def save_settings(machine_id: str, body: WorkerSettings):
                 item.update(body.model_dump(exclude={"selected_model"}))
                 if body.selected_model is not None:
                     item["selected_model"] = body.selected_model
-                elif "selected_model" not in item:
-                    # Old clients can still switch legacy profiles.
+                elif not before["selected_model"]:
+                    # Compatibility with existing clients that save legacy profiles.
                     item["selected_model"] = body.profiles[body.active_profile]
                 if body.enabled and not _settings(item)["selected_model"]:
                     raise HTTPException(409, "Seleziona prima un modello installato.")
