@@ -10,6 +10,7 @@ import os
 import re
 import tempfile
 import threading
+from urllib.request import build_opener, ProxyHandler, HTTPRedirectHandler
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
@@ -18,9 +19,50 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
+from typing import Literal
 
 router = APIRouter(prefix="/api/v1/machines", tags=["Macchine"])
 _registry_lock = threading.RLock()
+PROFILES = ("heavy", "medium", "light")
+DEFAULT_MODELS = {
+    "heavy": "gpt-oss:20b",
+    "medium": "qwen3:8b-q8_0",
+    "light": "qwen3:4b-q8_0",
+}
+_MODEL = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,179}$")
+
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _settings(machine):
+    saved = machine.get("profiles") if isinstance(machine.get("profiles"), dict) else {}
+    return {
+        "enabled": machine.get("enabled") is True,
+        "active_profile": machine.get("active_profile") if machine.get("active_profile") in PROFILES else "heavy",
+        "profiles": {profile: saved.get(profile) if isinstance(saved.get(profile), str)
+                     else model for profile, model in DEFAULT_MODELS.items()},
+    }
+
+
+class WorkerSettings(BaseModel):
+    enabled: bool
+    active_profile: Literal["heavy", "medium", "light"]
+    profiles: dict[str, str]
+
+    @field_validator("profiles")
+    @classmethod
+    def profiles_valid(cls, value):
+        if set(value) != set(PROFILES) or not all(_MODEL.fullmatch(v) for v in value.values()):
+            raise ValueError("Sono richiesti tre modelli con nomi Ollama validi.")
+        return value
+
+
+class InferencePrompt(BaseModel):
+    prompt: str = Field(min_length=1, max_length=10000)
+
 _FQDN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+\.ts\.net$")
 
 
@@ -146,6 +188,7 @@ def list_machines():
             "id": str(item.get("id")), "name": str(item.get("name")),
             "fqdn": fqdn, "type": "worker", "online": entry["online"] if entry else None,
             "worker_ready": active, "capabilities": capabilities, "registered": True,
+            **_settings(item),
         })
         seen.add(fqdn)
     for item in discovered:
@@ -157,7 +200,7 @@ def list_machines():
             "capabilities": [], "registered": False,
         })
     return {"machines": nodes, "tailscale_discovery_configured": configured,
-            "tailscale_error": discovery_error, "execution_enabled": False}
+            "tailscale_error": discovery_error, "execution_enabled": any(_settings(i)["enabled"] for i in registered)}
 
 
 @router.post("", status_code=201)
@@ -168,7 +211,8 @@ def add_machine(body: MachineRegistration):
             raise HTTPException(409, "Macchina già registrata.")
         if len(items) >= 20:
             raise HTTPException(409, "Numero massimo di worker raggiunto.")
-        item = {"id": str(uuid4()), "name": body.name.strip(), "fqdn": body.fqdn}
+        item = {"id": str(uuid4()), "name": body.name.strip(), "fqdn": body.fqdn,
+                **_settings({})}
         _write([*items, item])
     return item
 
@@ -182,3 +226,79 @@ def delete_machine(machine_id: str):
             raise HTTPException(404, "Macchina non trovata.")
         _write(remaining)
     return {"removed": True}
+
+
+def _find(machine_id: str):
+    with _registry_lock:
+        for machine in _read():
+            if machine.get("id") == machine_id:
+                return machine
+    raise HTTPException(404, "Worker non registrato.")
+
+
+def _worker_call(machine: dict, path: str, payload: dict | None = None, timeout: int = 7) -> dict:
+    token = os.getenv("CORA_WORKER_SHARED_TOKEN", "")
+    if len(token) < 32:
+        raise HTTPException(503, "Configura CORA_WORKER_SHARED_TOKEN nel backend e CORA_WORKER_TOKEN sul desktop.")
+    fqdn = MachineRegistration(name=machine["name"], fqdn=machine["fqdn"]).fqdn
+    raw = None if payload is None else json.dumps(payload).encode()
+    req = Request("https://" + fqdn + path,
+                  data=raw,
+                  headers={"X-Cora-Worker-Token": token, "Content-Type": "application/json",
+                           "Accept": "application/json"})
+    opener = build_opener(ProxyHandler({}), NoRedirect())
+    try:
+        with opener.open(req, timeout=timeout) as response:
+            body = response.read(1_000_001)
+        if len(body) > 1_000_000:
+            raise ValueError("Risposta troppo grande")
+        parsed = json.loads(body)
+        if not isinstance(parsed, dict):
+            raise ValueError("Risposta non valida")
+        return parsed
+    except HTTPError as error:
+        if error.code in (403, 401):
+            raise HTTPException(503, "Il token di Cora non corrisponde a quello del worker.") from error
+        raise HTTPException(503, "Il worker ha restituito HTTP " + str(error.code)) from error
+    except (URLError, TimeoutError, OSError, ValueError) as error:
+        raise HTTPException(503, "Worker o Ollama non raggiungibile.") from error
+
+
+@router.get("/{machine_id}/models")
+def models(machine_id: str):
+    machine = _find(machine_id)
+    result = _worker_call(machine, "/models")
+    return {**result, "settings": _settings(machine)}
+
+
+@router.put("/{machine_id}/settings")
+def save_settings(machine_id: str, body: WorkerSettings):
+    # Only the owner-authenticated HTTP API can change model selection.
+    # No LangGraph tools or agent-facing endpoints are registered.
+    with _registry_lock:
+        machines = _read()
+        for item in machines:
+            if item.get("id") == machine_id:
+                item.update(body.model_dump())
+                _write(machines)
+                return _settings(item)
+    raise HTTPException(404, "Worker non registrato.")
+
+
+@router.post("/{machine_id}/generate")
+def generate(machine_id: str, body: InferencePrompt):
+    machine = _find(machine_id)
+    settings = _settings(machine)
+    if not settings["enabled"]:
+        raise HTTPException(409, "Worker disattivato manualmente.")
+    model = settings["profiles"][settings["active_profile"]]
+    # No caller-supplied model identifier and no model-switch tool for agents.
+    available = _worker_call(machine, "/models").get("models", [])
+    if model not in {row.get("name") for row in available if isinstance(row, dict)}:
+        raise HTTPException(409, "Il modello selezionato non è installato sul desktop.")
+    return _worker_call(machine, "/generate", {"model": model, "prompt": body.prompt}, timeout=315)
+
+
+@router.post("/{machine_id}/test")
+def test_worker_inference(machine_id: str):
+    return generate(machine_id, InferencePrompt(prompt="Scrivi esattamente la parola: CORA_WORKER_OK"))
