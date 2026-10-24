@@ -110,7 +110,12 @@ def _probe(fqdn: str) -> tuple[bool, list[str]]:
         with urlopen(req, timeout=2) as response:
             if response.status != 200:
                 return False, []
-            body = json.load(response)
+            raw = response.read(8193)
+            if len(raw) > 8192:
+                return False, []
+            body = json.loads(raw)
+        if not isinstance(body, dict):
+            return False, []
         if body.get("protocol") != "cora-worker-v1" or body.get("execution_enabled") is not False:
             return False, []
         capabilities = body.get("capabilities")
