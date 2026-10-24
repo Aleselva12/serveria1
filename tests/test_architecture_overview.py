@@ -33,3 +33,15 @@ class OverviewTests(unittest.TestCase):
         result = TestClient(app).get('/api/v1/architecture/overview')
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json()['framework'], 'LangGraph')
+
+    def test_worker_update_bundle_contains_fixed_sources_without_private_settings(self):
+        import io
+        import zipfile
+        app = FastAPI(); app.include_router(router)
+        response = TestClient(app).get('/api/v1/architecture/worker-update')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['content-type'], 'application/zip')
+        with zipfile.ZipFile(io.BytesIO(response.content)) as bundle:
+            self.assertEqual(set(bundle.namelist()), {'worker.py', 'Dockerfile', 'compose.yml', 'UPDATE.md'})
+            self.assertIn(b"'/api/chat'", bundle.read('worker.py'))
+            self.assertIn(b'--force-recreate', bundle.read('UPDATE.md'))

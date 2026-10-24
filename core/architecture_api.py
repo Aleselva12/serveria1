@@ -7,6 +7,25 @@ from fastapi import APIRouter, HTTPException, Query
 from core.execution_traces import read_runs
 
 router = APIRouter(prefix="/api/v1", tags=["Architecture"])
+
+
+@router.get('/architecture/worker-update')
+def worker_update():
+    """Fixed source bundle from this installed release; never includes secrets."""
+    import io
+    import zipfile
+    from pathlib import Path
+    from fastapi.responses import Response
+    root = Path(__file__).resolve().parents[1] / 'worker'
+    data = io.BytesIO()
+    try:
+        with zipfile.ZipFile(data, 'w', zipfile.ZIP_DEFLATED) as archive:
+            for name in ('worker.py', 'Dockerfile', 'compose.yml', 'UPDATE.md'):
+                archive.writestr(name, (root / name).read_bytes())
+    except OSError as error:
+        raise HTTPException(503, 'Sorgenti worker mancanti: aggiorna Cora prima di scaricare il pacchetto.') from error
+    return Response(data.getvalue(), media_type='application/zip', headers={
+        'Content-Disposition': 'attachment; filename="cora-worker-update.zip"', 'Cache-Control': 'no-store'})
 GRAPH_SOURCES = (
     ("supervisor", "graph", "graph"),
     ("structure_agent", "structure_agent.structure_graph", "graph"),
@@ -215,8 +234,8 @@ def verify_agent_model(agent_id: str):
     role = ROLES[agent_id]
     expected = resolve_model(role)
     if expected['machine_id'] != 'local':
-        from core.agent_models import remote_machine
-        remote_machine(expected['machine_id'], expected['model'])
+        from core.agent_models import remote_machine, require_agent_chat
+        require_agent_chat(remote_machine(expected['machine_id'], expected['model']))
     def work(run):
         import time
         from langchain_core.messages import HumanMessage

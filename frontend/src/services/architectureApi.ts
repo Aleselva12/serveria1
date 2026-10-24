@@ -33,6 +33,13 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   } finally { clearTimeout(timer); }
 }
 export const architectureApi = {
+  async downloadWorkerUpdate() {
+    const response = await authenticatedFetch(base + '/api/v1/architecture/worker-update', { signal: AbortSignal.timeout(30000) });
+    if (!response.ok || !response.headers.get('content-type')?.includes('application/zip')) throw Error('Download aggiornamento worker non riuscito. Aggiorna Cora e riprova.');
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a'); link.href = url; link.download = 'cora-worker-update.zip'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
   verify(agentId: string) { return call<{run_id: string}>('/agents/' + encodeURIComponent(agentId) + '/verify', { method: 'POST' }); },
   async verification(id: string): Promise<Verification> {
     const response = await authenticatedFetch(base + '/api/v1/runtime/runs/' + encodeURIComponent(id), { signal: AbortSignal.timeout(10000) });

@@ -54,10 +54,18 @@ def remote_machine(machine_id, model):
 def chat_on_worker(machine_id, model, params):
     from core.machines_api import _worker_call
     machine = remote_machine(machine_id, model)
+    require_agent_chat(machine)
     # Native Ollama messages and tool schemas, not a flattened text prompt.
     payload = json.loads(json.dumps(params, default=lambda value: value.model_dump(exclude_none=True)))
     payload.update(model=model, stream=False)
     return _worker_call(machine, '/chat', payload, timeout=315)
+
+
+def require_agent_chat(machine):
+    from core.machines_api import _worker_call
+    if _worker_call(machine, '/models').get('agent_chat') is not True:
+        raise HTTPException(409, "Assegnazione salvata, ma il worker desktop va aggiornato per la chat agenti. "
+                            "Apri Architettura e scarica l’aggiornamento worker. Il test in Macchine prova solo /generate.")
 
 
 def save_binding(agent_id, machine_id, model):
@@ -74,8 +82,8 @@ def save_binding(agent_id, machine_id, model):
     else:
         machine = remote_machine(machine_id, model)
         available = _worker_call(machine, '/models')
-        if available.get('agent_chat') is not True:
-            raise HTTPException(409, "Aggiorna il container worker sul desktop: il bridge chat agenti non è disponibile.")
+        # Persist the owner's choice independently of the bridge version. An old
+        # worker must still fail explicitly at inference, never fall back locally.
         if model not in {m.get('name') for m in available.get('models', [])}:
             raise HTTPException(422, "Modello non installato sul worker.")
         row = dict(machine_id=machine_id, model=model)

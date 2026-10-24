@@ -116,3 +116,21 @@ Whisper configurato e configurazione del motore caricato nella cache Python.
 è libero; non esegue un download né una trascrizione. Il motore si carica al prossimo
 uso. Cambiare variabili Docker richiede comunque di ricreare/riavviare il container.
 Assegnare un LLM sul desktop non trasferisce Whisper, diarizzazione o tool al desktop.
+
+## Salvataggio con un worker precedente al bridge chat
+
+L'assenza di `agent_chat=true` non disabilita più il pulsante Salva né impedisce
+la persistenza di un modello installato e selezionato manualmente. La scheda
+conferma il salvataggio e distingue l'assegnazione dalla possibilità di eseguirla.
+Una verifica o una chat con il vecchio worker restituisce un errore esplicito di
+aggiornamento: non usa `/generate` come sostituto dei messaggi/tool nativi e non
+ripiega sul modello locale. ON/OFF, selezione del proprietario e profilo isolated
+continuano a essere rispettati.
+
+`GET /api/v1/architecture/worker-update`, protetto dall'accesso applicativo come
+le altre route Architettura, restituisce uno ZIP dei soli `worker.py`, `Dockerfile`,
+`compose.yml` e `UPDATE.md` della release installata. Non contiene file `.env` o
+credenziali e non esegue comandi sul PC. La scheda espone download e istruzioni
+per ricostruire il container esistente sul desktop. Dopo l'aggiornamento, Ricarica
+modelli rilegge la compatibilità: l'assegnazione già salvata resta valida e non
+richiede un riavvio di Cora. Il collaudo con l'hardware reale resta da eseguire.
