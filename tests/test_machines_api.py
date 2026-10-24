@@ -128,6 +128,30 @@ class MachinesTests(unittest.TestCase):
         self.assertEqual(machines._settings(legacy)["selected_model"], "small")
         self.assertEqual(machines._settings({"enabled": False})["selected_model"], "")
 
+    def test_offline_toggle_is_independent_of_missing_model_inventory(self):
+        with tempfile.TemporaryDirectory() as root:
+            with patch.dict(os.environ, {"CORA_MACHINES_REGISTRY_FILE": str(Path(root) / "machines.json")}):
+                worker = machines.add_machine(machines.MachineRegistration(
+                    name="Desktop", fqdn="desktop.tail7b83c3.ts.net"))
+                settings = machines._settings(worker)
+                self.assertFalse(settings["enabled"])
+                self.assertEqual(settings["selected_model"], "")
+                saved = machines.save_settings(worker["id"], machines.WorkerSettings(
+                    enabled=True, active_profile=settings["active_profile"],
+                    profiles=settings["profiles"], selected_model=""))
+                self.assertTrue(saved["enabled"])
+                self.assertEqual(saved["selected_model"], "")
+                with patch.object(machines, "_worker_call") as call:
+                    with self.assertRaises(HTTPException) as error:
+                        machines.test_worker_inference(worker["id"])
+                    self.assertEqual(error.exception.status_code, 409)
+                    call.assert_not_called()
+                saved = machines.save_settings(worker["id"], machines.WorkerSettings(
+                    enabled=False, active_profile=settings["active_profile"],
+                    profiles=settings["profiles"], selected_model=""))
+                self.assertFalse(saved["enabled"])
+
+
     def test_authenticated_worker_requests_require_exact_tailnet(self):
         with patch.dict(os.environ, {"CORA_WORKER_SHARED_TOKEN": "s" * 48,
                                      "CORA_TAILSCALE_DNS_SUFFIX": "tail7b83c3.ts.net"}):
