@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -169,7 +170,8 @@ def _publish(row: dict) -> str:
         backups = confined_path(root, root / ".cora-commercial-backups")
         if backups.is_symlink():
             raise ValueError("Cartella backup non sicura.")
-        backups.mkdir(exist_ok=True)
+        backups.mkdir(mode=0o700, exist_ok=True)
+        backups.chmod(0o700)
         backup = confined_path(root, backups / (str(row["id"]) + ".docx"))
         with backup.open("xb") as output:
             output.write(source)
@@ -179,6 +181,7 @@ def _publish(row: dict) -> str:
         try:
             handle, name = tempfile.mkstemp(prefix=".cora-note-", suffix=".docx", dir=target.parent)
             temporary = Path(name)
+            os.fchmod(handle, stat.S_IMODE(target.stat().st_mode))
             with os.fdopen(handle, "wb") as output:
                 output.write(candidate)
                 output.flush()
@@ -188,6 +191,13 @@ def _publish(row: dict) -> str:
                 raise ValueError("Word cambiato durante la pubblicazione.")
             os.replace(temporary, target)
             temporary = None
+            # Durably publish the directory entry where supported.
+            try:
+                fd = os.open(target.parent, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+                try: os.fsync(fd)
+                finally: os.close(fd)
+            except OSError:
+                pass
         finally:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)
