@@ -76,8 +76,9 @@ def events(start: datetime, end: datetime, deleted: bool = False):
 def create_event(data: EventCreate):
     payload = data.model_dump(exclude={"request_id"}, mode="json")
     if google_calendar.token_exists():
-        return run(google_calendar.create_event, payload,
-                   request_id=str(data.request_id) if data.request_id else None)
+        if not data.request_id:
+            raise HTTPException(422, "Richiesta senza ID univoco: aggiorna l'interfaccia prima di creare un evento Google.")
+        return run(google_calendar.create_event, payload, request_id=str(data.request_id))
     return run(store.write_event, "create", data=payload)
 
 
