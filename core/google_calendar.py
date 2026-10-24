@@ -10,7 +10,6 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
-from uuid import UUID
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -235,12 +234,12 @@ def _managed_local_event_ids(calendar_service=None) -> set[str]:
 
 
 def _local_google_id(local_id: str) -> str:
-    """A stable Google-compatible event ID for one local UUID.
+    """Stable Google-compatible ID for an event originating in Cora.
 
-    Google accepts base32hex (0-9, a-v); UUID hex satisfies that alphabet.
-    Reusing the ID prevents duplicates after timeouts and concurrent requests.
+    Google accepts base32hex (0-9, a-v), satisfied by SHA-256 hex digits.
+    Deterministic IDs prevent duplicate inserts after timeouts or parallel sync.
     """
-    return "cora" + UUID(local_id).hex
+    return "cora" + hashlib.sha256(local_id.encode("utf-8")).hexdigest()[:40]
 
 
 def _matches_local_identity(event: dict, local_id: str) -> bool:
