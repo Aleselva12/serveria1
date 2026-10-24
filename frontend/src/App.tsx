@@ -25,6 +25,7 @@ import {
   Send,
   Settings,
   Save,
+  Server,
 } from "lucide-react";
 import Audio from "./components/Audio";
 import ChatToolPicker from "./components/ChatToolPicker";
@@ -405,6 +406,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 <div className="dropdown mobile-dropdown">
                   <button onClick={() => navigate("chat")}><span>✦</span> Chat Cora</button>
                   <button onClick={() => navigate("activity")}><Activity size={17} /> Attività</button>
+                  <button onClick={() => navigate("machines")}><Server size={17} /> Macchine</button>
                   <button onClick={() => navigate("settings")}><Settings size={17} /> Impostazioni</button>
                 </div>
               )}
