@@ -58,11 +58,11 @@ class GoogleCalendarApprovalTests(unittest.TestCase):
 
     def test_google_agent_write_is_durable_proposal_not_a_direct_write(self):
         tool = next(t for t in calendar_tools_for("supervisor") if t.name == "calendar_create_event")
-        with patch.object(google_calendar, "token_exists", return_value=True), \\
-             patch.object(google_calendar, "connection_fingerprint", return_value="fingerprint"), \\
-             patch.object(google_calendar, "create_event") as create, \\
-             patch("core.permissions.policy_overrides", return_value={}), \\
-             patch("core.operation_journal.begin", return_value=None), \\
+        with patch.object(google_calendar, "token_exists", return_value=True), \
+             patch.object(google_calendar, "connection_fingerprint", return_value="fingerprint"), \
+             patch.object(google_calendar, "create_event") as create, \
+             patch("core.permissions.policy_overrides", return_value={}), \
+             patch("core.operation_journal.begin", return_value=None), \
              patch("core.governance.propose", return_value={"id": uuid4()}) as propose:
             result = tool.invoke(DATA)
         wire = json.loads(result)
@@ -76,7 +76,7 @@ class GoogleCalendarApprovalTests(unittest.TestCase):
                             payload={"event_id": "google_non_uuid", "version": 3, "reason": "Prova"},
                             status="pending", created_at=datetime(2026, 10, 24))
         other = {**calendar_row, "id": uuid4(), "capability_id": "supervisor.forget_memory_tool"}
-        with patch.object(google_calendar, "token_exists", return_value=True), \\
+        with patch.object(google_calendar, "token_exists", return_value=True), \
              patch.object(calendar_api.governance, "list_approvals", return_value=[calendar_row, other]):
             pending = calendar_api.proposals()
         self.assertEqual(len(pending), 1)
