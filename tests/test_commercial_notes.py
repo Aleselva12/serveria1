@@ -85,6 +85,12 @@ class CommercialNotesTests(unittest.TestCase):
         self.assertEqual(len(results["matches"]), 1)
         self.assertEqual(results["matches"][0]["heading"], "HOTEL TEST DUE")
 
+    def test_corrupt_word_does_not_hide_other_valid_customers(self):
+        (self.root / "broken.docx").write_bytes(b"not a Word ZIP archive")
+        result = commercial_notes.find_customers("LIDO TEST")
+        self.assertEqual(result["skipped"], 1)
+        self.assertEqual(len(result["matches"]), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

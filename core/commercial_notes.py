@@ -8,6 +8,8 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
+from zipfile import BadZipFile
+from lxml.etree import XMLSyntaxError
 from fastapi import HTTPException
 from core.database import db_connection
 from core.commercial_word import parse, search as search_blocks, propose_append
@@ -21,7 +23,7 @@ SKIP_DIRS = {".cora-staging", ".cora-trash", ".cora-commercial-backups", ".git",
 
 
 def _document(relative: str) -> tuple[Path, Path]:
-    if not relative or "\\" in relative or Path(relative).is_absolute() or ".." in Path(relative).parts:
+    if not relative or "\\" in relative or relative.startswith("/") or Path(relative).drive or Path(relative).is_absolute() or ".." in Path(relative).parts:
         raise ValueError("Usa un percorso relativo alla Libreria IA.")
     if any(part.startswith(".") for part in Path(relative).parts):
         raise ValueError("File riservato.")
@@ -60,7 +62,7 @@ def find_customers(query: str) -> dict:
                                     "sha256": block.document_sha256})
                     if len(matches) >= 50:
                         return {"matches": matches, "scanned": scanned, "skipped": skipped, "truncated": True}
-            except (OSError, ValueError, HTTPException):
+            except (OSError, ValueError, HTTPException, BadZipFile, XMLSyntaxError, KeyError):
                 skipped += 1
     return {"matches": matches, "scanned": scanned, "skipped": skipped, "truncated": False}
 
@@ -134,6 +136,12 @@ def create_proposal(audio_id: UUID, audio_version: int, selected: dict, date: st
             raise ValueError("Blocco cliente non univoco.")
         propose_append(source, blocks[0], date, note)
     with db_connection() as conn:
+        # Expiry must be persisted before the partial unique index is checked.
+        # Merely displaying an expired status leaves the old pending row locked
+        # against a fresh, explicitly reviewed proposal forever.
+        conn.execute("""UPDATE commercial_note_proposals SET status='expired',
+            resolved_at=NOW() WHERE audio_id=%s AND status='pending'
+            AND expires_at <= NOW()""", (audio_id,))
         proposal = conn.execute("""INSERT INTO commercial_note_proposals
             (id,audio_id,audio_version,document_path,document_sha256,customer_heading,
              customer_start,customer_stop,note_date,note_text,note_digest)

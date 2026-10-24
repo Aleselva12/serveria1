@@ -1,5 +1,6 @@
 """Isolated Google Calendar and owner-approval contracts; no Google account required."""
 import json
+import os
 import unittest
 from datetime import datetime
 from unittest.mock import Mock, patch
@@ -97,6 +98,45 @@ class GoogleCalendarApprovalTests(unittest.TestCase):
         self.assertEqual(len(pending), 1)
         self.assertEqual(pending[0]["event_id"], "google_non_uuid")
         self.assertEqual(pending[0]["expected_version"], 3)
+
+
+@unittest.skipUnless(os.getenv('CORA_RUNTIME_TEST_DATABASE_URL'), 'Requires disposable PostgreSQL+pgvector')
+class GoogleApprovalPostgresTests(unittest.TestCase):
+    def test_durable_owner_approval_once_and_oauth_switch_blocks_execution(self):
+        from core import governance, permissions
+        from core.database import db_connection, close_pool
+        governance.load_capabilities()
+        tool = next(t for t in calendar_tools_for('supervisor') if t.name == 'calendar_create_event')
+        identifiers = []
+        try:
+            with patch.object(google_calendar, 'token_exists', return_value=True), \
+                 patch.object(google_calendar, 'connection_fingerprint', return_value='synthetic-account-A') as fingerprint, \
+                 patch.object(permissions, 'policy_overrides', return_value={}), \
+                 patch.object(google_calendar, 'create_event', return_value={'id': 'synthetic-google-event'}) as create:
+                proposal = json.loads(tool.invoke({**DATA, 'title': 'Synthetic ' + str(uuid4())}))
+                self.assertEqual(proposal['status'], 'pending')
+                identifiers.append(proposal['approval_id'])
+                create.assert_not_called()
+                result = governance.resolve(identifiers[-1], True, 'synthetic-owner')
+                self.assertEqual(result['status'], 'approved')
+                self.assertEqual(create.call_args.kwargs['request_id'], identifiers[-1])
+                with self.assertRaises(ValueError):
+                    governance.resolve(identifiers[-1], True, 'synthetic-owner')
+                self.assertEqual(create.call_count, 1)
+                proposal = json.loads(tool.invoke({**DATA, 'title': 'Synthetic ' + str(uuid4())}))
+                identifiers.append(proposal['approval_id'])
+                fingerprint.return_value = 'synthetic-account-B'
+                with self.assertRaises(RuntimeError):
+                    governance.resolve(identifiers[-1], True, 'synthetic-owner')
+                self.assertEqual(create.call_count, 1)
+                with db_connection() as conn:
+                    row = conn.execute('SELECT status FROM action_approvals WHERE id=%s', (identifiers[-1],)).fetchone()
+                self.assertIn(row['status'], ('failed', 'uncertain'))
+        finally:
+            with db_connection() as conn:
+                for identifier in identifiers:
+                    conn.execute('DELETE FROM action_approvals WHERE id=%s', (identifier,))
+            close_pool()
 
 
 if __name__ == "__main__":

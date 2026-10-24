@@ -74,7 +74,7 @@ export default function Audio() {
         <button disabled={busy||dirty} onClick={()=>void action(()=>downloadMedia('/api/v1/audio/'+record.id+'/transcript/download','trascrizione.txt'))}>Scarica testo</button>
         <button disabled={busy||dirty} onClick={()=>void action(async()=>{await mediaRequest('/api/v1/audio/'+record.id+'/library',{method:'POST'});setNotice('Copia della trascrizione aggiunta alla Libreria IA; originale conservato.');})}>Copia in Libreria IA</button></div>
         <p>Puoi allegare il testo scaricato a una richiesta nella chat.</p>
-        <CommercialNotes record={record} disabled={busy || dirty || working}/>
+        <CommercialNotes key={record.id + ":" + record.version} record={record} disabled={busy || dirty || working}/>
       </>}
     </>}</div></div>
   </section>;

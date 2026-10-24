@@ -222,12 +222,20 @@ def create_event(data: dict, *, request_id: str | None = None) -> dict:
             ).execute()
         except Exception:
             raise  # Original request outcome stays unconfirmed to the caller.
-        if existing.get("summary") != body["summary"] or (
-            (existing.get("start") or {}).get("dateTime") !=
-            (body["start"] or {}).get("dateTime")
-            and (existing.get("start") or {}).get("date") !=
-            (body["start"] or {}).get("date")
-        ):
+        # Compare every user-controlled field. Missing all-day dates must not
+        # make two different timed events appear equal (None == None).
+        def boundary(value):
+            if value.get("dateTime"):
+                return ("timed", datetime.fromisoformat(value["dateTime"].replace("Z", "+00:00")))
+            return ("day", value.get("date"))
+        def reminder(value):
+            return (bool(value.get("useDefault")), sorted(
+                (item.get("method"), item.get("minutes")) for item in value.get("overrides", [])))
+        if (existing.get("status") == "cancelled"
+            or existing.get("summary") != body["summary"]
+            or (existing.get("description") or "") != body["description"]
+            or any(boundary(existing.get(key) or {}) != boundary(body[key]) for key in ("start", "end"))
+            or reminder(existing.get("reminders") or {}) != reminder(body["reminders"])):
             raise ValueError("Chiave richiesta già usata per un evento diverso.")
         return normalize(existing)
 

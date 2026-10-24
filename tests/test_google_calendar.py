@@ -258,6 +258,33 @@ class GoogleCalendarProviderTests(unittest.TestCase):
         self.assertEqual(first["id"], again["id"])
         self.assertEqual(fake.resource.created, 1)
 
+    def test_manual_replay_rejects_changed_payload(self):
+        data = {"title": "Test", "start": "2026-10-24T10:00:00+02:00",
+                "end": "2026-10-24T11:00:00+02:00", "notes": "original"}
+        original = google_calendar._google_body(data)
+        service = MagicMock()
+        service.events.return_value.insert.return_value.execute.side_effect = TimeoutError()
+        service.events.return_value.get.return_value.execute.return_value = original
+        for change in ({"start": "2026-10-24T10:30:00+02:00"},
+                       {"end": "2026-10-24T12:00:00+02:00"},
+                       {"notes": "changed"}, {"reminder_minutes": 12}):
+            with self.subTest(change=change), patch.object(google_calendar, "service", return_value=service):
+                with self.assertRaises(ValueError):
+                    google_calendar.create_event({**data, **change}, request_id="same-key")
+
+    def test_manual_replay_accepts_equivalent_google_time_serialization(self):
+        data = {"title": "Test", "start": "2026-10-24T08:00:00Z",
+                "end": "2026-10-24T09:00:00Z"}
+        existing = google_calendar._google_body(data)
+        existing.update(id='synthetic', start={'dateTime': '2026-10-24T10:00:00+02:00'},
+                        end={'dateTime': '2026-10-24T11:00:00+02:00'}, reminders={'useDefault': False})
+        existing.pop('description')
+        service = MagicMock()
+        service.events.return_value.insert.return_value.execute.side_effect = TimeoutError()
+        service.events.return_value.get.return_value.execute.return_value = existing
+        with patch.object(google_calendar, 'service', return_value=service):
+            self.assertEqual(google_calendar.create_event(data, request_id='same')['id'], 'synthetic')
+
 
 if __name__ == "__main__":
     unittest.main()
