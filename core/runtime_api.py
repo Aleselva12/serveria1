@@ -14,6 +14,12 @@ from core import calendar
 
 router = APIRouter(prefix="/api/v1", tags=["Runtime"])
 
+@router.get('/chat/model-profile')
+def chat_model_profile():
+    from core.models import resolve_model
+    from core.model_profiles import profile_for
+    return profile_for(resolve_model('supervisor'))
+
 @router.get('/chat/consultations/{conversation_id}')
 def consultations(conversation_id: UUID, before: int | None = Query(None,ge=1), limit: int = Query(100,ge=1,le=200)):
     from core.consultations import read

@@ -80,3 +80,10 @@ test('thinking stays separate from answer and resync replaces lost chunks',async
  assert.equal(thinking[1].truncated,true);
  assert.deepEqual(answers,['','Risposta']);assert.equal(result.response,'Risposta');
 });
+
+
+test('known model failures explain the problem without replaying or exposing provider text',async()=>{
+ let calls=0;globalThis.fetch=async()=>++calls===1?json({id:'run',status:'queued'}):stream('event: result\ndata: '+JSON.stringify({status:'failed',error_type:'ContextOverflow',result:null})+'\n\n');
+ await assert.rejects(streamChat('test','thread',()=>{},()=>{},()=>{}),/supera il contesto/);
+ assert.equal(calls,2);
+});

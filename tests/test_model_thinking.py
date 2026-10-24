@@ -17,11 +17,11 @@ class ModelThinkingTests(unittest.TestCase):
             with patch('core.models._default_selection', return_value=(name, 'default')):
                 model = get_chat_model('programmer', temperature=0.0)
             self.assertEqual((model.temperature,model.top_p,model.top_k,model.min_p),(.6,.95,20,0))
-            self.assertTrue(model.reasoning)
+            self.assertIsNone(model.reasoning)
             request = model._chat_params([])
             self.assertEqual(request["options"]["min_p"], 0)
             self.assertEqual(request["options"]["num_predict"], -1)
-            self.assertTrue(request["think"])
+            self.assertNotIn("think", request)
             self.assertEqual(model.num_predict,-1)
             self.assertIsNone(model.client_kwargs['timeout'])
         self.assertEqual(model_options('qwen3.5:9b'),{})

@@ -4,7 +4,7 @@ from langchain_core.messages import SystemMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from core.context_budget import fit_messages
+from core.context_budget import fit_messages, model_context_limit
 from core.governance import bind_capabilities
 from core.models import get_chat_model
 from core.prompt_context import with_permanent_context
@@ -30,7 +30,7 @@ def call_llm(state: AgentState):
     ensure_runtime_active()
     messages = [SystemMessage(content=state["system_prompt"])] + list(state["messages"])
     model = model_with_tools if model_with_tools is not None else get_chat_model("email", temperature=0.0).bind_tools(EMAIL_TOOLS)
-    response = model.invoke(fit_messages(messages, tools=EMAIL_TOOLS))
+    response = model.invoke(fit_messages(messages, context_limit=model_context_limit(model), tools=EMAIL_TOOLS))
     return {"messages": [response]}
 
 

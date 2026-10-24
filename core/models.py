@@ -42,6 +42,13 @@ class ConfiguredChatOllama(ChatOllama):
     remote_machine_id: str | None = None
     cora_role: str = ""
     configuration_id: str = ""
+    cora_tools_supported: bool | None = None
+
+    def bind_tools(self, tools, **kwargs):
+        if tools and self.cora_tools_supported is False:
+            from core.model_profiles import ModelToolsUnsupported
+            raise ModelToolsUnsupported('Il modello selezionato non supporta strumenti.')
+        return super().bind_tools(tools, **kwargs)
 
     def _observe_reply(self, response):
         from core.model_evidence import observe
@@ -71,8 +78,24 @@ class ConfiguredChatOllama(ChatOllama):
             self._observe_reply(response)
             yield preserve_tool_argument_types(response)
 
+    def _iterate_over_stream(self, messages, stop=None, **kwargs):
+        requested = kwargs.get('reasoning', self.reasoning)
+        # Parse the provider's separate thinking field regardless of whether
+        # Cora requested thinking. Parsing must not silently enable generation.
+        yield from super()._iterate_over_stream(messages, stop, **{**kwargs, 'reasoning':True, '_cora_think':requested})
+
+    async def _aiterate_over_stream(self, messages, stop=None, **kwargs):
+        requested = kwargs.get('reasoning', self.reasoning)
+        async for chunk in super()._aiterate_over_stream(messages, stop, **{**kwargs, 'reasoning':True, '_cora_think':requested}):
+            yield chunk
+
     def _chat_params(self, messages, stop=None, **kwargs):
+        requested = kwargs.pop('_cora_think', kwargs.get('reasoning', self.reasoning))
         params = super()._chat_params(messages, stop=stop, **kwargs)
+        if requested is None:
+            params.pop('think', None)
+        else:
+            params['think'] = requested
         if self.min_p is not None:
             options = params["options"]
             if hasattr(options, "model_dump"):
@@ -211,7 +234,7 @@ def model_options(model: str) -> dict:
     family = model.rsplit("/", 1)[-1].split(":", 1)[0].lower()
     if family != "qwen3":
         return {}
-    return {"temperature": 0.6, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "reasoning": True}
+    return {"temperature": 0.6, "top_p": 0.95, "top_k": 20, "min_p": 0.0}
 
 
 def get_chat_model(
@@ -225,10 +248,22 @@ def get_chat_model(
     resolved = resolve_model(role)
     model = resolved['model']
     remote_id = resolved['machine_id'] if resolved['machine_id'] != 'local' else None
+    from core.model_profiles import profile_for
+    capabilities = kwargs.pop('model_profile', None) or profile_for(resolved)
+    if capabilities.get('configuration_id') != resolved['configuration_id']:
+        from core.model_profiles import ModelConfigurationChanged
+        raise ModelConfigurationChanged('La selezione manuale è cambiata.')
     profile = model_options(model)
     temperature = profile.pop("temperature", temperature)
     kwargs.update(profile)
-    kwargs.setdefault("num_ctx", limit_tokens())
+    kwargs["num_ctx"] = min(kwargs.get("num_ctx") or capabilities['context_tokens'], capabilities['context_tokens'])
+    # Omit think for unknown capabilities: let the provider use its own default.
+    # Never infer support or force thinking from a family name.
+    requested_thinking = kwargs.get('reasoning')
+    if requested_thinking is not None and requested_thinking not in capabilities['thinking_values']:
+        kwargs.pop('reasoning', None)
+    if capabilities['thinking_values'] == [False]:
+        kwargs['reasoning'] = False
     kwargs.setdefault("num_predict", output_tokens())
     kwargs.setdefault("keep_alive", get_model_keep_alive())
     kwargs.setdefault("client_kwargs", {"timeout": model_timeout(), "trust_env": False})
@@ -241,6 +276,7 @@ def get_chat_model(
         model=model,
         remote_machine_id=remote_id,
         cora_role=role,
+        cora_tools_supported=capabilities['tools'],
         configuration_id=resolved['configuration_id'],
         base_url=get_ollama_base_url(),
         temperature=temperature,

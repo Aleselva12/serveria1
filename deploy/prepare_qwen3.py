@@ -40,7 +40,7 @@ def main():
     print('Caricamento di prova, contesto 8192; attendere senza avviare chat.', flush=True)
     # Empty prompt loads the model without starting a free-running generation.
     options = model_options(MODEL)
-    options.pop('reasoning')
+    options.pop('reasoning', None)
     with post('/api/generate', {'model': MODEL, 'prompt': '', 'stream': False,
                               'keep_alive': '30m', 'options': {**options, 'num_ctx': 8192}}) as response:
         loaded = json.load(response)
