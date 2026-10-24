@@ -47,8 +47,11 @@ async function jsonRequest<T>(path: string, init?: RequestInit, timeoutMs = 8000
       },
     });
     if (!response.ok) {
-      if (response.status === 409) throw new Error("Il modello non è disponibile, il worker è disattivato o la macchina è già registrata.");
-      if (response.status === 503) throw new Error("Worker o Ollama non raggiungibile, oppure autenticazione worker non configurata.");
+      // The API returns specific, safe diagnostic messages. Do not hide
+      // missing backend token behind the generic "Ollama offline" message.
+      const failure = await response.json().catch(() => null) as { detail?: unknown } | null;
+      const detail = typeof failure?.detail === "string" ? failure.detail.slice(0, 250) : "";
+      if (detail) throw new Error(detail);
       throw new Error("Richiesta non riuscita (HTTP " + response.status + ").");
     }
     return await response.json() as T;
@@ -116,7 +119,7 @@ function WorkerPanel({ machine, onRemove }: { machine: Machine; onRemove: (m: Ma
     <div style={{display:"flex",gap:10,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
       <label style={{display:"flex",gap:8,alignItems:"center"}}>
         <input aria-label={"Abilita worker " + machine.name} type="checkbox"
-          checked={config.enabled} disabled={busy || !machine.worker_ready || (!config.enabled && !canRun)}
+          checked={config.enabled} disabled={busy}
           onChange={event => void save({...config, enabled:event.target.checked},
             event.target.checked ? "Worker abilitato manualmente." : "Worker disattivato.")} />
         <strong>{config.enabled ? "Worker ON" : "Worker OFF"}</strong>
@@ -128,6 +131,8 @@ function WorkerPanel({ machine, onRemove }: { machine: Machine; onRemove: (m: Ma
     <p className="muted">
       Il modello viene scelto solo da te. L'elenco viene letto da Ollama Windows:
       selezionare un modello non lo scarica e non lo carica immediatamente in VRAM.
+      L'interruttore ON/OFF è indipendente dalla connessione: ON senza un modello disponibile
+      non avvia alcuna inferenza.
     </p>
     <label style={{display:"grid",gap:6}}>
       <strong>Modello attivo del desktop</strong>
@@ -243,7 +248,7 @@ export default function Machines() {
           <span className="pill">{m.type === "coordinator" ? "Server" : m.type === "worker" ? "Worker" : "Tailscale"}</span>
         </div>
         <p className="muted" style={{overflowWrap:"anywhere"}}>{m.fqdn || "Debian / API Cora"}</p>
-        <p>{m.type === "coordinator" ? "● API raggiungibile" : m.worker_ready ? "● Worker raggiungibile" :
+        <p>{m.type === "coordinator" ? "● API raggiungibile" : m.worker_ready ? "● Connessione HTTP al worker OK (modelli da verificare)" :
           m.online === false ? "● Tailscale offline" : m.type === "worker" ? "● Worker non raggiungibile" :
           m.online ? "● Connesso a Tailscale" : "● Stato non verificato"}</p>
         {m.type === "worker" && <details style={{marginTop:10}}>

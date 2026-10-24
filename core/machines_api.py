@@ -309,8 +309,8 @@ def save_settings(machine_id: str, body: WorkerSettings):
                 elif not before["selected_model"]:
                     # Compatibility with existing clients that save legacy profiles.
                     item["selected_model"] = body.profiles[body.active_profile]
-                if body.enabled and not _settings(item)["selected_model"]:
-                    raise HTTPException(409, "Seleziona prima un modello installato.")
+                # ON means manually allowed; no model is executed until the
+                # owner also chooses an installed model and makes a request.
                 _write(machines)
                 return _settings(item)
     raise HTTPException(404, "Worker non registrato.")
@@ -323,6 +323,8 @@ def generate(machine_id: str, body: InferencePrompt):
     if not settings["enabled"]:
         raise HTTPException(409, "Worker disattivato manualmente.")
     model = settings["selected_model"]
+    if not model:
+        raise HTTPException(409, "Seleziona un modello installato nella pagina Macchine prima di eseguire inferenza.")
     # No caller-supplied model identifier and no model-switch tool for agents.
     available = _worker_call(machine, "/models").get("models", [])
     if model not in {row.get("name") for row in available if isinstance(row, dict)}:
