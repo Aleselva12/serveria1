@@ -90,6 +90,44 @@ class MachinesTests(unittest.TestCase):
                     machines.WorkerSettings(enabled=True, active_profile="heavy",
                                             profiles={"heavy": "ok", "medium": "ok"})
 
+    def test_manual_model_selection_including_qwen_coder(self):
+        with tempfile.TemporaryDirectory() as root:
+            with patch.dict(os.environ, {"CORA_MACHINES_REGISTRY_FILE": str(Path(root) / "machines.json")}):
+                worker = machines.add_machine(machines.MachineRegistration(
+                    name="Desktop", fqdn="desktop.tail7b83c3.ts.net"))
+                # New machines have no automatic model chosen and start disabled.
+                self.assertEqual(machines._settings(worker)["selected_model"], "")
+                self.assertFalse(machines._settings(worker)["enabled"])
+                models = {"heavy": "gpt-oss:20b", "medium": "qwen3:8b-q8_0",
+                          "light": "qwen3:4b-q8_0"}
+                coder = "qwen3-coder:30b-a3b-q4_K_M"
+                settings = machines.WorkerSettings(enabled=True, active_profile="heavy",
+                    profiles=models, selected_model=coder)
+                saved = machines.save_settings(worker["id"], settings)
+                self.assertEqual(saved["selected_model"], coder)
+                replies = [{"models": [{"name": coder}, {"name": "qwen3:8b"}]},
+                           {"model": coder, "response": "CORA_WORKER_OK"}]
+                with patch.object(machines, "_worker_call", side_effect=replies) as call:
+                    result = machines.test_worker_inference(worker["id"])
+                self.assertEqual(result["model"], coder)
+                self.assertEqual(call.call_args.args[2]["model"], coder)
+                # Manually changing model never changes legacy profile assignments.
+                newer = machines.WorkerSettings(enabled=True, active_profile="heavy",
+                    profiles=models, selected_model="qwen3:8b")
+                machines.save_settings(worker["id"], newer)
+                self.assertEqual(machines._find(worker["id"])["profiles"], models)
+                self.assertEqual(machines._settings(machines._find(worker["id"]))["selected_model"], "qwen3:8b")
+                with patch.object(machines, "_worker_call", return_value={"models": [{"name": coder}]}):
+                    with self.assertRaises(HTTPException) as error:
+                        machines.generate(worker["id"], machines.InferencePrompt(prompt="test"))
+                    self.assertEqual(error.exception.status_code, 409)
+
+    def test_legacy_profile_selection_is_not_lost(self):
+        legacy = {"enabled": True, "active_profile": "light",
+                  "profiles": {"heavy": "large", "medium": "mid", "light": "small"}}
+        self.assertEqual(machines._settings(legacy)["selected_model"], "small")
+        self.assertEqual(machines._settings({"enabled": False})["selected_model"], "")
+
     def test_authenticated_worker_requests_require_exact_tailnet(self):
         with patch.dict(os.environ, {"CORA_WORKER_SHARED_TOKEN": "s" * 48,
                                      "CORA_TAILSCALE_DNS_SUFFIX": "tail7b83c3.ts.net"}):
