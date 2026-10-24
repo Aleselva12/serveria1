@@ -21,7 +21,7 @@ load_dotenv()
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 
-BLOCKED_PARTS = {".git", ".venv", "__pycache__", "node_modules", ".cora-trash", ".cora-staging"}
+BLOCKED_PARTS = {".git", ".venv", "__pycache__", "node_modules", ".cora-trash", ".cora-staging", ".cora-commercial-backups"}
 BLOCKED_NAMES = {".env", "credentials.json", "token.json"}
 
 TEXT_EXTENSIONS = {
