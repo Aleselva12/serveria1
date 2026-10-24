@@ -201,11 +201,21 @@ def _ollama_online() -> bool:
 def health():
     from core.file_paths import library_workspace_status
     database = database_status()
+    from core.models import resolve_model
+    from core.machines_api import _find
+    selected = resolve_model('supervisor')
+    try:
+        machine_name = 'Ollama di Cora' if selected['machine_id'] == 'local' else _find(selected['machine_id'])['name']
+    except HTTPException:
+        machine_name = 'Worker non registrato'
     return {
         "status": "ok",
         "library": library_workspace_status(),
         "ollama_online": _ollama_online(),
-        "model": get_model_name("supervisor"),
+        "model": selected['model'],
+        "model_machine": machine_name,
+        "model_source": selected['source'],
+        "model_configuration_id": selected['configuration_id'],
         "runtime_mode": runtime_mode(),
         "agents": [agent["name"] for agent in get_agents()],
         "memory": memory_stats(),
@@ -484,14 +494,17 @@ def execute_chat(request: ChatRequest, run):
         if not result: raise RuntimeError("Grafo senza risultato.")
         phase = time.perf_counter()
         response = str(result["messages"][-1].content)
+        observed_calls = list(run.timings.get('inference_observations', []))
+        last_reply = observed_calls[-1] if observed_calls else {}
         assistant_message = save_message(
             conversation_id=thread_id,
             role="assistant",
             content=response,
             agent_id="supervisor",
-            model_id=get_model_name("supervisor"),
+            model_id=last_reply.get("reported_model"),
             parent_message_id=str(user_message["id"]),
-            metadata={"source": "chat_api", "run_id": run.id},
+            metadata={"source": "chat_api", "run_id": run.id, "inference_observations": observed_calls,
+                      "response_model_source": "provider" if last_reply.get("reported_model") else "unobserved"},
             refresh_transcript_now=False,
         )
         set_working_memory(

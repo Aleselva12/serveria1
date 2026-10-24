@@ -65,6 +65,27 @@ def _format_timestamp(seconds: float) -> str:
     return f"{minutes:02d}:{secs:02d}"
 
 
+_loaded_whisper_configuration = None
+
+
+def transcription_configuration():
+    import json
+    model = os.getenv('CORA_WHISPER_MODEL', 'small')
+    label = model
+    try:
+        manifest = json.loads((Path(model) / 'cora-model.json').read_text())
+        label = manifest.get('model', model) if isinstance(manifest, dict) else model
+        if not isinstance(label, str): label = model
+    except (OSError, ValueError, TypeError):
+        pass
+    device = os.getenv('CORA_WHISPER_DEVICE', 'cpu')
+    return dict(engine='Faster-Whisper', model=model, model_label=label, device=device,
+                compute_type=os.getenv('CORA_WHISPER_COMPUTE_TYPE', 'int8' if device == 'cpu' else 'float16'),
+                loaded=_loaded_whisper_configuration if _load_whisper_model.cache_info().currsize else None,
+                machine='Macchina che esegue Cora; non il worker LLM',
+                diarization_model=os.getenv('CORA_DIARIZATION_MODEL', '') or None)
+
+
 @lru_cache(maxsize=1)
 def _load_whisper_model():
     try:
@@ -86,7 +107,7 @@ def _load_whisper_model():
         "int8" if device == "cpu" else "float16",
     )
 
-    return WhisperModel(
+    model = WhisperModel(
         model_name,
         device=device,
         compute_type=compute_type,
@@ -94,6 +115,9 @@ def _load_whisper_model():
         num_workers=1,
         local_files_only=local_only,
     )
+    global _loaded_whisper_configuration
+    _loaded_whisper_configuration = dict(model=model_name, device=device, compute_type=compute_type)
+    return model
 
 
 def _extract_diarization_tracks(diarization_result):

@@ -1,7 +1,12 @@
 import { authenticatedFetch } from './transport';
 import type { BackendComponent, ToolEntry } from '../types/contracts';
+export type ModelConfiguration = { role: string; model: string; machine_id: string; source: string; configuration_id: string };
+export type ModelObservation = { reported_model: string | null; requested_model: string; machine_id: string; configuration_id: string; observed_at: string; matches_requested: boolean | null };
+export type Verification = { id: string; status: string; error_type?: string; result?: { configuration: ModelConfiguration; reported_model: string | null; matches_requested?: boolean | null; provider_reported: boolean; duration_ms: number } };
 export type AgentCard = BackendComponent & {
   role: string; model: string; machine_name: string;
+  configuration?: ModelConfiguration; last_inference?: ModelObservation | null; entrypoint?: string; module?: string;
+  transcription?: { engine: string; model_label: string; model: string; device: string; compute_type: string; ready: boolean; loaded: {model: string; device: string; compute_type: string} | null; diarization_model: string | null };
   assignment: { machine_id: string; model: string } | null;
   runtime: { status: string; checks: Record<string, unknown> };
   tools: ToolEntry[];
@@ -28,6 +33,18 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   } finally { clearTimeout(timer); }
 }
 export const architectureApi = {
+  verify(agentId: string) { return call<{run_id: string}>('/agents/' + encodeURIComponent(agentId) + '/verify', { method: 'POST' }); },
+  async verification(id: string): Promise<Verification> {
+    const response = await authenticatedFetch(base + '/api/v1/runtime/runs/' + encodeURIComponent(id), { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw Error('Impossibile leggere la verifica. Consulta Attività.');
+    return response.json();
+  },
+  async reloadTranscription() {
+    const response = await authenticatedFetch(base + '/api/v1/audio/engine/reload', { method: 'POST', signal: AbortSignal.timeout(10000) });
+    const data = await response.json();
+    if (!response.ok) throw Error(typeof data.detail === 'string' ? data.detail : 'Ricarica Whisper non riuscita.');
+    return data as {note: string};
+  },
   async agents() {
     const data = await call<AgentCatalog>('/agents');
     if (!data || !Array.isArray(data.agents) || !Array.isArray(data.components) || !Array.isArray(data.inventory_errors) || !data.agents.every(a => a && typeof a.id === 'string' && typeof a.name === 'string' && typeof a.description === 'string' && typeof a.model === 'string' && typeof a.machine_name === 'string' && a.runtime && typeof a.runtime.status === 'string' && Array.isArray(a.tools) && a.tools.every(t => typeof t.name === 'string' && typeof t.description === 'string' && Array.isArray(t.parameters)))) throw Error('Catalogo agenti non valido.');
@@ -44,6 +61,6 @@ export const architectureApi = {
     return data;
   },
   save(agentId: string, machineId: string, model: string) {
-    return call('/agents/' + encodeURIComponent(agentId) + '/model', { method: 'PUT', body: JSON.stringify({ machine_id: machineId, model }) });
+    return call<{ assignment: AgentCard['assignment']; configuration: ModelConfiguration; requires_restart: boolean }>('/agents/' + encodeURIComponent(agentId) + '/model', { method: 'PUT', body: JSON.stringify({ machine_id: machineId, model }) });
   },
 };

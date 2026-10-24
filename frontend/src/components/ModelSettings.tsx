@@ -38,8 +38,8 @@ export default function ModelSettings({ onChanged }: { onChanged: () => void }) 
 
   return <div className="settings-model">
     <div>
-      <strong>Modello locale</strong>
-      <p>Elenco letto direttamente dai modelli installati in Ollama su questa macchina.</p>
+      <strong>Modello generale di Cora</strong>
+      <p>Predefinito per gli agenti senza assegnazione specifica. Le scelte della pagina Architettura hanno precedenza.</p>
     </div>
     {error && <div className="connection-error">{error}</div>}
     <div className="settings-model-controls">

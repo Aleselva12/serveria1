@@ -65,7 +65,8 @@ def audio_status():
               if not installed else
               'Modello Whisper locale assente o non verificato: prepara il modello sul Debian.'
               if not model_ready else '')
-    return {'ready': installed and model_ready, 'engineInstalled': installed, 'localModelReady': model_ready,
+    from audio_agent.audio_tools import transcription_configuration
+    return {**transcription_configuration(), 'ready': installed and model_ready, 'engineInstalled': installed, 'localModelReady': model_ready,
             'localOnly': local_only, 'reason': reason, 'verifiedLocalModel': verified_local,
             'diarizationReady': bool(diarization and Path(diarization).exists() and importlib.util.find_spec('pyannote') is not None)}
 
@@ -285,3 +286,18 @@ def commercial_resolve(ident: uuid.UUID, proposal_id: uuid.UUID, body: Commercia
         raise HTTPException(409, str(error)) from error
     except RuntimeError as error:
         raise HTTPException(409, str(error)) from error
+
+
+@router.post('/engine/reload')
+def reload_transcription_engine():
+    # No engine may be released while a model job is running.
+    if not runtime.slot.acquire(blocking=False):
+        raise HTTPException(409, 'Attendi il termine dell’esecuzione attiva prima di ricaricare Whisper.')
+    try:
+        tools = engine()
+        tools._load_whisper_model.cache_clear()
+        tools._loaded_whisper_configuration = None
+        return {'reloaded': True, 'configuration': tools.transcription_configuration(),
+                'note': 'Cache svuotata. Whisper verrà caricato alla prossima trascrizione; le variabili Docker richiedono il riavvio del container.'}
+    finally:
+        runtime.slot.release()

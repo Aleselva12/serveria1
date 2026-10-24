@@ -11,9 +11,10 @@ export function useBackend() {
   const [checking, setChecking] = useState(true);
   const live = useRef(false);
   const pending = useRef(false);
+  const queuedRefresh = useRef(false);
   const registryLoaded = useRef(false);
   const refresh = useCallback(async () => {
-    if (pending.current) return;
+    if (pending.current) { queuedRefresh.current = true; return; }
     pending.current = true;
     if (live.current) setChecking(true);
     const [status, capabilities] = await Promise.allSettled([
@@ -47,16 +48,20 @@ export function useBackend() {
           : "Registro non disponibile.",
       );
     }
+    if (queuedRefresh.current) { queuedRefresh.current = false; void refresh(); }
   }, []);
   useEffect(() => {
     live.current = true;
     void refresh();
+    const configurationChanged = () => { registryLoaded.current = false; void refresh(); };
+    window.addEventListener('cora:model-config-changed', configurationChanged);
     const timer = window.setInterval(() => {
       if ((typeof document === "undefined" || !document.hidden)) void refresh();
     }, 15000);
     return () => {
       live.current = false;
       clearInterval(timer);
+      window.removeEventListener('cora:model-config-changed', configurationChanged);
     };
   }, [refresh]);
   return {

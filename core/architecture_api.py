@@ -121,11 +121,13 @@ def overview_endpoint():
 def agents_catalog():
     from core.agent_models import ROLES, bindings
     from core.registry import get_registry
-    from core.models import get_model_name
+    from core.models import resolve_model
+    from core.model_evidence import observations
     from core.tool_inventory import inventory, SOURCES
     from core.runtime_status import component_runtime_status
     from core.machines_api import _read
     configured = bindings()
+    last_replies = observations()
     machines = {m['id']: m['name'] for m in _read()}
     owners = dict(zip(('supervisor', 'programmer_agent', 'structure_agent', 'local_research_agent', 'audio_agent', 'email_quotes_agent'),
                       (row[3] for row in SOURCES)))
@@ -138,11 +140,17 @@ def agents_catalog():
         if identifier not in ROLES:
             continue
         assignment = configured.get(ROLES[identifier])
-        machine = assignment['machine_id'] if assignment else 'local'
-        agents.append({**component, 'role': ROLES[identifier], 'model': get_model_name(ROLES[identifier]),
+        resolved = resolve_model(ROLES[identifier])
+        machine = resolved['machine_id']
+        agents.append({**component, 'role': ROLES[identifier], 'model': resolved['model'], 'configuration': resolved,
+                       'last_inference': last_replies.get(ROLES[identifier]),
+                       'entrypoint': 'Chat principale' if identifier == 'supervisor' else 'Programma / Copilot e delega da Cora' if identifier == 'programmer_agent' else 'Delega da Cora centrale',
                        'assignment': assignment, 'machine_name': 'Ollama di Cora' if machine == 'local' else machines.get(machine, 'Worker non registrato'),
                        'runtime': runtime.get(identifier, {'status': 'unknown', 'checks': {}}),
                        'tools': [e for e in tools['entries'] if e['kind'] == 'tool' and owners[identifier] in e['agents']]})
+    from core.audio_api import audio_status
+    audio = next((a for a in agents if a['id'] == 'audio_agent'), None)
+    if audio is not None: audio['transcription'] = audio_status()
     return {'agents': agents, 'components': [c for c in registry['components'] if c['kind'] == 'core' and c['id'] not in ROLES],
             'inventory_errors': tools['errors']}
 
@@ -191,4 +199,50 @@ def select_agent_model(agent_id: str, selection: AgentModelSelection):
         raise
     except OSError as error:
         raise HTTPException(503, 'Provider non raggiungibile o stato non salvabile. Nessuna conferma di modifica.') from error
-    return {'assignment': saved}
+    from core.models import resolve_model
+    from core.agent_models import ROLES
+    return {'assignment': saved, 'configuration': resolve_model(ROLES[agent_id]),
+            'applies': 'next_model_call', 'requires_restart': False}
+
+
+@router.post('/architecture/agents/{agent_id}/verify', status_code=202)
+def verify_agent_model(agent_id: str):
+    from core.agent_models import ROLES
+    from core.models import get_chat_model, resolve_model
+    from core.runtime import runtime
+    if agent_id not in ROLES:
+        raise HTTPException(404, 'Agente non trovato.')
+    role = ROLES[agent_id]
+    expected = resolve_model(role)
+    if expected['machine_id'] != 'local':
+        from core.agent_models import remote_machine
+        remote_machine(expected['machine_id'], expected['model'])
+    def work(run):
+        import time
+        from langchain_core.messages import HumanMessage
+        from core.runtime import checkpoint
+        checkpoint()
+        # Resolve only when this queued job actually starts. Never bind tools.
+        model = get_chat_model(role)
+        if model.configuration_id != expected['configuration_id']:
+            raise RuntimeError('Configurazione cambiata prima della verifica: ricarica e riprova.')
+        model = model.model_copy(update={'reasoning': False, 'num_predict': 16, 'num_ctx': 2048})
+        started = time.monotonic()
+        from core.execution_traces import ExecutionTrace
+        trace = ExecutionTrace(run.thread_id, run.graph_version) if run is not None else None
+        reply = model.invoke([HumanMessage(content='Rispondi solo OK.')], config={'callbacks': [trace] if trace else []})
+        checkpoint()
+        metadata = reply.response_metadata
+        # model_name may be synthesized by LangChain from the requested model.
+        # Only Ollama's native model field is provider evidence.
+        reported = metadata.get('model')
+        if not isinstance(reported, str): reported = None
+        from core.model_evidence import matches_requested
+        return {'configuration': expected, 'reported_model': reported, 'matches_requested': matches_requested(expected['model'], reported),
+                'provider_reported': bool(reported), 'duration_ms': round((time.monotonic()-started)*1000, 2),
+                'tools_executed': False}
+    try:
+        run = runtime.submit('verify-model:' + agent_id, work, kind='model_verification', target=agent_id)
+    except (ValueError, RuntimeError) as error:
+        raise HTTPException(409, str(error)) from error
+    return {'run_id': run.id, 'configuration': expected}

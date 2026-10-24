@@ -198,6 +198,9 @@ export type ServerStorage = {
 export type BackendHealth = {
   status: string;
   ollama_online: boolean;
+  model_machine?: string;
+  model_source?: string;
+  model_configuration_id?: string;
   model: string;
   runtime_mode?: "isolated" | "server";
   agents: string[];
