@@ -147,6 +147,14 @@ def proposals():
 @router.post("/proposals/{proposal_id}/resolve")
 def resolve(proposal_id: UUID, decision: Decision):
     if google_calendar.token_exists():
+        # This endpoint must never authorize an unrelated generic tool.
+        calendar_pending_ids = {str(row["id"]) for row in run(governance.list_approvals)
+                                if row.get("capability_id") in {
+                                    f"{row['actor']}.calendar_{action}_event"
+                                    for action in ("create", "update", "delete")
+                                }}
+        if str(proposal_id) not in calendar_pending_ids:
+            raise HTTPException(404, "Proposta calendario non trovata o già gestita.")
         result = run(governance.resolve, str(proposal_id), decision.approve, "user")
         native = result.get("result") or {}
         return {"proposal": {"id": str(proposal_id), "status": result["status"]},
