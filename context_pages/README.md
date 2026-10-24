@@ -1,13 +1,14 @@
-# Context Pages prototype
+# Pagine di contesto del Supervisor
 
-Questa branch server sperimenta contesto e capability **task-scoped** senza disabilitare
-il thinking del Supervisor.
+Il percorso integrato in `graph.py` seleziona contesto e capability per richiesta.
+Il thinking dipende dai metadati e dal default del provider, non viene garantito da queste pagine.
 
 Il Supervisor riceve sempre un bootstrap piccolo. Le pagine Markdown in questa
 cartella vengono selezionate deterministicamente dal testo dell'utente; nessuna
 seconda inferenza LLM viene usata per scegliere il contesto.
 
-Ogni pagina dichiara:
+Ogni pagina eseguibile usa frontmatter TOML delimitato da `+++` e dichiara:
+
 - trigger lessicali;
 - capability/tool da esporre al modello;
 - poche istruzioni specifiche del dominio.
@@ -37,3 +38,11 @@ dipende davvero dal profilo/contesto mantenuto dal proprietario o quando l'utent
 chiede esplicitamente di usarlo. Anche la memoria semantica non viene più
 recuperata automaticamente in ogni turno: la pagina `memory` espone i relativi
 tool quando il task lo richiede.
+
+## Collegamento e limiti
+
+`core/context_pages.py` carica soltanto Markdown con frontmatter, esclude questo README e seleziona al massimo tre pagine per punteggio lessicale/priorità. `graph.py` aggiunge le istruzioni comuni e gli eventuali dati precaricati. Le metriche dichiarano selezione e precaricamento, non una lettura completa della memoria.
+
+In selezione automatica, `core/library_routing.py` può aggiungere `library_list/search/read` e rimuovere gli strumenti di esplorazione repository per richieste sulla sola Libreria IA. La lista manuale prevale e viene validata in `core/chat_tools.py`; gli specialisti mantengono i propri strumenti governati. Il budget finito e i metadati del modello possono ancora impedire una richiesta: selezione non significa esecuzione riuscita.
+
+Prove nel repository: `tests/test_context_pages.py`, `test_owner_context_pages.py`, `test_chat_tools.py`, `test_library_routing.py`. [Audit del 25 ottobre](../docs/README_AUDIT_20261025.md): collegamento statico verificato, nessun collaudo di inferenza sul Debian reale.

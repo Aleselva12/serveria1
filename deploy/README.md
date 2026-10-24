@@ -196,7 +196,7 @@ uv pip compile requirements-core.txt --python-version 3.12 \
 ```
 
 Lo schema è versionato con checksum; leggere `database/migrations/README.md`
-prima di modificarlo. La CI verifica entrambi i target, un ciclo di build, avvio,
+prima di modificarlo. Il workflow CI prevede verifiche per entrambi i target, un ciclo di build, avvio,
 login, streaming e backup/ripristino su un'installazione sacrificabile. Il target
 audio prepara un modello tiny di prova e verifica un'inferenza CPU offline su
 silenzio sintetico; non misura la qualità su parlato reale. Il collaudo sul server
@@ -210,7 +210,7 @@ Il servizio host separato in [updater/README.md](../updater/README.md) completa 
 ### Override e impostazioni persistenti
 
 Il Compose base imposta la modalità server e salva il modello selezionato in
-`/state/runtime-settings.json`. La selezione globale prevale sui modelli per ruolo;
+`/state/runtime-settings.json`. L’assegnazione persistente per agente prevale sulla selezione globale; questa prevale sulle variabili modello per ruolo;
 ogni nuova chiamata LLM, anche di un agente già caricato, usa la selezione corrente.
 Una chiamata già in corso termina con il modello precedente.
 
@@ -247,7 +247,7 @@ e verifica esplicitamente la catena fidata; non fidarsi di header Internet.
 
 ## Accesso automatico del proprietario tramite Tailscale Serve
 
-Opzionale, solo sul server: il PC di sviluppo mantiene il login con password.
+Opzionale, solo sul server: il launcher Windows usa la modalità desktop locale; l’avvio manuale può usare password.
 L’account proprietario deve essere già presente nel database. Dopo aver aggiornato
 il checkout, eseguire sul server (sostituire email e origine con quelle reali):
 
@@ -335,3 +335,13 @@ invece dal commit selezionato: non incorpora modifiche locali non committate.
 Salvare e pubblicare le modifiche in Git prima di aggiornare da GitHub.
 Per modifiche estese usare VS Code Remote - SSH, aprendo la stessa cartella
 `/srv/cora-server-test` dopo la connessione SSH al server.
+
+## Evidenze e servizi opzionali — audit 25 ottobre 2026
+
+Questa è una procedura d’installazione, non l’inventario di un server attivo. `compose.yml` contiene PostgreSQL, API e web; non installa automaticamente Immich, Nextcloud, Ollama, worker desktop, terminale o Magazzino Tele. `deploy.env.example` usato da init imposta porta 8090; il fallback Compose senza quel valore è 8080. Gli override locali possono cambiare porte e mount: verificare la configurazione risolta prima dell’uso.
+
+Il [worker](../worker/UPDATE.md) appartiene a un deployment distinto. Il [terminale personale](../docs/personal-terminal.md) richiede l’override `compose.terminal.yml`, configurazione Tailscale e host SSH espliciti. Per [app esterne](../docs/MANAGED_APPS.md), aggiornamenti e backup cifrati periodici opzionali vedere il [README updater](../updater/README.md). Il backup ordinario manage.py non equivale al backup cifrato updater: conserva deploy.env privato e non deve essere pubblicato.
+
+Google Calendar ha token separato da Gmail: configurare `CORA_GOOGLE_CALENDAR_CREDENTIALS_PATH` e `CORA_GOOGLE_CALENDAR_TOKEN_PATH` secondo i percorsi nel container. `python3 deploy/manage.py google-calendar-auth` usa il helper OAuth con listener loopback e tunnel SSH dal computer; nessun token viene creato dalla sola build. Richiede interazione con il vero account e verifica dedicata.
+
+`deploy/ci_verify.py` è esclusivamente una fixture sacrificabile: ferma servizi ed elimina volumi/state del proprio ambiente. Non eseguirla su un server con dati. Prevede build, login, evento SSE persistito, restore, inferenza audio su silenzio per il target CPU e prova updater; non prova la qualità di una chat reale o di una trascrizione. Nessuna di queste procedure è stata eseguita sul Debian reale durante questo audit. [Inventario, prove e residui](../docs/README_AUDIT_20261025.md).

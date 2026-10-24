@@ -1,6 +1,6 @@
 # Programmatore Cora
 
-Agente LangGraph nativo con modello Ollama (`CORA_MODEL_PROGRAMMER`, fallback globale), coda e lifecycle di Cora, tool governati e streaming SSE. È orientato alla creazione di tool e automazioni su richiesta. Gli snapshot restano bozze; i workspace Git possono essere rilasciati su richiesta tramite il servizio host separato descritto in updater/README.md.
+Agente LangGraph nativo con modello Ollama (`CORA_MODEL_PROGRAMMER`, fallback globale), coda e lifecycle di Cora, tool governati e streaming SSE. È orientato alla creazione di tool e automazioni su richiesta. Gli snapshot restano bozze; i workspace Git possono essere rilasciati su richiesta tramite il servizio host separato descritto nel [README updater](../updater/README.md).
 
 ## Utilizzo
 
@@ -14,9 +14,9 @@ Il Supervisor può delegare con `programmer_agent_tool(query, workspace_id)` qua
 
 ## Strumenti e skill
 
-Venti capability: elenco, lettura, ricerca e scrittura di file; differenze; catalogo dei contratti reali; caricamento di skill e template; verifiche; interrogazione Graphify; validazione delle bozze grafiche; registro componenti, revisioni e pacchetti di consegna; eliminazione di file, commit Git, preparazione/stato/applicazione/ripristino dei rilasci. Sono registrate nel catalogo Tools e nel permission engine. La scrittura diretta di codice attivo resta bloccata; le applicazioni richieste passano dal servizio updater e da permessi dedicati.
+Ventuno capability (`PROGRAMMER_TOOLS` in `programmer_tools.py`): elenco, lettura, ricerca e scrittura di file; differenze; catalogo dei contratti reali; caricamento di skill e template; verifiche; interrogazione Graphify; validazione delle bozze grafiche; registro componenti, revisioni e pacchetti di consegna; eliminazione di file, commit Git, preparazione/stato/applicazione/ripristino dei rilasci e pubblicazione del branch GitHub. Sono registrate nel catalogo Tools e nel permission engine. La scrittura diretta di codice attivo resta bloccata; le applicazioni richieste passano dal servizio updater e da permessi dedicati.
 
-Le cinque skill sono risorse versionate di **Cora**, non skill installate in ChatGPT: creazione tool, creazione automazioni, verifica componenti e orientamento nel progetto. Il modello riceve soltanto descrizioni e carica le istruzioni quando necessarie. Template e skill sono nel repository e vengono inclusi nello snapshot.
+Le cinque skill sono risorse versionate di **Cora**, non skill installate in ChatGPT: creazione tool, creazione automazioni, verifica componenti, orientamento nel progetto e aggiornamento Cora su richiesta. Il modello riceve soltanto descrizioni e carica le istruzioni quando necessarie. Template e skill sono nel repository e vengono inclusi nello snapshot.
 
 Una bozza JSON compatibile può essere importata esplicitamente nella pagina Tools con **Importa bozza in Tools**. Il validatore è lo stesso dell'editor. Questa operazione non esegue, pianifica o assegna l'automazione; l'esecutore delle bozze resta un lavoro successivo. Un nuovo file Python va collegato a contratti, permessi e agenti nella copia del progetto prima di preparare un rilascio.
 
@@ -75,7 +75,7 @@ L'immagine installa il package-lock del repository fidato con npm ci --ignore-sc
 
 ## Aggiornare Cora su richiesta
 
-Crea workspace Git abilita il progetto testuale completo. Il Programmatore può aggiornare codice, contratti, frontend, grafi e migrazioni; il rilascio conserva Git localmente, costruisce immagini e richiede applicazione esplicita. La pagina mostra commit, job e stati anche dopo il ritorno da un riavvio. Per setup host, recupero, limiti e collaudo leggere updater/README.md. I vecchi snapshot non vengono convertiti automaticamente in checkout rilasciabili.
+Crea workspace Git abilita il progetto testuale completo. Il Programmatore può aggiornare codice, contratti, frontend, grafi e migrazioni; il rilascio conserva Git localmente, costruisce immagini e richiede applicazione esplicita. La pagina mostra commit, job e stati anche dopo il ritorno da un riavvio. Per setup host, recupero, limiti e collaudo leggere il [README updater](../updater/README.md). I vecchi snapshot non vengono convertiti automaticamente in checkout rilasciabili.
 
 
 ### Attendibilità dei controlli
@@ -87,3 +87,11 @@ I test Python Docker lavorano su `/tmp/project`, copia temporanea del mount
 read-only `/work`: possono creare i propri file temporanei senza scrivere nel
 workspace originale. La rete resta disabilitata. L'esito richiede comunque
 l'immagine di verifica preparata e il collaudo sul server reale.
+
+## Contesto e modello effettivo
+
+La risoluzione comune dei modelli applica prima l’assegnazione per agente (anche worker), poi selezione globale, variabile per ruolo e default. `context_manager.py`, `request_router.py` e `loop_context.py` gestiscono selezione del contesto e cicli del Programmatore; i metadati del modello limitano anche il suo budget. I test di routing/contesto e i benchmark sintetici non misurano la capacità del modello sul compito reale.
+
+La pubblicazione è la ventunesima capability: pubblica il commit verificato nel branch del workspace, non integra la PR né dimostra applicazione sul server. `checks.py` usa il bridge host se configurato e Docker locale altrimenti; le evidenze di check sono legate al digest del workspace. Il deployment API base non riceve automaticamente il daemon Docker.
+
+Audit 25 ottobre: elenco tool/skill, chiamanti API/UI e runner confrontati con i sorgenti; [prove e residui](../docs/README_AUDIT_20261025.md). Nessun workspace produttivo, rilascio o test Docker sul Debian reale è stato eseguito.
