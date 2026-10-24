@@ -64,8 +64,8 @@ def calendar_tools_for(actor: str):
         _reject_provider_switch()
         data = dict(title=title, start=start, end=end, all_day=all_day, notes=notes)
         if google_calendar.token_exists():
-            _require_google_approval(actor, "calendar_create_event")
             validated = store.EventInput.model_validate(data).model_dump(mode="json")
+            _require_google_approval(actor, "calendar_create_event")
             return {"status": "executed", "event": google_calendar.create_event(validated)}
         return store.propose_event(actor, "create", data=data, reason=reason)
 
@@ -76,8 +76,8 @@ def calendar_tools_for(actor: str):
         _reject_provider_switch()
         data = dict(title=title, start=start, end=end, all_day=all_day, notes=notes)
         if google_calendar.token_exists():
-            _require_google_approval(actor, "calendar_update_event")
             validated = store.EventInput.model_validate(data).model_dump(mode="json")
+            _require_google_approval(actor, "calendar_update_event")
             return {"status": "executed", "event": google_calendar.update_event(
                 event_id, validated, expected_version=version)}
         return store.propose_event(actor, "update", event_id=event_id, version=version,
