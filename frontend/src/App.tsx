@@ -71,12 +71,13 @@ const primary: { id: Page; label: string }[] = [
   { id: "home", label: "Home" },
   { id: "chat", label: "Chat" },
   { id: "architecture", label: "Architettura" },
-  { id: "machines", label: "Macchine" },
   { id: "code", label: "Programma" },
   { id: "calendar", label: "Calendario" },
+  { id: "files", label: "File" },
+  { id: "machines", label: "Macchine" },
+  { id: "audio", label: "Audio" },
 ];
 const secondary: { id: Page; label: string; icon: typeof FileText }[] = [
-  { id: "audio", label: "Audio", icon: FileText },
   { id: "activity", label: "Attività", icon: Activity },
   { id: "updates", label: "Aggiornamenti", icon: RefreshCw },
   { id: "settings", label: "Impostazioni", icon: Settings },
@@ -92,7 +93,7 @@ const uid = () => crypto.randomUUID();
 export default function App({ authMode = "password" }: { authMode?: string } = {}) {
   const [page, setPage] = useState<Page>(() => {
     const requested = window.location.hash.replace(/^#/, "");
-    return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "updates", "settings", "machines"].includes(requested) ? requested as Page : "home";
+    return ["home", "photos", "files", "audio", "calendar", "chat", "activity", "updates", "settings", "machines", "architecture", "code"].includes(requested) ? requested as Page : "home";
   });
   const [menu, setMenu] = useState(false);
   const [mobileUi, setMobileUi] = useState(() => window.matchMedia("(max-width: 620px)").matches);
@@ -132,7 +133,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
   useEffect(() => {
     const syncHash = () => {
       const requested = window.location.hash.replace(/^#/, "");
-      if (["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings", "machines"].includes(requested)) setPage(requested as Page);
+      if (["home", "photos", "files", "audio", "calendar", "chat", "activity", "settings", "machines", "architecture", "code", "updates"].includes(requested)) setPage(requested as Page);
     };
     window.addEventListener("hashchange", syncHash);
     return () => window.removeEventListener("hashchange", syncHash);
@@ -359,12 +360,6 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 {item.label}
               </button>
             ))}
-            <button
-              onClick={() => navigate("files")}
-              className={page === "files" ? "active" : ""}
-            >
-              File
-            </button>
           </nav>
           <div className="header-right">
             <span
