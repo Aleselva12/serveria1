@@ -7,6 +7,7 @@ from googleapiclient.errors import HttpError
 
 from core import calendar as store
 from core import google_calendar
+from core import governance
 from core.access import require_owner
 
 
@@ -84,7 +85,7 @@ def event(event_id: str):
 @router.patch("/events/{event_id}")
 def update_event(event_id: str, data: EventUpdate):
     if google_calendar.token_exists():
-        return run(google_calendar.update_event, event_id, data.model_dump(exclude={"version"}, mode="json"))
+        return run(google_calendar.update_event, event_id, data.model_dump(exclude={"version"}, mode="json"), expected_version=data.version)
     return run(store.write_event, "update", event_id=event_id, version=data.version,
                data=data.model_dump(exclude={"version"}))
 
@@ -92,7 +93,7 @@ def update_event(event_id: str, data: EventUpdate):
 @router.delete("/events/{event_id}")
 def delete_event(event_id: str, version: int = Query(ge=1)):
     if google_calendar.token_exists():
-        return run(google_calendar.delete_event, event_id)
+        return run(google_calendar.delete_event, event_id, expected_version=version)
     return run(store.write_event, "delete", event_id=event_id, version=version)
 
 
@@ -110,15 +111,44 @@ def history(event_id: str):
     return run(store.event_history, event_id)
 
 
+def _google_proposal(row: dict) -> dict:
+    """Project a generic approval into the existing Calendar UI contract."""
+    actor = row["actor"]
+    action = row["capability_id"].split(".calendar_", 1)[1].removesuffix("_event")
+    payload = row["payload"]
+    return {
+        "id": str(row["id"]),
+        "actor": actor,
+        "action": action,
+        "event_id": payload.get("event_id"),
+        "expected_version": payload.get("version"),
+        "payload": {name: payload[name] for name in
+                    ("title", "start", "end", "all_day", "notes") if name in payload},
+        "previous": {},
+        "reason": payload.get("reason") or "",
+        "status": row["status"],
+        "created_at": row["created_at"].isoformat(),
+        "provider": "google",
+    }
+
+
 @router.get("/proposals")
 def proposals():
     if google_calendar.token_exists():
-        return []
+        rows = run(governance.list_approvals)
+        return [_google_proposal(row) for row in rows
+                if row.get("capability_id") in {
+                    f"{row['actor']}.calendar_{action}_event"
+                    for action in ("create", "update", "delete")
+                }]
     return run(store.list_proposals)
 
 
 @router.post("/proposals/{proposal_id}/resolve")
 def resolve(proposal_id: UUID, decision: Decision):
     if google_calendar.token_exists():
-        raise HTTPException(409, "Le proposte agentiche verso Google Calendar saranno abilitate nel passo successivo.")
+        result = run(governance.resolve, str(proposal_id), decision.approve, "user")
+        native = result.get("result") or {}
+        return {"proposal": {"id": str(proposal_id), "status": result["status"]},
+                "event": native.get("event") if isinstance(native, dict) else None}
     return run(store.resolve_proposal, str(proposal_id), decision.approve)
