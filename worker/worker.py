@@ -9,6 +9,7 @@ from __future__ import annotations
 import hmac
 import json
 import os
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, ProxyHandler, build_opener
@@ -17,6 +18,7 @@ PORT = int(os.getenv("CORA_WORKER_PORT", "8765"))
 BASE = os.getenv("CORA_OLLAMA_BASE_URL", "http://host.docker.internal:11434").rstrip("/")
 TOKEN = os.getenv("CORA_WORKER_TOKEN", "")
 MAX_BODY = 24_000
+_inference_slot = threading.BoundedSemaphore(value=1)
 # An explicit local host URL, never a URL supplied by remote callers.
 if not (BASE.startswith("http://host.docker.internal:") or
         BASE.startswith("http://127.0.0.1:")):
@@ -98,6 +100,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/generate":
             self.send_json(405, {"detail": "Nessun comando remoto supportato"})
             return
+        if not _inference_slot.acquire(blocking=False):
+            self.send_json(429, {"detail": "Worker occupato: una inferenza per volta"})
+            return
         try:
             size = int(self.headers.get("Content-Length", "0"))
             if not 0 < size <= MAX_BODY:
@@ -128,6 +133,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(503, {"detail": "Ollama non raggiungibile o modello non avviato"})
         except (ValueError, TypeError, json.JSONDecodeError):
             self.send_json(422, {"detail": "Richiesta di inferenza non valida"})
+        finally:
+            _inference_slot.release()
 
 
 if __name__ == "__main__":
