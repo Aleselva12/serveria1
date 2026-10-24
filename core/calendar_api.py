@@ -18,6 +18,10 @@ def calendar_owner(request: Request):
 router = APIRouter(prefix="/api/v1/calendar", tags=["calendar"], dependencies=[Depends(calendar_owner)])
 
 
+class EventCreate(store.EventInput):
+    request_id: UUID | None = None
+
+
 class EventUpdate(store.EventInput):
     version: int = Field(ge=1)
 
@@ -69,10 +73,12 @@ def events(start: datetime, end: datetime, deleted: bool = False):
 
 
 @router.post("/events", status_code=201)
-def create_event(data: store.EventInput):
+def create_event(data: EventCreate):
+    payload = data.model_dump(exclude={"request_id"}, mode="json")
     if google_calendar.token_exists():
-        return run(google_calendar.create_event, data.model_dump(mode="json"))
-    return run(store.write_event, "create", data=data.model_dump())
+        return run(google_calendar.create_event, payload,
+                   request_id=str(data.request_id) if data.request_id else None)
+    return run(store.write_event, "create", data=payload)
 
 
 @router.get("/events/{event_id}")
