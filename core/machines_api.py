@@ -1,4 +1,4 @@
-"""Machine inventory and opt-in worker connectivity, not remote execution.
+"""Machine inventory, manual worker profiles and explicit inference bridge.
 
 Inventory uses Tailscale read-only OAuth when configured; the worker probe contacts
 only an explicitly registered *.ts.net hostname and a fixed /health endpoint.

@@ -17,7 +17,7 @@ from urllib.request import Request, ProxyHandler, build_opener
 PORT = int(os.getenv("CORA_WORKER_PORT", "8765"))
 BASE = os.getenv("CORA_OLLAMA_BASE_URL", "http://host.docker.internal:11434").rstrip("/")
 TOKEN = os.getenv("CORA_WORKER_TOKEN", "")
-MAX_BODY = 24_000
+MAX_BODY = 1_000_000
 _inference_slot = threading.BoundedSemaphore(value=1)
 # An explicit local host URL, never a URL supplied by remote callers.
 if not (BASE.startswith("http://host.docker.internal:") or
@@ -75,7 +75,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/health":
             self.send_json(200, {"status": "ready", "protocol": "cora-worker-v1",
-                 "capabilities": ["ollama-bridge"] if len(TOKEN) >= 32 else [],
+                 "capabilities": ["ollama-bridge", "agent-chat"] if len(TOKEN) >= 32 else [],
                  "execution_enabled": False,
                  "inference_backend": "windows-ollama",
                  "authorization_configured": len(TOKEN) >= 32})
@@ -86,7 +86,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/models":
             try:
                 self.send_json(200, {"models": installed_models(), "backend": "windows-ollama",
-                                    "reachable": True})
+                                    "reachable": True, "agent_chat": True})
             except (OSError, TimeoutError, HTTPError, URLError, ValueError) as exc:
                 self.send_json(503, {"models": [], "reachable": False,
                                      "detail": "Ollama Windows non raggiungibile dal container"})
@@ -97,7 +97,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.allowed():
             self.send_json(403, {"detail": "Worker non autorizzato o non configurato"})
             return
-        if self.path != "/generate":
+        if self.path not in {"/generate", "/chat"}:
             self.send_json(405, {"detail": "Nessun comando remoto supportato"})
             return
         if not _inference_slot.acquire(blocking=False):
@@ -111,24 +111,39 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(size))
             if not isinstance(body, dict):
                 raise ValueError("Corpo non valido")
-            model, prompt = body.get("model"), body.get("prompt")
-            if not (isinstance(model, str) and isinstance(prompt, str)
-                    and 0 < len(model) <= 180 and 0 < len(prompt) <= 10_000):
-                raise ValueError("Modello o testo non valido")
+            model = body.get("model")
+            if not isinstance(model, str) or not 0 < len(model) <= 180:
+                raise ValueError("Modello non valido")
+            if self.path == "/chat":
+                messages = body.get("messages")
+                if not isinstance(messages, list) or not 0 < len(messages) <= 400 or not all(
+                        isinstance(m, dict) and m.get('role') in {'system', 'user', 'assistant', 'tool'}
+                        for m in messages):
+                    raise ValueError("Messaggi non validi")
+            else:
+                prompt = body.get("prompt")
+                if not isinstance(prompt, str) or not 0 < len(prompt) <= 10000:
+                    raise ValueError("Testo non valido")
             # Reject model names other than those already downloaded.
             if model not in {m["name"] for m in installed_models()}:
                 self.send_json(422, {"detail": "Il modello non è installato sul PC"})
                 return
-            reply = ollama("/api/generate", {
-                "model": model, "prompt": prompt,
-                "stream": False, "keep_alive": "1m",
-                "options": {"num_ctx": 4096, "num_predict": 256},
-            }, timeout=300)
-            self.send_json(200, {"model": model,
-                 "response": str(reply.get("response") or "")[:20_000],
-                 "total_duration": reply.get("total_duration"),
-                 "eval_count": reply.get("eval_count"),
-                 "eval_duration": reply.get("eval_duration")})
+            if self.path == "/chat":
+                payload = {key: value for key, value in body.items()
+                           if key in {'model', 'messages', 'tools', 'options', 'format', 'think', 'keep_alive', 'logprobs', 'top_logprobs'}}
+                reply = ollama('/api/chat', {**payload, 'stream': False}, timeout=300)
+                self.send_json(200, reply)
+            else:
+                reply = ollama("/api/generate", {
+                    "model": model, "prompt": prompt,
+                    "stream": False, "keep_alive": "1m",
+                    "options": {"num_ctx": 4096, "num_predict": 256},
+                }, timeout=300)
+                self.send_json(200, {"model": model,
+                     "response": str(reply.get("response") or "")[:20_000],
+                     "total_duration": reply.get("total_duration"),
+                     "eval_count": reply.get("eval_count"),
+                     "eval_duration": reply.get("eval_duration")})
         except (OSError, TimeoutError, HTTPError, URLError):
             self.send_json(503, {"detail": "Ollama non raggiungibile o modello non avviato"})
         except (ValueError, TypeError, json.JSONDecodeError):

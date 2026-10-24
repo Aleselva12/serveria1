@@ -14,8 +14,9 @@
 - L'interruttore OFF blocca le chiamate di inferenza tramite Cora, non arresta
   Ollama sul PC e non arresta Docker: è una configurazione applicativa.
 - Il pulsante **Prova inferenza** invia una sola richiesta fissa tramite l'API
-  autenticata di Cora. Non sono ancora implementate code, scheduler o delega
-  automatica dei compiti degli agenti.
+  autenticata di Cora. Non sono implementati code o scheduler. Dalla pagina Architettura è possibile
+  assegnare manualmente l’inferenza di un agente al modello del profilo attivo
+  del worker (richiede il bridge aggiornato, vedi `AGENT-CARDS.md`).
 
 ## 1. Desktop Windows: Ollama
 

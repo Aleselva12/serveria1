@@ -234,3 +234,7 @@ registrati in `api.py`; `core/server_files.py` aggiunge le funzioni avanzate a
 entrambi i router senza duplicare la gestione delle cartelle.
 
 Per modificare Cora dall’interno su richiesta del proprietario: workspace Git e servizio host separato di aggiornamento, descritti in [updater/README.md](updater/README.md). Le build vengono preparate mentre Cora funziona; applicazione, backup e recupero usano job persistenti fuori dal runtime applicativo.
+
+### Architettura: schede agenti
+
+La vista principale usa schede selezionabili per gli agenti, scelta persistente del modello per ruolo e catalogo separato degli altri programmi. Il grafo generale è rinviato. Vedi [schede e inferenza desktop](docs/AGENT-CARDS.md), incluso l’aggiornamento necessario del container worker.
