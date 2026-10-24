@@ -53,7 +53,7 @@ def installed_models() -> list[dict]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CoraWorker/2"
+    server_version = "CoraWorker/3"
     def log_message(self, format, *args):
         # Avoid logging bearer credentials, model prompts and output.
         return
@@ -97,7 +97,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.allowed():
             self.send_json(403, {"detail": "Worker non autorizzato o non configurato"})
             return
-        if self.path not in {"/generate", "/chat"}:
+        if self.path not in {"/generate", "/chat", "/model-info"}:
             self.send_json(405, {"detail": "Nessun comando remoto supportato"})
             return
         if not _inference_slot.acquire(blocking=False):
@@ -120,13 +120,18 @@ class Handler(BaseHTTPRequestHandler):
                         isinstance(m, dict) and m.get('role') in {'system', 'user', 'assistant', 'tool'}
                         for m in messages):
                     raise ValueError("Messaggi non validi")
-            else:
+            elif self.path == "/generate":
                 prompt = body.get("prompt")
                 if not isinstance(prompt, str) or not 0 < len(prompt) <= 10000:
                     raise ValueError("Testo non valido")
             # Reject model names other than those already downloaded.
             if model not in {m["name"] for m in installed_models()}:
                 self.send_json(422, {"detail": "Il modello non è installato sul PC"})
+                return
+            if self.path == '/model-info':
+                info = ollama('/api/show', {'model': model}, timeout=5)
+                # Do not expose bundled system prompts, templates or model files.
+                self.send_json(200, {key:info[key] for key in ('capabilities','thinking','model_info') if key in info})
                 return
             if self.path == "/chat":
                 payload = {key: value for key, value in body.items()

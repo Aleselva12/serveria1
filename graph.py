@@ -170,11 +170,20 @@ def call_model(state: CoraState):
         response = model_with_tools.invoke(
             fit_messages(messages_for_llm, tools=selected_tools if selected_tools else None, reserve=128)
         )
-    elif selected_tools:
-        model = get_chat_model("supervisor", temperature=0.0).bind_tools(selected_tools)
-        response = model.invoke(fit_messages(messages_for_llm, tools=selected_tools))
     else:
-        response = get_chat_model("supervisor", temperature=0.0).invoke(fit_messages(messages_for_llm, reserve=128))
+        from core.models import resolve_model
+        from core.model_profiles import profile_for, ModelToolsUnsupported
+        profile = profile_for(resolve_model('supervisor'))
+        if selected_tools and profile['tools'] is False:
+            raise ModelToolsUnsupported("Il modello selezionato non supporta strumenti. Scegli Nessuno per conversare o seleziona manualmente un modello compatibile.")
+        model = get_chat_model("supervisor", temperature=0.0, model_profile=profile)
+        if selected_tools:
+            model = model.bind_tools(selected_tools)
+        response = model.invoke(fit_messages(messages_for_llm, tools=selected_tools or None,
+                                            reserve=128, context_limit=profile['context_tokens']))
+    if not response.content and not getattr(response, 'tool_calls', None):
+        from core.model_profiles import ModelEmptyResponse
+        raise ModelEmptyResponse('Il modello ha terminato senza risposta né strumenti.')
     from core.chat_tools import validate_manual_calls
     validate_manual_calls(state.get("manual_tools"), list(getattr(response, "tool_calls", []) or []))
     return {"messages": [_bounded_tool_calls(response)]}

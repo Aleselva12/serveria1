@@ -81,15 +81,18 @@ def compact_current_turn(messages):
 
 
 def fit_programmer_messages(messages, *, tools):
+    from core.models import resolve_model
+    from core.model_profiles import profile_for
+    context_limit = profile_for(resolve_model('programmer'))['context_tokens']
     projected = without_thinking(messages)
     try:
-        fitted = fit_messages(projected, tools=tools)
+        fitted = fit_messages(projected, tools=tools, context_limit=context_limit)
         compacted = False
     except ContextOverflow:
         projected = compact_current_turn(projected)
         # Keep user/system instructions intact; do not clip them to force a fit.
         projected = [SystemMessage(content=GUIDANCE)] + projected
-        fitted = fit_messages(projected, tools=tools)
+        fitted = fit_messages(projected, tools=tools, context_limit=context_limit)
         compacted = True
     from programmer_agent.programmer_graph import record_metric
     record_metric("context_projection", {"compacted": compacted,

@@ -45,7 +45,16 @@ export async function streamRun(run: RunSnapshot, onText: (text:string)=>void, o
     }
   } finally { reader.releaseLock(); }
   if (!final) final = await runtimeRequest<RunSnapshot>("/runtime/runs/" + run.id);
-  if (!["completed", "awaiting_approval"].includes(final.status) || !final.result) throw new Error("Esecuzione " + final.status + ". Consulta Attività; la richiesta non viene ripetuta automaticamente.");
+  if (!["completed", "awaiting_approval"].includes(final.status) || !final.result) {
+    const reasons: Record<string,string> = {
+      ContextOverflow: "Il contenuto necessario supera il contesto del modello. Restringi la ricerca o scegli un contesto maggiore.",
+      ModelToolsUnsupported: "Questo modello non supporta gli strumenti. Scegli Nessuno nel menu strumenti per conversare, oppure un modello compatibile in Architettura.",
+      ModelEmptyResponse: "Il modello non ha restituito una risposta utilizzabile dopo la lettura. Controlla il profilo in Architettura.",
+      ModelConfigurationChanged: "La configurazione del modello è cambiata durante la richiesta. Controllala prima di riprovare.",
+    };
+    const reason = final.error_type ? reasons[final.error_type] : undefined;
+    throw new Error((reason || "Esecuzione " + final.status + ".") + " Consulta Attività (" + run.id + "). La richiesta non viene ripetuta automaticamente.");
+  }
   return final.result;
 }
 

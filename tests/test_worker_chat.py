@@ -33,3 +33,27 @@ class WorkerChatTests(unittest.TestCase):
                 finally: worker._inference_slot.release()
             finally:
                 server.shutdown(); server.server_close(); thread.join()
+
+
+    def test_model_metadata_requires_auth_and_never_exposes_prompt_or_runs_inference(self):
+        metadata = {'capabilities':['completion','tools'], 'thinking':{'values':[False],'default':False},
+                    'model_info':{'x.context_length':4096}, 'template':'private template', 'system':'private prompt'}
+        with patch.object(worker,'TOKEN','s'*40), patch.object(worker,'installed_models',return_value=[{'name':'small'}]), patch.object(worker,'ollama',return_value=metadata) as ollama:
+            server = ThreadingHTTPServer(('127.0.0.1',0),worker.Handler)
+            thread = threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+            def request(token,model='small'):
+                req = Request(f'http://127.0.0.1:{server.server_port}/model-info',data=json.dumps({'model':model}).encode(),headers={'X-Cora-Worker-Token':token,'Content-Type':'application/json'})
+                return build_opener(ProxyHandler({})).open(req,timeout=2)
+            try:
+                with self.assertRaises(HTTPError) as error:request('wrong')
+                self.assertEqual(error.exception.code,403)
+                with request('s'*40) as response:info=json.load(response)
+                self.assertEqual(info['model_info']['x.context_length'],4096)
+                self.assertNotIn('system',info);self.assertNotIn('template',info)
+                self.assertEqual(ollama.call_args.args,('/api/show',{'model':'small'}))
+                self.assertEqual(ollama.call_count,1)
+                with self.assertRaises(HTTPError) as error:request('s'*40,'absent')
+                self.assertEqual(error.exception.code,422)
+                self.assertEqual(ollama.call_count,1)
+            finally:
+                server.shutdown();server.server_close();thread.join()

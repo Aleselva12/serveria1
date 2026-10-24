@@ -1,3 +1,6 @@
+import ChatMessage from "./components/ChatMessage";
+import ChatModelBar from "./components/ChatModelBar";
+import "./chat.css";
 import ChatLibraryPicker from "./components/ChatLibraryPicker";
 import LibraryMonitorFeed from "./components/LibraryMonitorFeed";
 import LibraryMonitorSettings from "./components/LibraryMonitorSettings";
@@ -103,6 +106,8 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
     return isPage(requested) ? requested : "home";
   });
   const [menu, setMenu] = useState(false);
+  const [inspector, setInspector] = useState(false);
+  const [connections, setConnections] = useState(false);
   const [mobileUi, setMobileUi] = useState(() => window.matchMedia("(max-width: 620px)").matches);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -146,7 +151,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
     return () => window.removeEventListener("hashchange", syncHash);
   }, []);
   useEffect(() => {
-    if (page === "chat" && !history.messagesLoading)
+    if (page === "chat" && !history.messagesLoading && (currentChat.messages.length > 0 || sending))
       messagesEnd.current?.scrollIntoView({ block: "end" });
   }, [page, currentChat.id, currentChat.messages.length, history.messagesLoading, sending]);
 
@@ -454,6 +459,14 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
           {page === "photos" && <MobilePhotos />}
           {page === "chat" && (
             <section className="chat-page">
+              <header className="chat-workspace-header">
+                <div><span className="chat-eyebrow">SERVERIA · SPAZIO PERSONALE</span><strong>Cora <span>Una conversazione, tante possibilità.</span></strong></div>
+                <div className="chat-header-actions">
+                  <ChatModelBar revision={backend.health?.model_configuration_id} onSettings={()=>navigate('architecture')}/>
+                  <button className={inspector?'active':''} aria-expanded={inspector} aria-controls="chat-inspector" onClick={()=>setInspector(v=>!v)}>Attività e fonti</button>
+                </div>
+              </header>
+              {inspector && <aside className="chat-inspector" id="chat-inspector" aria-label="Attività e fonti della chat"><button onClick={()=>setInspector(false)} aria-label="Chiudi attività">×</button><h2>Attività e fonti</h2><p>Operazioni registrate da Cora, distinte dal testo del modello.</p><ThinkingPanel key={currentChat.threadId} value={thinking} threadId={currentChat.threadId} running={sending} /></aside>}
               <div className="messages" aria-live="polite">
                 {history.messagesLoading && <p role="status">Caricamento dei messaggi…</p>}
                 {history.messagesError && <div className="connection-error" role="alert">
@@ -462,8 +475,14 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 </div>}
                 {!history.messagesLoading && !history.messagesError && currentChat.messages.length === 0 && (
                   <div className="chat-welcome">
-                    <h1>Una conversazione con Cora.</h1>
-                    <p>Scrivi una richiesta all’agente centrale di Cora.</p>
+                    <span className="chat-welcome-mark">✦</span><span className="chat-eyebrow">IL TUO SPAZIO, CON CORA</span>
+                    <h1>Da dove cominciamo?</h1>
+                    <p>Un’idea, un documento, qualcosa da organizzare.<br/>Portalo qui, facciamogli spazio.</p>
+                    <div className="chat-starters">
+                      <button onClick={()=>setDraft('Cerca nella Libreria IA ')}><Files size={18}/><strong>Ritrova un’informazione</strong><span>Cerca tra i tuoi documenti</span></button>
+                      <button onClick={()=>setDraft('Aiutami a organizzare ')}><CalendarDays size={18}/><strong>Metti ordine alle idee</strong><span>Ragioniamo sul prossimo passo</span></button>
+                      <button onClick={()=>setDraft('Aiutami a scrivere ')}><FileText size={18}/><strong>Comincia una bozza</strong><span>Un testo da costruire insieme</span></button>
+                    </div>
                   </div>
                 )}
                 {currentChat.messages.map((m) => (
@@ -472,7 +491,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                       {m.role === "assistant" ? "✦" : m.role === "system" ? "S" : "A"}
                     </div>
                     <div className="message-content">
-                      {m.content}
+                      <ChatMessage content={m.content} assistant={m.role==='assistant'}/>
                       {m.attachments?.map(a=><a className="attachment-chip" href={apiBaseUrl+a.downloadUrl} key={a.id}>{a.name}{a.truncated?" · estratto limitato":""}</a>)}
                       {m.failed && (
                         <small className="message-failed">
@@ -482,22 +501,29 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                     </div>
                   </div>
                 ))}
-                {libraryActivity.threadId === currentChat.threadId && libraryActivity.items.length > 0 && <details className="message assistant" open><summary>Consultazione Libreria IA · ultima richiesta</summary><div className="message-body"><small>Attività della sessione corrente, fino a 200 passaggi. Non conservata dopo il ricaricamento.</small><ul>{libraryActivity.items.map((item, index) => <li key={index}>{item.action === "search" ? `Ricerca «${item.query}»` : item.action === "list" ? "Elenco documenti" : "Lettura"} · {item.path === "." ? "Libreria IA" : item.path}</li>)}</ul></div></details>}
-                {sending && <div className="message assistant"><div className="message-body"><p>{liveText || (runState === "queued" ? "In coda…" : runState === "cancelling" ? "Annullamento in corso…" : runState.startsWith("Agente:") ? runState : "Cora sta lavorando…")}</p>{activeRun && <button className="text-button" disabled={runState === "cancelling"} onClick={() => void runtimeRequest("/runtime/runs/" + activeRun + "/cancel", { method: "POST" }).then(() => setRunState("cancelling")).catch(e => setChatError(e.message))}>Annulla esecuzione</button>}</div></div>}
+                {libraryActivity.threadId === currentChat.threadId && libraryActivity.items.length > 0 && <details className="chat-library-sources"><summary>Fonti consultate · ultima richiesta</summary><div className="message-body"><small>Attività della sessione corrente, fino a 200 passaggi. Non conservata dopo il ricaricamento.</small><ul>{libraryActivity.items.map((item, index) => <li key={index}>{item.action === "search" ? `Ricerca «${item.query}»` : item.action === "list" ? "Elenco documenti" : "Lettura"} · {item.path === "." ? "Libreria IA" : item.path}</li>)}</ul></div></details>}
+                {sending && <div className="message assistant"><div className="message-body">{liveText ? <ChatMessage content={liveText} assistant/> : <p role="status">{(runState === "queued" ? "In coda…" : runState === "cancelling" ? "Annullamento in corso…" : runState.startsWith("Agente:") ? runState : "Cora sta lavorando…")}</p>}{activeRun && <button className="text-button" disabled={runState === "cancelling"} onClick={() => void runtimeRequest("/runtime/runs/" + activeRun + "/cancel", { method: "POST" }).then(() => setRunState("cancelling")).catch(e => setChatError(e.message))}>Annulla esecuzione</button>}</div></div>}
                 <div ref={messagesEnd} />
               </div>
               <div className="chat-bottom">
                 {chatError && (
                   <div className="connection-error" role="alert">
-                    {chatError}
+                    {chatError}<button className="text-button" onClick={()=>navigate('activity')}>Apri Attività</button>
                   </div>
                 )}
                 {attachmentBusy&&<p role="status">Caricamento degli allegati…</p>}
                 {libraryPicker && <ChatLibraryPicker disabled={sending||attachmentBusy} onClose={()=>setLibraryPicker(false)} onPick={attachFromLibrary} />}
                 <div className="attachment-drafts">{(attachmentDrafts[currentChat.threadId]||[]).map(a=><span className="attachment-chip" key={a.id}>{a.name}{a.truncated?" · estratto limitato":""}<button disabled={sending||attachmentBusy} aria-label={"Rimuovi allegato "+a.name} onClick={()=>setAttachmentDrafts(prev=>({...prev,[currentChat.threadId]:(prev[currentChat.threadId]||[]).filter(x=>x.id!==a.id)}))}>×</button></span>)}</div>
-                <ThinkingPanel key={currentChat.threadId} value={thinking} threadId={currentChat.threadId} running={sending} />
+                <div className="chat-composer-toolbar"><button aria-expanded={connections} onClick={()=>setConnections(v=>!v)}>＋ Spazi collegati</button>
+                <LengthChoice value={responseLength} onChange={setResponseLength} disabled={sending} /></div>
+                {connections && <nav className="chat-connections" aria-label="Spazi collegati">
+                  <button onClick={()=>navigate('files')}><Files size={16}/> File e Libreria IA</button>
+                  <button onClick={()=>navigate('calendar')}><CalendarDays size={16}/> Calendario</button>
+                  <button onClick={()=>navigate('audio')}><FileAudio size={16}/> Audio → Word</button>
+                  <button onClick={()=>navigate('code')}><FileText size={16}/> Programmatore</button>
+                  <button onClick={()=>navigate('home')}><House size={16}/> Home e programmi</button>
+                </nav>}
                 <RunTimer started={startedAt} finished={finishedAt} />
-                <LengthChoice value={responseLength} onChange={setResponseLength} disabled={sending} />
                 <div className="composer">
                   <input ref={attachmentInput} type="file" multiple hidden accept=".txt,.md,.csv,.tsv,.json,.pdf,.docx,.py,.ts,.tsx,.js,.css,.yaml,.yml,.toml,.log" onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value="";void attach(files);}}/>
                   <div className="attachment-choice">
@@ -527,7 +553,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                   <textarea
                     disabled={history.historyLoading || history.messagesLoading}
                     value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
+                    onChange={(e) => {setDraft(e.target.value);e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,144)+'px';}}
                     onKeyDown={(e) => {
                       if (
                         e.key === "Enter" &&
@@ -554,21 +580,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                     <Send size={17} />
                   </button>
                 </div>
-                <small>Allegati: testo, PDF e Word · massimo 6 file da 5 MB. Per le registrazioni usa la pagina Audio. Gli estratti limitati sono segnalati.</small>
-                <p>
-                  {backend.health
-                    ? backend.health.ollama_online
-                      ? "Chat collegata a Cora centrale · LLM configurato " +
-                        backend.health.model + (backend.health.model_machine ? " · " + backend.health.model_machine : "")
-                      : "Modello di Cora centrale non raggiungibile: controlla assegnazione e Macchine."
-                    : "Backend non collegato"}
-                </p>
-                <p>Storico salvato sul server · ultime 500 conversazioni, fino a 2.000 messaggi per chat.</p>
-                <div className="composer-notes">
-                  <span>Allegati: massimo 6 documenti, 5 MB ciascuno · estratti limitati</span>
-                  <button className="text-button" onClick={()=>navigate("audio")}>Registrazioni e trascrizioni → Audio</button>
-                  <span>Risposta progressiva attiva</span>
-                </div>
+                <div className="chat-footer"><span>Cora può sbagliare. Controlla le fonti e approva le modifiche.</span><button onClick={()=>setInspector(true)}>Dettagli della conversazione</button></div>
               </div>
             </section>
           )}
