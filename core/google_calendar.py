@@ -6,6 +6,7 @@ reauthorized without touching mail access. Client credentials may be shared.
 from __future__ import annotations
 
 import os
+import hashlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -108,6 +109,10 @@ def normalize(event: dict) -> dict:
     start, end, all_day = _event_times(event)
     created = event.get("created") or event.get("updated") or datetime.now(timezone.utc).isoformat()
     updated = event.get("updated") or created
+    # Google sequence may stay unchanged after an ordinary edit; its ETag is the revision.
+    etag = event.get("etag")
+    version = (int(hashlib.sha256(etag.encode("utf-8")).hexdigest()[:12], 16) + 1
+               if isinstance(etag, str) and etag else max(1, int(event.get("sequence") or 0) + 1))
     return {
         "id": event["id"],
         "title": event.get("summary") or "(senza titolo)",
@@ -116,7 +121,8 @@ def normalize(event: dict) -> dict:
         "all_day": all_day,
         "notes": event.get("description") or "",
         "reminder_minutes": _reminder_minutes(event),
-        "version": max(1, int(event.get("sequence") or 0) + 1),
+        "version": version,
+        "etag": etag,
         "created_by": "Google Calendar",
         "updated_by": "Google Calendar",
         "created_at": created,
@@ -247,24 +253,42 @@ def publish_local_events(events: list[dict]) -> dict:
     }
 
 
-def update_event(event_id: str, data: dict) -> dict:
-    event = service().events().patch(
-        calendarId="primary",
-        eventId=event_id,
-        body=_google_body(data),
-        sendUpdates="none",
-    ).execute()
-    return normalize(event)
-
-
-def delete_event(event_id: str) -> dict:
+def _conditional_event_request(event_id: str, expected_version: int, *, data: dict | None = None) -> dict:
+    """Reject stale revisions, then atomically enforce ETag using Google's If-Match."""
+    from core.calendar import CalendarConflict
     previous = get_event(event_id)
-    service().events().delete(
-        calendarId="primary",
-        eventId=event_id,
-        sendUpdates="none",
-    ).execute()
+    if previous["version"] != expected_version:
+        raise CalendarConflict("L'evento Google è cambiato: rileggilo prima di procedere.")
+    etag = previous.get("etag")
+    if not etag:
+        raise CalendarConflict("Google non ha fornito una revisione verificabile: modifica rifiutata.")
+    calendar_service = service()
+    if data is None:
+        request = calendar_service.events().delete(
+            calendarId="primary", eventId=event_id, sendUpdates="none",
+        )
+    else:
+        request = calendar_service.events().patch(
+            calendarId="primary", eventId=event_id, body=_google_body(data), sendUpdates="none",
+        )
+    request.headers["If-Match"] = etag
+    try:
+        result = request.execute()
+    except HttpError as error:
+        if error.resp.status == 412:
+            raise CalendarConflict("L'evento è cambiato su Google Calendar: aggiorna prima di approvare.") from error
+        raise
+    if data is not None:
+        return normalize(result)
     return {**previous, "deleted_at": datetime.now(timezone.utc).isoformat()}
+
+
+def update_event(event_id: str, data: dict, *, expected_version: int) -> dict:
+    return _conditional_event_request(event_id, expected_version, data=data)
+
+
+def delete_event(event_id: str, *, expected_version: int) -> dict:
+    return _conditional_event_request(event_id, expected_version)
 
 
 def verify_access() -> bool:
