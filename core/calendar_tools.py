@@ -30,6 +30,16 @@ def _reject_provider_switch():
             raise PermissionError("Proposta riferita a un altro account Google Calendar: crea una nuova proposta.")
 
 
+def _require_google_approval(actor: str, action: str):
+    """Google writes always need a pinned owner approval, even with an AUTO override."""
+    from core.governance import approved_action, invocation, ApprovalRequired
+    require_permission(actor, action)
+    call, grant = invocation.get(), approved_action.get()
+    if not (call and grant and grant[0] == actor and action in grant[1] and
+            grant[2:] == (call["tool_id"], call["payload"])):
+        raise ApprovalRequired(actor, action)
+
+
 def calendar_tools_for(actor: str):
     @agent_tool(actor, capability='calendar_list_events', actions=('calendar_list_event',), effect='read', retry='safe')
     def calendar_list_events(start: str, end: str) -> list[dict]:
@@ -54,7 +64,7 @@ def calendar_tools_for(actor: str):
         _reject_provider_switch()
         data = dict(title=title, start=start, end=end, all_day=all_day, notes=notes)
         if google_calendar.token_exists():
-            require_permission(actor, "calendar_create_event")
+            _require_google_approval(actor, "calendar_create_event")
             validated = store.EventInput.model_validate(data).model_dump(mode="json")
             return {"status": "executed", "event": google_calendar.create_event(validated)}
         return store.propose_event(actor, "create", data=data, reason=reason)
@@ -66,7 +76,7 @@ def calendar_tools_for(actor: str):
         _reject_provider_switch()
         data = dict(title=title, start=start, end=end, all_day=all_day, notes=notes)
         if google_calendar.token_exists():
-            require_permission(actor, "calendar_update_event")
+            _require_google_approval(actor, "calendar_update_event")
             validated = store.EventInput.model_validate(data).model_dump(mode="json")
             return {"status": "executed", "event": google_calendar.update_event(
                 event_id, validated, expected_version=version)}
@@ -78,7 +88,7 @@ def calendar_tools_for(actor: str):
         """Propone l'eliminazione recuperabile di un evento; richiede approvazione utente."""
         _reject_provider_switch()
         if google_calendar.token_exists():
-            require_permission(actor, "calendar_delete_event")
+            _require_google_approval(actor, "calendar_delete_event")
             return {"status": "executed", "event": google_calendar.delete_event(
                 event_id, expected_version=version)}
         return store.propose_event(actor, "delete", event_id=event_id, version=version, reason=reason)
