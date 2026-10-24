@@ -14,7 +14,7 @@ from deploy import prepare_qwen3
 class ModelThinkingTests(unittest.TestCase):
     def test_qwen_profile_overrides_legacy_zero_without_changing_other_families(self):
         for name in ['qwen3:0.6b', 'qwen3:8b']:
-            with patch('core.models.get_model_name', return_value=name):
+            with patch('core.models._default_selection', return_value=(name, 'default')):
                 model = get_chat_model('programmer', temperature=0.0)
             self.assertEqual((model.temperature,model.top_p,model.top_k,model.min_p),(.6,.95,20,0))
             self.assertTrue(model.reasoning)
@@ -53,7 +53,7 @@ class ModelThinkingTests(unittest.TestCase):
         run=Run('stream-test')
         binding=current_run.set(run)
         try:
-            with patch('core.models.get_model_name', return_value='qwen3:8b'):
+            with patch('core.models._default_selection', return_value=('qwen3:8b', 'default')):
                 model=get_chat_model('programmer')
             chunks=[{'message':{'content':'','thinking':'Verifico i file'},'done':False},
                     {'message':{'content':'Risposta'},'done':True,'done_reason':'stop'}]

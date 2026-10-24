@@ -10,14 +10,17 @@ const require=createRequire(import.meta.url), external=n=>JSON.stringify(pathToF
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 globalThis.requestAnimationFrame=fn=>fn();
 const tool={id:'read',name:'read_document',description:'Reads an authorized document',parameters:['path']};
-const agent=id=>({id,name:id,description:'Description '+id,role:id,available:true,capabilities:[],model:'local-model',machine_name:'Ollama di Cora',assignment:null,runtime:{status:'ready',checks:{}},tools:[tool]});
+const agent=id=>({id,name:id,description:'Description '+id,role:id,available:true,capabilities:[],configuration:{role:id,model:'local-model',machine_id:'local',source:'global_selection',configuration_id:'base-'+id},model:'local-model',machine_name:'Ollama di Cora',assignment:null,runtime:{status:'ready',checks:{}},tools:[tool]});
 let fixture,offline=false,failSave=false,saved=[];
 const reset=()=>{fixture={agents:[agent('supervisor'),agent('local_research_agent')],components:[],inventory_errors:[]};offline=false;failSave=false;saved=[];};reset();
 globalThis.__overviewApi={
+ verify:async id=>({run_id:'verify-'+id}),
+ verification:async()=>({id:'verify-supervisor',status:'completed',result:{reported_model:'provider-model',configuration:fixture.agents[0].configuration,duration_ms:10}}),
+ reloadTranscription:async()=>({note:'Cache Whisper ricaricata'}),
  agents:async()=>{if(offline)throw Error('Offline');return {...fixture,agents:[...fixture.agents]};},
  targets:async()=>[{id:'local',name:'Ollama di Cora',enabled:true},{id:'pc',name:'Desktop',enabled:true}],
  models:async id=>({models:[{name:id==='pc'?'desktop-model':'local-model'}],enabled:true,agent_chat:true,active_model:id==='pc'?'desktop-model':null}),
- save:async(id,machine,model)=>{if(failSave)throw Error('Worker OFF');saved.push({id,machine,model});fixture.agents=fixture.agents.map(a=>a.id===id?{...a,assignment:{machine_id:machine,model},model,machine_name:'Desktop'}:a);},
+ save:async(id,machine,model)=>{if(failSave)throw Error('Worker OFF');saved.push({id,machine,model});fixture.agents=fixture.agents.map(a=>a.id===id?{...a,assignment:{machine_id:machine,model},configuration:{role:a.role,model,machine_id:machine,source:'agent_assignment',configuration_id:'saved-'+id},model,machine_name:'Desktop'}:a);return {configuration:fixture.agents.find(a=>a.id===id).configuration,requires_restart:false};},
 };
 globalThis.__servicesApi={services:async()=>({services:[{id:'immich',label:'Immich',status:'unknown',detail:'Non configurato',checkedAt:'2026-10-24T18:00:00Z'}]})};
 const source=await readFile(new URL('../src/components/ArchitectureOverview.tsx',import.meta.url),'utf8');
@@ -61,5 +64,29 @@ test('agent endpoint failure does not hide independently loaded programs',async(
  reset();offline=true;let r;await act(async()=>{r=create(React.createElement(App));});
  assert.equal(card(r).length,0);assert.equal(r.root.findAllByProps({className:'program-card '}).length,1);
  assert.ok(JSON.stringify(r.toJSON()).includes('Offline'));
+ await act(async()=>r.unmount());
+});
+
+test('model verification shows provider reply and no tools are invoked', async()=>{
+ reset();let r;await act(async()=>{r=create(React.createElement(App));});
+ await act(async()=>card(r)[0].props.onClick());
+ await act(async()=>button(r,'Verifica modello con una chiamata').props.onClick());
+ assert.ok(JSON.stringify(r.toJSON()).includes('provider-model'));
+ assert.equal(saved.length,0);
+ await act(async()=>r.unmount());
+});
+test('manual reload resets an unsaved form to the stored assignment', async()=>{
+ reset();let r;await act(async()=>{r=create(React.createElement(App));});
+ await act(async()=>card(r)[0].props.onClick());
+ await act(async()=>r.root.findAllByType('select')[0].props.onChange({target:{value:'pc'}}));
+ await act(async()=>button(r,'Ricarica configurazione e stato').props.onClick());
+ assert.equal(r.root.findAllByType('select')[0].props.value,'inherit');
+ assert.equal(saved.length,0);
+ await act(async()=>r.unmount());
+});
+test('Audio distinguishes the LLM from the Whisper transcription engine', async()=>{
+ reset();fixture.agents[1]={...fixture.agents[1],id:'audio_agent',transcription:{engine:'Faster-Whisper',model:'small',model_label:'small',device:'cpu',compute_type:'int8',ready:true,loaded:null}};
+ let r;await act(async()=>{r=create(React.createElement(App));});await act(async()=>card(r)[1].props.onClick());
+ const text=JSON.stringify(r.toJSON());assert.ok(text.includes('Faster-Whisper'));assert.ok(text.includes('small'));assert.ok(text.includes('Non ancora caricato'));assert.ok(text.toLowerCase().includes('non cambia whisper'));
  await act(async()=>r.unmount());
 });

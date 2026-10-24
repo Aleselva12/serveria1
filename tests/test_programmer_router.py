@@ -121,7 +121,7 @@ class RouterTests(unittest.TestCase):
     def test_local_model_request_is_bounded_and_uses_operator_model(self):
         from core.models import get_chat_model
         for name, expected in [('qwen3:8b', False), ('gpt-oss:20b', 'low')]:
-            with patch('core.models.get_model_name', return_value=name):
+            with patch('core.models._default_selection', return_value=(name, 'default')):
                 model = get_chat_model('programmer', format=router.Route.model_json_schema(),
                                        num_predict=256, client_kwargs={'timeout':5, 'trust_env':False})
             reply = self.model().invoke.return_value

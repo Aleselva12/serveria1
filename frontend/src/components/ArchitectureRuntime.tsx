@@ -19,7 +19,7 @@ export function performanceRows(metrics: Record<string, unknown>, duration: numb
   const host = metrics.host && typeof metrics.host === "object" ? metrics.host as Record<string,unknown> : null;
   if (config) {
     if (typeof config.profile === "string") rows.push(["Profilo",config.profile]);
-    if (typeof config.model === "string") rows.push(["Modello",config.model]);
+    if (typeof config.model === "string") rows.push(["Modello configurato all’avvio",config.model]);
     if (typeof config.keep_alive === "string") rows.push(["Keep-alive",config.keep_alive]);
     if (typeof config.context_tokens === "number") rows.push(["Context configurato",String(config.context_tokens)]);
     if (typeof config.output_tokens === "number") rows.push(["Output massimo",config.output_tokens < 0 ? "Senza tetto prefissato" : String(config.output_tokens)]);
@@ -29,6 +29,17 @@ export function performanceRows(metrics: Record<string, unknown>, duration: numb
   if (host) {
     if (typeof host.logical_cpu_count === "number") rows.push(["CPU logiche",String(host.logical_cpu_count)]);
     if (typeof host.ram_total_gib === "number") rows.push(["RAM installata",String(host.ram_total_gib) + " GiB"]);
+  }
+  const observed = Array.isArray(metrics.inference_observations) ? metrics.inference_observations : [];
+  const seen = new Set<string>();
+  for (const value of observed) {
+    if (!value || typeof value !== 'object') continue;
+    const item = value as Record<string, unknown>;
+    if (typeof item.role !== 'string' || typeof item.machine_id !== 'string') continue;
+    const actual = typeof item.reported_model === 'string' ? item.reported_model : 'Nome non riportato dal provider';
+    const key = item.role + ':' + actual + ':' + item.machine_id;
+    if (seen.has(key)) continue; seen.add(key);
+    rows.push(['LLM osservato · ' + item.role, actual + ' · ' + (item.machine_id === 'local' ? 'Ollama di Cora' : item.machine_id)]);
   }
   const models = Array.isArray(metrics.models) ? metrics.models.filter((m):m is Record<string,unknown> => Boolean(m) && typeof m === "object") : [];
   const sum = (key:string) => models.reduce((total,m) => total + (typeof m[key] === "number" && Number.isFinite(m[key]) && m[key] >= 0 ? m[key] : 0),0);

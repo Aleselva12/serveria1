@@ -61,3 +61,58 @@ Tailscale e modelli installati restano quelli configurati nella pagina Macchine.
 
 I controlli di disponibilità non eseguono un LLM e non attestano che il modello
 supporti ogni strumento: il collaudo con Ollama/hardware reali resta necessario.
+
+## Configurato e osservato: verifica esplicita
+
+Le sei definizioni di agente presenti sono:
+
+| ID | Ruolo modello | Nodo LLM |
+| --- | --- | --- |
+| supervisor | supervisor | graph.call_model |
+| structure_agent | structure | structure_agent.structure_graph.call_llm |
+| programmer_agent | programmer | programmer_agent.programmer_graph.call_llm |
+| local_research_agent | research | search_agent.search_graph.call_llm |
+| audio_agent | audio | audio_agent.audio_graph.call_llm |
+| email_quotes_agent | email | email_agent.email_graph.call_llm |
+
+Tutti risolvono il modello attraverso `get_chat_model` a ogni chiamata. La chat
+principale entra nel supervisore: cambiare solo Audio/Documenti/Mail non cambia
+il supervisore. Cambia l'inferenza dello specialista quando effettivamente delegato.
+La selezione generale salvata prevale sulle variabili dei ruoli senza assegnazione
+specifica: questo può spiegare sei schede con lo stesso modello, senza significare
+che siano sei istanze sempre caricate o sei agenti mancanti.
+
+La risoluzione usa ora un solo snapshot di modello e macchina. Il salvataggio
+restituisce una versione della configurazione; il frontend rilegge il catalogo e
+confronta la versione prima di confermare. Ricarica configurazione e stato aggiorna
+anche il modulo aperto e la health della chat. Non richiede restart per i LLM;
+modificare codice/prompt Python richiede il normale aggiornamento di Cora.
+
+`POST /api/v1/architecture/agents/{id}/verify` mette nel runtime una breve inferenza
+senza tool. La UI ne segue l'esito e mostra il nome restituito dal provider. Non è
+un collaudo di tutti i tool dell'agente, né una prova della collocazione GPU/CPU.
+Se la configurazione cambia mentre la prova è in coda, la prova fallisce senza
+usare una selezione diversa. Non viene eseguita alcuna prova al semplice refresh.
+
+Le risposte native Ollama, locali e remote, aggiornano una cache bounded con
+l'ultima osservazione per ruolo (`model-observations.json`, accanto alle impostazioni).
+Contiene solo ruolo, modelli richiesto/riportato, macchina, timestamp, run e versione:
+nessun prompt o testo generato. È uno stato riepilogativo, non un secondo log.
+Le stesse osservazioni entrano nelle metriche del run persistito. Attività distingue
+il modello configurato all'avvio dai modelli realmente riportati dai provider.
+I nuovi messaggi chat non prendono più model_id dalla configurazione riletta a fine
+risposta: usano il nome osservato nell'ultima chiamata, se disponibile. Le vecchie
+esecuzioni non vengono ricostruite né considerate retroattivamente verificate.
+
+## Audio: due motori distinti
+
+Il ruolo `audio` sceglie il LLM per analisi e strumenti; la trascrizione usa invece
+Faster-Whisper con `CORA_WHISPER_MODEL`, `CORA_WHISPER_DEVICE` e
+`CORA_WHISPER_COMPUTE_TYPE`. La diarizzazione usa il modello locale
+`CORA_DIARIZATION_MODEL`, se configurato. La scheda mostra separatamente modello
+Whisper configurato e configurazione del motore caricato nella cache Python.
+
+`POST /api/v1/audio/engine/reload` svuota la cache Whisper solo se lo slot runtime
+è libero; non esegue un download né una trascrizione. Il motore si carica al prossimo
+uso. Cambiare variabili Docker richiede comunque di ricreare/riavviare il container.
+Assegnare un LLM sul desktop non trasferisce Whisper, diarizzazione o tool al desktop.

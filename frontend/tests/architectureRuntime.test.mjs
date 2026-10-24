@@ -42,7 +42,7 @@ test("performance rows expose the effective PC/server profile used by the run",(
    host:{logical_cpu_count:16,ram_total_gib:32}
  },1000));
  assert.equal(rows["Profilo"],"pc-max");
- assert.equal(rows["Modello"],"test-model");
+ assert.equal(rows["Modello configurato all’avvio"],"test-model");
  assert.equal(rows["Keep-alive"],"30m");
  assert.equal(rows["Context configurato"],"16384");
  assert.equal(rows["Output massimo"],"1024");
@@ -50,4 +50,10 @@ test("performance rows expose the effective PC/server profile used by the run",(
  assert.equal(rows["GPU"],"GPU test");
  assert.equal(rows["CPU logiche"],"16");
  assert.equal(rows["RAM installata"],"32 GiB");
+});
+
+test('observed model replies remain distinct from the initial run configuration',()=>{
+ const rows=Object.fromEntries(performanceRows({configuration:{model:'supervisor-config'},inference_observations:[{role:'audio',reported_model:'audio-actual',machine_id:'pc'},{role:'audio',reported_model:'audio-actual',machine_id:'pc'}]},100));
+ assert.equal(rows['Modello configurato all’avvio'],'supervisor-config');
+ assert.equal(rows['LLM osservato · audio'],'audio-actual · pc');
 });

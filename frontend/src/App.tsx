@@ -558,9 +558,9 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                 <p>
                   {backend.health
                     ? backend.health.ollama_online
-                      ? "Chat collegata all’agente centrale · Orchestratore provvisorio · Modello " +
-                        backend.health.model
-                      : "Ollama offline: avvia il modello locale per inviare messaggi."
+                      ? "Chat collegata a Cora centrale · LLM configurato " +
+                        backend.health.model + (backend.health.model_machine ? " · " + backend.health.model_machine : "")
+                      : "Modello di Cora centrale non raggiungibile: controlla assegnazione e Macchine."
                     : "Backend non collegato"}
                 </p>
                 <p>Storico salvato sul server · ultime 500 conversazioni, fino a 2.000 messaggi per chat.</p>
