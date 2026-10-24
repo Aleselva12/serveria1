@@ -46,8 +46,8 @@ def remote_machine(machine_id, model):
     settings = _settings(machine)
     if not settings['enabled']:
         raise HTTPException(409, "Worker OFF: abilitalo manualmente nella pagina Macchine.")
-    if model != settings['profiles'][settings['active_profile']]:
-        raise HTTPException(409, "Il modello non corrisponde al profilo attivo del worker. Seleziona il profilo in Macchine.")
+    if model != settings['selected_model']:
+        raise HTTPException(409, "Il modello dell'agente non è più quello selezionato manualmente in Macchine. Aggiorna l'assegnazione.")
     return machine
 
 
