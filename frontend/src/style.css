@@ -4290,3 +4290,45 @@ select:disabled {
   .home-architecture-nodes, .home-preflight-list { grid-template-columns: minmax(0, 1fr); }
   .home-goal-status-line { flex-direction: column; gap: 4px; }
 }
+
+
+/* M1: decisions separated from missing implementations, no parallel backlog. */
+.home-architecture-decisions {display:grid;gap:14px;margin:14px 0;}
+.home-architecture-decision {border:1px solid #e2e8e4;border-radius:12px;padding:14px;min-width:0;background:#fafcfb;}
+.home-architecture-decision.confirmed {border-left:4px solid #5b927a;}
+.home-architecture-decision.open {border-left:4px solid #c5a25c;}
+.home-architecture-decision.missing {border-left:4px solid #8995a6;}
+.home-architecture-decision h3 {font-size:14px;margin:0 0 4px;}
+.home-architecture-decision > p {font-size:12px;color:#67756c;line-height:1.5;margin:0 0 12px;}
+.home-architecture-entry {border-top:1px solid #e7ebe8;padding:9px 0;}
+.home-architecture-entry strong {font-size:13px;display:block;}
+.home-architecture-entry small {font-size:12px;display:block;margin-top:4px;color:#69776f;line-height:1.5;}
+.home-m2-summary {padding:12px 0;line-height:1.6;}
+.home-m2-summary p {font-size:13px;}
+.home-m2-goals {margin-top:12px;}
+.home-m2-goals > summary {cursor:pointer;font-size:13px;font-weight:650;}
+/* Canonical results in a single health panel, reused without re-running tests. */
+.home-health-dashboard {display:grid;gap:10px;min-width:0;}
+.home-health-dashboard .metric-head {align-items:start;gap:12px;}
+.home-health-dashboard .metric-head h2 {font-size:17px;}
+.home-health-dashboard h3 {font-size:13px;margin:8px 0 0;}
+.home-health-info {font-size:12px;line-height:1.5;color:#65746b;margin:0;}
+.home-health-component {border:1px solid #e2e8e4;border-radius:10px;padding:10px 12px;min-width:0;}
+.home-health-component > summary {display:flex;gap:8px;justify-content:space-between;cursor:pointer;font-size:13px;}
+.home-health-component > summary span {font-size:11px;color:#68766c;}
+.home-health-component > summary:focus-visible {outline:2px solid #608f7d;outline-offset:4px;}
+.home-health-check-list {margin-top:10px;display:grid;gap:8px;}
+.home-health-check {border-top:1px solid #ebeeeb;padding-top:8px;display:grid;gap:4px;}
+.home-health-check-heading {display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap;}
+.home-health-check-heading strong {font-size:12px;}
+.home-health-check small {display:block;font-size:11px;color:#64746b;overflow-wrap:anywhere;}
+.home-health-check .health-error-detail {color:#aa3427;}
+.home-health-history {max-height:240px;overflow-y:auto;font-size:11px;}
+.home-health-history p {border-bottom:1px solid #edf0ee;padding:6px 0;overflow-wrap:anywhere;}
+.health-service-row > span:last-child {display:inline-flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+.health-service-row a {color:#176e56;text-decoration:underline;}
+@media (max-width:620px) {
+  .home-health-dashboard .metric-head {flex-direction:column;align-items:start;}
+  .home-health-check-heading {align-items:start;}
+  .home-architecture-decision {padding:12px;}
+}
