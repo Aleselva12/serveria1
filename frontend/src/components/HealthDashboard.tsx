@@ -1,6 +1,15 @@
 import {useEffect, useState} from "react";
 import {api, type HealthDashboardData, type HealthCheckDefinition, type HealthResult} from "../services/api";
 import {serviceStatusLabels} from "../services/homeStatus";
+import {homeRoadmap} from "../services/connections";
+
+const goalIds:Record<string,string[]> = {
+  cora:["RUNTIME-MEMORY","AUTO-QUALITY"], files:["FILES-PHOTOS"],
+  audio:["AUDIO-WORD"], calendar:["CALENDAR-MAIL"],
+  worker:["MODELS-WORKER"], backups:["BACKUP-UPDATE"],
+  magazzino_tele:["WORK-APPS"], preventivi:["WORK-APPS"],
+};
+
 import type {ServiceStatus} from "../types/contracts";
 
 const time = (value?:string) => value ? new Date(value).toLocaleString("it-IT") : "Mai";
@@ -72,8 +81,16 @@ export default function HealthDashboard({
       {groups.map(([id,name]) => {
         const list=filtered.filter(c => c.component === id);
         const bad=list.filter(c => statusOf(c,data.latest[c.id]).tone === "error").length;
+        const goals=homeRoadmap.goals.filter(g => (goalIds[id]||[]).includes(g.id));
         return <details key={id} className="home-health-component">
           <summary><strong>{name}</strong><span>{bad ? bad+" errori" : list.length+" verifiche"}</span></summary>
+          {goals.map(goal => <div key={goal.id} className="home-health-development">
+            <strong>Stato sviluppo: {"development" in goal && goal.development || goal.state}</strong>
+            {"issues" in goal && Array.isArray(goal.issues) && goal.issues.length>0 &&
+              <small>Da risolvere: {goal.issues.join(" · ")}</small>}
+            {"verification" in goal && Array.isArray(goal.verification) && goal.verification.length>0 &&
+              <small>Da collaudare: {goal.verification.join(" · ")}</small>}
+          </div>)}
           <div className="home-health-check-list">
           {list.map(item => {
             const last=data.latest[item.id];
