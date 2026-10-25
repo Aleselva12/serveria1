@@ -4332,3 +4332,7 @@ select:disabled {
   .home-health-check-heading {align-items:start;}
   .home-architecture-decision {padding:12px;}
 }
+
+.home-health-development {padding:9px 0 10px;margin-top:10px;border-bottom:1px solid #e9eeea;display:grid;gap:4px;}
+.home-health-development strong {font-size:12px;color:#344b3b;}
+.home-health-development small {font-size:11px;color:#6a766e;line-height:1.5;}
