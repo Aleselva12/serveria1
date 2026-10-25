@@ -33,8 +33,8 @@ const { default: ProjectRoadmap } = await compile('../src/components/ProjectRoad
   [/import \{ api \} from .*?;/, 'const api = globalThis.__projectApi;'],
 ]);
 globalThis.__ProjectRoadmap = ProjectRoadmap;
-let monitoring, refreshes, backendRefreshes;
-const reset = () => { refreshes = 0; backendRefreshes = 0; monitoring = { telemetry: null, services: [], telemetryError: '', servicesError: '', refresh: () => refreshes++ }; };
+let monitoring, refreshes, backendRefreshes, updateOpens;
+const reset = () => { refreshes = 0; backendRefreshes = 0; updateOpens = 0; monitoring = { telemetry: null, services: [], telemetryError: '', servicesError: '', refresh: () => refreshes++ }; };
 reset();
 globalThis.__useHomeMonitoring = () => monitoring;
 globalThis.__push = { currentPushState: async () => ({ supported: false, permission: 'unsupported', subscribed: false }) };
@@ -46,7 +46,7 @@ const { default: MobileHome } = await compile('../src/components/MobileHome.tsx'
   [/import \{[^}]+\} from "\.\.\/services\/pushNotifications";/, 'const {currentPushState}=globalThis.__push;'],
 ]);
 const text = renderer => JSON.stringify(renderer.toJSON());
-const props = health => ({ health, checking: false, onRefresh: () => backendRefreshes++, onNavigate: () => {} });
+const props = health => ({ health, checking: false, onRefresh: () => backendRefreshes++, onNavigate: () => {}, onOpenUpdates: () => updateOpens++ });
 
 test('project goals have four groups and each open goal appears once without claimed server evidence', async () => {
   let r; await act(async () => { r = create(React.createElement(ProjectRoadmap)); });
@@ -61,6 +61,20 @@ test('project goals have four groups and each open goal appears once without cla
   assert.ok(text(r).includes('Prerequisiti presenti'));
   assert.ok(!text(r).includes('Riscontrato'));
   assert.ok(!text(r).includes('Chiuso: causa utente'));
+  await act(async () => r.unmount());
+});
+
+test('mobile Home has a dedicated Update Cora button, independent from server-state refresh', async () => {
+  reset();
+  let r;
+  await act(async () => { r = create(React.createElement(MobileHome, props(null))); });
+  const update = r.root.findByProps({className: 'mobile-primary-button mobile-update-button'});
+  assert.ok(update.children.some(child => typeof child === 'string' && child.includes('Aggiorna Cora')));
+  assert.ok(text(r).includes('Apre gli aggiornamenti'));
+  await act(async () => update.props.onClick());
+  assert.equal(updateOpens, 1);
+  assert.equal(backendRefreshes, 0);
+  assert.equal(refreshes, 0);
   await act(async () => r.unmount());
 });
 

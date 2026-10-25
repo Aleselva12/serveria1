@@ -440,6 +440,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                   checking={backend.checking}
                   onRefresh={() => void backend.refresh()}
                   onNavigate={(next) => navigate(next)}
+                  onOpenUpdates={() => navigate("updates")}
                 />
               </div>
             ) : (
