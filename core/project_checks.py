@@ -165,6 +165,21 @@ def _scheduled_cycle():
             if not db.execute("SELECT pg_try_advisory_lock(709241009)").fetchone()[0]:
                 return None
             try:
+                # The advisory lock serializes live calls. Checking the last
+                # cycle time under that lock also prevents API workers with
+                # staggered startup times from executing duplicate cycles.
+                try:
+                    row = db.execute("""SELECT MAX(observed_at) AS last_checked
+                      FROM project_health_results WHERE check_id='database'
+                      AND source='periodic'""").fetchone()
+                    if row and row[0]:
+                        from datetime import timedelta
+                        if datetime.now(timezone.utc) - row[0] < timedelta(seconds=_INTERVAL):
+                            return None
+                except Exception:
+                    # New schema might not be migrated yet. Try the ordinary
+                    # runner, whose persister explicitly reports failure.
+                    pass
                 return run_once(persist=True)
             finally:
                 db.execute("SELECT pg_advisory_unlock(709241009)")
