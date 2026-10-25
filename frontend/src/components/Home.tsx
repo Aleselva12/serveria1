@@ -18,7 +18,6 @@ const rate = (value: number) =>
 export default function Home({
   health,
   checking,
-  checkedAt,
   onOpenUpdates,
 }: {
   health: BackendHealth | null;

@@ -108,9 +108,11 @@ class CatalogTests(unittest.TestCase):
         def connect(*args,**kwargs):
             yield Database()
 
-        with patch("core.database.DATABASE_URL","postgresql://test"), \\
-             patch("psycopg.connect", side_effect=connect), \\
-             patch.object(project_checks,"run_once") as run_once:
+        with (
+            patch("core.database.DATABASE_URL", "postgresql://test"),
+            patch("psycopg.connect", side_effect=connect),
+            patch.object(project_checks, "run_once") as run_once,
+        ):
             result=project_checks._scheduled_cycle()
         self.assertIsNone(result)
         run_once.assert_not_called()
