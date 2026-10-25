@@ -1,3 +1,4 @@
+import HealthDashboard from "./HealthDashboard";
 import { useEffect, useState } from "react";
 import { apiBaseUrl } from "../services/api";
 import { authenticatedFetch } from "../services/transport";
@@ -261,6 +262,7 @@ export default function Machines() {
           </button>}
       </article>)}
     </div>
+    <div className="section-card"><HealthDashboard componentFilter={["worker","cora"]} compact /></div>
     <div className="section-card" style={{marginTop:16}}>
       <h2>Aggiungi un worker</h2>
       <p className="muted">Avvia il container Windows con Tailscale Serve. La registrazione non installa software, non scarica modelli e non dà accesso al Docker Engine.</p>
