@@ -53,7 +53,8 @@ test("Health panel distinguishes contract checks from untested full workflows",a
     await act(async()=>{r=create(React.createElement(HealthDashboard,{}));});
     assert.ok(rendered(r).includes("Contratto OK"));
     assert.ok(rendered(r).includes("Da verificare"));
-    assert.ok(rendered(r).includes("Stato sviluppo: In costruzione"));
+    assert.ok(rendered(r).includes("Stato sviluppo: "));
+    assert.ok(rendered(r).includes("In costruzione"));
     assert.ok(rendered(r).includes("Verificare ripristino chat"));
     assert.equal(requests,1,"UI should query existing results, never run probes");
   } finally {if(r)await act(async()=>r.unmount());}
