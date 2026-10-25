@@ -95,7 +95,8 @@
       "checks": [
         "audio",
         "database",
-        "library"
+        "library",
+        "word_sample"
       ]
     },
     {
@@ -216,7 +217,8 @@
         "database",
         "library",
         "audio",
-        "ollama"
+        "ollama",
+        "word_sample"
       ]
     },
     {
@@ -264,7 +266,7 @@
   ],
   "limits": [
     "Lo stato di sviluppo dei componenti è ricavato dalla repository, non da un'ispezione in tempo reale del Debian.",
-    "I controlli automatici mostrano SOLO prerequisiti tecnici (database, Libreria, motore Audio, Ollama); non certificano inferenza, trascrizione, scrittura Word, restore o servizi esterni.",
+    "I controlli automatici combinano prerequisiti tecnici e un test Word sintetico in memoria; NON certificano trascrizioni reali, scritture nei file utente, inferenza GPU, restore o servizi esterni.",
     "Un programma può essere funzionante e in costruzione: senza prova funzionale registrata si mostra 'Da verificare'. Le prove mancanti sono elencate per componente.",
     "Il monitor periodico conserva risultati solo nel processo corrente; riavvio e processi multipli non equivalgono a storico persistente.",
     "Obiettivi chiusi e decisioni storiche restano esclusi; nessuna modifica automatica ai file, ai modelli e alle applicazioni."
