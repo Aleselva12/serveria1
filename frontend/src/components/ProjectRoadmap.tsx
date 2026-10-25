@@ -75,8 +75,8 @@ export default function ProjectRoadmap() {
             </div>}
 
             {category.id === "M2" && <div className="home-preflight" aria-label="Monitoraggio tecnico ripetuto">
-              <strong>Controlli automatici dei prerequisiti</strong>
-              <p>Il backend esegue controlli non distruttivi circa ogni 5 minuti, anche senza questa pagina aperta. Non sostituiscono i test delle funzioni.</p>
+              <strong>Controlli periodici e test sintetici</strong>
+              <p>Il backend controlla i prerequisiti e prova un'inserzione Word sintetica in memoria circa ogni 5 minuti, anche senza la Home aperta. Le attività reali richiedono ancora collaudi.</p>
               {preflightError && <p role="status">{preflightError}</p>}
               {!fresh && !preflightError && <p>In attesa di un risultato recente dal backend.</p>}
               {fresh && preflight && <>
