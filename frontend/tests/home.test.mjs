@@ -69,7 +69,7 @@ test('mobile Home has a dedicated Update Cora button, independent from server-st
   let r;
   await act(async () => { r = create(React.createElement(MobileHome, props(null))); });
   const update = r.root.findByProps({className: 'mobile-primary-button mobile-update-button'});
-  assert.ok(JSON.stringify(update.toJSON()).includes('Aggiorna Cora'));
+  assert.ok(JSON.stringify(update.children).includes('Aggiorna Cora'));
   assert.ok(text(r).includes('Apre gli aggiornamenti'));
   await act(async () => update.props.onClick());
   assert.equal(updateOpens, 1);
