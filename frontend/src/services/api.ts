@@ -19,6 +19,23 @@ import type {
   WorkingMemoryState,
 } from "../types/contracts";
 
+export type HealthCheckDefinition = {
+  id: string; title: string; component: string; kind: string; stage: string;
+  frequency: string; dependsOn: string[]; description: string; automated: boolean;
+};
+export type HealthResult = {
+  id: string; status: "pass" | "fail" | "unknown" | "skipped";
+  detail: string; source: string; environment: string;
+  commit: string | null; durationMs: number; at: string;
+};
+export type HealthDashboardData = {
+  catalog: HealthCheckDefinition[];
+  components: Record<string,string>;
+  latest: Record<string,HealthResult>;
+  history: HealthResult[];
+  historyStore: "postgresql" | "unavailable"; updatedAt: string;
+};
+
 export type ProjectPreflight = {
   checkedAt: string | null;
   intervalSeconds: number;
@@ -281,6 +298,18 @@ export const api = {
       )
     )
       throw new ApiError("Stato dei servizi non valido.", "invalid");
+    return data;
+  },
+  async healthDashboard(): Promise<HealthDashboardData> {
+    const data = await request<HealthDashboardData>("/api/v1/system/health-dashboard");
+    if (!data || !Array.isArray(data.catalog) || typeof data.components !== "object" ||
+        !data.components || typeof data.latest !== "object" || !data.latest ||
+        !Array.isArray(data.history) ||
+        !["postgresql","unavailable"].includes(data.historyStore) ||
+        !data.catalog.every(c => typeof c.id === "string" && typeof c.title === "string" &&
+           typeof c.component === "string" && typeof c.stage === "string" &&
+           typeof c.frequency === "string" && Array.isArray(c.dependsOn)))
+      throw new ApiError("Registro dei controlli non valido.", "invalid");
     return data;
   },
   async projectChecks(): Promise<ProjectPreflight> {
