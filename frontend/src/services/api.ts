@@ -19,6 +19,19 @@ import type {
   WorkingMemoryState,
 } from "../types/contracts";
 
+export type ProjectPreflight = {
+  checkedAt: string | null;
+  intervalSeconds: number;
+  scope: "preflight_only";
+  checks: Array<{
+    id: string;
+    label: string;
+    status: "pass" | "fail" | "unknown";
+    detail: string;
+    checkedAt: string;
+  }>;
+};
+
 export const apiBaseUrl = (
   import.meta.env.VITE_API_BASE_URL || "/backend"
 ).replace(/\/$/, "");
@@ -268,6 +281,19 @@ export const api = {
       )
     )
       throw new ApiError("Stato dei servizi non valido.", "invalid");
+    return data;
+  },
+  async projectChecks(): Promise<ProjectPreflight> {
+    const data = await request<ProjectPreflight>("/api/v1/project/checks");
+    if (!data || data.scope !== "preflight_only" ||
+        !(data.checkedAt === null || Number.isFinite(Date.parse(data.checkedAt))) ||
+        !Number.isInteger(data.intervalSeconds) || data.intervalSeconds < 60 ||
+        !Array.isArray(data.checks) ||
+        !data.checks.every(c => c && typeof c.id === "string" &&
+          typeof c.label === "string" && typeof c.detail === "string" &&
+          ["pass", "fail", "unknown"].includes(c.status) &&
+          Number.isFinite(Date.parse(c.checkedAt))))
+      throw new ApiError("Controlli periodici del progetto non validi.", "invalid");
     return data;
   },
   async health(): Promise<BackendHealth> {

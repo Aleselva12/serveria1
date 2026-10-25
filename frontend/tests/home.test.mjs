@@ -22,7 +22,16 @@ async function compile(path, replacements = []) {
 }
 const status = await compile('../src/services/homeStatus.ts');
 globalThis.__homeStatus = status;
-const { default: ProjectRoadmap } = await compile('../src/components/ProjectRoadmap.tsx', [[/import \{ homeRoadmap \} from .*?;/, 'const homeRoadmap = globalThis.__homeRoadmap;']]);
+globalThis.__projectApi = { projectChecks: async () => ({
+  checkedAt: new Date().toISOString(), intervalSeconds: 300, scope: "preflight_only",
+  checks: ["database", "library", "audio", "ollama", "word_sample"].map(id => ({
+    id, label: id, status: "pass", detail: "Prerequisito di prova", checkedAt: new Date().toISOString(),
+  })),
+}) };
+const { default: ProjectRoadmap } = await compile('../src/components/ProjectRoadmap.tsx', [
+  [/import \{ homeRoadmap \} from .*?;/, 'const homeRoadmap = globalThis.__homeRoadmap;'],
+  [/import \{ api \} from .*?;/, 'const api = globalThis.__projectApi;'],
+]);
 globalThis.__ProjectRoadmap = ProjectRoadmap;
 let monitoring, refreshes, backendRefreshes;
 const reset = () => { refreshes = 0; backendRefreshes = 0; monitoring = { telemetry: null, services: [], telemetryError: '', servicesError: '', refresh: () => refreshes++ }; };
@@ -43,7 +52,13 @@ test('project goals have four groups and each open goal appears once without cla
   let r; await act(async () => { r = create(React.createElement(ProjectRoadmap)); });
   assert.equal(r.root.findAllByProps({ className: 'home-goal-group' }).length, 4);
   assert.equal(r.root.findAllByProps({ className: 'settings-row home-goal' }).length, data.goals.length);
-  assert.equal(data.goals.length, 15);
+  assert.equal(data.goals.length, 19);
+  assert.equal(data.nodes.length, 4);
+  assert.equal(r.root.findAllByProps({ className: 'home-architecture-node' }).length, 4);
+  assert.ok(text(r).includes('Sviluppo:'));
+  assert.ok(text(r).includes('Funzionamento:'));
+  assert.ok(!text(r).includes('Funzionamento: Funziona'));
+  assert.ok(text(r).includes('Prerequisiti presenti'));
   assert.ok(!text(r).includes('Riscontrato'));
   assert.ok(!text(r).includes('Chiuso: causa utente'));
   await act(async () => r.unmount());

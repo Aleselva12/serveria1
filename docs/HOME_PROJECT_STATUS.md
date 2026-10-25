@@ -2,7 +2,7 @@
 
 ## Quadro corrente
 
-La Home desktop e mobile usano lo stesso componente `ProjectRoadmap` e gli stessi 15 obiettivi in quattro macroclassi:
+La Home desktop e mobile usano lo stesso componente `ProjectRoadmap` e gli stessi 19 obiettivi in quattro macroclassi:
 
 - M1: decisioni di architettura hardware/software ancora aperte;
 - M2: implementazioni presenti da collaudare nella configurazione reale;
@@ -12,6 +12,51 @@ La Home desktop e mobile usano lo stesso componente `ProjectRoadmap` e gli stess
 La fonte attuale è `docs/project-status.json`. Dopo una modifica eseguire `python deploy/render_roadmap.py`: aggiorna `frontend/src/project-status.generated.json`, incluso anche nelle build Docker del solo frontend. I test controllano che sorgente e copia siano identici, che i gruppi siano validi e che gli obiettivi non siano duplicati.
 
 `docs/roadmap.json`, `17 passi.txt` e la loro copia frontend conservano le 17 decisioni storiche del 18 ottobre: non vengono più mostrati come elenco corrente. La chiusura dell’episodio PostgreSQL e l’esclusione del monitor semantico restano conservate nello storico. Programmatore e nuove capacità di sincronizzazione/gestione file mantengono il rinvio hardware. Non si dichiara completata un’attività sulla sola presenza di codice o pulsanti.
+
+
+## Estensione M1/M2 — roadmap con controlli periodici (branch di sviluppo)
+
+### M1: architettura desiderata, distinta dall'installazione attuale
+
+La pagina ora mostra quattro nodi: **Debian** (API Cora e applicazioni correnti)
+e **desktop RX 6800** (risorsa GPU), entrambi presenti; **laptop worker**
+aggiuntivo e **NAS dedicato** sono previsti, non installati né collaudati.
+Un nodo presente non implica inferenza GPU realmente provata. I nuovi traguardi
+aperti riguardano orchestrazione delle attività sui nodi, confronto con sistemi
+operativi/piattaforme AI e strategia dei modelli (Colibrì è un candidato da
+valutare, non un modello installato).
+
+### M2: due assi indipendenti
+
+- **Sviluppo**: dichiarazione di repository («In costruzione», ecc.), con
+  funzioni mancanti e problemi già noti. Non significa che il prodotto sia rotto.
+- **Funzionamento**: rimane **Da verificare** finché non esiste un collaudo
+  funzionale del flusso completo, datato e riferito alla versione installata.
+- **Ambiente / prerequisiti**: `core/project_checks.py` esegue ogni 300 secondi,
+  nel processo API, quattro prove di prerequisiti e un test funzionale sintetico: SELECT 1 su
+  PostgreSQL SENZA migrazioni, lettura della cartella IA, disponibilità dichiarata
+  del motore Audio e lettura del catalogo Ollama; più una trasformazione Word
+  append-only su un DOCX sintetico interamente in memoria. Lo stato «Presente» significa
+  soltanto che il prerequisito ha risposto, NON che il programma funziona.
+
+La pagina legge `GET /api/v1/project/checks` ogni 30 secondi quando aperta.
+I risultati vengono scartati dalla UI se più vecchi di due intervalli; lo
+snapshot è conservato **solo in memoria del processo**, quindi sparisce al
+riavvio. In un'installazione con più processi API ogni processo mantiene il
+proprio snapshot; non è un registro storico unico né un coordinatore condiviso.
+La raccolta non genera email, eventi, file utente, inferenze, restore o modifiche.
+Il test Word prova il codice di inserimento sintetico, non il riconoscimento cliente su un documento reale.
+Gli errori non restituiscono credenziali o dettagli di connessione.
+
+Sono visibili, separatamente per ogni obiettivo M2, le verifiche end-to-end
+ancora necessarie e le mancanze note. Al momento questi campi sono revisionati
+dalla repository e non vengono compilati automaticamente da un agente.
+
+**Passi successivi aperti:** realizzare test funzionali sintetici isolati,
+registrazione duratura delle prove (data, versione, ambiente, esito), un
+meccanismo di schedulazione condiviso in caso di più processi API e un percorso
+di validazione esplicita prima di dichiarare «funziona». I test unitari e la
+verifica HTTP non equivalgono al collaudo operativo del Debian.
 
 ## Correzioni del resto della Home
 

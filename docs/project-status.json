@@ -1,91 +1,225 @@
 {
   "updatedAt": "25/10/2026",
-  "basis": "Quadro basato sul codice e sulla documentazione. Lo stato della macchina installata richiede un riscontro separato.",
+  "basis": "Traguardi dal codice e dalle decisioni di progetto. Stato di sviluppo documentale; prerequisiti automatici separati dai collaudi su Debian.",
   "categories": [
     {
       "id": "M1",
       "label": "Definire l’architettura",
-      "detail": "Decisioni hardware e software ancora da chiudere."
+      "detail": "Nodi presenti e futuri, orchestrazione, sistemi AI e strategia dei modelli ancora da decidere."
     },
     {
       "id": "M2",
       "label": "Verificare ciò che è implementato",
-      "detail": "Funzioni presenti nel codice da provare nella configurazione reale."
+      "detail": "Controlli ripetuti dei prerequisiti e verifiche end-to-end ancora aperte. Un programma può funzionare pur essendo in costruzione."
     },
     {
       "id": "M3",
       "label": "Completare servizi e applicazioni",
-      "detail": "Estensioni e programmi di lavoro ancora da realizzare o integrare."
+      "detail": "Servizi e applicazioni non ancora completi per l'utilizzo quotidiano."
     },
     {
       "id": "M4",
       "label": "Costruire le automazioni",
-      "detail": "Flussi futuri, con permessi, approvazioni e recupero degli errori."
+      "detail": "Automazioni e capacità agentiche ancora da realizzare."
     }
   ],
   "goals": [
     {
       "id": "ARCH-HW",
       "category": "M1",
-      "label": "Architettura hardware definitiva",
+      "label": "Definire la struttura hardware a nodi",
       "state": "Da definire",
-      "detail": "Confermare dischi, ridondanza, alimentazione e distribuzione tra server e altre macchine, in base ai carichi e ai dati da conservare."
+      "detail": "Stabilire responsabilità e collegamenti tra desktop GPU e server Debian già presenti, laptop worker futuro e NAS futuro. Definire storage, alimentazione, espansione e collocazione dei backup prima degli acquisti."
     },
     {
       "id": "ARCH-SW",
       "category": "M1",
-      "label": "Architettura software e gestione dei dati",
+      "label": "Definire la struttura software e dei dati",
       "state": "Da definire",
-      "detail": "Fissare il ruolo di Cora, servizi foto/drive e applicazioni esterne, dove risiedono originali e copie IA, accessi Tailscale e responsabilità di backup. Il Compose base di Cora non installa tutti questi servizi."
+      "detail": "Decidere confini tra app sul Debian, gestione dati sul futuro NAS, originali/copie IA, Tailscale, autorizzazioni e API fra nodi. I servizi oggi installati sul Debian non diventano automaticamente parte del futuro NAS."
+    },
+    {
+      "id": "ARCH-ORCHESTRATOR",
+      "category": "M1",
+      "label": "Definire un orchestratore centrale reale",
+      "state": "Da progettare",
+      "detail": "Decidere scheduler, code, assegnazione di modelli ai nodi, limiti delle risorse, autorizzazioni e recupero dei task quando un worker si spegne. Distinguere scelta del modello da cambio manuale del profilo worker."
+    },
+    {
+      "id": "ARCH-AI-OS",
+      "category": "M1",
+      "label": "Studiare sistemi operativi e piattaforme AI",
+      "state": "Ricerca da fare",
+      "detail": "Confrontare soluzioni AI OS e sistemi agentici esistenti, valutarne integrazione locale, permessi, interoperabilità e manutenzione. Nessuna piattaforma nuova è già stata selezionata."
+    },
+    {
+      "id": "ARCH-MODELS",
+      "category": "M1",
+      "label": "Definire una strategia dei modelli",
+      "state": "Da valutare",
+      "detail": "Stabilire modelli per task, capacità/VRAM reali e criteri di valutazione. Considerare anche modelli futuri come Colibrì solo dopo verifica di disponibilità, licenza e requisiti; nessun download automatico."
     },
     {
       "id": "FILES-PHOTOS",
       "category": "M2",
       "label": "File, foto e accesso remoto",
       "state": "Da collaudare",
-      "detail": "Verificare risorse autorizzate, permessi, upload e ripristino, accesso da telefono e servizi foto/drive realmente installati. Ridurre gli abbonamenti solo dopo migrazione e recupero dei dati provati."
+      "detail": "Verificare risorse autorizzate, permessi, upload e ripristino, accesso da telefono e servizi foto/drive realmente installati. Ridurre gli abbonamenti solo dopo migrazione e recupero dei dati provati.",
+      "development": "In costruzione",
+      "verification": [
+        "Verifica end-to-end di upload, lettura e download da telefono",
+        "Prova di ripristino dati e accessi con account reali"
+      ],
+      "issues": [
+        "Stato Immich/Nextcloud da verificare sul Debian"
+      ],
+      "checks": [
+        "library"
+      ]
     },
     {
       "id": "AUDIO-WORD",
       "category": "M2",
       "label": "Agente audio e appunti Word",
       "state": "Da collaudare",
-      "detail": "Trascrizione, correzioni e proposte di note sulle copie Word sono implementate. Provare qualità su audio reale, diarizzazione opzionale e approvazione delle aggiunte senza alterare gli originali."
+      "detail": "Trascrizione, correzioni e proposte di note sulle copie Word sono implementate. Provare qualità su audio reale, diarizzazione opzionale e approvazione delle aggiunte senza alterare gli originali.",
+      "development": "In costruzione",
+      "verification": [
+        "Trascrizione di audio reale con modello assegnato",
+        "Anteprima cliente e approvazione di modifica DOCX sintetico/reale in copia",
+        "Verifica che l'originale rimanga invariato"
+      ],
+      "issues": [
+        "Qualità e diarizzazione opzionale non collaudate"
+      ],
+      "checks": [
+        "audio",
+        "database",
+        "library",
+        "word_sample"
+      ]
     },
     {
       "id": "CALENDAR-MAIL",
       "category": "M2",
       "label": "Calendario e strumenti email",
       "state": "Da collaudare",
-      "detail": "Calendario locale/Google, approvazioni, bozze Gmail e PDF sono presenti. Verificare account reali, eventi, conflitti e promemoria. L’invio email automatico resta bloccato."
+      "detail": "Calendario locale/Google, approvazioni, bozze Gmail e PDF sono presenti. Verificare account reali, eventi, conflitti e promemoria. L’invio email automatico resta bloccato.",
+      "development": "In costruzione",
+      "verification": [
+        "Google Calendar: creazione, modifica, conflitto e no duplicati",
+        "Bozze Gmail/PDF con account reali e permessi",
+        "Notifiche effettivamente ricevute"
+      ],
+      "issues": [
+        "Invio email automatico non abilitato"
+      ],
+      "checks": [
+        "database"
+      ]
     },
     {
       "id": "RUNTIME-MEMORY",
       "category": "M2",
       "label": "Affidabilità di Cora e gestione della memoria",
       "state": "Da collaudare",
-      "detail": "Provare cronologia, versioni della memoria, permessi, annullamento, riavvio e operazioni incerte. Controllare anche recupero dei documenti e contesto degli specialisti; i test di sviluppo non chiudono il collaudo reale."
+      "detail": "Provare cronologia, versioni della memoria, permessi, annullamento, riavvio e operazioni incerte. Controllare anche recupero dei documenti e contesto degli specialisti; i test di sviluppo non chiudono il collaudo reale.",
+      "development": "In costruzione",
+      "verification": [
+        "Cronologia e memoria dopo riavvio",
+        "Approvazioni/rifiuti, timeout e operazioni incerte",
+        "Recupero documentale con autorizzazioni"
+      ],
+      "issues": [
+        "Mancano collaudi completi sotto carico"
+      ],
+      "checks": [
+        "database",
+        "library"
+      ]
     },
     {
       "id": "MODELS-WORKER",
       "category": "M2",
       "label": "Modelli IA e lavoro su più macchine",
       "state": "Da collaudare",
-      "detail": "Scelte per agente e bridge desktop sono implementati. Verificare modello e macchina effettivi, compatibilità del worker, capacità dichiarate e prestazioni. Il worker remoto restituisce la risposta al termine."
+      "detail": "Scelte per agente e bridge desktop sono implementati. Verificare modello e macchina effettivi, compatibilità del worker, capacità dichiarate e prestazioni. Il worker remoto restituisce la risposta al termine.",
+      "development": "In costruzione",
+      "verification": [
+        "Inferenza GPU reale via desktop worker",
+        "Modello richiesto = modello realmente eseguito",
+        "Worker spento e fallback senza errore silenzioso"
+      ],
+      "issues": [
+        "Scheduling multi-worker non implementato"
+      ],
+      "checks": [
+        "ollama"
+      ]
     },
     {
       "id": "BACKUP-UPDATE",
       "category": "M2",
       "label": "Backup, ripristino e aggiornamenti",
       "state": "Da collaudare",
-      "detail": "Backup ordinari, backup cifrati opzionali e updater esistono nel codice. Verificare configurazione installata, copertura dei dati, restore su ambiente vuoto e rollback. Un checksum valido non prova il recupero."
+      "detail": "Backup ordinari, backup cifrati opzionali e updater esistono nel codice. Verificare configurazione installata, copertura dei dati, restore su ambiente vuoto e rollback. Un checksum valido non prova il recupero.",
+      "development": "In costruzione",
+      "verification": [
+        "Backup verificato su dati non Git",
+        "Restore in ambiente isolato e vuoto",
+        "Rollback aggiornamento fallito"
+      ],
+      "issues": [
+        "La presenza di file backup non prova il ripristino"
+      ],
+      "checks": [
+        "database",
+        "library"
+      ]
     },
     {
       "id": "PROGRAMMER",
       "category": "M2",
       "label": "Programmatore: lavoro completo e verifiche",
       "state": "Rinviato: hardware",
-      "detail": "Workspace, check e release su richiesta sono presenti. Rimane la prova completa con modello reale, file, test e risposta finale; ottimizzazione rinviata all’upgrade hardware."
+      "detail": "Workspace, check e release su richiesta sono presenti. Rimane la prova completa con modello reale, file, test e risposta finale; ottimizzazione rinviata all’upgrade hardware.",
+      "development": "In costruzione",
+      "verification": [
+        "Richiesta completa con tool, test e risposta finale",
+        "Corretta gestione del secondo messaggio",
+        "Misurazione tempi e autorizzazioni"
+      ],
+      "issues": [
+        "Ottimizzazione rinviata a maggiore potenza di calcolo"
+      ],
+      "checks": [
+        "ollama",
+        "database"
+      ]
+    },
+    {
+      "id": "AUTO-QUALITY",
+      "category": "M2",
+      "label": "Monitor automatico e ripetuto delle funzionalità",
+      "state": "Implementazione da verificare",
+      "detail": "Eseguire periodicamente controlli non distruttivi sul backend e mostrare quando e dove sono stati svolti. Aggiungere successivamente test sintetici end-to-end isolati e uno storico durevole; evitare falsi 'funziona' basati sul solo HTTP.",
+      "development": "In costruzione",
+      "verification": [
+        "Confermare cicli periodici anche senza Home aperta",
+        "Collaudare arresto, riavvio, probe fallito e scadenza dati",
+        "Ampliare ai test funzionali sintetici isolati"
+      ],
+      "issues": [
+        "I primi controlli verificano solo prerequisiti tecnici; non sono prove end-to-end",
+        "La cronologia dei controlli non è ancora persistente"
+      ],
+      "checks": [
+        "database",
+        "library",
+        "audio",
+        "ollama",
+        "word_sample"
+      ]
     },
     {
       "id": "WORK-APPS",
@@ -131,7 +265,36 @@
     }
   ],
   "limits": [
-    "I punti già chiusi non compaiono tra gli obiettivi aperti. I rinvii hardware e l’esclusione del monitor semantico restano validi.",
-    "La raggiungibilità di un servizio e la presenza di test non dimostrano che un flusso di lavoro sia collaudato. Il congelamento della versione resta successivo alle verifiche finali."
+    "Lo stato di sviluppo dei componenti è ricavato dalla repository, non da un'ispezione in tempo reale del Debian.",
+    "I controlli automatici combinano prerequisiti tecnici e un test Word sintetico in memoria; NON certificano trascrizioni reali, scritture nei file utente, inferenza GPU, restore o servizi esterni.",
+    "Un programma può essere funzionante e in costruzione: senza prova funzionale registrata si mostra 'Da verificare'. Le prove mancanti sono elencate per componente.",
+    "Il monitor periodico conserva risultati solo nel processo corrente; riavvio e processi multipli non equivalgono a storico persistente.",
+    "Obiettivi chiusi e decisioni storiche restano esclusi; nessuna modifica automatica ai file, ai modelli e alle applicazioni."
+  ],
+  "nodes": [
+    {
+      "id": "debian",
+      "name": "Server Debian",
+      "role": "Gestore delle applicazioni, API Cora, orchestrazione e servizi attuali",
+      "phase": "presente"
+    },
+    {
+      "id": "desktop",
+      "name": "Desktop",
+      "role": "Risorsa di inferenza con GPU/VRAM RX 6800 (effettivo impiego da verificare)",
+      "phase": "presente"
+    },
+    {
+      "id": "laptop",
+      "name": "Laptop worker",
+      "role": "Eventuale VRAM aggiuntiva e calcolo su richiesta",
+      "phase": "futuro"
+    },
+    {
+      "id": "nas",
+      "name": "NAS dedicato",
+      "role": "Archiviazione dati, cloud privato e backup; attualmente parte dei servizi è sul Debian",
+      "phase": "futuro"
+    }
   ]
 }
