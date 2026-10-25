@@ -28,6 +28,7 @@ let code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES20
  .replace(/import ProgrammerReleases from "\.\/ProgrammerReleases";/, "const ProgrammerReleases=()=>null;")
  .replace(/import ProgrammerArtifacts from "\.\/ProgrammerArtifacts";/, "const ProgrammerArtifacts=()=>null;")
  .replace(/import PersonalTerminal from "\.\/PersonalTerminal";/, "const PersonalTerminal=()=>null;")
+ .replace(/import HealthDashboard from "\.\/HealthDashboard";/, "const HealthDashboard=()=>null;")
  .replace(/import WorkspaceEditor from "\.\/WorkspaceEditor";/, "const WorkspaceEditor=()=>null;")
  .replace(/import \{ api \} from "\.\.\/services\/api";/,'const api={conversationMessages:id=>globalThis.__programmerHistory(id)};')
  .replace(/import \{ runtimeRequest \} from "\.\.\/services\/runtimeApi";/,'const runtimeRequest=(...args)=>globalThis.__programmerRuntime(...args);');
