@@ -24,16 +24,22 @@ class ProjectChecksTests(unittest.TestCase):
             "library": lambda: ("pass", "Folder readable"),
             "audio": lambda: (_ for _ in ()).throw(OSError("private detail")),
             "ollama": lambda: ("unknown", "Not configured"),
+            "word_sample": lambda: ("pass", "Synthetic test"),
         }, clear=True):
             snapshot = pc.run_once()
         states = {item["id"]: item["status"] for item in snapshot["checks"]}
         self.assertEqual(states, {
             "database": "pass", "library": "pass",
-            "audio": "fail", "ollama": "unknown",
+            "audio": "fail", "ollama": "unknown", "word_sample": "pass",
         })
         self.assertEqual(snapshot["scope"], "preflight_only")
         self.assertNotIn("private detail", str(snapshot))
         self.assertIsNotNone(pc.snapshot()["checkedAt"])
+
+    def test_word_append_synthetic_does_not_touch_user_files(self):
+        state, message = pc._word_sample()
+        self.assertEqual(state, "pass")
+        self.assertIn("memoria", message)
 
     def test_copy_of_snapshot_cannot_mutate_cached_result(self):
         with patch.dict(pc._PROBES, {key: (lambda: ("pass", "Only prerequisites")) for key in pc.CHECKS}):
