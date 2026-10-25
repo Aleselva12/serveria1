@@ -199,27 +199,30 @@ def health_dashboard():
     """Single source for every UI: catalog + last evidence + bounded history."""
     from core.database import db_connection
     records = []
+    latest_rows = []
     store = "unavailable"
     try:
         # Reading monitoring data must never trigger schema migrations.
         with db_connection(ensure_schema=False) as conn:
+            latest_rows = conn.execute("""SELECT DISTINCT ON (check_id)
+              check_id,status,detail,source,environment,commit_sha,duration_ms,observed_at
+              FROM project_health_results
+              ORDER BY check_id,observed_at DESC,id DESC""").fetchall()
             records = conn.execute("""SELECT check_id,status,detail,source,environment,
               commit_sha,duration_ms,observed_at FROM project_health_results
-              ORDER BY observed_at DESC,id DESC LIMIT 200""").fetchall()
+              ORDER BY observed_at DESC,id DESC LIMIT 100""").fetchall()
         store = "postgresql"
     except Exception:
         pass
-    latest = {}
-    history = []
-    for row in records:
-        item = {"id":row["check_id"],"status":row["status"],"detail":row["detail"],
+
+    def public(row):
+        return {"id":row["check_id"],"status":row["status"],"detail":row["detail"],
                 "source":row["source"],"environment":row["environment"],
                 "commit":row["commit_sha"] or None,
-                "durationMs":row["duration_ms"],
-                "at":row["observed_at"].isoformat()}
-        if item["id"] in CATALOG:
-            history.append(item)
-            latest.setdefault(item["id"], item)
+                "durationMs":row["duration_ms"],"at":row["observed_at"].isoformat()}
+
+    latest = {row["check_id"]:public(row) for row in latest_rows if row["check_id"] in CATALOG}
+    history = [public(row) for row in records if row["check_id"] in CATALOG]
     volatile = snapshot()
     # Temporary snapshot is expressly labeled as such, not durable evidence.
     if not latest and volatile["checks"]:
