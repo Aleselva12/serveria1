@@ -41,8 +41,8 @@ let code=ts.transpileModule(source,{compilerOptions:{
  .replace(/from ["']react\/jsx-runtime["']/g,"from "+external("react/jsx-runtime"))
  .replace(/from ["']react["']/g,"from "+external("react"))
  .replace(/import \{ api \} from .*?;/,"const api=globalThis.__healthApi;")
- .replace(/import \{serviceStatusLabels\} from .*?;/,"const serviceStatusLabels=globalThis.__serviceLabels;")
- .replace(/import \{homeRoadmap\} from .*?;/,"const homeRoadmap=globalThis.__roadmap;");
+ .replace(/import \{\s*serviceStatusLabels\s*\} from .*?;/,"const serviceStatusLabels=globalThis.__serviceLabels;")
+ .replace(/import \{\s*homeRoadmap\s*\} from .*?;/,"const homeRoadmap=globalThis.__roadmap;");
 const HealthDashboard=(await import("data:text/javascript;base64,"+Buffer.from(code).toString("base64"))).default;
 const rendered=r=>JSON.stringify(r.toJSON());
 
