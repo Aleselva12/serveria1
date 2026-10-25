@@ -38,6 +38,39 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(status,"fail")
         self.assertIn("orchestratore",detail)
 
+    def test_chat_to_specialist_graph_exchange_with_mocked_agent(self):
+        """Exercise the compiled supervisor graph and ToolNode, without Ollama."""
+        import graph as supervisor
+        from langchain_core.messages import AIMessage, HumanMessage
+        from langchain_core.tools import tool
+        invoked = []
+
+        @tool
+        def search_agent_tool(query: str, thread_id: str = "") -> str:
+            """Fake isolated specialist delegation."""
+            invoked.append(query)
+            return "Risposta delegata al cliente di prova"
+
+        class Model:
+            def invoke(self, messages):
+                return AIMessage(content="", tool_calls=[{
+                    "name":"search_agent_tool", "id":"delegation-1",
+                    "args":{"query":"Cerca ordine di prova"},
+                }])
+
+        with patch.object(supervisor,"model_with_tools",Model()), \
+             patch.object(supervisor,"ensure_runtime_active"), \
+             patch.object(supervisor,"_runtime_system_prompt",
+                          return_value=("Prompt di test","",[],["search_agent_tool"])), \
+             patch("core.library_preflight.preload",return_value=""), \
+             patch.dict(supervisor.tool_node.tools_by_name,{"search_agent_tool":search_agent_tool}):
+            result = supervisor.graph.invoke({
+                "messages":[HumanMessage("Cerca ordine di prova")],
+                "request_text":"Cerca ordine di prova",
+            })
+        self.assertEqual(invoked,["Cerca ordine di prova"])
+        self.assertIn("Risposta delegata",result["messages"][-1].content)
+
     def test_audio_to_word_route_and_approval_wiring(self):
         status,detail=project_contracts.audio_word_contract()
         self.assertEqual(status,"pass",detail)
