@@ -24,7 +24,7 @@ const status = await compile('../src/services/homeStatus.ts');
 globalThis.__homeStatus = status;
 globalThis.__projectApi = { projectChecks: async () => ({
   checkedAt: new Date().toISOString(), intervalSeconds: 300, scope: "preflight_only",
-  checks: ["database", "library", "audio", "ollama"].map(id => ({
+  checks: ["database", "library", "audio", "ollama", "word_sample"].map(id => ({
     id, label: id, status: "pass", detail: "Prerequisito di prova", checkedAt: new Date().toISOString(),
   })),
 }) };
