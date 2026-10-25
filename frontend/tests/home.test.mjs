@@ -41,6 +41,7 @@ globalThis.__push = { currentPushState: async () => ({ supported: false, permiss
 const { default: MobileHome } = await compile('../src/components/MobileHome.tsx', [
   [/import \{[^}]+\} from "lucide-react";/, 'const Activity=()=>null, CalendarDays=Activity, FileAudio=Activity, Files=Activity, Images=Activity, MessageCircle=Activity, RefreshCw=Activity, Settings=Activity, Server=Activity;'],
   [/import ProjectRoadmap from .*?;/, 'const ProjectRoadmap=globalThis.__ProjectRoadmap;'],
+  [/import HealthDashboard from .*?;/, 'const HealthDashboard=()=>null;'],
   [/import \{ serviceStatusLabels, serviceSummary \} from .*?;/, 'const { serviceStatusLabels, serviceSummary }=globalThis.__homeStatus;'],
   [/import \{ useHomeMonitoring \} from .*?;/, 'const useHomeMonitoring=globalThis.__useHomeMonitoring;'],
   [/import \{[^}]+\} from "\.\.\/services\/pushNotifications";/, 'const {currentPushState}=globalThis.__push;'],
@@ -51,14 +52,16 @@ const props = health => ({ health, checking: false, onRefresh: () => backendRefr
 test('project goals have four groups and each open goal appears once without claimed server evidence', async () => {
   let r; await act(async () => { r = create(React.createElement(ProjectRoadmap)); });
   assert.equal(r.root.findAllByProps({ className: 'home-goal-group' }).length, 4);
-  assert.equal(r.root.findAllByProps({ className: 'settings-row home-goal' }).length, data.goals.length);
+  assert.equal(r.root.findAllByProps({ className: 'settings-row home-goal' }).length,
+    data.goals.filter(g => g.category !== 'M1').length);
   assert.equal(data.goals.length, 19);
   assert.equal(data.nodes.length, 4);
   assert.equal(r.root.findAllByProps({ className: 'home-architecture-node' }).length, 4);
-  assert.ok(text(r).includes('Sviluppo:'));
-  assert.ok(text(r).includes('Funzionamento:'));
+  assert.equal(r.root.findAllByProps({ className: 'home-architecture-decision confirmed' }).length, 1);
+  assert.equal(r.root.findAllByProps({ className: 'home-architecture-decision open' }).length, 1);
+  assert.equal(r.root.findAllByProps({ className: 'home-architecture-decision missing' }).length, 1);
+  assert.ok(text(r).includes('Vai alla dashboard dei controlli'));
   assert.ok(!text(r).includes('Funzionamento: Funziona'));
-  assert.ok(text(r).includes('Prerequisiti presenti'));
   assert.ok(!text(r).includes('Riscontrato'));
   assert.ok(!text(r).includes('Chiuso: causa utente'));
   await act(async () => r.unmount());

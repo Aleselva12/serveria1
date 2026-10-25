@@ -1,3 +1,4 @@
+import HealthDashboard from "./HealthDashboard";
 import ThinkingPanel, { type ThinkingState } from "./ThinkingPanel";
 import { LengthChoice, RunTimer, type ResponseLength } from "./RunControls";
 import { useEffect, useRef, useState } from "react";
@@ -584,6 +585,7 @@ export default function Programmer() {
             void refresh(selected).catch((e) => setError(String(e)));
         }}
       />
+      <HealthDashboard componentFilter={["cora","worker"]} compact />
       <ProgrammerArtifacts
         workspaceId={selected}
         revision={revision}

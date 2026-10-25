@@ -1,11 +1,11 @@
+import HealthDashboard from "./HealthDashboard";
 import LibraryMonitorFeed from "./LibraryMonitorFeed";
-import { Activity, ExternalLink, HardDrive, PlugZap, ShieldCheck, Wifi } from "lucide-react";
+import { Activity, HardDrive, PlugZap, ShieldCheck, Wifi } from "lucide-react";
 import CurrentCommit from "./CurrentCommit";
 import ManagedApplications from "./ManagedApplications";
 import type { BackendHealth } from "../types/contracts";
 import { useHomeMonitoring } from "../services/useHomeMonitoring";
 import ProjectRoadmap from "./ProjectRoadmap";
-import { serviceStatusLabels } from "../services/homeStatus";
 
 const bytes = (value: number) =>
   (value / 1024 ** 3).toLocaleString("it-IT", { maximumFractionDigits: 1 }) +
@@ -232,63 +232,7 @@ export default function Home({
             </div>
           )}
         </div>
-        <div className="system-card home-placeholder">
-          <h2>Stato dei servizi</h2>
-          <p className="home-backlog-intro">Un servizio raggiungibile risponde al controllo; il suo funzionamento completo richiede un collaudo.</p>
-          {servicesError && <p role="alert">{servicesError}</p>}
-          {services.length ? (
-            services.map((service) => (
-              <div className="settings-row" key={service.id}>
-                <div>
-                  <strong>{service.label}</strong>
-                  <small className="home-service-detail">
-                    {service.detail}
-                  </small>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  {service.browserUrl && /^https?:\/\/[^\s]+$/i.test(service.browserUrl) && (
-                    <a className="pill" href={service.browserUrl} target="_blank" rel="noopener noreferrer" aria-label={`Apri ${service.label} in una nuova scheda`}>
-                      Apri <ExternalLink size={13} aria-hidden="true" />
-                    </a>
-                  )}
-                  <span className={"pill " + (service.status === "ready" ? "success" : "")}>
-                    {serviceStatusLabels[service.status]}
-                  </span>
-                </div>
-              </div>
-            ))
-          ) : (
-            <>
-              <div className="settings-row">
-                <strong>FastAPI</strong>
-                <span className={"pill " + (health ? "success" : "")}>
-                  {health
-                    ? "Collegato"
-                    : checking
-                      ? "Verifica…"
-                      : "Non raggiungibile"}
-                </span>
-              </div>
-              <div className="settings-row">
-                <strong>Ollama locale</strong>
-                <span className="pill">
-                  {health
-                    ? health.ollama_online
-                      ? "Raggiungibile"
-                      : "Non raggiungibile"
-                    : "Non verificato"}
-                </span>
-              </div>
-            </>
-          )}
-          <small>
-            {(services[0]?.checkedAt || checkedAt) &&
-              "Ultimo controllo: " +
-                new Date(
-                  services[0]?.checkedAt || checkedAt,
-                ).toLocaleTimeString("it-IT")}
-          </small>
-        </div>
+        <div className="system-card home-placeholder"><HealthDashboard showServices services={services} servicesError={servicesError} /></div>
       </div>
     </section>
   );

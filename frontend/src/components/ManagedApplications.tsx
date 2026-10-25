@@ -1,3 +1,4 @@
+import HealthDashboard from "./HealthDashboard";
 import { useEffect, useState } from "react";
 import { apiBaseUrl } from "../services/api";
 import { authenticatedFetch } from "../services/transport";
@@ -32,6 +33,7 @@ export default function ManagedApplications() {
  <button className="text-button" onClick={()=>void refresh()}>Verifica stato</button>
  {error&&<p role="alert">{error}</p>}
  {!data?.available&&<p>Servizio host per le applicazioni esterne non abilitato. L'installazione richiede configurazione del Debian.</p>}
+ <HealthDashboard componentFilter={["magazzino_tele","preventivi"]} compact />
  {data?.apps.map(app=><div key={app.id}><strong>{app.name}</strong> — {app.running?"Online":app.installed?"Installata, servizio non attivo":"Da installare"}
  <p>{app.repository}</p>{app.commit&&<p>Versione: <code>{app.commit}</code></p>}{app.installed&&!app.configured&&<p>Configurazione privata e schema necessari.</p>}<p>{app.job?.status==="running"?"Operazione in corso":app.job?.status==="needs_configuration"?"Configura schema e segreti sul Debian":app.job?.status==="failed"?(app.job.message||"Operazione fallita: controlla il servizio host"):""}</p>
  <button className="file-tool" disabled={!data.available||busy||app.job?.status==="running"} onClick={()=>void action(app)}>{app.installed?"Aggiorna e verifica":"Installa"}</button>

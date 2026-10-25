@@ -58,6 +58,63 @@ meccanismo di schedulazione condiviso in caso di più processi API e un percorso
 di validazione esplicita prima di dichiarare «funziona». I test unitari e la
 verifica HTTP non equivalgono al collaudo operativo del Debian.
 
+
+## M1/M2 — decisioni, un solo catalogo e collegamenti tra programmi
+
+La M1 in Home non è più una lista parallela di generiche attività. `docs/project-status.json`
+conserva separatamente `architecture.confirmed` (scelte realmente decise, NON tutte
+implementate), `architecture.open` (ancora da decidere) e `architecture.missing`
+(componenti da realizzare). I nodi Debian/desktop presenti e laptop/NAS futuri sono
+rappresentati senza inferire l'effettiva inferenza GPU dai soli collegamenti HTTP.
+
+**Unica dashboard M2:** il riquadro desktop originario «Stato dei servizi»
+diventa «Salute del sistema e collaudi». Riutilizza il controllo HTTP già esistente
+(`GET /api/v1/system/status`) e un catalogo di test separato:
+`core/health_catalog.py` è l'unica fonte delle definizioni/ID, usata da
+`core/project_checks.py`, Home, Macchine, pagina Programma e gestione gestionali.
+Le viste possono fare letture della stessa API, ma non duplicano l'esecuzione
+dei test. La Home mobile mostra le verifiche accanto allo stato dei servizi.
+
+**Storicizzazione**: migrazione aggiuntiva `0007_project_health_results.sql`.
+Ogni controllo periodico scrive in PostgreSQL il proprio ID, esito, stadio,
+durata, ambiente, eventuale commit esposto dall'installazione e timestamp.
+La dashboard legge l'ultimo risultato di ogni ID e un estratto dei risultati recenti;
+non perde i risultati vecchi soltanto perché escono dalla finestra degli ultimi
+100 eventi. Il runner usa un advisory lock PostgreSQL per evitare cicli identici
+concorrenti su più processi API. Se PostgreSQL non è disponibile, le verifiche
+possono continuare solo in memoria, **segnalate esplicitamente come non persistenti**.
+
+**Controlli automatici circa ogni 5 minuti**: PostgreSQL SELECT 1, leggibilità
+Libreria IA, prerequisiti Audio, elenco modelli Ollama, inserimento Word sintetico
+in memoria, nonché controlli di contratti/collegamenti:
+- Chat API → grafo supervisor → nodi → tool di delega verso agenti;
+- Audio API → proposta → approvazione → engine Word;
+- Calendario API → proposte → collegamento Google;
+- Assegnazione modelli → registrazione API worker.
+
+Questi controlli strutturali localizzano un collegamento mancante, **non provano
+che un agente abbia risposto correttamente**. È stato introdotto anche un test
+CI sintetico che percorre il grafo di orchestrazione e chiama un *agente finto*
+senza LLM, verificando che la risposta delegata arrivi al chiamante.
+I collaudi completi su account e servizi reali restano voci del catalogo con
+`automated=false` e stato **Da verificare**, senza avvio automatico:
+Google Calendar e duplicati, Audio reale, worker GPU, upload/download file,
+Immich, Nextcloud, Magazzino Tele, Preventivi, backup/restore e rollback.
+
+**Limiti e scelte di sicurezza**: i controlli automatici non inseriscono
+appuntamenti, inviano email, caricano foto, generano preventivi reali, avviano
+modelli, modificano documenti di utenti o ripristinano il database.
+Un esito PASS del contratto API non equivale a un PASS end-to-end. Gli esiti
+sui dati reali e le prove di integrazione sulle installazioni devono essere
+eseguiti separatamente, isolando i dati di test e valutando autorizzazioni.
+L'importazione automatica di attestazioni da GitHub Actions/updater non è
+ancora collegata: la tabella ha i campi `source`/commit per tale sviluppo ma
+non dichiara test CI o deploy non osservati dall'API.
+
+Dopo le modifiche, eseguire `python deploy/render_roadmap.py`, la suite
+backend/frontend della PR e un collaudo con PostgreSQL su DB di prova.
+La build o la PR verde non certificano la versione Debian installata.
+
 ## Correzioni del resto della Home
 
 - Eliminati “cinque priorità” su un elenco di 17 passi, ripetizioni dello stesso backlog e il badge positivo “Riscontrato” applicato a un collaudo ancora da svolgere.
