@@ -24,6 +24,7 @@ CHECKS = {
     "library": "Lettura Libreria IA",
     "audio": "Prerequisiti motore Audio",
     "ollama": "Catalogo modelli Ollama",
+    "word_sample": "Inserimento Word sintetico",
 }
 
 
@@ -69,7 +70,34 @@ def _ollama() -> tuple[str, str]:
     return "pass", "Catalogo raggiungibile; nessuna inferenza o GPU verificata"
 
 
-_PROBES = {"database": _database, "library": _library, "audio": _audio, "ollama": _ollama}
+
+def _word_sample() -> tuple[str, str]:
+    """Run a REAL append-only Word transformation on in-memory synthetic data."""
+    from io import BytesIO
+    from docx import Document
+    from core.commercial_word import parse, propose_append
+
+    document = Document()
+    for line in ("LIDO TEST", "Interlocutore prova", "21/10/2026", "Nota originale",
+                 "---------------------------------------------------------",
+                 "HOTEL SECONDO", "Referente", "21/10/2026", "Altro contenuto",
+                 "---------------------------------------------------------"):
+        document.add_paragraph(line)
+    stream = BytesIO()
+    document.save(stream)
+    source = stream.getvalue()
+    blocks = parse(source)
+    if len(blocks) != 2:
+        return "fail", "Segmentazione Word sintetico non riuscita"
+    candidate = propose_append(source, blocks[0], "25/10/2026", "Nuova nota di prova")
+    old = [p.text for p in Document(BytesIO(source)).paragraphs]
+    new = [p.text for p in Document(BytesIO(candidate)).paragraphs]
+    if new != old[:4] + ["25/10/2026", "Nuova nota di prova"] + old[4:]:
+        return "fail", "Aggiunta Word sintetica non preserva i paragrafi"
+    return "pass", "Aggiunta append-only riuscita in memoria; file reali non testati"
+
+
+_PROBES = {"database": _database, "library": _library, "audio": _audio, "ollama": _ollama, "word_sample": _word_sample}
 
 
 def run_once() -> dict:
