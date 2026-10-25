@@ -34,11 +34,13 @@ export default function MobileHome({
   checking,
   onRefresh,
   onNavigate,
+  onOpenUpdates,
 }: {
   health: BackendHealth | null;
   checking: boolean;
   onRefresh: () => void;
   onNavigate: (page: MobilePage) => void;
+  onOpenUpdates: () => void;
 }) {
   const { telemetry, services, telemetryError, servicesError, refresh } = useHomeMonitoring();
   const [pushState, setPushState] = useState<PushState>({
@@ -98,6 +100,11 @@ export default function MobileHome({
           <RefreshCw size={19} className={checking ? "spin" : ""} />
         </button>
       </div>
+
+      <button type="button" className="mobile-primary-button mobile-update-button" onClick={onOpenUpdates}>
+        <RefreshCw size={18} aria-hidden="true" /> Aggiorna Cora
+      </button>
+      <p className="mobile-update-help">Apre gli aggiornamenti per controllare versione, log e confermare il deploy.</p>
 
       <div className="mobile-primary-grid">
         <button onClick={() => onNavigate("photos")}><Images /><strong>Foto</strong><span>Collegamento al servizio foto</span></button>
