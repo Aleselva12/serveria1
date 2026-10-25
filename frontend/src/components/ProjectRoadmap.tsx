@@ -45,7 +45,7 @@ export default function ProjectRoadmap() {
       } finally { pending = false; }
     }
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 30000);
+    const timer = setInterval(() => void refresh(), 30000);
     return () => { active = false; clearInterval(timer); };
   }, []);
 
