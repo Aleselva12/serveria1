@@ -1,3 +1,4 @@
+import HealthDashboard from "./HealthDashboard";
 import { useEffect, useState } from "react";
 import {
   Activity,
@@ -132,6 +133,7 @@ export default function MobileHome({
             </div>
           ))}
         </div>
+        <HealthDashboard compact />
       </div>
 
       <div className="mobile-status-card">
