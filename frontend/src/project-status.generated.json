@@ -269,7 +269,8 @@
     "I controlli automatici combinano prerequisiti tecnici e un test Word sintetico in memoria; NON certificano trascrizioni reali, scritture nei file utente, inferenza GPU, restore o servizi esterni.",
     "Un programma può essere funzionante e in costruzione: senza prova funzionale registrata si mostra 'Da verificare'. Le prove mancanti sono elencate per componente.",
     "Il monitor periodico conserva risultati solo nel processo corrente; riavvio e processi multipli non equivalgono a storico persistente.",
-    "Obiettivi chiusi e decisioni storiche restano esclusi; nessuna modifica automatica ai file, ai modelli e alle applicazioni."
+    "Obiettivi chiusi e decisioni storiche restano esclusi; nessuna modifica automatica ai file, ai modelli e alle applicazioni.",
+    "La dashboard dei test è condivisa: M2 elenca problemi e obiettivi, mentre il registro salute raccoglie controlli automatici e collaudi, senza doppia esecuzione."
   ],
   "nodes": [
     {
@@ -296,5 +297,69 @@
       "role": "Archiviazione dati, cloud privato e backup; attualmente parte dei servizi è sul Debian",
       "phase": "futuro"
     }
-  ]
+  ],
+  "architecture": {
+    "confirmed": [
+      {
+        "title": "Server Debian: nodo centrale",
+        "detail": "Gestisce Cora, API, orchestrazione attuale e applicazioni; servizi di file/foto oggi possono trovarsi sul Debian."
+      },
+      {
+        "title": "Desktop: risorsa IA separata",
+        "detail": "RX 6800 16 GB VRAM disponibile come worker; l'inferenza remota end-to-end deve essere verificata."
+      },
+      {
+        "title": "Rete privata Tailscale",
+        "detail": "Accesso remoto e comunicazione tra nodi, con autorizzazioni indipendenti dai permessi Tailscale."
+      },
+      {
+        "title": "Espansione per nodi",
+        "detail": "Aggiunta possibile di laptop worker e futuro NAS dedicato; non sono componenti già installati."
+      },
+      {
+        "title": "Servizi indipendenti dalla GPU",
+        "detail": "File, foto, database e gestionali devono restare disponibili quando i worker IA sono spenti."
+      },
+      {
+        "title": "Controllo manuale delle risorse",
+        "detail": "Profili worker ON/OFF e selezione modelli controllati dall'utente, non dagli agenti."
+      }
+    ],
+    "open": [
+      {
+        "title": "Orchestratore e scheduling",
+        "detail": "Ruoli di supervisor/agenti, code, assegnazione ai nodi, priorità, autorizzazioni e gestione del worker spento."
+      },
+      {
+        "title": "Hardware finale",
+        "detail": "Dischi, NAS, alimentazione, ridondanza, GPU, layout PCIe, CPU e rapporto costi/benefici."
+      },
+      {
+        "title": "Sistemi operativi e piattaforme IA",
+        "detail": "Ricercare alternative riutilizzabili, confrontando sicurezza, autonomia locale e integrazione con Cora."
+      },
+      {
+        "title": "Modelli IA e Colibrì",
+        "detail": "Selezionare modelli tramite benchmark verificabili, compatibilità e requisiti, senza considerarli già installati."
+      },
+      {
+        "title": "Politica dei dati",
+        "detail": "Scegliere ruoli definitivi di originali, copie IA, DB, backup, cloud privato e migrazione dal Debian al NAS."
+      }
+    ],
+    "missing": [
+      {
+        "title": "Orchestrazione multi-worker resiliente",
+        "detail": "Gestione persistente di code, timeout, ripresa task, limiti GPU e fallimenti senza doppie esecuzioni."
+      },
+      {
+        "title": "NAS e strategia restore",
+        "detail": "Realizzare il nodo dati dedicato e verificare restore dopo il trasferimento dei servizi."
+      },
+      {
+        "title": "Inventario e configurazione distribuiti",
+        "detail": "Risorse realmente disponibili e modello attivo verificati senza dipendere da valori statici della UI."
+      }
+    ]
+  }
 }
