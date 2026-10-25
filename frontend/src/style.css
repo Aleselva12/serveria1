@@ -4248,3 +4248,31 @@ select:disabled {
 }
 
 .home-hero .home-connection.is-unknown svg { color: #946b28; }
+
+
+/* Explicit architecture nodes and evidence-based M2 review. */
+.home-architecture-nodes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 16px 0; }
+.home-architecture-node { border: 1px solid #e2e7e3; border-radius: 10px; padding: 12px; min-width: 0; background: #fafbfa; }
+.home-architecture-node > div { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.home-architecture-node strong { font-size: 13px; }
+.home-architecture-node p { font-size: 12px; line-height: 1.5; color: #65716a; margin: 7px 0 0; }
+.home-architecture-node .pill { font-size: 11px; }
+.home-preflight { margin: 16px 0; padding: 13px 14px; border-radius: 10px; border: 1px solid #dbe4e0; background: #f8faf9; min-width: 0; }
+.home-preflight > strong { font-size: 13px; }
+.home-preflight p, .home-preflight small { font-size: 12px; line-height: 1.55; color: #68766d; }
+.home-preflight-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.home-preflight-list > div { background: #fff; border-radius: 7px; padding: 8px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 11px; }
+.home-preflight-list span { color: #5e6a63; }
+.home-goal-body { min-width: 0; flex: 1; }
+.home-goal-status-line { display: flex; flex-wrap: wrap; gap: 7px 16px; margin: 10px 0; font-size: 12px; line-height: 1.5; color: #637168; }
+.home-goal-status-line strong { font-size: 12px; color: #303d35; }
+.home-goal-evidence { font-size: 12px; line-height: 1.55; border-top: 1px solid #edf0ee; padding-top: 8px; color: #59675e; }
+.home-goal-evidence summary { cursor: pointer; font-weight: 600; color: #3b6252; }
+.home-goal-evidence summary:focus-visible { outline: 2px solid #608f7d; outline-offset: 3px; }
+.home-goal-evidence > div { padding: 8px 0 0; }
+.home-goal-evidence ul { margin: 6px 0 10px; padding-left: 20px; }
+.home-goal-evidence li { margin-bottom: 4px; }
+@media (max-width: 600px) {
+  .home-architecture-nodes, .home-preflight-list { grid-template-columns: minmax(0, 1fr); }
+  .home-goal-status-line { flex-direction: column; gap: 4px; }
+}
