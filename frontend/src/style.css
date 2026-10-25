@@ -3447,6 +3447,20 @@ select:disabled {
   display: flex;
   width: 100%;
 }
+
+/* Keep the update entry point visible and touch-friendly on mobile Home. */
+.mobile-home .mobile-update-button {
+  width: 100%;
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+.mobile-home .mobile-update-help {
+  margin: 7px 2px 16px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #6f7874;
+}
+
 .mobile-large-dot,
 .mobile-service-row i {
   display: inline-block;
