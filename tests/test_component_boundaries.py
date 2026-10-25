@@ -90,6 +90,31 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(result["checks"][0]["status"],"pass")
         self.assertFalse(result["persisted"])
 
+    def test_parallel_workers_do_not_replay_a_recent_periodic_cycle(self):
+        from contextlib import contextmanager
+        from datetime import datetime, timezone
+
+        class Query:
+            def __init__(self, statement): self.statement=statement
+            def fetchone(self):
+                if "pg_try_advisory_lock" in self.statement: return (True,)
+                if "MAX(observed_at)" in self.statement: return (datetime.now(timezone.utc),)
+                return (True,)
+
+        class Database:
+            def execute(self,sql): return Query(sql)
+
+        @contextmanager
+        def connect(*args,**kwargs):
+            yield Database()
+
+        with patch("core.database.DATABASE_URL","postgresql://test"), \\
+             patch("psycopg.connect", side_effect=connect), \\
+             patch.object(project_checks,"run_once") as run_once:
+            result=project_checks._scheduled_cycle()
+        self.assertIsNone(result)
+        run_once.assert_not_called()
+
     def test_registry_is_not_silently_persisted_when_database_unreachable(self):
         with patch("core.database.db_connection",side_effect=OSError("private database error")):
             result=project_checks.health_dashboard()
