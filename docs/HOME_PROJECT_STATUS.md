@@ -33,9 +33,10 @@ valutare, non un modello installato).
 - **Funzionamento**: rimane **Da verificare** finché non esiste un collaudo
   funzionale del flusso completo, datato e riferito alla versione installata.
 - **Ambiente / prerequisiti**: `core/project_checks.py` esegue ogni 300 secondi,
-  nel processo API, esclusivamente quattro prove non distruttive: SELECT 1 su
+  nel processo API, quattro prove di prerequisiti e un test funzionale sintetico: SELECT 1 su
   PostgreSQL SENZA migrazioni, lettura della cartella IA, disponibilità dichiarata
-  del motore Audio e lettura del catalogo Ollama. Lo stato «Presente» significa
+  del motore Audio e lettura del catalogo Ollama; più una trasformazione Word
+  append-only su un DOCX sintetico interamente in memoria. Lo stato «Presente» significa
   soltanto che il prerequisito ha risposto, NON che il programma funziona.
 
 La pagina legge `GET /api/v1/project/checks` ogni 30 secondi quando aperta.
@@ -43,7 +44,8 @@ I risultati vengono scartati dalla UI se più vecchi di due intervalli; lo
 snapshot è conservato **solo in memoria del processo**, quindi sparisce al
 riavvio. In un'installazione con più processi API ogni processo mantiene il
 proprio snapshot; non è un registro storico unico né un coordinatore condiviso.
-La raccolta non genera email, eventi, file, inferenze, restore o modifiche.
+La raccolta non genera email, eventi, file utente, inferenze, restore o modifiche.
+Il test Word prova il codice di inserimento sintetico, non il riconoscimento cliente su un documento reale.
 Gli errori non restituiscono credenziali o dettagli di connessione.
 
 Sono visibili, separatamente per ogni obiettivo M2, le verifiche end-to-end
