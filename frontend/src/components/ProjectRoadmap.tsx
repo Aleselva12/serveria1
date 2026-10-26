@@ -7,6 +7,24 @@ export default function ProjectRoadmap() {
       <span className="pill">{homeRoadmap.goals.length} traguardi · {homeRoadmap.categories.length} macroclassi</span>
     </div>
     <p className="home-backlog-intro">Revisione del {homeRoadmap.updatedAt}. {homeRoadmap.basis}</p>
+    <section className="home-next-work" aria-label="Prossimi tre lavori">
+      <h3>Prossimi tre lavori</h3>
+      <div className="home-next-work-list">
+        {homeRoadmap.nextWork.map(work => <article id={"work-"+work.id} key={work.id} className="home-next-work-card">
+          <div className="home-next-work-heading">
+            <span className="home-next-work-number">{work.order}</span>
+            <div><strong>{work.title}</strong><small>{work.status}</small></div>
+          </div>
+          <p>{work.description}</p>
+          {work.id==="W1" && <details>
+            <summary>Idee già raccolte</summary>
+            <ul>{work.notes.map(note=><li key={note}>{note}</li>)}</ul>
+          </details>}
+          {work.id==="W2" && <small>Gli aggiornamenti di Immich e Nextcloud non sono ancora abilitati dalla Home.</small>}
+          {work.id==="W3" && <a href="#programmer-next">Apri pagina segnaposto (vuota)</a>}
+        </article>)}
+      </div>
+    </section>
     <div className="home-goal-groups">
       {homeRoadmap.categories.map(category => <details className="home-goal-group" key={category.id}>
         <summary><span><strong>{category.id} · {category.label}</strong><small>{category.detail}</small></span>
