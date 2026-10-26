@@ -134,3 +134,31 @@ Verifiche frontend e sincronizzazione dati eseguite sul checkout locale; antepri
 
 
 Risultati: 130 test frontend superati (5 regressioni nuove sulla Home), build TypeScript/Vite riuscita; 3 test backend mirati superati, inclusa la sincronizzazione delle fonti. `git diff --check` superato. Resta il warning preesistente sul bundle oltre 500 kB. Browser offline: nessun overflow orizzontale nei viewport mobile e desktop osservati. CI GitHub della PR da verificare separatamente.
+
+
+## Aggiornamento roadmap — 26 ottobre 2026
+
+La Home usa **tre lavori prossimi ordinati**, senza eseguirli automaticamente:
+
+1. **Orchestratore (prossimo lavoro)**: disegnare e poi implementare routing fra agenti, scheduler e osservabilità con passaggi correlati. Riutilizzare il supervisor LangGraph, le tracce esistenti e il registro salute; ricostruire il percorso richiesta → routing → agente → tool → macchina/modello → risposta. I test di contratto già presenti controllano i collegamenti, ma non sostituiscono il tracing delle esecuzioni reali.
+2. **Aggiornamenti Immich/Nextcloud**: aggiungere al gestore host Debian un ciclo sicuro di verifica versione, backup, conferma, deploy e verifica post-aggiornamento. La pagina salute presenta il link di apertura configurato e identifica l'aggiornamento come **lavoro futuro**, non come un bottone di deploy già funzionante. L'updater Cora attuale e il gestore di Magazzino Tele non aggiornano Immich/Nextcloud.
+3. **Agente programmatore**: riprendere test e sviluppo con hardware aggiornato. Una pagina volutamente vuota è riservata come `#programmer-next`, senza rimuovere la pagina Programma attuale (`#code`).
+
+### Decisioni di struttura M1
+
+- Debian = nodo operativo, con possibile inferenza futura;
+- Desktop e laptop = nodi GPU che hanno già eseguito inferenza secondo le prove dell'utente, senza ancora verificare la corrispondenza fra modello richiesto e realmente eseguito;
+- NAS dedicato **futuro** = foto, file, cloud personale e backup, con possibilità di ospitare anche servizi;
+- **non è deciso che tutti i database migreranno sul NAS**: valutare di mantenere PostgreSQL e i dati operativi sul Debian e usare il NAS per file e backup, prendendo decisioni servizio per servizio.
+
+La distribuzione software dettagliata, le priorità dello scheduler, la gestione errori e la piattaforma/modelli rimangono **da discutere**, non decisioni già finalizzate.
+
+### Stato M2: conferme utente vs codice e prove
+
+Le voci `goals[].observations` raccolgono conferme operative **riferite dall'utente** (es. trascrizione Audio, calendari manuali e notifiche, aggiornamenti Cora, inferenza desktop/laptop, funzionamento Immich). Non diventano automaticamente prove del commit installato su Debian. La dashboard dei check rimane sorgente unica di evidenza dei controlli automatizzati. I test della pipeline Word, agenti calendario, account Gmail, memoria dopo cambiamenti, identità modello GPU e restore restano aperti.
+
+Per Immich e Nextcloud il backend espone URL di navigazione con `CORA_SERVICE_IMMICH_BROWSER_URL` e `CORA_SERVICE_NEXTCLOUD_BROWSER_URL`. In Home il nome diventa un link solo quando è configurato un URL browser HTTP(S) valido; in assenza del valore non viene indovinato un indirizzo. Per gli aggiornamenti non viene offerta nessuna falsa azione: si mostra solo «lavoro 2», in attesa di un gestore host esplicitamente autorizzato.
+
+Il monitor periodico della salute esiste, con dati PostgreSQL se la migrazione 0007 è presente. Gli obiettivi di miglioramento sono cronologia utile, prove sintetiche isolate e correlazione errori/versioni, senza generare dati nei servizi personali.
+
+**Verifiche necessarie**: test TypeScript/Home, build, verifica aggiornata dei link configurati, collaudo su Debian separato. Non cambiare servizi Immich/Nextcloud o autorizzazioni direttamente con questa modifica.
