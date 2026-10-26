@@ -7,6 +7,7 @@ const goalIds:Record<string,string[]> = {
   cora:["RUNTIME-MEMORY","AUTO-QUALITY"], files:["FILES-PHOTOS"],
   audio:["AUDIO-WORD"], calendar:["CALENDAR-MAIL"],
   worker:["MODELS-WORKER"], backups:["BACKUP-UPDATE"],
+  immich:["FILES-PHOTOS"], nextcloud:["FILES-PHOTOS"],
   magazzino_tele:["WORK-APPS"], preventivi:["WORK-APPS"],
 };
 
@@ -63,9 +64,12 @@ export default function HealthDashboard({
       <h3>Disponibilità dei servizi</h3>
       {servicesError && <p role="alert">{servicesError}</p>}
       {services.length ? services.map(item => <div key={item.id} className="mobile-service-row health-service-row">
-        <span>{item.label}</span>
+        <span>{item.browserUrl && /^https?:\/\/[^\s]+$/i.test(item.browserUrl)
+          ? <a href={item.browserUrl} target="_blank" rel="noopener noreferrer">{item.label}</a>
+          : item.label}</span>
         <span>
-          {item.browserUrl && /^https?:\/\/[^\s]+$/i.test(item.browserUrl) && <a href={item.browserUrl} target="_blank" rel="noopener noreferrer">Apri</a>}
+          {(item.id==="immich" || item.id==="nextcloud") &&
+            <small title="Servizio host di aggiornamento esterno ancora da implementare">Aggiornamento: lavoro 2</small>}
           <strong>{serviceStatusLabels[item.status]}</strong>
         </span>
       </div>) : <p>Elenco servizi non disponibile; questo non certifica un guasto di ogni servizio.</p>}
@@ -86,6 +90,8 @@ export default function HealthDashboard({
           <summary><strong>{name}</strong><span>{bad ? bad+" errori" : list.length+" verifiche"}</span></summary>
           {goals.map(goal => <div key={goal.id} className="home-health-development">
             <strong>Stato sviluppo: {"development" in goal && goal.development || goal.state}</strong>
+            {"observations" in goal && Array.isArray(goal.observations) && goal.observations.length>0 &&
+              <small>Verifiche riferite dall'utente: {goal.observations.join(" · ")} (non attestate automaticamente sul commit installato)</small>}
             {"issues" in goal && Array.isArray(goal.issues) && goal.issues.length>0 &&
               <small>Da risolvere: {goal.issues.join(" · ")}</small>}
             {"verification" in goal && Array.isArray(goal.verification) && goal.verification.length>0 &&

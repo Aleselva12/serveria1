@@ -4336,3 +4336,23 @@ select:disabled {
 .home-health-development {padding:9px 0 10px;margin-top:10px;border-bottom:1px solid #e9eeea;display:grid;gap:4px;}
 .home-health-development strong {font-size:12px;color:#344b3b;}
 .home-health-development small {font-size:11px;color:#6a766e;line-height:1.5;}
+
+
+/* Roadmap: three ordered next works; the existing Programmer remains operational. */
+.home-next-work {margin:16px 0 22px;min-width:0;}
+.home-next-work h3 {font-size:15px;margin:0 0 10px;}
+.home-next-work-list {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.home-next-work-card {min-width:0;border:1px solid #dbe7e0;border-radius:12px;padding:14px;background:#fafcfb;scroll-margin-top:95px;}
+.home-next-work-heading {display:flex;gap:10px;align-items:start;}
+.home-next-work-number {display:grid;place-items:center;flex:0 0 28px;height:28px;border-radius:50%;background:#e5f2ec;color:#22624d;font-weight:800;}
+.home-next-work-heading strong {font-size:13px;line-height:1.35;display:block;}
+.home-next-work-heading small,.home-next-work-card >small {font-size:11px;color:#63736a;line-height:1.45;display:block;margin-top:4px;}
+.home-next-work-card p {font-size:12px;color:#5c6b61;line-height:1.5;margin:10px 0;}
+.home-next-work-card details {font-size:12px;color:#4b6559;}
+.home-next-work-card summary {cursor:pointer;}
+.home-next-work-card ul {padding-left:18px;}
+.home-next-work-card li {margin:5px 0;}
+.home-next-work-card a {font-size:12px;color:#187451;text-decoration:underline;}
+.home-health-dashboard .health-service-row a {font-weight:650;color:#176c53;text-decoration:underline;}
+.home-health-dashboard .health-service-row small {font-size:10px;color:#6d756f;}
+@media(max-width:800px){.home-next-work-list{grid-template-columns:1fr;}}

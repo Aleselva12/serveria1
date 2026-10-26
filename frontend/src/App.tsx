@@ -39,6 +39,7 @@ import SystemUpdate from "./components/SystemUpdate";
 import MobileHome from "./components/MobileHome";
 import MobilePhotos from "./components/MobilePhotos";
 import Programmer from "./components/Programmer";
+import ProgrammerNextPlaceholder from "./components/ProgrammerNextPlaceholder";
 import Calendar from "./components/Calendar";
 import FileManager from "./components/FileManager";
 import Architecture from "./components/Architecture";
@@ -57,6 +58,7 @@ type Page =
   | "architecture"
   | "machines"
   | "code"
+  | "programmer-next"
   | "calendar"
   | "files"
   | "audio"
@@ -66,7 +68,7 @@ type Page =
   | "memory-management";
 const validPages: ReadonlySet<Page> = new Set([
   "home", "chat", "photos", "architecture", "machines", "code", "calendar",
-  "files", "audio", "activity", "updates", "settings", "memory-management",
+  "files", "audio", "activity", "updates", "settings", "memory-management", "programmer-next",
 ]);
 function isPage(value: string): value is Page {
   return validPages.has(value as Page);
@@ -602,6 +604,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
           )}
           {page === "machines" && <Machines />}
           {page === "code" && <Programmer />}
+          {page === "programmer-next" && <ProgrammerNextPlaceholder />}
           {page === "calendar" && <Calendar />}
           {page === "files" && <FileManager />}
           {page === "audio" && <Audio />}

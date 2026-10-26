@@ -60,6 +60,42 @@ test("Health panel distinguishes contract checks from untested full workflows",a
   } finally {if(r)await act(async()=>r.unmount());}
 });
 
+test("Health panel renders owner observations separately from automated evidence and safe service links",async()=>{
+  let previousRoadmap=globalThis.__roadmap;
+  let oldResponse=response;
+  try {
+    globalThis.__roadmap.goals.push({
+      id:"FILES-PHOTOS",state:"Parzialmente verificato",
+      development:"Funzionante in parte",observations:["Immich verificato dall'utente"],
+      issues:["Agenti da collegare"],verification:["Collaudare connettori"],
+    });
+    response={...response,components:{...response.components,immich:"Immich"},
+      catalog:[...response.catalog,{id:"immich_e2e",title:"Foto vere",component:"immich",
+        kind:"e2e",stage:"Immich → dati",frequency:"on_release",
+        dependsOn:[],description:"",automated:false}]};
+    let r;
+    try {
+      await act(async()=>{r=create(React.createElement(HealthDashboard,{
+        showServices:true,services:[
+          {id:"immich",label:"Immich",status:"ready",checkedAt:"",
+            browserUrl:"https://immich.example.test"},
+          {id:"nextcloud",label:"Nextcloud",status:"unknown",checkedAt:""},
+        ]}));});
+      const links=r.root.findAllByType("a");
+      assert.ok(links.some(x=>x.props.href==="https://immich.example.test" && x.children.join("")==="Immich"));
+      assert.ok(!links.some(x=>x.children.join("")==="Nextcloud"));
+      assert.ok(rendered(r).includes("Aggiornamento: lavoro 2"));
+      assert.ok(rendered(r).includes("Verifiche riferite dall'utente:"));
+      assert.ok(rendered(r).includes("Immich verificato dall'utente"));
+      assert.ok(rendered(r).includes("Da verificare"));
+    } finally{if(r)await act(async()=>r.unmount());}
+  } finally{
+    globalThis.__roadmap=previousRoadmap;
+    globalThis.__roadmap.goals.pop();
+    response=oldResponse;
+  }
+});
+
 test("Health panel reports boundary failures without marking other untested flows as passing",async()=>{
   const old=response;
   response={...response,latest:{chat_contract:{...old.latest.chat_contract,

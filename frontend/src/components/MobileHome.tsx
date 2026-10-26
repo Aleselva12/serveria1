@@ -128,7 +128,11 @@ export default function MobileHome({
         <div className="mobile-service-list">
           {displayedServices.map((service) => (
             <div className="mobile-service-row" key={service.id}>
-              <span><i className={service.status === "ready" ? "ok" : service.status === "unknown" ? "unknown" : "down"} />{service.label}</span>
+              <span><i className={service.status === "ready" ? "ok" : service.status === "unknown" ? "unknown" : "down"} />
+                {service.browserUrl && /^https?:\/\/[^\s]+$/i.test(service.browserUrl)
+                  ? <a href={service.browserUrl} target="_blank" rel="noopener noreferrer">{service.label}</a>
+                  : service.label}
+              </span>
               <strong>{serviceStatusLabels[service.status]}</strong>
             </div>
           ))}

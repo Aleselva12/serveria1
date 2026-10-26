@@ -1,6 +1,6 @@
 {
-  "updatedAt": "25/10/2026",
-  "basis": "Traguardi dal codice e dalle decisioni di progetto. Stato di sviluppo documentale; prerequisiti automatici separati dai collaudi su Debian.",
+  "updatedAt": "26/10/2026",
+  "basis": "Decisioni del proprietario e riscontro statico del codice; esiti manuali distinti dai controlli automatizzati. Le versioni installate sul Debian devono essere verificate separatamente.",
   "categories": [
     {
       "id": "M1",
@@ -28,101 +28,115 @@
       "id": "ARCH-HW",
       "category": "M1",
       "label": "Definire la struttura hardware a nodi",
-      "state": "Da definire",
-      "detail": "Stabilire responsabilità e collegamenti tra desktop GPU e server Debian già presenti, laptop worker futuro e NAS futuro. Definire storage, alimentazione, espansione e collocazione dei backup prima degli acquisti."
+      "state": "Ruoli definiti; dettagli aperti",
+      "detail": "Architettura a nodi decisa: Debian centrale, NAS futuro per file/foto/backup, desktop e laptop come worker GPU. Hardware fisico e distribuzione finale storage ancora da definire."
     },
     {
       "id": "ARCH-SW",
       "category": "M1",
       "label": "Definire la struttura software e dei dati",
-      "state": "Da definire",
-      "detail": "Decidere confini tra app sul Debian, gestione dati sul futuro NAS, originali/copie IA, Tailscale, autorizzazioni e API fra nodi. I servizi oggi installati sul Debian non diventano automaticamente parte del futuro NAS."
+      "state": "Discussione aperta",
+      "detail": "Definire nella prossima discussione quali servizi e database restano sul Debian e quali migrano sul NAS. Non è deciso di spostare PostgreSQL integralmente sul NAS."
     },
     {
       "id": "ARCH-ORCHESTRATOR",
       "category": "M1",
-      "label": "Definire un orchestratore centrale reale",
-      "state": "Da progettare",
-      "detail": "Decidere scheduler, code, assegnazione di modelli ai nodi, limiti delle risorse, autorizzazioni e recupero dei task quando un worker si spegne. Distinguere scelta del modello da cambio manuale del profilo worker."
+      "label": "1 · Orchestratore e tracciabilità delle risposte",
+      "state": "PROSSIMO LAVORO",
+      "detail": "Primo prossimo lavoro: evolvere supervisor/LangGraph esistente, con router verificabile, error tracing da input alla risposta, agent/tool invocation, macchina/modello effettivi, code/priorità, failover e autorizzazioni. Prima studiare opzioni e progettare, poi implementare."
     },
     {
       "id": "ARCH-AI-OS",
       "category": "M1",
       "label": "Studiare sistemi operativi e piattaforme AI",
-      "state": "Ricerca da fare",
+      "state": "Ricerca futura",
       "detail": "Confrontare soluzioni AI OS e sistemi agentici esistenti, valutarne integrazione locale, permessi, interoperabilità e manutenzione. Nessuna piattaforma nuova è già stata selezionata."
     },
     {
       "id": "ARCH-MODELS",
       "category": "M1",
       "label": "Definire una strategia dei modelli",
-      "state": "Da valutare",
+      "state": "Ricerca futura",
       "detail": "Stabilire modelli per task, capacità/VRAM reali e criteri di valutazione. Considerare anche modelli futuri come Colibrì solo dopo verifica di disponibilità, licenza e requisiti; nessun download automatico."
     },
     {
       "id": "FILES-PHOTOS",
       "category": "M2",
       "label": "File, foto e accesso remoto",
-      "state": "Da collaudare",
-      "detail": "Verificare risorse autorizzate, permessi, upload e ripristino, accesso da telefono e servizi foto/drive realmente installati. Ridurre gli abbonamenti solo dopo migrazione e recupero dei dati provati.",
-      "development": "In costruzione",
+      "state": "Parzialmente verificato",
+      "detail": "Immich confermato funzionante dall'utente; Nextcloud usato ma da ricontrollare. Completare collegamento ai tool agentici e alla pagina File, accesso diretto e ciclo aggiornamenti. Migrazione cloud solo con copie affidabili.",
+      "development": "Funzionante in parte, integrazioni aperte",
       "verification": [
-        "Verifica end-to-end di upload, lettura e download da telefono",
-        "Prova di ripristino dati e accessi con account reali"
+        "Aprire Immich/Nextcloud dalla Home con URL configurati",
+        "Provare lettura/upload agentici in sandbox e collegamento alla pagina File",
+        "Collaudare ciclo di aggiornamento esterno senza perdere dati"
       ],
       "issues": [
-        "Stato Immich/Nextcloud da verificare sul Debian"
+        "Collegamento agente ↔ Immich e agente ↔ Nextcloud non verificato",
+        "Aggiornamento Immich/Nextcloud non supportato dall'updater host attuale: lavoro 2"
       ],
       "checks": [
         "library"
+      ],
+      "observations": [
+        "Immich: funzionamento confermato dall'utente (non certifica la versione del Debian).",
+        "Nextcloud: utilizzo segnalato, collegamenti con agenti/File da verificare."
       ]
     },
     {
       "id": "AUDIO-WORD",
       "category": "M2",
       "label": "Agente audio e appunti Word",
-      "state": "Da collaudare",
-      "detail": "Trascrizione, correzioni e proposte di note sulle copie Word sono implementate. Provare qualità su audio reale, diarizzazione opzionale e approvazione delle aggiunte senza alterare gli originali.",
+      "state": "Parzialmente verificato",
+      "detail": "Trascrizione di registrazioni funzionante secondo prova dell'utente. Proposte e inserimento Word presenti nel codice ma scrittura su documento vero non ancora provata.",
       "development": "In costruzione",
       "verification": [
-        "Trascrizione di audio reale con modello assegnato",
-        "Anteprima cliente e approvazione di modifica DOCX sintetico/reale in copia",
-        "Verifica che l'originale rimanga invariato"
+        "Eseguire proposta e approvazione su copia DOCX di prova",
+        "Verificare inserimento sotto il cliente corretto e contenuto originale invariato",
+        "Collaudare conflitti su file modificato e approvazioni scadute"
       ],
       "issues": [
-        "Qualità e diarizzazione opzionale non collaudate"
+        "Scrittura Word approvata non ancora collaudata su documento reale in copia"
       ],
       "checks": [
         "audio",
         "database",
         "library",
         "word_sample"
+      ],
+      "observations": [
+        "Trascrizione audio verificata manualmente dall'utente."
       ]
     },
     {
       "id": "CALENDAR-MAIL",
       "category": "M2",
       "label": "Calendario e strumenti email",
-      "state": "Da collaudare",
-      "detail": "Calendario locale/Google, approvazioni, bozze Gmail e PDF sono presenti. Verificare account reali, eventi, conflitti e promemoria. L’invio email automatico resta bloccato.",
+      "state": "Manuale funzionante; agenti da testare",
+      "detail": "Calendario manuale e notifiche confermati funzionanti dall'utente; collegamento agli agenti non collaudato. Esistono tool Gmail per ricerca, lettura e bozze, ma il collegamento operativo dell'account e il flusso email non sono stati verificati.",
       "development": "In costruzione",
       "verification": [
-        "Google Calendar: creazione, modifica, conflitto e no duplicati",
-        "Bozze Gmail/PDF con account reali e permessi",
-        "Notifiche effettivamente ricevute"
+        "Verificare che l'agente possa proporre ed eseguire modifiche al calendario dopo approvazione",
+        "Testare lettura/bozze Gmail con account autorizzato",
+        "Verificare assenza duplicati Google dopo sync e modifica eventi"
       ],
       "issues": [
-        "Invio email automatico non abilitato"
+        "Collegamento calendario ↔ agenti non collaudato",
+        "Integrazione Gmail operativa ancora da completare; invio automatico non implementato"
       ],
       "checks": [
         "database"
+      ],
+      "observations": [
+        "Calendario manuale funzionante e notifiche ricevute: confermato dall'utente.",
+        "Gmail: strumenti nel codice, non integrazione completa e verificata."
       ]
     },
     {
       "id": "RUNTIME-MEMORY",
       "category": "M2",
       "label": "Affidabilità di Cora e gestione della memoria",
-      "state": "Da collaudare",
+      "state": "Implementato, non usato né verificato",
       "detail": "Provare cronologia, versioni della memoria, permessi, annullamento, riavvio e operazioni incerte. Controllare anche recupero dei documenti e contesto degli specialisti; i test di sviluppo non chiudono il collaudo reale.",
       "development": "In costruzione",
       "verification": [
@@ -131,58 +145,70 @@
         "Recupero documentale con autorizzazioni"
       ],
       "issues": [
-        "Mancano collaudi completi sotto carico"
+        "Verificare compatibilità dopo modifiche successive ai grafi e alla chat",
+        "Non attribuire esiti operativi ai soli test di codice"
       ],
       "checks": [
         "database",
         "library"
+      ],
+      "observations": [
+        "Gestione memoria implementata inizialmente; non ancora provata direttamente dopo numerose modifiche a Cora."
       ]
     },
     {
       "id": "MODELS-WORKER",
       "category": "M2",
       "label": "Modelli IA e lavoro su più macchine",
-      "state": "Da collaudare",
+      "state": "Inferenza verificata; routing da collaudare",
       "detail": "Scelte per agente e bridge desktop sono implementati. Verificare modello e macchina effettivi, compatibilità del worker, capacità dichiarate e prestazioni. Il worker remoto restituisce la risposta al termine.",
       "development": "In costruzione",
       "verification": [
-        "Inferenza GPU reale via desktop worker",
-        "Modello richiesto = modello realmente eseguito",
-        "Worker spento e fallback senza errore silenzioso"
+        "Leggere il modello realmente usato e confrontarlo con il modello richiesto",
+        "Verificare assegnazione di ogni agente con entrambe le macchine disponibili",
+        "Worker OFF, timeout e routing senza fallback silenzioso"
       ],
       "issues": [
-        "Scheduling multi-worker non implementato"
+        "Scheduling multi-worker ancora da progettare nell'orchestratore",
+        "Identità del modello effettivamente eseguito da verificare"
       ],
       "checks": [
         "ollama"
+      ],
+      "observations": [
+        "Inferenza GPU reale sul desktop e sul laptop confermata manualmente dall'utente."
       ]
     },
     {
       "id": "BACKUP-UPDATE",
       "category": "M2",
-      "label": "Backup, ripristino e aggiornamenti",
-      "state": "Da collaudare",
-      "detail": "Backup ordinari, backup cifrati opzionali e updater esistono nel codice. Verificare configurazione installata, copertura dei dati, restore su ambiente vuoto e rollback. Un checksum valido non prova il recupero.",
+      "label": "Aggiornamenti funzionanti; backup futuri NAS",
+      "state": "Aggiornamenti verificati; backup aperti",
+      "detail": "Aggiornamenti Cora confermati funzionanti dall'utente. Backup centralizzati sul futuro NAS ancora da progettare; un ripristino completo non è mai stato provato e rimane verifica minima di sicurezza.",
       "development": "In costruzione",
       "verification": [
-        "Backup verificato su dati non Git",
-        "Restore in ambiente isolato e vuoto",
-        "Rollback aggiornamento fallito"
+        "Stabilire copertura e frequenza dei backup sul futuro NAS",
+        "Verificare che almeno una copia si possa recuperare in ambiente isolato",
+        "Eseguire aggiornamento Immich/Nextcloud solo dopo implementazione gestore dedicato"
       ],
       "issues": [
-        "La presenza di file backup non prova il ripristino"
+        "Restore non provato; priorità non alta per l'utente ma rischio dati da documentare",
+        "Aggiornamenti servizi esterni da realizzare come lavoro 2"
       ],
       "checks": [
         "database",
         "library"
+      ],
+      "observations": [
+        "Aggiornamenti Cora funzionanti secondo prove dell'utente."
       ]
     },
     {
       "id": "PROGRAMMER",
       "category": "M2",
       "label": "Programmatore: lavoro completo e verifiche",
-      "state": "Rinviato: hardware",
-      "detail": "Workspace, check e release su richiesta sono presenti. Rimane la prova completa con modello reale, file, test e risposta finale; ottimizzazione rinviata all’upgrade hardware.",
+      "state": "LAVORO 3 · Dopo aggiornamenti",
+      "detail": "Riprendere l'agente programmatore dopo upgrade hardware e dopo lavoro 1 (orchestratore) e lavoro 2 (aggiornamenti Immich/Nextcloud). Esiste già una pagina Programma operativa: nuova pagina segnaposto separata per la futura tranche.",
       "development": "In costruzione",
       "verification": [
         "Richiesta completa con tool, test e risposta finale",
@@ -201,17 +227,18 @@
       "id": "AUTO-QUALITY",
       "category": "M2",
       "label": "Monitor automatico e ripetuto delle funzionalità",
-      "state": "Implementazione da verificare",
-      "detail": "Eseguire periodicamente controlli non distruttivi sul backend e mostrare quando e dove sono stati svolti. Aggiungere successivamente test sintetici end-to-end isolati e uno storico durevole; evitare falsi 'funziona' basati sul solo HTTP.",
+      "state": "Prioritario: discussione prossima",
+      "detail": "Cicli periodici di controlli in backend approvati, indipendenti dalla Home. Mantenere catalogo e storico unici, ampliare i test isolati per ogni programma e collegare versione installata, errori e avvisi senza duplicare le esecuzioni.",
       "development": "In costruzione",
       "verification": [
-        "Confermare cicli periodici anche senza Home aperta",
-        "Collaudare arresto, riavvio, probe fallito e scadenza dati",
-        "Ampliare ai test funzionali sintetici isolati"
+        "Collaudare sul Debian cicli periodici e scrittura nello storico PostgreSQL",
+        "Ampliare test funzionali sintetici isolati per ciascun servizio",
+        "Visualizzare transizione OK → errore → ripristino, causa e commit, con notifiche sensate"
       ],
       "issues": [
-        "I primi controlli verificano solo prerequisiti tecnici; non sono prove end-to-end",
-        "La cronologia dei controlli non è ancora persistente"
+        "Catalogo end-to-end include test da eseguire, non esecuzioni già avvenute",
+        "CI/updater non ancora integrati come fonti verificabili nel registro",
+        "Da definire soglie e frequenze alert senza falsi allarmi"
       ],
       "checks": [
         "database",
@@ -219,6 +246,9 @@
         "audio",
         "ollama",
         "word_sample"
+      ],
+      "observations": [
+        "Confermati cicli di verifica periodici anche senza la Home aperta; utilità e approfondimenti da discutere."
       ]
     },
     {
@@ -268,98 +298,141 @@
     "Lo stato di sviluppo dei componenti è ricavato dalla repository, non da un'ispezione in tempo reale del Debian.",
     "I controlli automatici combinano prerequisiti tecnici e un test Word sintetico in memoria; NON certificano trascrizioni reali, scritture nei file utente, inferenza GPU, restore o servizi esterni.",
     "Un programma può essere funzionante e in costruzione: senza prova funzionale registrata si mostra 'Da verificare'. Le prove mancanti sono elencate per componente.",
-    "Il monitor periodico conserva risultati solo nel processo corrente; riavvio e processi multipli non equivalgono a storico persistente.",
+    "Il monitor registra su PostgreSQL quando la migrazione e DB sono disponibili; in assenza di storage i dati temporanei in memoria non sono storico persistente.",
     "Obiettivi chiusi e decisioni storiche restano esclusi; nessuna modifica automatica ai file, ai modelli e alle applicazioni.",
-    "La dashboard dei test è condivisa: M2 elenca problemi e obiettivi, mentre il registro salute raccoglie controlli automatici e collaudi, senza doppia esecuzione."
+    "La dashboard dei test è condivisa: M2 elenca problemi e obiettivi, mentre il registro salute raccoglie controlli automatici e collaudi, senza doppia esecuzione.",
+    "Conferme manuali dell'utente e risultati automatici sono due fonti diverse e non certificano automaticamente il commit installato.",
+    "Gli aggiornamenti Immich/Nextcloud non sono ancora gestiti dal servizio host; la Home non deve mostrare un pulsante di deploy funzionante finché non esiste l'integrazione."
   ],
   "nodes": [
     {
       "id": "debian",
       "name": "Server Debian",
-      "role": "Gestore delle applicazioni, API Cora, orchestrazione e servizi attuali",
+      "role": "Nodo centrale e operativo per Cora, orchestrazione e applicazioni. Possibile potenza di calcolo locale dopo upgrade.",
       "phase": "presente"
+    },
+    {
+      "id": "nas",
+      "name": "NAS dedicato",
+      "role": "Nodo futuro per fotografie, file condivisi, cloud privato e backup Serveria; può ospitare alcuni servizi quando utile.",
+      "phase": "futuro"
     },
     {
       "id": "desktop",
       "name": "Desktop",
-      "role": "Risorsa di inferenza con GPU/VRAM RX 6800 (effettivo impiego da verificare)",
+      "role": "GPU RX 6800 usata e verificata manualmente per inferenza/test; eventuale worker stabile futuro.",
       "phase": "presente"
     },
     {
       "id": "laptop",
       "name": "Laptop worker",
-      "role": "Eventuale VRAM aggiuntiva e calcolo su richiesta",
-      "phase": "futuro"
-    },
-    {
-      "id": "nas",
-      "name": "NAS dedicato",
-      "role": "Archiviazione dati, cloud privato e backup; attualmente parte dei servizi è sul Debian",
-      "phase": "futuro"
+      "role": "Inferenza GPU già provata dall'utente, nodo di calcolo aggiuntivo. Altre macchine rimangono opzionali.",
+      "phase": "presente"
     }
   ],
   "architecture": {
     "confirmed": [
       {
-        "title": "Server Debian: nodo centrale",
-        "detail": "Gestisce Cora, API, orchestrazione attuale e applicazioni; servizi di file/foto oggi possono trovarsi sul Debian."
+        "title": "Debian come centro operativo",
+        "detail": "Cora, programmi e coordinamento dei nodi; una futura espansione hardware potrà aggiungere inferenza locale."
       },
       {
-        "title": "Desktop: risorsa IA separata",
-        "detail": "RX 6800 16 GB VRAM disponibile come worker; l'inferenza remota end-to-end deve essere verificata."
+        "title": "Desktop e laptop come nodi di calcolo",
+        "detail": "Inferenza GPU su entrambi confermata dall'utente. Resta da provare che il modello effettivamente invocato sia sempre quello selezionato."
       },
       {
-        "title": "Rete privata Tailscale",
-        "detail": "Accesso remoto e comunicazione tra nodi, con autorizzazioni indipendenti dai permessi Tailscale."
+        "title": "NAS dedicato futuro",
+        "detail": "Destinazione principale per foto, file condivisi, cloud personale e backup Serveria. Potrà ospitare applicazioni quando conveniente."
       },
       {
-        "title": "Espansione per nodi",
-        "detail": "Aggiunta possibile di laptop worker e futuro NAS dedicato; non sono componenti già installati."
+        "title": "Servizi indipendenti dai worker IA",
+        "detail": "Il Debian deve poter gestire i servizi essenziali quando desktop e laptop sono spenti."
       },
       {
-        "title": "Servizi indipendenti dalla GPU",
-        "detail": "File, foto, database e gestionali devono restare disponibili quando i worker IA sono spenti."
+        "title": "Accesso remoto Tailscale",
+        "detail": "Comunicazione privata fra nodi, senza confondere appartenenza alla rete con autorizzazione alle funzioni amministrative."
       },
       {
-        "title": "Controllo manuale delle risorse",
-        "detail": "Profili worker ON/OFF e selezione modelli controllati dall'utente, non dagli agenti."
+        "title": "Profili worker controllati dal proprietario",
+        "detail": "I modelli/limiti del worker si selezionano manualmente; gli agenti possono usare solo risorse rese disponibili."
       }
     ],
     "open": [
       {
-        "title": "Orchestratore e scheduling",
-        "detail": "Ruoli di supervisor/agenti, code, assegnazione ai nodi, priorità, autorizzazioni e gestione del worker spento."
+        "title": "Distribuzione software e dati (da discutere)",
+        "detail": "Non spostare automaticamente ogni database sul NAS: valutare di mantenere PostgreSQL e dati applicativi sensibili sul Debian, NAS per file/foto/backup; scegliere per servizio in base a latenza, integrità e ripristino."
       },
       {
-        "title": "Hardware finale",
-        "detail": "Dischi, NAS, alimentazione, ridondanza, GPU, layout PCIe, CPU e rapporto costi/benefici."
+        "title": "Orchestratore — prossimo lavoro (1)",
+        "detail": "Partire da supervisor/LangGraph esistente. Valutare scheduler, routing modelli/worker, priorità, code, gestione timeout, permessi e recupero errori."
       },
       {
-        "title": "Sistemi operativi e piattaforme IA",
-        "detail": "Ricercare alternative riutilizzabili, confrontando sicurezza, autonomia locale e integrazione con Cora."
+        "title": "Hardware finale e NAS",
+        "detail": "Definire dischi, ridondanza, alimentazione, GPU, slot e responsabilità dei backup prima di acquistare e migrare."
       },
       {
-        "title": "Modelli IA e Colibrì",
-        "detail": "Selezionare modelli tramite benchmark verificabili, compatibilità e requisiti, senza considerarli già installati."
+        "title": "Piattaforme e sistemi operativi AI",
+        "detail": "Studiare alternative mature riutilizzabili senza sostituire automaticamente lo stack attuale."
       },
       {
-        "title": "Politica dei dati",
-        "detail": "Scegliere ruoli definitivi di originali, copie IA, DB, backup, cloud privato e migrazione dal Debian al NAS."
+        "title": "Modelli e requisiti futuri",
+        "detail": "Valutare Colibrì e altri modelli solo dopo verifica reale di disponibilità, memoria, compatibilità e licenza."
       }
     ],
     "missing": [
       {
-        "title": "Orchestrazione multi-worker resiliente",
-        "detail": "Gestione persistente di code, timeout, ripresa task, limiti GPU e fallimenti senza doppie esecuzioni."
+        "title": "Tracce causali dell'orchestrazione",
+        "detail": "Per ciascuna risposta mostrare ingresso → decisione routing → agente → tool → modello/worker → esito, tempi ed errori con ID di correlazione. Riutilizzare tracce e registro salute già esistenti."
       },
       {
-        "title": "NAS e strategia restore",
-        "detail": "Realizzare il nodo dati dedicato e verificare restore dopo il trasferimento dei servizi."
+        "title": "Scheduler multi-worker resistente agli errori",
+        "detail": "Code persistenti, gestione worker offline, timeout, retry controllati, priorità e nessuna doppia esecuzione di azioni con effetti esterni."
       },
       {
-        "title": "Inventario e configurazione distribuiti",
-        "detail": "Risorse realmente disponibili e modello attivo verificati senza dipendere da valori statici della UI."
+        "title": "NAS e collocazione definitiva dei dati",
+        "detail": "Realizzare il nodo e decidere quali database restano sul Debian, quali dati vanno al NAS e come verificare i backup."
+      },
+      {
+        "title": "Verifica modello effettivamente eseguito",
+        "detail": "Confrontare modello richiesto e modello davvero eseguito da desktop/laptop senza dedurlo dal solo test di connettività."
       }
     ]
-  }
+  },
+  "nextWork": [
+    {
+      "id": "W1",
+      "order": 1,
+      "title": "Orchestratore: routing, tracciabilità ed errori",
+      "status": "Da discutere e progettare",
+      "category": "M1",
+      "description": "Analisi delle opzioni esistenti; traccia unificata richiesta→supervisor→agente/tool→worker/modello→risposta; diagnosi e gestione errori, code e scheduler multi-worker.",
+      "notes": [
+        "Riutilizzare graph LangGraph e componenti di observability già presenti.",
+        "Separare letture sicure da azioni con effetti e approvazione owner.",
+        "Misurare modello effettivo, tempi e passaggio che fallisce.",
+        "Non cambiare automaticamente profili ON/OFF del worker."
+      ]
+    },
+    {
+      "id": "W2",
+      "order": 2,
+      "title": "Aggiornamenti Immich e Nextcloud dalla Home",
+      "status": "Da implementare dopo W1",
+      "category": "M2",
+      "description": "Permettere verifica versioni e aggiornamenti di Immich e Nextcloud dall'interfaccia via gestore host protetto; con conferma, backup, controllo post-update e gestione errore.",
+      "notes": [
+        "Aprire i servizi da link Browser URL già supportati.",
+        "L'updater attuale gestisce Cora e Magazzino Tele, NON gli aggiornamenti Immich/Nextcloud."
+      ]
+    },
+    {
+      "id": "W3",
+      "order": 3,
+      "title": "Agente programmatore: ripresa del lavoro",
+      "status": "Dopo W2 e upgrade hardware",
+      "category": "M2",
+      "description": "Riprendere test end-to-end dell'agente, tool e misurazioni con hardware migliorato. La vecchia pagina Programma rimane attiva; nuovo segnaposto per il lavoro futuro.",
+      "notes": []
+    }
+  ]
 }
