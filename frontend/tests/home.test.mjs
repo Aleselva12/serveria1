@@ -67,6 +67,21 @@ test('project goals have four groups and each open goal appears once without cla
   await act(async () => r.unmount());
 });
 
+test('next jobs are ordered 1 orchestrator, 2 service updates, 3 programmer placeholder', async () => {
+  const jobs=data.nextWork;
+  assert.deepEqual(jobs.map(x=>x.order), [1,2,3]);
+  assert.ok(jobs[0].title.includes("Orchestratore"));
+  assert.ok(jobs[1].title.includes("Immich") && jobs[1].title.includes("Nextcloud"));
+  assert.ok(jobs[2].title.includes("Programmatore") || jobs[2].title.includes("programmatore"));
+  assert.equal(data.nodes.find(n=>n.id==="laptop").phase,"presente");
+  assert.ok(data.architecture.open.some(x=>x.detail.includes("PostgreSQL")));
+  let r;await act(async()=>{r=create(React.createElement(ProjectRoadmap));});
+  assert.equal(r.root.findAllByProps({className:"home-next-work-card"}).length,3);
+  assert.ok(text(r).includes("#programmer-next"));
+  assert.ok(text(r).includes("Aggiornamenti Immich e Nextcloud"));
+  await act(async()=>r.unmount());
+});
+
 test('mobile Home has a dedicated Update Cora button, independent from server-state refresh', async () => {
   reset();
   let r;
