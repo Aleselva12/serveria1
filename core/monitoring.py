@@ -9,6 +9,7 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import urlopen
 from core.ollama_transport import get_ollama_base_url, urlopen as ollama_urlopen
 
@@ -221,6 +222,9 @@ def service_status():
                 with (ollama_urlopen if identifier == "ollama" else urlopen)(url, timeout=1) as response:
                     status = "ready" if 200 <= response.status < 400 else "error"
                 detail = "Endpoint HTTP raggiungibile"
+            except HTTPError as error:
+                # The host answered HTTP: distinguish a failing endpoint from network loss.
+                status, detail = "error", "Endpoint HTTP ha restituito " + str(error.code)
             except (OSError, ValueError):
                 status, detail = "offline", "Endpoint HTTP non raggiungibile"
         services.append(
