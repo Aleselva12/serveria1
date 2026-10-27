@@ -55,6 +55,7 @@ from core.permissions_api import router as permissions_router
 from programmer_agent.api import router as programmer_router
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Request
+from psycopg.errors import ForeignKeyViolation
 
 
 load_dotenv()
@@ -288,6 +289,8 @@ def create_conversation(request: ConversationCreateRequest):
         )
     except ValueError as error:
         raise HTTPException(422, "Identificativo conversazione o progetto non valido.") from error
+    except ForeignKeyViolation as error:
+        raise HTTPException(422, "Progetto inesistente o non valido.") from error
     except Exception as error:
         # Internal/DB errors are not invalid client parameters; never disclose SQL details.
         raise HTTPException(500, "Creazione conversazione non riuscita.") from error
@@ -591,8 +594,8 @@ def _postprocess_turn(thread_id,message,response,user_id,assistant_id):
         ("summary", lambda: schedule_summary(thread_id)),
         ("transcript", lambda: refresh_transcript(thread_id)),
         ("episode", lambda: create_episode(
-            title=message.replace("\\n", " ")[:80] or "Turno chat",
-            summary="Richiesta: " + message[:240] + "\\nRisultato: " + response[:420],
+            title=message.replace("\n", " ")[:80] or "Turno chat",
+            summary="Richiesta: " + message[:240] + "\nRisultato: " + response[:420],
             conversation_id=thread_id, episode_type="conversation_turn", agent_id="supervisor",
             metadata={"user_message_id":user_id, "assistant_message_id":assistant_id},
         )),
