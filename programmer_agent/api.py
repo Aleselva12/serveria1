@@ -55,8 +55,10 @@ def call(fn, *args, **kwargs):
         raise HTTPException(409, str(error)) from error
     except FileNotFoundError as error:
         raise HTTPException(404, "Workspace o file non trovato.") from error
-    except (ValueError, OSError) as error:
+    except ValueError as error:
         raise HTTPException(422, str(error)) from error
+    except OSError as error:
+        raise HTTPException(503, "Operazione workspace non disponibile. Controlla il filesystem del server.") from error
 
 
 @router.get("/status")
