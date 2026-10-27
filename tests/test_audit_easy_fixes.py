@@ -127,6 +127,30 @@ class AuditEasyFixesTests(unittest.TestCase):
             self.assertEqual(error.exception.status_code, 503)
             self.assertNotIn("/private", error.exception.detail)
 
+    def test_notification_worker_reports_cycle_failure_without_private_data(self):
+        from core.notifications import NotificationWorker
+        notification = NotificationWorker()
+        notification._stop.wait = Mock(side_effect=[False, True])
+        with patch("core.notifications.deliver_calendar_reminders",
+                   side_effect=OSError("/private/calendar/data")):
+            notification._run()
+        health = notification.health()
+        self.assertEqual(health["last_error_type"], "OSError")
+        self.assertIsNotNone(health["last_attempt"])
+        self.assertNotIn("/private", str(health))
+        notification._stop.wait.side_effect = [False, True]
+        with patch("core.notifications.deliver_calendar_reminders"):
+            notification._run()
+        self.assertIsNone(notification.health()["last_error_type"])
+        self.assertIsNotNone(notification.health()["last_success"])
+
+    def test_runtime_routes_have_no_duplicate_http_method_path_pairs(self):
+        from fastapi.routing import APIRoute
+        pairs = [(method, route.path) for route in api.app.routes
+                 if isinstance(route, APIRoute)
+                 for method in route.methods]
+        self.assertEqual(len(pairs), len(set(pairs)))
+
     def test_programmer_io_error_is_unavailable_not_validation(self):
         with self.assertRaises(HTTPException) as error:
             programmer_api.call(lambda: (_ for _ in ()).throw(OSError("/private/workspace")))
