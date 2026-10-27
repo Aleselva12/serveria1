@@ -10,6 +10,70 @@ from programmer_agent import api as programmer_api
 
 
 class AuditEasyFixesTests(unittest.TestCase):
+    def test_lifespan_cleans_up_after_worker_start_failure(self):
+        import asyncio
+        from unittest.mock import call
+
+        order = []
+        def mark(name, fails=False):
+            def execute():
+                order.append(name)
+                if fails:
+                    raise RuntimeError("synthetic worker start failure")
+            return execute
+        with patch.object(api, "validate_runtime_profile"), patch(
+            "core.runtime.recover_interrupted"
+        ), patch("core.observability.archive.start", mark("archive.start")), patch(
+            "core.observability.archive.stop", mark("archive.stop")
+        ), patch("core.background_embeddings.start", mark("embeddings.start")), patch(
+            "core.background_embeddings.stop", mark("embeddings.stop")
+        ), patch("core.library_monitor.start", mark("library.start", fails=True)), patch(
+            "core.library_monitor.stop", mark("library.stop")
+        ), patch("core.project_checks.stop", mark("checks.stop")), patch(
+            "core.project_checks.start", mark("checks.start")
+        ), patch.object(api, "close_pool", mark("pool.close")):
+            async def check():
+                async with api.lifespan(None):
+                    self.fail("Cannot reach application startup")
+            with self.assertRaisesRegex(RuntimeError, "synthetic worker"):
+                asyncio.run(check())
+        self.assertEqual(order, ["archive.start", "embeddings.start", "library.start",
+                                 "library.stop", "checks.stop", "embeddings.stop",
+                                 "archive.stop", "pool.close"])
+
+    def test_lifespan_continues_cleanup_after_failed_stop(self):
+        import asyncio
+        order = []
+        def mark(name, fails=False):
+            def execute():
+                order.append(name)
+                if fails:
+                    raise RuntimeError("synthetic stop failure")
+            return execute
+        with patch.object(api, "validate_runtime_profile"), patch(
+            "core.runtime.recover_interrupted"
+        ), patch("core.observability.archive.start", mark("archive.start")), patch(
+            "core.observability.archive.stop", mark("archive.stop")
+        ), patch("core.background_embeddings.start", mark("embeddings.start")), patch(
+            "core.background_embeddings.stop", mark("embeddings.stop")
+        ), patch("core.library_monitor.start", mark("library.start")), patch(
+            "core.library_monitor.stop", mark("library.stop", fails=True)
+        ), patch("core.project_checks.start", mark("checks.start")), patch(
+            "core.project_checks.stop", mark("checks.stop")
+        ), patch.object(api, "notification_worker") as notify, patch.object(
+            api.runtime, "shutdown", mark("runtime.shutdown")
+        ), patch.object(api, "close_pool", mark("pool.close")):
+            notify.start.side_effect = mark("notify.start")
+            notify.stop.side_effect = mark("notify.stop")
+            async def check():
+                async with api.lifespan(None):
+                    pass
+            with self.assertRaisesRegex(RuntimeError, "synthetic stop"):
+                asyncio.run(check())
+        self.assertEqual(order[-7:], ["notify.stop", "runtime.shutdown", "library.stop",
+                                      "checks.stop", "embeddings.stop", "archive.stop",
+                                      "pool.close"])
+
     def test_background_worker_start_is_idempotent(self):
         fake_thread = Mock()
         fake_thread.is_alive.return_value = True
