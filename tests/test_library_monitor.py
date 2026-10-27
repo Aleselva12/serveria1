@@ -35,6 +35,25 @@ class LibraryMonitorTests(unittest.TestCase):
             raise ValueError('Invalid path')
         return target
 
+    def test_background_error_is_visible_without_user_path(self):
+        from unittest.mock import Mock
+        import datetime
+        fake_stop = Mock()
+        fake_stop.wait.side_effect = [False, True]
+        with patch.object(monitor, '_STOP', fake_stop), patch.object(
+            monitor, 'scan_once', side_effect=OSError('/private/customer/file.docx')
+        ):
+            monitor._loop()
+        health = monitor.status()
+        self.assertEqual(health['last_error_type'], 'OSError')
+        self.assertIsNotNone(health['last_attempt'])
+        self.assertNotIn('/private/customer', str(health))
+        # A completed scan clears the previous health error.
+        fake_stop.wait.side_effect = [False, True]
+        with patch.object(monitor, '_STOP', fake_stop), patch.object(monitor, 'scan_once', return_value=True):
+            monitor._loop()
+        self.assertIsNone(monitor.status()['last_error_type'])
+
     def test_default_is_opt_in_and_persisted(self):
         self.assertEqual(monitor.status()['folders'], [])
         (self.root/'work').mkdir()
