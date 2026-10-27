@@ -68,8 +68,10 @@ def prepare_server():
         workspace = releases.create("Aggiornamento Cora dal branch main")
         saved = releases.commit(workspace["id"], "Prepare current main for deployment")
         return releases.request("POST", "/jobs", {"kind": "prepare", "workspace_id": workspace["id"], "commit": saved["commit"]})
-    except (ValueError, OSError) as exc:
-        raise HTTPException(409, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(409, "Richiesta di aggiornamento non valida.") from exc
+    except OSError as exc:
+        raise HTTPException(503, "Updater Debian non raggiungibile. Controlla il servizio host.") from exc
 
 
 class ApplyServerRequest(BaseModel):
@@ -88,8 +90,10 @@ def apply_server(data: ApplyServerRequest):
                 or release.get("commit") != data.expected_commit):
             raise HTTPException(409, "Rilascio non pronto o commit diverso.")
         return releases.request("POST", "/jobs", {"kind": "apply", "release_id": data.release_id, "commit": data.expected_commit})
-    except (ValueError, OSError) as exc:
-        raise HTTPException(409, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(409, "Richiesta di aggiornamento non valida.") from exc
+    except OSError as exc:
+        raise HTTPException(503, "Updater Debian non raggiungibile. Controlla il servizio host.") from exc
 
 
 
