@@ -90,7 +90,12 @@ def upload_copy(path: str = Form(''), file: UploadFile = File(...)):
         try:
             original = upload_to(root, originals, folder, file)
         except Exception:
-            (originals / folder).rmdir()
+            try:
+                (originals / folder).rmdir()
+            except OSError:
+                # A published original may already exist: never delete it, nor
+                # conceal the exception raised after its publication.
+                pass
             raise
         try:
             result = copy_document(resolve(originals, original['path']), destination, library)
