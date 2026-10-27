@@ -12,6 +12,36 @@ from core import machines_api as machines
 
 
 class MachinesTests(unittest.TestCase):
+    def test_worker_probe_does_not_promote_invalid_health_responses(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        valid = 'desktop.tail7b83c3.ts.net'
+        class Response:
+            status = 200
+            def __init__(self, payload):
+                self.payload = payload
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, limit): return self.payload
+        cases = [
+            (b'invalid-json', False),
+            (b'{"protocol":"old","execution_enabled":false,"capabilities":[]}', False),
+            (b'{"protocol":"cora-worker-v1","execution_enabled":true}', False),
+            (b'{"protocol":"cora-worker-v1","execution_enabled":false,"capabilities":["chat"]}', True),
+        ]
+        with patch.dict(os.environ, {"CORA_TAILSCALE_DNS_SUFFIX": "tail7b83c3.ts.net"}):
+            for payload, expected in cases:
+                with self.subTest(payload=payload):
+                    opener=Mock()
+                    opener.open.return_value=Response(payload)
+                    with patch.object(machines, 'build_opener', return_value=opener):
+                        ready, capabilities = machines._probe(valid)
+                    self.assertEqual(ready, expected)
+                    if expected:
+                        self.assertEqual(capabilities, ['chat'])
+                    else:
+                        self.assertEqual(capabilities, [])
+
     def test_registration_is_persistent_and_idempotent(self):
         with tempfile.TemporaryDirectory() as root:
             with patch.dict(os.environ, {"CORA_MACHINES_REGISTRY_FILE": str(Path(root) / "machines.json")}, clear=False):
