@@ -33,11 +33,11 @@ Nginx, che disabilita il buffering SSE. Un solo worker esegue il runtime.
 browser. Se Ollama è su un'altra macchina usare il suo indirizzo privato.
 Se è sullo stesso host deve ascoltare su un indirizzo raggiungibile dalla rete
 Docker; un listener limitato a `127.0.0.1` non basta. Verificare la raggiungibilità
-senza avviare una generazione:
+senza avviare una generazione. Il controllo usa lo stesso trasporto senza proxy del backend, anche se il container ha variabili HTTP_PROXY/HTTPS_PROXY:
 
 ```sh
 docker compose --env-file deploy.env exec api python -c \
-  'import os,urllib.request; print(urllib.request.urlopen(os.environ["OLLAMA_BASE_URL"].rstrip("/")+"/api/tags",timeout=5).status)'
+  'from core.ollama_transport import get_ollama_base_url,urlopen; print(urlopen(get_ollama_base_url()+"/api/tags",timeout=5).status)'
 ```
 
 L'immagine iniziale contiene le dipendenze core. Il profilo audio CPU descritto
