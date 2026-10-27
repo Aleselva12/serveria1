@@ -34,8 +34,14 @@ Il comando **Aggiorna e verifica** scarica soltanto il branch autorizzato e avvi
 del servizio isolato con `--wait`; non segna completato un deployment il cui web non
 diventi healthy. I container Cora e il database PostgreSQL non vengono toccati.
 
-**Attenzione al servizio installato su serverale:** il merge di Serveria
-aggiorna i container Cora ma NON modifica la copia live di
+**Attenzione al servizio installato su serverale:** il percorso mostrato qui e
+quello in `updater/README.md` sono esempi di due installazioni differenti, NON due percorsi
+da aggiornare insieme. Prima di eseguire qualunque copia/restart sul Debian,
+controllare in sola lettura `systemctl show cora-updater.service -p ExecStart -p WorkingDirectory`
+e `systemctl cat cora-updater.service` (non pubblicare credenziali né token).
+Usare soltanto il percorso effettivo dell'unità in uso; se non coincide,
+NON eseguire i comandi d'esempio e ricostruire la procedura corretta.
+Il merge di Serveria aggiorna i container Cora ma NON modifica la copia live di
 `/srv/cora-tools/updater/installed/updater/managed_apps.py`.
 Dopo il merge e l'aggiornamento Cora, prima di abilitare il nuovo comportamento
 copiare il solo modulo con backup, verificando che il checkout della nuova versione
