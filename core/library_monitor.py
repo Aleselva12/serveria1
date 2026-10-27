@@ -11,6 +11,8 @@ from search_agent.search_tools import _safe_path, BLOCKED_PARTS, BLOCKED_NAMES
 _LOCK = threading.RLock()
 _STOP = threading.Event()
 _THREAD = None
+_LAST_ATTEMPT = None
+_LAST_ERROR_TYPE = None
 MAX_FILES = 5000
 
 def _state_path():
@@ -54,7 +56,9 @@ def status():
     with _LOCK:
         data = _read()
         return {'folders': list(data['folders']), 'last_scan': data['last_scan'],
-                'events': list(data['events'][-50:]), 'indexed_files': len(data['snapshot'])}
+                'events': list(data['events'][-50:]), 'indexed_files': len(data['snapshot']),
+                'last_attempt': _LAST_ATTEMPT, 'last_error_type': _LAST_ERROR_TYPE,
+                'worker_alive': bool(_THREAD and _THREAD.is_alive())}
 
 def set_folder(folder, enabled):
     name = normalize_folder(folder)
@@ -115,11 +119,17 @@ def scan_once():
         return True
 
 def _loop():
+    global _LAST_ATTEMPT, _LAST_ERROR_TYPE
     while not _STOP.wait(max(60, int(os.getenv('CORA_LIBRARY_SCAN_SECONDS','300')))):
-        try: scan_once()
-        except Exception:
-            # Leave the previous snapshot untouched and retry later.
-            pass
+        try:
+            completed = scan_once()
+            error_type = None if completed else 'ScanIncomplete'
+        except Exception as error:
+            # Do not include folder names, exceptions or document contents in health.
+            error_type = type(error).__name__
+        with _LOCK:
+            _LAST_ATTEMPT = datetime.now(timezone.utc).isoformat()
+            _LAST_ERROR_TYPE = error_type
 
 def start():
     global _THREAD

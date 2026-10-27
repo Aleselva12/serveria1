@@ -1,4 +1,5 @@
 import unittest
+from urllib.error import HTTPError
 from types import SimpleNamespace as NS
 from unittest.mock import patch
 
@@ -96,6 +97,26 @@ class MonitoringTests(unittest.TestCase):
         self.assertEqual(states["ollama"], "offline")
         self.assertEqual(states["immich"], "unknown")
         self.assertEqual(states["docker:1"], "error")
+
+    def test_http_errors_are_not_reported_as_offline(self):
+        # HTTPError subclasses OSError, but it confirms that the endpoint replied.
+        for code in (401, 503):
+            with self.subTest(http_status=code), patch.dict(
+                m.os.environ,
+                {"CORA_SERVICE_IMMICH_URL": "https://example.invalid/health",
+                 "CORA_SERVICE_NEXTCLOUD_URL": "",
+                 "CORA_SERVICE_N8N_URL": ""},
+            ), patch.object(
+                m, "urlopen",
+                side_effect=HTTPError("https://example.invalid/health", code, "synthetic", None, None),
+            ), patch.object(
+                m, "ollama_urlopen",
+                side_effect=HTTPError("http://localhost:11434/api/tags", code, "synthetic", None, None),
+            ), patch.object(m.shutil, "which", return_value=None):
+                services = {row["id"]: row for row in m.service_status()["services"]}
+                for name in ("immich", "ollama"):
+                    self.assertEqual(services[name]["status"], "error")
+                    self.assertIn(str(code), services[name]["detail"])
 
     def test_docker_permissions_not_reported_as_healthy(self):
         with patch.object(m, "urlopen", side_effect=OSError()), patch.object(

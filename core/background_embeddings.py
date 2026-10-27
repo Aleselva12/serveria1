@@ -9,6 +9,7 @@ from core.runtime import runtime
 
 _stop = threading.Event()
 _worker = None
+_worker_lock = threading.Lock()
 
 
 def index_pending_once():
@@ -60,16 +61,28 @@ def index_pending_once():
 
 def _loop():
     while not _stop.is_set():
-        try: worked = index_pending_once()
-        except Exception: worked = False
+        try:
+            worked = index_pending_once()
+        except Exception as error:
+            # Keep the queue recoverable, but expose the failure type as metadata.
+            try:
+                from core.logging import log_event
+                log_event("background_indexing", component="embedding_worker",
+                          status="error", data={"error_type": type(error).__name__})
+            except Exception:
+                pass  # Diagnostics are best-effort; never stop the indexing thread.
+            worked = False
         _stop.wait(.2 if worked else 3)
 
 
 def start():
     global _worker
-    _stop.clear()
-    _worker = threading.Thread(target=_loop, daemon=True)
-    _worker.start()
+    with _worker_lock:
+        if _worker is not None and _worker.is_alive():
+            return
+        _stop.clear()
+        _worker = threading.Thread(target=_loop, daemon=True, name="cora-embeddings")
+        _worker.start()
 
 
 def stop():

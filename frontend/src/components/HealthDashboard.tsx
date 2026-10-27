@@ -52,13 +52,14 @@ export default function HealthDashboard({
   const filtered = data?.catalog.filter(c => !componentFilter || componentFilter.includes(c.component)) || [];
   const groups = Object.entries(data?.components || {}).filter(([key]) => filtered.some(c => c.component === key));
   const failures = filtered.filter(c => statusOf(c,data?.latest[c.id]).tone === "error").length;
-  const notTested = filtered.filter(c => !data?.latest[c.id]).length;
+  // Missing, expired and inconclusive checks all need verification.
+  const notTested = filtered.filter(c => statusOf(c,data?.latest[c.id]).tone === "unknown").length;
   return <section id={!componentFilter ? "system-health" : undefined} className={"home-health-dashboard" + (compact ? " compact" : "")}
     aria-label="Salute del sistema e collaudi">
     <div className="metric-head">
       <div><h2>{compact ? "Verifiche e collaudi" : "Salute del sistema e collaudi"}</h2>
         <small>Controlli condivisi · contratti software · prove funzionali</small></div>
-      {data && <span className="pill">{failures ? failures+" errori" : notTested ? notTested+" da provare" : "Risultati disponibili"}</span>}
+      {data && <span className="pill">{failures ? failures+" errori" : notTested ? notTested+" da verificare" : "Risultati disponibili"}</span>}
     </div>
     {showServices && <>
       <h3>Disponibilità dei servizi</h3>

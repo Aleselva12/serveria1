@@ -77,7 +77,7 @@ def status():
             row = conn.execute(
                 "SELECT COUNT(*) AS count FROM push_subscriptions WHERE active"
             ).fetchone()
-        return {"activeSubscriptions": row["count"]}
+        return {"activeSubscriptions": row["count"], "worker": worker.health()}
     return _safe(load)
 
 
@@ -258,6 +258,17 @@ class NotificationWorker:
     def __init__(self):
         self._stop = threading.Event()
         self._thread = None
+        self.last_attempt_at = None
+        self.last_success_at = None
+        self.last_error_type = None
+
+    def health(self):
+        return {
+            "worker_alive": bool(self._thread and self._thread.is_alive()),
+            "last_attempt": self.last_attempt_at,
+            "last_success": self.last_success_at,
+            "last_error_type": self.last_error_type,
+        }
 
     def start(self):
         if self._thread and self._thread.is_alive():
@@ -273,11 +284,14 @@ class NotificationWorker:
 
     def _run(self):
         while not self._stop.wait(20):
+            self.last_attempt_at = datetime.now(timezone.utc).isoformat()
             try:
                 deliver_calendar_reminders()
-            except Exception:
-                # Push is best-effort and must never take down Cora.
-                pass
+                self.last_success_at = self.last_attempt_at
+                self.last_error_type = None
+            except Exception as error:
+                # Only the exception class is retained; no endpoints or event data.
+                self.last_error_type = type(error).__name__
 
 
 worker = NotificationWorker()

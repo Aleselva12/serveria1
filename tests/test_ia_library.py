@@ -98,6 +98,19 @@ class LibraryCopiesTests(unittest.TestCase):
         self.assertEqual(len(list(self.originals.glob('*/report.txt'))), 1)
         self.assertFalse((self.library / 'report.txt').exists())
 
+    def test_failure_after_atomic_publication_preserves_original_and_root_error(self):
+        from core import server_files
+        def fail_node(*args, **kwargs):
+            raise RuntimeError("synthetic post-publication failure")
+        with patch.object(server_files, "node", side_effect=fail_node):
+            with self.assertRaisesRegex(RuntimeError, "synthetic post-publication failure"):
+                self.client.post(self.prefix + '/upload', files={'file': ('report.txt', b'hello')})
+        # The original was made durable before constructing its response.
+        originals = list(self.originals.glob('*/report.txt'))
+        self.assertEqual(len(originals), 1)
+        self.assertEqual(originals[0].read_bytes(), b'hello')
+        self.assertFalse((self.library / 'report.txt').exists())
+
     def test_large_upload_and_conflict_do_not_create_or_replace_copies(self):
         response = self.client.post(self.prefix + '/upload', files={'file': ('large.txt', b'x' * 11)})
         self.assertEqual(response.status_code, 413)

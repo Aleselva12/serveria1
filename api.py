@@ -7,7 +7,7 @@ from core.ollama_transport import urlopen, get_ollama_base_url
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, ExitStack
 from core.auth import AuthMiddleware, router as auth_router
 from core.desktop_updates import router as update_router
 from core.managed_apps_api import router as managed_apps_router
@@ -55,6 +55,7 @@ from core.permissions_api import router as permissions_router
 from programmer_agent.api import router as programmer_router
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Request
+from psycopg.errors import ForeignKeyViolation
 
 
 load_dotenv()
@@ -69,21 +70,23 @@ async def lifespan(app):
     from core.runtime import recover_interrupted
     recover_interrupted()
     from core.observability import archive
-    archive.start()
-    background_embeddings.start()
-    from core import library_monitor
-    library_monitor.start()
-    from core import project_checks
-    project_checks.start()
-    notification_worker.start()
-    yield
-    notification_worker.stop()
-    runtime.shutdown()
-    library_monitor.stop()
-    project_checks.stop()
-    background_embeddings.stop()
-    archive.stop()
-    close_pool()
+    from core import library_monitor, project_checks
+    # Cleanup is registered before each start to cover partial initialization.
+    # ExitStack continues all remaining stops even if a stop itself fails.
+    with ExitStack() as cleanup:
+        cleanup.callback(close_pool)
+        cleanup.callback(archive.stop)
+        archive.start()
+        cleanup.callback(background_embeddings.stop)
+        background_embeddings.start()
+        cleanup.callback(project_checks.stop)
+        cleanup.callback(library_monitor.stop)
+        library_monitor.start()
+        project_checks.start()
+        cleanup.callback(runtime.shutdown)
+        cleanup.callback(notification_worker.stop)
+        notification_worker.start()
+        yield
 
 
 app = FastAPI(
@@ -286,8 +289,13 @@ def create_conversation(request: ConversationCreateRequest):
             str(request.id),
             project_id=str(request.project_id) if request.project_id else None,
         )
+    except ValueError as error:
+        raise HTTPException(422, "Identificativo conversazione o progetto non valido.") from error
+    except ForeignKeyViolation as error:
+        raise HTTPException(422, "Progetto inesistente o non valido.") from error
     except Exception as error:
-        raise HTTPException(422, str(error)) from error
+        # Internal/DB errors are not invalid client parameters; never disclose SQL details.
+        raise HTTPException(500, "Creazione conversazione non riuscita.") from error
 
 
 @app.patch("/conversations/{conversation_id}")
@@ -583,13 +591,25 @@ postprocess = ThreadPoolExecutor(max_workers=1,thread_name_prefix="cora-postproc
 
 
 def _postprocess_turn(thread_id,message,response,user_id,assistant_id):
-    try:
-        schedule_summary(thread_id)
-        refresh_transcript(thread_id)
-        create_episode(title=message.replace("\n", " ")[:80] or "Turno chat",
+    # These are independent derived views: failure in one must not skip the others.
+    tasks = (
+        ("summary", lambda: schedule_summary(thread_id)),
+        ("transcript", lambda: refresh_transcript(thread_id)),
+        ("episode", lambda: create_episode(
+            title=message.replace("\n", " ")[:80] or "Turno chat",
             summary="Richiesta: " + message[:240] + "\nRisultato: " + response[:420],
-            conversation_id=thread_id,episode_type="conversation_turn",agent_id="supervisor",
-            metadata={"user_message_id":user_id,"assistant_message_id":assistant_id})
-    except Exception:
-        pass  # Primary messages remain authoritative; derived copies can be rebuilt.
-
+            conversation_id=thread_id, episode_type="conversation_turn", agent_id="supervisor",
+            metadata={"user_message_id":user_id, "assistant_message_id":assistant_id},
+        )),
+    )
+    for action, task in tasks:
+        try:
+            task()
+        except Exception as error:
+            # Only the stage and exception class enter best-effort technical telemetry.
+            try:
+                from core.logging import log_event
+                log_event("postprocess_failed", component="postprocess",
+                          status="error", data={"action": action, "error_type": type(error).__name__})
+            except Exception:
+                pass  # Derived work must never invalidate a committed chat response.
