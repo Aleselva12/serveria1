@@ -9,9 +9,10 @@ import {create,act} from 'react-test-renderer';
 const require=createRequire(import.meta.url);
 const external=n=>JSON.stringify(pathToFileURL(require.resolve(n)).href);
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
-let calls=[],policy='auto',unknownEffects=[],history=[],reviewCalls=[],telemetry=null;
+let calls=[],policy='auto',unknownEffects=[],history=[],reviewCalls=[],telemetry=null,failPaths=[];
 globalThis.__panelRequest=async(path,init={})=>{
  calls.push(path);
+ if(failPaths.some(prefix=>path.startsWith(prefix)))throw Error('Endpoint unavailable: '+path);
  if(path.startsWith('/runtime/runs?'))return history;
  if(path.startsWith('/runtime/operations?'))return unknownEffects;
  if(path.endsWith('/review')){const decision=JSON.parse(init.body);reviewCalls.push(decision);unknownEffects=[];return {status:'uncertain',review_outcome:decision.outcome};}
@@ -74,4 +75,54 @@ test('uncertain effects require a recorded verification and review never replays
   assert.ok(!calls.some(p=>p.includes('/resolve') || p.includes('/chat')));
   assert.ok(JSON.stringify(r.toJSON()).includes('Nessun effetto da verificare'));
  } finally {if(r)await act(async()=>r.unmount());unknownEffects=[];history=[];}
+});
+
+test('status polling preserves independent sections when approvals fail',async()=>{
+  calls=[];failPaths=['/approvals'];
+  history=[{id:'persistent-run',status:'completed',target:'supervisor',approval_ids:[]}];
+  let r;
+  try {
+    await act(async()=>{r=create(React.createElement(Panel));});
+    const view=JSON.stringify(r.toJSON());
+    assert.ok(view.includes('persistent-run'.slice(0,8)));
+    assert.ok(view.includes('Aggiornamento parziale'));
+    assert.ok(view.includes('approvazioni'));
+  } finally {
+    if(r)await act(async()=>r.unmount());
+    failPaths=[];history=[];
+  }
+});
+
+test('diagnostic API failure does not hide transactional events or operations',async()=>{
+  calls=[];failPaths=['/runtime/diagnostics?'];
+  history=[{id:'persistent-run',status:'completed',target:'supervisor',approval_ids:[]}];
+  unknownEffects=[{id:'operation-a',status:'succeeded',run_id:'persistent-run',capability_id:'test.read',effect:'read',contract_version:1,payload:{}}];
+  let r;
+  try {
+    await act(async()=>{r=create(React.createElement(Panel));});
+    await act(async()=>r.root.findAllByType('button').find(b=>b.children.includes('Vedi operazioni')).props.onClick());
+    const view=JSON.stringify(r.toJSON());
+    assert.ok(view.includes('run.committed'));
+    assert.ok(view.includes('test.read'));
+    assert.ok(view.includes('Dettagli parziali'));
+    assert.ok(view.includes('diagnostica tecnica'));
+  } finally {
+    if(r)await act(async()=>r.unmount());
+    failPaths=[];unknownEffects=[];history=[];
+  }
+});
+
+test('historical archive write failures remain visible after last error clears',async()=>{
+  telemetry={pending:0,dropped:0,last_error:null,retention_days:30,worker_alive:true,
+    accepted:5,persisted:5,write_failures:2};
+  let r;
+  try {
+    await act(async()=>{r=create(React.createElement(Panel));});
+    const view=JSON.stringify(r.toJSON());
+    assert.ok(view.includes('errori di scrittura'));
+    assert.ok(view.includes('Diagnostica incompleta'));
+  } finally {
+    if(r)await act(async()=>r.unmount());
+    telemetry=null;
+  }
 });
