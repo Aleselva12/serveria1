@@ -20,7 +20,7 @@ class AuditEasyFixesTests(unittest.TestCase):
             embeddings.start()
             thread_factory.assert_called_once()
             fake_thread.start.assert_called_once()
-        embeddings._stop.set()
+        embeddings._stop.clear()  # Leave the shared module in its original idle state.
 
     def test_background_worker_reports_error_type_without_sensitive_details(self):
         fake_stop = Mock()
