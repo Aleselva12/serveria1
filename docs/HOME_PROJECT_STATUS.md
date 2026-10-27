@@ -162,3 +162,42 @@ Per Immich e Nextcloud il backend espone URL di navigazione con `CORA_SERVICE_IM
 Il monitor periodico della salute esiste, con dati PostgreSQL se la migrazione 0007 è presente. Gli obiettivi di miglioramento sono cronologia utile, prove sintetiche isolate e correlazione errori/versioni, senza generare dati nei servizi personali.
 
 **Verifiche necessarie**: test TypeScript/Home, build, verifica aggiornata dei link configurati, collaudo su Debian separato. Non cambiare servizi Immich/Nextcloud o autorizzazioni direttamente con questa modifica.
+
+
+## Appunti di pianificazione — Orchestratore (27 ottobre 2026)
+
+Questa sezione raccoglie idee e vincoli emersi durante la pianificazione. Non equivale ancora a una specifica definitiva né autorizza modifiche autonome dell'architettura.
+
+### Principi emersi
+
+- **Orchestrazione come ecosistema, non come singolo modello**: valutare una serie di piccoli modelli/componenti specializzati che si completano a vicenda e, insieme, svolgono il ruolo di orchestrazione.
+- **Attivazione proporzionata al compito**: una richiesta non deve attivare automaticamente tutta la potenza computazionale disponibile. Il classificatore `simple question` è già un esempio utile di questa direzione.
+- **Evitare la sottovalutazione dei task**: il risparmio computazionale non deve portare a classificare come semplice un'attività che richiede più controllo, contesto o verifica. Serviranno test, soglie e meccanismi di escalation.
+- **"Larva" / livello di riposo**: valutare un componente molto leggero, attivo quando Cora è a riposo, capace di osservare eventi/stato, contribuire a controlli e diagnostica e decidere quando è necessario attivare livelli superiori.
+- **Architettura inizialmente lineare**: prima di permettere circuiti temporanei molto dinamici/adattativi, preferire una gestione più lineare e osservabile. L'adattività più spinta potrà essere introdotta dopo aver raccolto dati e addestrato/validato i modelli.
+- **Struttura a livelli ma non necessariamente "più in basso = modello più grande"**: pensare l'orchestrazione come ecosistema di piccoli modelli e componenti eterogenei distribuiti tra i diversi livelli.
+- **Trasparenza dell'orchestratore**: ogni decisione rilevante deve essere ricostruibile. L'orchestratore deve lavorare su informazioni corrette e dettagliate e riportare adeguatamente sia i percorsi riusciti sia, soprattutto, errori, fallback e bug.
+- **Pagina Attività come registro diagnostico centrale**: deve aiutare sia a localizzare e risolvere problemi, sia a capire dove viene perso tempo e quindi a rendere il sistema più snello e veloce.
+- **Context manager da approfondire**: deve distinguere esplicitamente tra registro letterale e registro rielaborato, evitando che i due livelli vengano confusi durante il recupero del contesto.
+
+### Vincoli e argomenti da approfondire separatamente
+
+- **Permission engine e rigidità software**: considerati obbligatori. Devono restare un livello di controllo separato dall'orchestrazione intelligente. Argomento da affrontare in una conversazione dedicata e richiamare quando necessario.
+- **Macchine e worker**: l'obiettivo futuro è poter usare la potenza computazionale di tutti i nodi quando desiderato, ma per ora evitare controllo completo delle periferiche da parte dell'IA. Gestione iniziale tramite scelta esplicita dell'utente oppure regole semplici e verificabili, da definire insieme al permission engine.
+- **Context manager**: da discutere a breve, inclusi selezione del contesto, registro letterale/rielaborato e criteri di escalation.
+- **Event bus**: da discutere e, se confermato, progettare/implementare.
+- **Runtime state**: da discutere e, se confermato, progettare/implementare.
+- **State machine**: da discutere e, se confermato, progettare/implementare.
+- **Mente saggia / Custode**: da mantenere tra gli agenti/ruoli concettuali da approfondire; non assumere ancora che coincida con l'orchestratore.
+- **Circuiti temporanei adattivi**: idea valida da conservare, ma da rinviare a una fase successiva rispetto a una prima orchestrazione lineare e verificabile.
+
+### Coda utile per i prossimi passi
+
+1. Ricostruire dalle conversazioni precedenti tutte le idee sull'orchestratore non presenti in questa sintesi.
+2. Definire responsabilità precise dell'orchestratore: cosa percepisce, cosa decide, cosa delega e cosa non gli appartiene.
+3. Disegnare una prima pipeline lineare e osservabile, con escalation progressiva della capacità computazionale.
+4. Definire il ruolo dei piccoli modelli/componenti specializzati nell'orchestrazione e quali decisioni restano deterministiche.
+5. Progettare il livello "larva" con particolare attenzione a falsi negativi/sottovalutazione dei task.
+6. Collegare ogni decisione dell'orchestratore a tracciamento e diagnostica nella pagina Attività.
+7. Aprire approfondimenti dedicati su permission engine/regole software e context manager.
+8. Valutare successivamente event bus, runtime state, state machine, Mente saggia e circuiti temporanei adattivi.
