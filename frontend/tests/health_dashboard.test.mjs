@@ -60,6 +60,26 @@ test("Health panel distinguishes contract checks from untested full workflows",a
   } finally {if(r)await act(async()=>r.unmount());}
 });
 
+test("Expired automatic checks count as needing verification in the Home summary",async()=>{
+  const previous=response;
+  response={...previous,latest:{
+    ...previous.latest,
+    chat_contract:{...previous.latest.chat_contract,at:new Date(Date.now()-11*60*1000).toISOString()},
+    // Even with every check recorded, an expired one must not imply all good.
+    chat_e2e:{...previous.latest.chat_contract,id:"chat_e2e",status:"pass",at:new Date().toISOString()},
+  }};
+  let r;
+  try{
+    await act(async()=>{r=create(React.createElement(HealthDashboard,{}));});
+    assert.ok(rendered(r).includes("Scaduto"));
+    assert.ok(rendered(r).includes("1 da verificare"));
+    assert.ok(!rendered(r).includes("Risultati disponibili"));
+  } finally {
+    if(r) await act(async()=>r.unmount());
+    response=previous;
+  }
+});
+
 test("Health panel renders owner observations separately from automated evidence and safe service links",async()=>{
   let previousRoadmap=globalThis.__roadmap;
   let oldResponse=response;
