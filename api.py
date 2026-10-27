@@ -7,7 +7,7 @@ from core.ollama_transport import urlopen, get_ollama_base_url
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, ExitStack
 from core.auth import AuthMiddleware, router as auth_router
 from core.desktop_updates import router as update_router
 from core.managed_apps_api import router as managed_apps_router
@@ -70,21 +70,23 @@ async def lifespan(app):
     from core.runtime import recover_interrupted
     recover_interrupted()
     from core.observability import archive
-    archive.start()
-    background_embeddings.start()
-    from core import library_monitor
-    library_monitor.start()
-    from core import project_checks
-    project_checks.start()
-    notification_worker.start()
-    yield
-    notification_worker.stop()
-    runtime.shutdown()
-    library_monitor.stop()
-    project_checks.stop()
-    background_embeddings.stop()
-    archive.stop()
-    close_pool()
+    from core import library_monitor, project_checks
+    # Cleanup is registered before each start to cover partial initialization.
+    # ExitStack continues all remaining stops even if a stop itself fails.
+    with ExitStack() as cleanup:
+        cleanup.callback(close_pool)
+        cleanup.callback(archive.stop)
+        archive.start()
+        cleanup.callback(background_embeddings.stop)
+        background_embeddings.start()
+        cleanup.callback(project_checks.stop)
+        cleanup.callback(library_monitor.stop)
+        library_monitor.start()
+        project_checks.start()
+        cleanup.callback(runtime.shutdown)
+        cleanup.callback(notification_worker.stop)
+        notification_worker.start()
+        yield
 
 
 app = FastAPI(
