@@ -50,6 +50,12 @@ def registry():
     return capability_registry()
 
 
+@router.get("/runtime/capabilities")
+def operational_capabilities():
+    from core.operational_capabilities import operational_registry
+    return operational_registry()
+
+
 @router.get("/runtime/coordinator")
 def coordinator_snapshot():
     from core.system_coordinator import snapshot
