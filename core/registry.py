@@ -104,6 +104,16 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         ),
     ),
     ComponentDefinition(
+        id="system_larva",
+        name="Larva System v0",
+        kind="core",
+        description="Osservatore deterministico e read-only dello stato interno: segnala anomalie note ma non esegue azioni, retry o scheduling.",
+        module="core.system_larva",
+        capabilities=(
+            Capability("observe_system_health", "Classifica segnali oggettivi del Coordinator in nominal/warning/critical."),
+        ),
+    ),
+    ComponentDefinition(
         id="system_coordinator",
         name="System Coordinator",
         kind="core",
