@@ -63,7 +63,7 @@ def primary_route(messages: Iterable[object]) -> str:
     return "direct"
 
 def _shadow_model_name() -> str:
-    return os.getenv("CORA_MODEL_SHADOW_ROUTER", "qwen3:8b").strip() or "qwen3:8b"
+    return os.getenv("CORA_MODEL_SHADOW_ROUTER", "qwen3:4b").strip() or "qwen3:4b"
 
 def _parse_reply(text: str) -> tuple[str, float | None]:
     text = text.strip()
