@@ -507,6 +507,9 @@ def execute_chat(request: ChatRequest, run):
         if not result: raise RuntimeError("Grafo senza risultato.")
         phase = time.perf_counter()
         response = str(result["messages"][-1].content)
+        from core.shadow_router import primary_route as shadow_primary_route
+        primary_route = shadow_primary_route(result["messages"])
+        run.timings["primary_route"] = primary_route
         observed_calls = list(run.timings.get('inference_observations', []))
         last_reply = observed_calls[-1] if observed_calls else {}
         assistant_message = save_message(
@@ -533,7 +536,7 @@ def execute_chat(request: ChatRequest, run):
             ttl_minutes=120,
         )
         # Derived transcripts/episodes do not delay the persisted chat result.
-        postprocess.submit(_postprocess_turn, thread_id, message, response, str(user_message["id"]), str(assistant_message["id"]))
+        postprocess.submit(_postprocess_turn, thread_id, message, response, str(user_message["id"]), str(assistant_message["id"]), str(run.id), primary_route)
         run.timings["result_save_ms"] = round((time.perf_counter()-phase)*1000,2)
         operation["result"] = {
             "response_chars": len(response),
@@ -590,11 +593,14 @@ async def chat(request: ChatRequest, http_request: Request):
 postprocess = ThreadPoolExecutor(max_workers=1,thread_name_prefix="cora-postprocess")
 
 
-def _postprocess_turn(thread_id,message,response,user_id,assistant_id):
+def _postprocess_turn(thread_id,message,response,user_id,assistant_id,run_id="",primary_route="direct"):
     # These are independent derived views: failure in one must not skip the others.
     tasks = (
         ("summary", lambda: schedule_summary(thread_id)),
         ("transcript", lambda: refresh_transcript(thread_id)),
+        ("shadow_router", lambda: __import__("core.shadow_router", fromlist=["record_example"]).record_example(
+            request_text=message, primary=primary_route, thread_id=thread_id, run_id=run_id,
+        )),
         ("episode", lambda: create_episode(
             title=message.replace("\n", " ")[:80] or "Turno chat",
             summary="Richiesta: " + message[:240] + "\nRisultato: " + response[:420],
