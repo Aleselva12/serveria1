@@ -17,6 +17,7 @@ globalThis.__panelRequest=async(path,init={})=>{
  if(path.startsWith('/runtime/operations?'))return unknownEffects;
  if(path.endsWith('/review')){const decision=JSON.parse(init.body);reviewCalls.push(decision);unknownEffects=[];return {status:'uncertain',review_outcome:decision.outcome};}
  if(path==='/runtime')return {runs:[],pool:{},traces:{write_error:null,diagnostics:telemetry}};
+ if(path==='/runtime/coordinator')return {mode:'read_only_coordinator',ownership_validation:{valid:true,count:11,duplicate_concerns:[]},runtime:{accepting_runs:true,active_runs:0,worker_slots:1},event_bus:{transport:'in_process',sequence:3,authoritative_history:false},permissions:{rules:10,policies:{auto:8,confirm:2},validation:{valid:true}},guarantees:{changes_state:false,routes_user_requests:false,schedules_workers:false,executes_tools:false}};
  if(path.startsWith('/runtime/domain-events?'))return {events:[{id:'event1',sequence:1,type:'run.committed',source:'supervisor',component_run_id:'root',payload:{status:'completed'}}],next_cursor:1};
  if(path.startsWith('/runtime/diagnostics?'))return {events:[],next_before:null};
  if(path==='/approvals')return {generic:[],calendar:[],history:[]};
@@ -33,7 +34,7 @@ test('polling loads lightweight permissions once, skips hidden tabs and reloads 
  try {
   await act(async()=>{r=create(React.createElement(Panel));});
   await act(async()=>tick());
-  assert.equal(calls.filter(p=>p==='/permissions').length,1);assert.ok(!calls.includes('/runtime/registry'));
+  assert.equal(calls.filter(p=>p==='/permissions').length,1);assert.ok(!calls.includes('/runtime/registry'));assert.ok(calls.includes('/runtime/coordinator'));
   globalThis.document.hidden=true;const count=calls.length;await act(async()=>tick());assert.equal(calls.length,count);
   globalThis.document.hidden=false;
   await act(async()=>r.root.findByType('select').props.onChange({target:{value:'confirm'}}));
