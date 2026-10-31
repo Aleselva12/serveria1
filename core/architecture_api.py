@@ -136,6 +136,36 @@ def overview_endpoint():
     return architecture_overview()
 
 
+@router.get("/architecture/shadow-router")
+def shadow_router_status():
+    """Training progress for the non-authoritative shadow router."""
+    from core.models import resolve_model
+    from core.shadow_router import stats
+    principal = resolve_model("supervisor")
+    shadow = resolve_model("shadow_router")
+    try:
+        progress = stats()
+        database_ready = True
+        error = None
+    except Exception as exc:
+        progress = {
+            "examples": 0, "evaluated": 0, "matched": 0,
+            "agreement_percent": None, "last_example": None,
+            "model": shadow["model"], "active_for_routing": False,
+            "metric_label": "Accordo con orchestratore principale",
+        }
+        database_ready = False
+        error = type(exc).__name__
+    return {
+        "principal": principal,
+        "shadow": shadow,
+        "progress": progress,
+        "database_ready": database_ready,
+        "error": error,
+        "note": "Il router specializzato lavora in shadow mode: osserva e confronta, ma non decide il routing reale.",
+    }
+
+
 @router.get('/architecture/agents')
 def agents_catalog():
     from core.agent_models import ROLES, bindings
