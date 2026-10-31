@@ -154,9 +154,9 @@ export default function ArchitectureOverview({ selectedNode, onSelect }: { healt
     }, 2000);
     return () => clearInterval(timer);
   }, [defaultModels?.running]);
-  async function downloadDefaults() {
+  async function downloadDefaults(pack: 'base' | 'now' | 'future') {
     setDefaultModelsError('');
-    try { setDefaultModels(await architectureApi.downloadDefaultModels()); }
+    try { setDefaultModels(await architectureApi.downloadDefaultModels(pack)); }
     catch (e) { setDefaultModelsError(e instanceof Error ? e.message : 'Download non avviato.'); }
   }
   const selected = data?.agents.find(a => a.id === selectedNode);
@@ -165,10 +165,25 @@ export default function ArchitectureOverview({ selectedNode, onSelect }: { healt
     <div className="catalog-heading"><div><small>SERVER / AGENTI</small><h2>Agenti<span>.</span></h2><p>Apri una scheda per vedere strumenti, stato e modello.</p></div><button disabled={loading} onClick={() => void refresh()}>{loading ? 'Caricamento…' : 'Ricarica configurazione e stato'}</button></div>
     {refreshMessage && !error && <p role="status">{refreshMessage}</p>}
     {error && <p role="alert" className="catalog-error">{error}</p>}
-    <section className="agent-detail" aria-label="Modelli default di Cora">
-      <div className="catalog-heading"><div><small>MODELLI LOCALI / DEFAULT</small><h2>Modelli base<span>.</span></h2><p>Set minimo consigliato per Cora. I modelli già installati restano intatti e continuano a essere selezionabili.</p></div><button type="button" disabled={!defaultModels || defaultModels.running || defaultModels.missing.length === 0} onClick={() => void downloadDefaults()}>{defaultModels?.running ? 'Download in corso…' : defaultModels?.missing.length === 0 ? 'Default già presenti' : 'Scarica modelli default'}</button></div>
+    <section className="agent-detail" aria-label="Catalogo modelli locali di Cora">
+      <div className="catalog-heading"><div><small>MODELLI LOCALI</small><h2>Pacchetti modelli<span>.</span></h2><p>Scarica solo ciò che manca. Nessun download modifica i modelli già presenti; i pacchetti “Utili ora” e “Futuri” non vengono assegnati automaticamente ad alcun agente.</p></div></div>
       {defaultModelsError && <p role="alert" className="catalog-error">{defaultModelsError}</p>}
-      {defaultModels && <><div className="agent-card-grid">{defaultModels.models.map(m => <article className="agent-card" key={m.name}><span className="agent-card-heading"><span className="catalog-monogram">{m.installed ? '✓' : '↓'}</span><strong>{m.name}</strong></span><span className="agent-card-description">{m.role}</span><span className="agent-card-footer"><span data-state={m.installed ? 'ready' : defaultModels.current_model === m.name ? 'busy' : 'unknown'}>● {m.installed ? 'Installato' : defaultModels.current_model === m.name ? 'Download in corso' : 'Mancante'}</span></span></article>)}</div><p className="catalog-fineprint">{defaultModels.note}{defaultModels.failed.length ? ' Download fallito: ' + defaultModels.failed.join(', ') + (defaultModels.last_error ? ' · ' + defaultModels.last_error : '') : ''}</p></>}
+      {defaultModels && (['base','now','future'] as const).map(pack => {
+        const titles = { base: 'Base', now: 'Utili ora', future: 'Futuri' };
+        const actions = { base: 'Scarica modelli default', now: 'Scarica modelli utili ora', future: 'Scarica modelli futuri' };
+        const descriptions = {
+          base: 'Set minimo previsto dall’architettura corrente.',
+          now: 'Modelli complementari già utili per codice, visione e verifica.',
+          future: 'Modelli più pesanti pensati soprattutto per il nuovo hardware.'
+        };
+        const rows = defaultModels.packs[pack] || [];
+        const missing = defaultModels.missing[pack] || [];
+        return <section className="model-proof" key={pack}>
+          <div className="catalog-heading"><div><h3>{titles[pack]}</h3><p>{descriptions[pack]}</p></div><button type="button" disabled={defaultModels.running || missing.length === 0} onClick={() => void downloadDefaults(pack)}>{defaultModels.running && defaultModels.pack === pack ? 'Download in corso…' : missing.length === 0 ? 'Già presenti' : actions[pack]}</button></div>
+          <div className="agent-card-grid">{rows.map(m => <article className="agent-card" key={m.name}><span className="agent-card-heading"><span className="catalog-monogram">{m.installed ? '✓' : '↓'}</span><strong>{m.name}</strong></span><span className="agent-card-description">{m.role}</span><span className="agent-card-footer"><span data-state={m.installed ? 'ready' : defaultModels.current_model === m.name ? 'busy' : 'unknown'}>● {m.installed ? 'Installato' : defaultModels.current_model === m.name ? 'Download in corso' : 'Mancante'}</span></span></article>)}</div>
+        </section>;
+      })}
+      {defaultModels && <p className="catalog-fineprint">{defaultModels.note}{defaultModels.failed.length ? ' Download fallito: ' + defaultModels.failed.join(', ') + (defaultModels.last_error ? ' · ' + defaultModels.last_error : '') : ''}</p>}
     </section>
         {shadowRouter && <section className="agent-detail" aria-label="Orchestrazione e router shadow">
       <div className="catalog-heading"><div><small>ORCHESTRAZIONE / ROUTING</small><h2>Due teste<span>.</span></h2><p>Il router specializzato osserva le stesse richieste ma non controlla ancora il routing reale.</p></div></div>
