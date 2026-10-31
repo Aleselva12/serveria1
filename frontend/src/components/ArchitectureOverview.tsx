@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
-import { architectureApi, type AgentCard, type AgentCatalog, type ModelTarget, type TargetModels, type ShadowRouterStatus } from '../services/architectureApi';
+import { architectureApi, type AgentCard, type AgentCatalog, type ModelTarget, type TargetModels, type ShadowRouterStatus, type DefaultModelsStatus } from '../services/architectureApi';
 import type { BackendHealth, ServiceStatus } from '../types/contracts';
 import './architecture-overview.css';
 
@@ -120,6 +120,8 @@ export default function ArchitectureOverview({ selectedNode, onSelect }: { healt
   const [targets, setTargets] = useState<ModelTarget[]>([]);
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [shadowRouter, setShadowRouter] = useState<ShadowRouterStatus | null>(null);
+  const [defaultModels, setDefaultModels] = useState<DefaultModelsStatus | null>(null);
+  const [defaultModelsError, setDefaultModelsError] = useState('');
   const [error, setError] = useState('');
   const [targetError, setTargetError] = useState('');
   const [serviceError, setServiceError] = useState('');
@@ -138,19 +140,37 @@ export default function ArchitectureOverview({ selectedNode, onSelect }: { healt
       architectureApi.targets().then(t => { setTargets(t); setTargetError(''); }).catch(e => { setTargets([]); setTargetError(e.message); }),
       api.services().then(s => { setServices(s.services.filter(p => !['fastapi', 'cora'].includes(p.id))); setServiceError(''); }).catch(e => { setServices([]); setServiceError(e.message); }),
       architectureApi.shadowRouter().then(setShadowRouter).catch(() => setShadowRouter(null)),
+      architectureApi.defaultModels().then(m => { setDefaultModels(m); setDefaultModelsError(''); }).catch(e => { setDefaultModels(null); setDefaultModelsError(e.message); }),
     ]);
     setLoading(false);
     setRefreshMessage('Configurazione riletta dal backend. Le assegnazioni salvate qui valgono dalla prossima chiamata, senza riavvio. Per codice e variabili Docker serve invece l’aggiornamento di Cora.');
     if (typeof window !== 'undefined') window.dispatchEvent(new Event('cora:model-config-changed'));
   }
   useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    if (!defaultModels?.running) return;
+    const timer = setInterval(() => {
+      architectureApi.defaultModels().then(m => { setDefaultModels(m); setDefaultModelsError(''); }).catch(e => setDefaultModelsError(e.message));
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [defaultModels?.running]);
+  async function downloadDefaults() {
+    setDefaultModelsError('');
+    try { setDefaultModels(await architectureApi.downloadDefaultModels()); }
+    catch (e) { setDefaultModelsError(e instanceof Error ? e.message : 'Download non avviato.'); }
+  }
   const selected = data?.agents.find(a => a.id === selectedNode);
   const selectedProgram = services.find(s => s.id === program);
   return <div className="agent-catalog">
     <div className="catalog-heading"><div><small>SERVER / AGENTI</small><h2>Agenti<span>.</span></h2><p>Apri una scheda per vedere strumenti, stato e modello.</p></div><button disabled={loading} onClick={() => void refresh()}>{loading ? 'Caricamento…' : 'Ricarica configurazione e stato'}</button></div>
     {refreshMessage && !error && <p role="status">{refreshMessage}</p>}
     {error && <p role="alert" className="catalog-error">{error}</p>}
-    {shadowRouter && <section className="agent-detail" aria-label="Orchestrazione e router shadow">
+    <section className="agent-detail" aria-label="Modelli default di Cora">
+      <div className="catalog-heading"><div><small>MODELLI LOCALI / DEFAULT</small><h2>Modelli base<span>.</span></h2><p>Set minimo consigliato per Cora. I modelli già installati restano intatti e continuano a essere selezionabili.</p></div><button type="button" disabled={!defaultModels || defaultModels.running || defaultModels.missing.length === 0} onClick={() => void downloadDefaults()}>{defaultModels?.running ? 'Download in corso…' : defaultModels?.missing.length === 0 ? 'Default già presenti' : 'Scarica modelli default'}</button></div>
+      {defaultModelsError && <p role="alert" className="catalog-error">{defaultModelsError}</p>}
+      {defaultModels && <><div className="agent-card-grid">{defaultModels.models.map(m => <article className="agent-card" key={m.name}><span className="agent-card-heading"><span className="catalog-monogram">{m.installed ? '✓' : '↓'}</span><strong>{m.name}</strong></span><span className="agent-card-description">{m.role}</span><span className="agent-card-footer"><span data-state={m.installed ? 'ready' : defaultModels.current_model === m.name ? 'busy' : 'unknown'}>● {m.installed ? 'Installato' : defaultModels.current_model === m.name ? 'Download in corso' : 'Mancante'}</span></span></article>)}</div><p className="catalog-fineprint">{defaultModels.note}{defaultModels.failed.length ? ' Download fallito: ' + defaultModels.failed.join(', ') + (defaultModels.last_error ? ' · ' + defaultModels.last_error : '') : ''}</p></>}
+    </section>
+        {shadowRouter && <section className="agent-detail" aria-label="Orchestrazione e router shadow">
       <div className="catalog-heading"><div><small>ORCHESTRAZIONE / ROUTING</small><h2>Due teste<span>.</span></h2><p>Il router specializzato osserva le stesse richieste ma non controlla ancora il routing reale.</p></div></div>
       <div className="agent-card-grid">
         <article className="agent-card"><span className="agent-card-heading"><span className="catalog-monogram">OP</span><strong>Orchestratore principale</strong></span><span className="agent-card-description">Comprende la richiesta, usa i tool disponibili e decide il percorso operativo reale.</span><span className="agent-card-info"><span><small>MODELLO</small><b>{shadowRouter.principal.model}</b></span><span><small>RUOLO</small><b>Attivo</b></span></span></article>
