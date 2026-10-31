@@ -26,23 +26,25 @@ def operational_registry() -> dict:
     load_capabilities()
     runtime = component_runtime_status()["components"]
     rows = []
+    role_map = {
+        "supervisor":"supervisor",
+        "structure_agent":"structure",
+        "local_research_agent":"research",
+        "audio_agent":"audio",
+        "email_quotes_agent":"email",
+        "programmer_agent":"programmer",
+    }
+    model_cache = {}
+    for actor, role in role_map.items():
+        try: model_cache[actor] = resolve_model(role)
+        except Exception: model_cache[actor] = None
     for key, entry in sorted(executables.items(), key=lambda item: item[1]["contract"].id):
         contract = entry["contract"]
         component = ACTOR_COMPONENT.get(contract.actor, contract.actor)
         state = runtime.get(component, {"status": "unknown", "checks": {}})
         rules = [get_permission_rule(contract.actor, action) for action in entry["actions"]]
         rules = [rule.to_dict() for rule in rules if rule]
-        try:
-            model = resolve_model({
-                "supervisor":"supervisor",
-                "structure_agent":"structure",
-                "local_research_agent":"research",
-                "audio_agent":"audio",
-                "email_quotes_agent":"email",
-                "programmer_agent":"programmer",
-            }.get(contract.actor, "supervisor"))
-        except Exception:
-            model = None
+        model = model_cache.get(contract.actor)
         rows.append({
             "id": contract.id,
             "name": contract.name,
