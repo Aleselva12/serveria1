@@ -96,10 +96,13 @@ La scelta manuale resta autorevole finché non viene progettata la policy risors
 - Attività mostra lo stato sintetico del System Coordinator e la validità
   dell'ownership.
 
+**Consolidato ora**
+- Attività mostra anche i tempi principali del run selezionato, ordinati per durata, per individuare più rapidamente i colli di bottiglia.
+
 **Possibili miglioramenti autonomi futuri**
-- vista temporale più leggibile per run;
-- aggregazione dei tempi per fase/componente;
-- evidenziazione automatica dei colli di bottiglia.
+- vista temporale completa per run;
+- aggregazione storica dei tempi per componente;
+- evidenziazione automatica dei colli di bottiglia ricorrenti.
 
 ## B6 — Affidabilità e recovery
 
@@ -126,16 +129,22 @@ La scelta manuale resta autorevole finché non viene progettata la policy risors
 
 ## Larva-system
 
-La Larva-system appartiene al Gruppo B. Una prima versione può essere
-deterministica e basata su health/eventi/soglie, senza rete neurale.
+La Larva-system appartiene al Gruppo B.
 
-Non è ancora implementata come componente autonomo perché prima vanno decisi:
-- segnali osservati;
-- frequenza;
-- soglie;
-- azioni consentite;
+**Implementato ora — v0 observer-only**
+- componente deterministico `core.system_larva`;
+- legge esclusivamente lo snapshot del Coordinator;
+- segnala ownership/permessi invalidi, runtime chiuso e problemi oggettivi della diagnostica;
+- stato nominal / warning / critical;
+- nessuna azione, retry, modifica permessi o scheduling.
+
+**Da decidere prima di renderla attiva**
+- frequenza autonoma;
+- soglie non binarie;
 - escalation;
-- comportamento quando la diagnostica stessa è degradata.
+- azioni consentite;
+- comportamento quando la diagnostica stessa è degradata;
+- eventuale rete neurale successiva.
 
 ## Principio di costruzione
 
