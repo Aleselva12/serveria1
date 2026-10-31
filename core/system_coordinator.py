@@ -123,7 +123,7 @@ def snapshot() -> dict:
         policy = str(row.get("policy", "unknown"))
         policies[policy] = policies.get(policy, 0) + 1
 
-    return {
+    result = {
         "version": 1,
         "mode": "read_only_coordinator",
         "ownership": ownership_manifest(),
@@ -158,3 +158,6 @@ def snapshot() -> dict:
             "executes_tools": False,
         },
     }
+    from core.system_larva import evaluate
+    result["larva"] = evaluate(result)
+    return result
