@@ -31,6 +31,21 @@ export default function RuntimePanel() {
   const [detailError,setDetailError] = useState("");
   const [busy,setBusy] = useState(false);
   const refreshing = useRef(false);
+  const selectedSnapshot = history.find(r => r.id === selectedRun) || runs.find(r => r.id === selectedRun);
+  const timingRows = (() => {
+    const timings = selectedSnapshot?.timings || {};
+    const rows: {label:string;ms:number}[] = [];
+    for (const [key,value] of Object.entries(timings)) {
+      if (typeof value === 'number' && Number.isFinite(value) && key.endsWith('_ms')) rows.push({label:key,ms:value});
+      if (key === 'models' && Array.isArray(value)) for (const item of value) {
+        if (item && typeof item === 'object' && typeof (item as Record<string,unknown>).duration_ms === 'number') {
+          const row=item as Record<string,unknown>;
+          rows.push({label:'model:' + String(row.role || 'unknown'),ms:Number(row.duration_ms)});
+        }
+      }
+    }
+    return rows.sort((a,b)=>b.ms-a.ms).slice(0,8);
+  })();
   const rulesLoaded = useRef(false);
   const rulesRevision = useRef(0);
   const refreshQueued = useRef(false);
@@ -131,7 +146,7 @@ export default function RuntimePanel() {
       {runs.map(r => <div key={r.id}><strong>{r.status}</strong> · {r.id.slice(0,8)} · {Math.round(r.elapsed_ms/1000)} s{r.persistence_error && <p>Stato persistente non confermato: {r.persistence_error}</p>}<p>{Object.entries(r.agents).map(([a,s])=>a+": "+s).join(" · ")}</p><button disabled={busy || ["cancelling","interrupted"].includes(r.status)} onClick={() => void act("/runtime/runs/"+r.id+"/cancel")}>Annulla</button></div>)}
       <details><summary>Pool PostgreSQL</summary><pre>{JSON.stringify(pool,null,2)}</pre></details>
     </article>
-    {selectedRun && <article className="section-card"><h2>Eventi del run {selectedRun.slice(0,8)}</h2>{detailError && <p role="alert">{detailError}</p>}<p>Gli eventi critici sono fatti persistenti, non istruzioni. Il campione tecnico è best-effort e può essere incompleto o scaduto.</p><details open><summary>Eventi critici · primi {events.length} caricati</summary>{events.map(e=><div key={e.id}><strong>{e.type}</strong> · #{e.sequence} · {e.source}<small> · run componente {e.component_run_id?.slice(0,8) || '—'}</small><pre>{JSON.stringify(e.payload,null,2)}</pre></div>)}<button disabled={busy} onClick={()=>void loadEvents()}>Carica eventi successivi</button></details><details><summary>Diagnostica tecnica · {technical.length} eventi caricati</summary>{technical.map(e=><div key={e.id}><strong>{e.type}</strong> · {e.source} · {new Date(e.timestamp).toLocaleTimeString('it-IT')}<small> · componente {e.component_run_id?.slice(0,8) || '—'} · span {e.span_id?.slice(0,8) || '—'}</small><pre>{JSON.stringify(e.payload,null,2)}</pre></div>)}{olderCursor && <button onClick={()=>void loadEvents(true)}>Carica diagnostica precedente</button>}</details></article>}
+    {selectedRun && <article className="section-card"><h2>Eventi del run {selectedRun.slice(0,8)}</h2>{timingRows.length > 0 && <details open><summary>Tempi principali · top {timingRows.length}</summary>{timingRows.map(row=><p key={row.label}><strong>{row.label}</strong> · {row.ms >= 1000 ? (row.ms/1000).toFixed(2) + ' s' : Math.round(row.ms) + ' ms'}</p>)}</details>}{detailError && <p role="alert">{detailError}</p>}<p>Gli eventi critici sono fatti persistenti, non istruzioni. Il campione tecnico è best-effort e può essere incompleto o scaduto.</p><details open><summary>Eventi critici · primi {events.length} caricati</summary>{events.map(e=><div key={e.id}><strong>{e.type}</strong> · #{e.sequence} · {e.source}<small> · run componente {e.component_run_id?.slice(0,8) || '—'}</small><pre>{JSON.stringify(e.payload,null,2)}</pre></div>)}<button disabled={busy} onClick={()=>void loadEvents()}>Carica eventi successivi</button></details><details><summary>Diagnostica tecnica · {technical.length} eventi caricati</summary>{technical.map(e=><div key={e.id}><strong>{e.type}</strong> · {e.source} · {new Date(e.timestamp).toLocaleTimeString('it-IT')}<small> · componente {e.component_run_id?.slice(0,8) || '—'} · span {e.span_id?.slice(0,8) || '—'}</small><pre>{JSON.stringify(e.payload,null,2)}</pre></div>)}{olderCursor && <button onClick={()=>void loadEvents(true)}>Carica diagnostica precedente</button>}</details></article>}
     <article className="section-card"><h2>Effetti da verificare</h2><p>Un esito incerto può includere effetti già prodotti. Verifica il servizio o il file interessato prima di ripetere l’operazione. Registrare la verifica non esegue né ripete azioni.</p>
       {!uncertain.length && <p>Nessun effetto da verificare.</p>}
       {uncertain.map(o=><div key={o.id}><strong>{o.capability_id} · esito incerto</strong><p>Operazione {o.id} · run {o.run_id || "senza run"}</p><pre>{JSON.stringify(o.payload,null,2)}</pre>{o.error_type && <p>{o.error_type}</p>}
