@@ -49,6 +49,12 @@ def runtime_status():
 def registry():
     return capability_registry()
 
+
+@router.get("/runtime/coordinator")
+def coordinator_snapshot():
+    from core.system_coordinator import snapshot
+    return snapshot()
+
 @router.put("/runtime/policies")
 def policy(data: Policy):
     try: set_policy(data.actor, data.action, data.policy)
