@@ -50,6 +50,7 @@ class ComponentResult(BaseModel):
     task_id: str
     component: str
     status: Literal["completed", "failed", "waiting_approval", "cancelled", "timed_out"] = "completed"
+    decision: Literal["complete", "retry_safe", "needs_replan", "needs_approval", "resource_unavailable", "effect_uncertain", "cancelled", "fatal"] = "complete"
     content: str = ""
     artifacts: list[dict[str, Any]] = Field(default_factory=list)
     observations: list[dict[str, Any]] = Field(default_factory=list)
