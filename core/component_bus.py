@@ -87,7 +87,8 @@ class ComponentBus:
         )
         bus.publish("component.finished", envelope.target, run_id=parent.id if parent else envelope.run_id, thread_id=envelope.thread_id,
             component_run_id=envelope.run_id,parent_run_id=parent.id if parent else None,
-            payload={"task_id":envelope.task_id,"duration_ms":duration_ms,'status':result.status})
+            payload={"task_id":envelope.task_id,"capability":envelope.capability,"duration_ms":duration_ms,
+                     "status":result.status,"decision":result.decision})
         return result
 
 
