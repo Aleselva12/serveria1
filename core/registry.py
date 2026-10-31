@@ -104,6 +104,17 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         ),
     ),
     ComponentDefinition(
+        id="system_coordinator",
+        name="System Coordinator",
+        kind="core",
+        description="Vista read-only del Gruppo B: dichiara le fonti autorevoli dello stato e aggrega runtime, bus, permessi e diagnostica senza eseguire azioni.",
+        module="core.system_coordinator",
+        capabilities=(
+            Capability("state_ownership", "Dichiara una sola fonte autorevole per ciascuna categoria di stato."),
+            Capability("coordination_snapshot", "Espone uno snapshot diagnostico dei sottosistemi esistenti senza modificarli."),
+        ),
+    ),
+    ComponentDefinition(
         id="orchestrator_owner_resolver",
         name="Orchestrator Owner Resolver",
         kind="core",
