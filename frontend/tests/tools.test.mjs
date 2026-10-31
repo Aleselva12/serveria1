@@ -82,7 +82,7 @@ test('direct interface APIs are separate and integration gaps remain actionable'
 
 test('Tools remains reachable without registry and starts with an empty viewer',async()=>{
   const r=await mount(Architecture,{registry:null,health:null,selectedNode:'',onSelect:()=>{}});
-  await click(r,'Tools');
+  await click(r,'Tool e automazioni');
   assert.ok(JSON.stringify(r.toJSON()).includes('Scegli un tool dall’elenco'));
   assert.equal(rows(r).length,3);
   assert.equal(r.root.findAllByProps({className:'tools-node-grid'}).length,0);

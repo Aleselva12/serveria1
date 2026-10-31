@@ -134,3 +134,28 @@ credenziali e non esegue comandi sul PC. La scheda espone download e istruzioni
 per ricostruire il container esistente sul desktop. Dopo l'aggiornamento, Ricarica
 modelli rilegge la compatibilità: l'assegnazione già salvata resta valida e non
 richiede un riavvio di Cora. Il collaudo con l'hardware reale resta da eseguire.
+
+
+## Rifinitura della pagina Architettura
+
+La pagina usa le superfici chiare di Cora: gli agenti compaiono per primi con
+nome, modello configurato, macchina, stato e numero di tool. Aprire una scheda
+mostra descrizione, origine della configurazione e ultima inferenza osservata,
+accanto al modulo di assegnazione. Tool, diagnostica e trascrizione Audio sono
+espandibili; salvataggio, verifica e ricarica restano disponibili.
+
+I programmi hanno due azioni distinte: icona/nome aprono il servizio in una nuova
+scheda, mentre Dettagli mostra il controllo del backend. Il link usa soltanto
+`browserUrl` di `/api/v1/system/status`: sono accettati URL HTTP(S) assoluti senza
+credenziali incorporate. In assenza di un indirizzo valido appare «Link non
+configurato»; non si deduce un URL dal nome del container o dall'endpoint interno.
+Gli indirizzi si configurano tramite `CORA_SERVICE_<ID>_BROWSER_URL` nel deploy
+(per esempio `CORA_SERVICE_IMMICH_BROWSER_URL`), e devono essere raggiungibili dal
+browser del proprietario, anche via Tailscale. Non vengono modificati dal refresh.
+
+Orchestrazione, pacchetti modelli e componenti interni sono raccolti dopo i
+programmi in sezioni chiuse inizialmente. I pacchetti usano righe compatte invece
+di schede grandi; download in corso ed errori dei download restano visibili anche
+con la sezione chiusa. Il router shadow continua a essere esplicitamente distinto
+dall'orchestratore operativo. La navigazione «Tool e automazioni» conserva
+l'inventario e l'editor esistenti. Non è reintrodotto il grafo generale.
