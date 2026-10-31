@@ -116,6 +116,7 @@ ROLE_MODEL_ENV = {
     "email": "CORA_MODEL_EMAIL",
     "structure": "CORA_MODEL_STRUCTURE",
     "programmer": "CORA_MODEL_PROGRAMMER",
+    "shadow_router": "CORA_MODEL_SHADOW_ROUTER",
 }
 
 
