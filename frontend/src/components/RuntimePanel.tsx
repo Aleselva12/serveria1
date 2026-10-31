@@ -4,6 +4,7 @@ type Approval = { contract_version?:number|null; capability_id?:string|null; id:
 type Rule = { actor:string; action:string; policy:string; scope:string };
 type Event = {id:string;sequence:number;type:string;timestamp:string;source:string;component_run_id:string|null;span_id?:string|null;payload:Record<string,unknown>};
 type Diagnostics = {pending:number;dropped:number;last_error:string|null;retention_days:number;worker_alive:boolean;accepted?:number;persisted?:number;write_failures?:number};
+type CoordinatorSnapshot = { mode:string; ownership_validation:{valid:boolean;count:number;duplicate_concerns:string[]}; runtime:{accepting_runs:boolean;active_runs:number;worker_slots:number}; event_bus:{transport:string;sequence:number;authoritative_history:boolean}; permissions:{rules:number;policies:Record<string,number>;validation:{valid:boolean}}; guarantees:Record<string,boolean> };
 export default function RuntimePanel() {
   const [runs,setRuns] = useState<RunSnapshot[]>([]);
   const [history,setHistory] = useState<RunSnapshot[]>([]);
@@ -13,6 +14,7 @@ export default function RuntimePanel() {
   const [notes,setNotes] = useState<Record<string,string>>({});
   const [traceError,setTraceError] = useState<string|null>(null);
   const [diagnostics,setDiagnostics] = useState<Diagnostics|null>(null);
+  const [coordinator,setCoordinator] = useState<CoordinatorSnapshot|null>(null);
   const [events,setEvents] = useState<Event[]>([]);
   const [technical,setTechnical] = useState<Event[]>([]);
   const [eventCursor,setEventCursor] = useState(0);
@@ -44,8 +46,9 @@ export default function RuntimePanel() {
         rulesLoaded.current ? Promise.resolve(null) : runtimeRequest<{rules:Rule[]}>("/permissions"),
         runtimeRequest<RunSnapshot[]>("/runtime/runs?limit=30"),
         runtimeRequest<CapabilityOperation[]>("/runtime/operations?unresolved=true&limit=50"),
+        runtimeRequest<CoordinatorSnapshot>("/runtime/coordinator"),
       ] as const);
-      const [runtimeResult,approvalsResult,registryResult,historyResult,uncertainResult] = results;
+      const [runtimeResult,approvalsResult,registryResult,historyResult,uncertainResult,coordinatorResult] = results;
       if (runtimeResult.status === "fulfilled") {
         const runtime = runtimeResult.value;
         setAccepting(runtime.accepting_runs !== false);
@@ -62,8 +65,9 @@ export default function RuntimePanel() {
       }
       if (historyResult.status === "fulfilled") setHistory(historyResult.value);
       if (uncertainResult.status === "fulfilled") setUncertain(uncertainResult.value);
+      if (coordinatorResult.status === "fulfilled") setCoordinator(coordinatorResult.value);
       const failed = results.flatMap((result,index) => result.status === "rejected"
-        ? [["runtime","approvazioni","permessi","run recenti","effetti incerti"][index]] : []);
+        ? [["runtime","approvazioni","permessi","run recenti","effetti incerti","coordinatore B"][index]] : []);
       setError(failed.length ? "Aggiornamento parziale: " + failed.join(", ") + ". Alcuni dati sono precedenti all’ultimo controllo." : "");
     } catch (e) { setError(e instanceof Error ? e.message : "Runtime non disponibile."); }
     finally { refreshing.current = false; if (refreshQueued.current) { refreshQueued.current = false; void refresh(); } }
@@ -119,6 +123,7 @@ export default function RuntimePanel() {
   return <div className="runtime-panel">
     {error && <p role="alert">{error}</p>}
     {traceError && <p role="status">Tracce tecniche non aggiornate: {traceError}. Gli esiti persistenti sono nella sezione Run.</p>}
+    {coordinator && <article className="section-card"><h2>Coordinamento interno · Gruppo B</h2><p>Vista read-only: non esegue tool, non instrada richieste e non modifica worker o permessi.</p><p>Ownership stato: {coordinator.ownership_validation.valid ? 'coerente' : 'da verificare'} · {coordinator.ownership_validation.count} categorie · run attivi {coordinator.runtime.active_runs} · slot esecuzione {coordinator.runtime.worker_slots}.</p><p>Event Bus: {coordinator.event_bus.transport} · sequenza {coordinator.event_bus.sequence} · storico autorevole: {coordinator.event_bus.authoritative_history ? 'sì' : 'no'} · regole permessi {coordinator.permissions.rules}.</p>{(!coordinator.ownership_validation.valid || !coordinator.permissions.validation.valid) && <p role="alert">Configurazione interna incoerente: controlla ownership e permessi prima di automatizzare scheduling o recovery.</p>}</article>}
     {diagnostics && <article className="section-card"><h2>Osservabilità</h2><p>Solo metadati · diagnostica {diagnostics.retention_days} giorni · eventi critici transazionali, senza esecuzione automatica.</p><p>Diagnostica ricevuta: {diagnostics.accepted ?? "—"} · archiviata: {diagnostics.persisted ?? "—"} · errori di scrittura: {diagnostics.write_failures ?? "—"}.</p><p>Diagnostica in coda: {diagnostics.pending} · eventi persi in questo processo: {diagnostics.dropped} · archiviatore {diagnostics.worker_alive ? 'attivo' : 'non attivo'}.</p>{(diagnostics.last_error || diagnostics.dropped>0 || (diagnostics.write_failures ?? 0)>0) && <p role="status">Diagnostica incompleta: {diagnostics.last_error || (diagnostics.dropped>0 ? 'coda satura' : 'errori archivio precedenti')}. Questo non cambia gli esiti di run e operazioni.</p>}</article>}
     {!accepting && <p role="alert">Il runtime non accetta nuove esecuzioni. Verifica gli esiti e riavvia il backend dopo aver ripristinato il database.</p>}
     <article className="section-card"><h2>Esecuzioni attive</h2><p>Un modello alla volta · coda limitata · annullamento cooperativo</p><p>Annullare ferma l’intera catena ai confini sicuri. Gli effetti già prodotti non vengono annullati e le proposte già create restano da gestire; una chiamata in corso conserva il proprio posto fino al ritorno.</p>
