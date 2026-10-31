@@ -11,9 +11,13 @@ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 globalThis.requestAnimationFrame=fn=>fn();
 const tool={id:'read',name:'read_document',description:'Reads an authorized document',parameters:['path']};
 const agent=id=>({id,name:id,description:'Description '+id,role:id,available:true,capabilities:[],configuration:{role:id,model:'local-model',machine_id:'local',source:'global_selection',configuration_id:'base-'+id},model:'local-model',machine_name:'Ollama di Cora',assignment:null,runtime:{status:'ready',checks:{}},tools:[tool]});
+let serviceRows;
 let fixture,offline=false,failSave=false,legacy=false,downloads=0,saved=[];
-const reset=()=>{fixture={agents:[agent('supervisor'),agent('local_research_agent')],components:[],inventory_errors:[]};offline=false;failSave=false;legacy=false;downloads=0;saved=[];};reset();
+const reset=()=>{serviceRows=[{id:'immich',label:'Immich',status:'unknown',detail:'Non configurato',checkedAt:'2026-10-24T18:00:00Z'}];fixture={agents:[agent('supervisor'),agent('local_research_agent')],components:[],inventory_errors:[]};offline=false;failSave=false;legacy=false;downloads=0;saved=[];};reset();
 globalThis.__overviewApi={
+ shadowRouter:async()=>({principal:{model:'main-model'},shadow:{model:'router-model'},progress:{examples:4,agreement_percent:75,metric_label:'Accordo osservato'},database_ready:true,error:null,note:'Solo osservazione'}),
+ defaultModels:async()=>({packs:{base:[{name:'base-model',role:'Base',installed:false}],now:[],future:[]},missing:{base:['base-model'],now:[],future:[]},running:false,pack:null,current_model:null,failed:[],note:'Nessuna assegnazione automatica'}),
+
  downloadWorkerUpdate:async()=>{downloads++;},
  verify:async id=>({run_id:'verify-'+id}),
  verification:async()=>({id:'verify-supervisor',status:'completed',result:{reported_model:'provider-model',configuration:fixture.agents[0].configuration,duration_ms:10}}),
@@ -23,7 +27,7 @@ globalThis.__overviewApi={
  models:async id=>({models:[{name:id==='pc'?'desktop-model':'local-model'}],enabled:true,agent_chat:!legacy,active_model:id==='pc'?'desktop-model':null}),
  save:async(id,machine,model)=>{if(failSave)throw Error('Worker OFF');saved.push({id,machine,model});fixture.agents=fixture.agents.map(a=>a.id===id?{...a,assignment:{machine_id:machine,model},configuration:{role:a.role,model,machine_id:machine,source:'agent_assignment',configuration_id:'saved-'+id},model,machine_name:'Desktop'}:a);return {configuration:fixture.agents.find(a=>a.id===id).configuration,requires_restart:false};},
 };
-globalThis.__servicesApi={services:async()=>({services:[{id:'immich',label:'Immich',status:'unknown',detail:'Non configurato',checkedAt:'2026-10-24T18:00:00Z'}]})};
+globalThis.__servicesApi={services:async()=>({services:serviceRows})};
 const source=await readFile(new URL('../src/components/ArchitectureOverview.tsx',import.meta.url),'utf8');
 const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText.replace(/from ["']react\/jsx-runtime["']/g,'from '+external('react/jsx-runtime')).replace(/from ["']react["']/g,'from '+external('react')).replace(/import \{ api \} from ['"]\.\.\/services\/api['"];?/,'const api=globalThis.__servicesApi;').replace(/import \{ architectureApi \} from ['"]\.\.\/services\/architectureApi['"];?/,'const architectureApi=globalThis.__overviewApi;').replace(/import ['"]\.\/architecture-overview.css['"];?/,'');
 const Overview=(await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'))).default;
@@ -108,5 +112,29 @@ test('legacy worker can save the desktop choice and offers concrete update instr
  await act(async()=>button(r,'Ricarica modelli').props.onClick());
  assert.equal(button(r,'Scarica aggiornamento worker'),undefined);
  assert.equal(r.root.findAllByType('select')[0].props.value,'pc');
+ await act(async()=>r.unmount());
+});
+
+test('program icon opens only a configured HTTP URL; details remain an independent action',async()=>{
+ reset();serviceRows=[
+ {id:'immich',label:'Immich',status:'ready',browserUrl:'https://photos.example.test:8443',checkedAt:'2026-11-01T00:00:00Z'},
+ {id:'nextcloud',label:'Nextcloud',status:'unknown',browserUrl:'javascript:alert(1)',checkedAt:'2026-11-01T00:00:00Z'},
+ {id:'unsafe',label:'Private URL',status:'unknown',browserUrl:'https://user:secret@example.test',checkedAt:'2026-11-01T00:00:00Z'}];
+ let r;await act(async()=>{r=create(React.createElement(App));});
+ const links=r.root.findAllByType('a');assert.equal(links.length,1);
+ assert.equal(links[0].props.href,'https://photos.example.test:8443/');
+ assert.equal(links[0].props.target,'_blank');assert.ok(links[0].props.rel.includes('noopener'));
+ assert.equal(links[0].findAllByProps({className:'catalog-monogram'}).length,1);
+ await act(async()=>r.root.findByProps({'aria-label':'Dettagli Nextcloud'}).props.onClick());
+ assert.ok(JSON.stringify(r.toJSON()).includes('Per abilitare l’icona'));
+ await act(async()=>r.unmount());
+});
+test('models and shadow routing are collapsed after the agents and programs',async()=>{
+ reset();let r;await act(async()=>{r=create(React.createElement(App));});
+ const packs=r.root.findByProps({'aria-label':'Catalogo modelli locali di Cora'});
+ const shadow=r.root.findByProps({'aria-label':'Orchestrazione e router shadow'});
+ assert.equal(packs.type,'details');assert.equal(packs.props.open,undefined);
+ assert.equal(shadow.type,'details');assert.equal(shadow.props.open,undefined);
+ const html=JSON.stringify(r.toJSON());assert.ok(html.indexOf('Programmi e servizi')<html.indexOf('Pacchetti e download'));
  await act(async()=>r.unmount());
 });
