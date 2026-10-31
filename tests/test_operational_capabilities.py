@@ -20,7 +20,9 @@ class OperationalCapabilitiesTests(unittest.TestCase):
             """Registry probe."""
             return str(value)
 
-        with patch("core.operational_capabilities.load_capabilities"),              patch("core.runtime_status.component_runtime_status", return_value={"components":{"supervisor":{"status":"ready","checks":{}}}}),              patch("core.models.resolve_model", return_value={"model":"small","machine_id":"local","role":"supervisor","source":"test","configuration_id":"x"}):
+        with patch("core.governance.load_capabilities"), \
+             patch("core.runtime_status.component_runtime_status", return_value={"components":{"supervisor":{"status":"ready","checks":{}}}}), \
+             patch("core.models.resolve_model", return_value={"model":"small","machine_id":"local","role":"supervisor","source":"test","configuration_id":"x"}):
             registry = operational_registry()
         row = next(item for item in registry["capabilities"] if item["id"] == "supervisor.registry_probe")
         self.assertEqual(row["required_inputs"], ["value"])
@@ -35,7 +37,9 @@ class OperationalCapabilitiesTests(unittest.TestCase):
             """Bus probe."""
             return str(value + 1)
 
-        with patch("core.operation_journal.begin", return_value=None),              patch("core.operation_journal.finish", return_value=None),              patch.object(component_bus, "dispatch", wraps=component_bus.dispatch) as dispatch:
+        with patch("core.operation_journal.begin", return_value=None), \
+             patch("core.operation_journal.finish", return_value=None), \
+             patch.object(component_bus, "dispatch", wraps=component_bus.dispatch) as dispatch:
             self.assertEqual(probe.invoke({"value": 2}), "3")
         self.assertTrue(dispatch.called)
         state = component_bus.snapshot()["supervisor"]
