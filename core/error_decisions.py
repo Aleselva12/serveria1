@@ -47,9 +47,11 @@ def decide(*, status: str, error_code: str | None = None, effect: str = "compute
         return "effect_uncertain"
     if code in _RESOURCE_ERRORS:
         return "resource_unavailable"
+    if code in _REPLAN_ERRORS:
+        return "needs_replan"
     if retry == "safe" and effect in {"read", "compute"}:
         return "retry_safe"
-    if code in _REPLAN_ERRORS or status == "failed":
+    if status == "failed":
         return "needs_replan"
     return "fatal"
 
