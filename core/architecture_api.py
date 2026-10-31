@@ -213,13 +213,15 @@ def default_models_status():
         raise HTTPException(503, 'Impossibile leggere i modelli locali di Ollama.') from error
 
 
-@router.post('/architecture/default-models/download', status_code=202)
-def download_default_models():
+@router.post('/architecture/default-models/download/{pack}', status_code=202)
+def download_default_models(pack: str):
     from core.default_models import start_download
     try:
-        return start_download()
+        return start_download(pack)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
     except Exception as error:
-        raise HTTPException(503, 'Download modelli default non avviato: verifica Ollama e la connessione del server.') from error
+        raise HTTPException(503, 'Download modelli non avviato: verifica Ollama e la connessione del server.') from error
 
 
 @router.get('/architecture/model-targets')
