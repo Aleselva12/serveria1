@@ -221,12 +221,12 @@ def get_default_model_name(role: str = "default") -> str:
 
 
 def _default_selection(role):
-    if role == "shadow_router":
-        configured = os.getenv("CORA_MODEL_SHADOW_ROUTER", "").strip()
-        return (configured or "qwen3:4b"), ("role_environment" if configured else "default")
     runtime_model = str(_runtime_settings().get("model", "")).strip()
     if runtime_model:
         return runtime_model, 'global_selection'
+    if role == "shadow_router":
+        configured = os.getenv("CORA_MODEL_SHADOW_ROUTER", "").strip()
+        return (configured or "qwen3:4b"), ("role_environment" if configured else "default")
     configured = os.getenv(ROLE_MODEL_ENV.get(role, ''), '').strip()
     if configured:
         return configured, 'role_environment'
