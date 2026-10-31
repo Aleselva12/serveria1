@@ -14,6 +14,16 @@ export type AgentCard = BackendComponent & {
 export type AgentCatalog = { agents: AgentCard[]; components: BackendComponent[]; inventory_errors: string[] };
 export type ModelTarget = { id: string; name: string; enabled: boolean; active_model: string | null };
 export type TargetModels = { models: { name: string }[]; enabled: boolean; active_model: string | null; agent_chat: boolean };
+export type DefaultModelsStatus = {
+  running: boolean;
+  current_model: string | null;
+  completed: string[];
+  failed: string[];
+  last_error: string | null;
+  models: { name: string; role: string; installed: boolean }[];
+  missing: string[];
+  note: string;
+};
 export type ShadowRouterStatus = {
   principal: ModelConfiguration;
   shadow: ModelConfiguration;
@@ -67,6 +77,12 @@ export const architectureApi = {
   },
   async shadowRouter() {
     return call<ShadowRouterStatus>('/shadow-router');
+  },
+  async defaultModels() {
+    return call<DefaultModelsStatus>('/default-models');
+  },
+  async downloadDefaultModels() {
+    return call<DefaultModelsStatus>('/default-models/download', { method: 'POST' });
   },
   async targets() {
     const data = await call<{ targets: ModelTarget[] }>('/model-targets');
