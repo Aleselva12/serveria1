@@ -35,13 +35,15 @@ def agent_tool(actor, *, capability=None, actions, effect, retry, conditional_ac
         @functools.wraps(fn)
         def guarded(*args, **kwargs):
             payload = dict(inspect.signature(fn).bind(*args, **kwargs).arguments)
-            result = execute_capability(capability_id, payload)
-            if result.status == "error":
-                if result.error.code in {"EffectUncertain", "OperationConflict"}:
+            from core.component_bus import component_bus
+            result = component_bus.dispatch_capability(capability_id, payload, source=actor)
+            if result.status == "failed":
+                error = result.errors[0] if result.errors else {"code": "CapabilityFailed", "message": "Operazione non completata."}
+                if result.decision == "effect_uncertain":
                     from core.run_states import EffectUncertain
-                    raise EffectUncertain(result.error.message)
-                raise CapabilityExecutionError(result.error.code, result.error.message)
-            return result.native
+                    raise EffectUncertain(str(error.get("message", "Esito incerto.")))
+                raise CapabilityExecutionError(str(error.get("code", "CapabilityFailed")), str(error.get("message", "Operazione non completata.")))
+            return result.metadata.get("native")
         wrapped = langchain_tool(guarded)
         schema = create_model(fn.__name__ + "Input", __base__=wrapped.args_schema,
                               __config__=ConfigDict(extra="forbid", strict=True))
@@ -193,9 +195,17 @@ def execute_capability(identifier, payload):
             result.error = CapabilityError(code='EffectUncertain',message='Esito dell’effetto non verificabile. Controlla l’operazione in Attività prima di ripetere.')
         from core.consultations import record
         record('tool', contract.id, operation_status if operation_status == 'uncertain' else result.status, run=run)
+        from core.error_decisions import decide as orchestration_decision
+        decision = orchestration_decision(
+            status=operation_status if operation_status == "uncertain" else result.status,
+            error_code=escaped_error or (result.error.code if result.error else None),
+            effect=contract.effect,
+            retry=contract.retry,
+        )
         bus.publish("tool.finished", contract.actor, run_id=run.id if run else None,
             operation_id=operation_id,payload={"tool_id":tool_id,"capability_id":contract.id,"contract_version":contract.version,
-            "status":result.status,"operation_id":operation_id,'error_type':escaped_error or (result.error.code if result.error else None),"duration_ms":round((time.perf_counter()-started)*1000,2)})
+            "status":result.status,"operation_status":operation_status,"decision":decision,"operation_id":operation_id,
+            'error_type':escaped_error or (result.error.code if result.error else None),"duration_ms":round((time.perf_counter()-started)*1000,2)})
     return result
 
 
