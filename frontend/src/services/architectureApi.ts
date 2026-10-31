@@ -16,12 +16,13 @@ export type ModelTarget = { id: string; name: string; enabled: boolean; active_m
 export type TargetModels = { models: { name: string }[]; enabled: boolean; active_model: string | null; agent_chat: boolean };
 export type DefaultModelsStatus = {
   running: boolean;
+  pack: string | null;
   current_model: string | null;
   completed: string[];
   failed: string[];
   last_error: string | null;
-  models: { name: string; role: string; installed: boolean }[];
-  missing: string[];
+  packs: Record<string, { name: string; role: string; installed: boolean }[]>;
+  missing: Record<string, string[]>;
   note: string;
 };
 export type ShadowRouterStatus = {
@@ -81,8 +82,8 @@ export const architectureApi = {
   async defaultModels() {
     return call<DefaultModelsStatus>('/default-models');
   },
-  async downloadDefaultModels() {
-    return call<DefaultModelsStatus>('/default-models/download', { method: 'POST' });
+  async downloadDefaultModels(pack: 'base' | 'now' | 'future') {
+    return call<DefaultModelsStatus>('/default-models/download/' + pack, { method: 'POST' });
   },
   async targets() {
     const data = await call<{ targets: ModelTarget[] }>('/model-targets');
