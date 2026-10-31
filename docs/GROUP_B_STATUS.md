@@ -151,3 +151,39 @@ La Larva-system appartiene al Gruppo B.
 Il Gruppo B deve restare prevalentemente deterministico. I modelli possono
 osservare, classificare o suggerire; non devono diventare fonti autorevoli di
 stato, permessi o risultati di effetti esterni.
+
+
+## Collegamenti operativi completati
+
+### Capability Registry operativo
+È disponibile `GET /api/v1/runtime/capabilities`. La vista deriva dai contratti
+eseguibili reali e riporta componente, input richiesti, effect/retry, permessi,
+stato runtime, modello/macchina e disponibilità corrente. Non è una seconda
+fonte di verità.
+
+### Runtime / Component Bus
+Le capability invocate tramite gli adapter agentici passano ora dal
+`ComponentBus` usando `TaskEnvelope` e producono `ComponentResult`.
+Il confine reale di esecuzione resta `execute_capability()`, che mantiene
+validazione, permessi, approval e operation journal.
+
+### Decisioni standard
+Gli esiti tecnici vengono ridotti al vocabolario:
+- complete
+- retry_safe
+- needs_replan
+- needs_approval
+- resource_unavailable
+- effect_uncertain
+- cancelled
+- fatal
+
+`effect_uncertain` ha precedenza su un eventuale esito nominale del tool.
+
+### Attività
+La pagina Attività mostra:
+- Capability Registry operativo;
+- stato live del Component Bus;
+- ultima decisione per componente;
+- decisioni orchestrative osservate nel run;
+- eventi tecnici e operation journal già esistenti.
