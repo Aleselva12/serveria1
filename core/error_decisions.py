@@ -36,15 +36,15 @@ _CANCEL_ERRORS = {"RunStopped", "RunCancelled", "CancelledError"}
 
 def decide(*, status: str, error_code: str | None = None, effect: str = "compute", retry: str = "never") -> Decision:
     """Map a concrete outcome to one small orchestration decision vocabulary."""
-    if status in {"ok", "completed", "succeeded"}:
-        return "complete"
-    if status in {"pending", "waiting_approval", "awaiting_approval"}:
-        return "needs_approval"
     code = (error_code or "").strip()
-    if code in _CANCEL_ERRORS or status in {"cancelled", "timed_out"}:
-        return "cancelled"
     if code in _UNCERTAIN_ERRORS or status == "uncertain":
         return "effect_uncertain"
+    if code in _CANCEL_ERRORS or status in {"cancelled", "timed_out"}:
+        return "cancelled"
+    if status in {"pending", "waiting_approval", "awaiting_approval"}:
+        return "needs_approval"
+    if status in {"ok", "completed", "succeeded"}:
+        return "complete"
     if code in _RESOURCE_ERRORS:
         return "resource_unavailable"
     if code in _REPLAN_ERRORS:
