@@ -35,7 +35,7 @@ class ComponentBus:
         checkpoint()
         bus.publish("component.request", envelope.source, run_id=parent.id if parent else envelope.run_id, thread_id=envelope.thread_id,
             component_run_id=envelope.run_id,parent_run_id=parent.id if parent else None,
-            payload={"task_id":envelope.task_id,"target":envelope.target,"capability":envelope.capability})
+            payload={"task_id":envelope.task_id,"target":envelope.target,"capability":envelope.capability,"priority":envelope.priority})
         started = time.perf_counter()
         self._set_state(
             envelope.target,
@@ -86,6 +86,65 @@ class ComponentBus:
             component_run_id=envelope.run_id,parent_run_id=parent.id if parent else None,
             payload={"task_id":envelope.task_id,"duration_ms":duration_ms,'status':result.status})
         return result
+
+
+
+    def dispatch_capability(self, capability_id: str, payload: dict[str, Any], *, source: str | None = None) -> ComponentResult:
+        """Execute one registered capability through the typed Component Bus."""
+        from uuid import uuid4
+        from core.runtime import current_run
+        from core.runtime_context import current_runtime
+        from core.governance import find_capability, execute_capability
+        from core.error_decisions import decide, explanation
+        from core.operational_capabilities import ACTOR_COMPONENT
+
+        _, entry = find_capability(capability_id)
+        contract = entry["contract"]
+        live = current_run.get()
+        runtime_run_id, runtime_thread_id = current_runtime()
+        run_id = (live.id if live else runtime_run_id) or str(uuid4())
+        thread_id = (live.thread_id if live else runtime_thread_id) or "direct"
+        target = ACTOR_COMPONENT.get(contract.actor, contract.actor)
+        envelope = TaskEnvelope(
+            run_id=run_id,
+            thread_id=thread_id,
+            source=source or contract.actor,
+            target=target,
+            capability=contract.id,
+            payload=payload,
+        )
+
+        def handler(task: TaskEnvelope) -> ComponentResult:
+            outcome = execute_capability(task.capability, task.payload)
+            error_code = outcome.error.code if outcome.error else None
+            decision = decide(
+                status=outcome.status,
+                error_code=error_code,
+                effect=contract.effect,
+                retry=contract.retry,
+            )
+            status = "completed" if outcome.status == "ok" else "waiting_approval" if outcome.status == "pending" else "failed"
+            errors = [{"code": outcome.error.code, "message": outcome.error.message}] if outcome.error else []
+            return ComponentResult(
+                task_id=task.task_id,
+                component=target,
+                status=status,
+                decision=decision,
+                content="" if outcome.native is None else str(outcome.native),
+                errors=errors,
+                next_action=None if decision == "complete" else decision,
+                metadata={
+                    "capability_id": contract.id,
+                    "contract_version": contract.version,
+                    "operation_id": outcome.operation_id,
+                    "approval_id": outcome.approval_id,
+                    "capability_status": outcome.status,
+                    "decision_explanation": explanation(decision),
+                    "native": outcome.native,
+                },
+            )
+
+        return self.dispatch(envelope, handler)
 
     def snapshot(self) -> dict[str, dict[str, Any]]:
         with self._lock:
