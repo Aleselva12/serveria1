@@ -204,6 +204,24 @@ def agents_catalog():
             'inventory_errors': tools['errors']}
 
 
+@router.get('/architecture/default-models')
+def default_models_status():
+    from core.default_models import status
+    try:
+        return status()
+    except Exception as error:
+        raise HTTPException(503, 'Impossibile leggere i modelli locali di Ollama.') from error
+
+
+@router.post('/architecture/default-models/download', status_code=202)
+def download_default_models():
+    from core.default_models import start_download
+    try:
+        return start_download()
+    except Exception as error:
+        raise HTTPException(503, 'Download modelli default non avviato: verifica Ollama e la connessione del server.') from error
+
+
 @router.get('/architecture/model-targets')
 def model_targets():
     from core.machines_api import _read, _settings
