@@ -18,9 +18,11 @@ class DefaultModelsTests(unittest.TestCase):
         ]
         with patch.object(default_models, "list_ollama_models", return_value=installed):
             status = default_models.status()
-        self.assertIn("qwen3:4b", status["missing"])
-        self.assertNotIn("qwen3:1.7b", [m["name"] for m in status["models"]])
+        self.assertIn("qwen3:4b", status["missing"]["base"])
+        self.assertNotIn("qwen3:1.7b", [m["name"] for m in status["packs"]["base"]])
         self.assertEqual(len(default_models.DEFAULT_MODELS), 4)
+        self.assertIn("qwen2.5-coder:7b", [m["name"] for m in status["packs"]["now"]])
+        self.assertIn("qwen3-coder:30b", [m["name"] for m in status["packs"]["future"]])
 
     def test_start_download_only_pulls_missing_defaults(self):
         installed = [
@@ -29,10 +31,11 @@ class DefaultModelsTests(unittest.TestCase):
             {"name": "nomic-embed-text:latest"},
         ]
         with patch.object(default_models, "list_ollama_models", return_value=installed),              patch.object(default_models.threading, "Thread") as thread:
-            status = default_models.start_download()
+            status = default_models.start_download("base")
         self.assertTrue(status["running"])
+        self.assertEqual(status["pack"], "base")
         args = thread.call_args.kwargs["args"]
-        self.assertEqual(args, (["qwen3:4b"],))
+        self.assertEqual(args, ("base", ["qwen3:4b"]))
         thread.return_value.start.assert_called_once()
 
 
