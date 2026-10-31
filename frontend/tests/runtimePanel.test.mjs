@@ -34,7 +34,7 @@ test('polling loads lightweight permissions once, skips hidden tabs and reloads 
  try {
   await act(async()=>{r=create(React.createElement(Panel));});
   await act(async()=>tick());
-  assert.equal(calls.filter(p=>p==='/permissions').length,1);assert.ok(!calls.includes('/runtime/registry'));assert.ok(calls.includes('/runtime/coordinator'));
+  assert.equal(calls.filter(p=>p==='/permissions').length,1);assert.ok(!calls.includes('/runtime/registry'));assert.ok(calls.includes('/runtime/coordinator'));assert.ok(calls.includes('/runtime/capabilities'));
   globalThis.document.hidden=true;const count=calls.length;await act(async()=>tick());assert.equal(calls.length,count);
   globalThis.document.hidden=false;
   await act(async()=>r.root.findByType('select').props.onChange({target:{value:'confirm'}}));
