@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
-import { architectureApi, type AgentCard, type AgentCatalog, type ModelTarget, type TargetModels } from '../services/architectureApi';
+import { architectureApi, type AgentCard, type AgentCatalog, type ModelTarget, type TargetModels, type ShadowRouterStatus } from '../services/architectureApi';
 import type { BackendHealth, ServiceStatus } from '../types/contracts';
 import './architecture-overview.css';
 
@@ -119,6 +119,7 @@ export default function ArchitectureOverview({ selectedNode, onSelect }: { healt
   const [data, setData] = useState<AgentCatalog | null>(null);
   const [targets, setTargets] = useState<ModelTarget[]>([]);
   const [services, setServices] = useState<ServiceStatus[]>([]);
+  const [shadowRouter, setShadowRouter] = useState<ShadowRouterStatus | null>(null);
   const [error, setError] = useState('');
   const [targetError, setTargetError] = useState('');
   const [serviceError, setServiceError] = useState('');
@@ -136,6 +137,7 @@ export default function ArchitectureOverview({ selectedNode, onSelect }: { healt
       reloadAgents().catch(e => { setData(null); setError(e.message); }),
       architectureApi.targets().then(t => { setTargets(t); setTargetError(''); }).catch(e => { setTargets([]); setTargetError(e.message); }),
       api.services().then(s => { setServices(s.services.filter(p => !['fastapi', 'cora'].includes(p.id))); setServiceError(''); }).catch(e => { setServices([]); setServiceError(e.message); }),
+      architectureApi.shadowRouter().then(setShadowRouter).catch(() => setShadowRouter(null)),
     ]);
     setLoading(false);
     setRefreshMessage('Configurazione riletta dal backend. Le assegnazioni salvate qui valgono dalla prossima chiamata, senza riavvio. Per codice e variabili Docker serve invece l’aggiornamento di Cora.');
@@ -148,6 +150,14 @@ export default function ArchitectureOverview({ selectedNode, onSelect }: { healt
     <div className="catalog-heading"><div><small>SERVER / AGENTI</small><h2>Agenti<span>.</span></h2><p>Apri una scheda per vedere strumenti, stato e modello.</p></div><button disabled={loading} onClick={() => void refresh()}>{loading ? 'Caricamento…' : 'Ricarica configurazione e stato'}</button></div>
     {refreshMessage && !error && <p role="status">{refreshMessage}</p>}
     {error && <p role="alert" className="catalog-error">{error}</p>}
+    {shadowRouter && <section className="agent-detail" aria-label="Orchestrazione e router shadow">
+      <div className="catalog-heading"><div><small>ORCHESTRAZIONE / ROUTING</small><h2>Due teste<span>.</span></h2><p>Il router specializzato osserva le stesse richieste ma non controlla ancora il routing reale.</p></div></div>
+      <div className="agent-card-grid">
+        <article className="agent-card"><span className="agent-card-heading"><span className="catalog-monogram">OP</span><strong>Orchestratore principale</strong></span><span className="agent-card-description">Comprende la richiesta, usa i tool disponibili e decide il percorso operativo reale.</span><span className="agent-card-info"><span><small>MODELLO</small><b>{shadowRouter.principal.model}</b></span><span><small>RUOLO</small><b>Attivo</b></span></span></article>
+        <article className="agent-card"><span className="agent-card-heading"><span className="catalog-monogram">RS</span><strong>Router specializzato · shadow</strong></span><span className="agent-card-description">Modello più piccolo, addestrato progressivamente sui routing osservati. Le sue decisioni vengono solo confrontate.</span><span className="agent-card-info"><span><small>MODELLO</small><b>{shadowRouter.shadow.model}</b></span><span><small>ESEMPI NEL DATABASE</small><b>{shadowRouter.progress.examples}</b></span><span><small>{shadowRouter.progress.metric_label.toUpperCase()}</small><b>{shadowRouter.progress.agreement_percent == null ? '—' : shadowRouter.progress.agreement_percent + '%'}</b></span><span><small>ROUTING REALE</small><b>No · shadow mode</b></span></span></article>
+      </div>
+      <p className="catalog-fineprint">{shadowRouter.note} {shadowRouter.database_ready ? '' : 'La tabella dati non è ancora disponibile: applica la migrazione 0008.'}</p>
+    </section>}
     {data && <><div className="agent-card-grid">{data.agents.map(a => <button className={`agent-card ${opened && selectedNode === a.id ? 'selected' : ''}`} key={a.id} aria-expanded={opened && selectedNode === a.id} onClick={() => { onSelect(a.id); setOpened(true); requestAnimationFrame(() => detailRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' })); }}>
       <span className="agent-card-heading"><span className="catalog-monogram">{initials(labels[a.id] || a.name)}</span><strong>{labels[a.id] || a.name}</strong><span aria-hidden="true">↗</span></span><span className="agent-card-description">{a.description}</span><span className="agent-card-info"><span><small>TOOL COLLEGATI</small><b>{a.tools.length}</b></span><span><small>LLM CONFIGURATO</small><b>{a.model}</b></span></span><span className="agent-card-footer"><span data-state={a.runtime.status}>● {states[a.runtime.status] || 'Non verificato'}</span><span>{a.machine_name}</span></span>
     </button>)}</div>
