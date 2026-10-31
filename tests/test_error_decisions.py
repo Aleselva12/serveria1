@@ -9,6 +9,7 @@ class ErrorDecisionTests(unittest.TestCase):
         self.assertEqual(decide(status="ok"), "complete")
         self.assertEqual(decide(status="pending"), "needs_approval")
         self.assertEqual(decide(status="uncertain", effect="write"), "effect_uncertain")
+        self.assertEqual(decide(status="ok", error_code="EffectUncertain", effect="write"), "effect_uncertain")
         self.assertEqual(decide(status="failed", error_code="TimeoutError"), "resource_unavailable")
         self.assertEqual(decide(status="failed", error_code="ValidationError", effect="compute", retry="safe"), "needs_replan")
         self.assertEqual(decide(status="failed", error_code="RuntimeError", effect="compute", retry="safe"), "retry_safe")
