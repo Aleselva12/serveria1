@@ -66,11 +66,13 @@ class ComponentBus:
             else:
                 raise TypeError(f"Risultato componente non supportato: {type(raw).__name__}")
         except BaseException as error:
-            self._set_state(envelope.target, status="error", error_type=type(error).__name__)
+            from core.error_decisions import decide
+            decision = decide(status="failed", error_code=type(error).__name__)
+            self._set_state(envelope.target, status="error", error_type=type(error).__name__, last_decision=decision)
             bus.publish('component.finished',envelope.target,run_id=parent.id if parent else envelope.run_id,
                 component_run_id=envelope.run_id,parent_run_id=parent.id if parent else None,thread_id=envelope.thread_id,
-                payload={'task_id':envelope.task_id,'status':'failed','error_type':type(error).__name__,
-                         'duration_ms':round((time.perf_counter()-started)*1000,2)})
+                payload={'task_id':envelope.task_id,'status':'failed','decision':decision,'capability':envelope.capability,
+                         'error_type':type(error).__name__,'duration_ms':round((time.perf_counter()-started)*1000,2)})
             raise
 
         duration_ms = round((time.perf_counter() - started) * 1000, 2)
@@ -81,6 +83,7 @@ class ComponentBus:
             last_task_id=envelope.task_id,
             last_duration_ms=duration_ms,
             error_type=None,
+            last_decision=result.decision,
         )
         bus.publish("component.finished", envelope.target, run_id=parent.id if parent else envelope.run_id, thread_id=envelope.thread_id,
             component_run_id=envelope.run_id,parent_run_id=parent.id if parent else None,
