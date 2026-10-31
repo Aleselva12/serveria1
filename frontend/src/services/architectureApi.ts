@@ -14,6 +14,14 @@ export type AgentCard = BackendComponent & {
 export type AgentCatalog = { agents: AgentCard[]; components: BackendComponent[]; inventory_errors: string[] };
 export type ModelTarget = { id: string; name: string; enabled: boolean; active_model: string | null };
 export type TargetModels = { models: { name: string }[]; enabled: boolean; active_model: string | null; agent_chat: boolean };
+export type ShadowRouterStatus = {
+  principal: ModelConfiguration;
+  shadow: ModelConfiguration;
+  progress: { examples: number; evaluated: number; matched: number; agreement_percent: number | null; last_example: string | null; model: string; active_for_routing: boolean; metric_label: string };
+  database_ready: boolean;
+  error: string | null;
+  note: string;
+};
 const base = (import.meta.env.VITE_API_BASE_URL || '/backend').replace(/\/$/, '');
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
@@ -56,6 +64,9 @@ export const architectureApi = {
     const data = await call<AgentCatalog>('/agents');
     if (!data || !Array.isArray(data.agents) || !Array.isArray(data.components) || !Array.isArray(data.inventory_errors) || !data.agents.every(a => a && typeof a.id === 'string' && typeof a.name === 'string' && typeof a.description === 'string' && typeof a.model === 'string' && typeof a.machine_name === 'string' && a.runtime && typeof a.runtime.status === 'string' && Array.isArray(a.tools) && a.tools.every(t => typeof t.name === 'string' && typeof t.description === 'string' && Array.isArray(t.parameters)))) throw Error('Catalogo agenti non valido.');
     return data;
+  },
+  async shadowRouter() {
+    return call<ShadowRouterStatus>('/shadow-router');
   },
   async targets() {
     const data = await call<{ targets: ModelTarget[] }>('/model-targets');
