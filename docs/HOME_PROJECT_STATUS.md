@@ -171,7 +171,7 @@ Questa sezione raccoglie idee e vincoli emersi durante la pianificazione. Non eq
 ### Principi emersi
 
 - **Orchestrazione come ecosistema, non come singolo modello**: valutare una serie di piccoli modelli/componenti specializzati che si completano a vicenda e, insieme, svolgono il ruolo di orchestrazione.
-- **Attivazione proporzionata al compito**: una richiesta non deve attivare automaticamente tutta la potenza computazionale disponibile. Il classificatore `simple question` è già un esempio utile di questa direzione.
+- **Attivazione proporzionata al compito**: una richiesta non deve attivare automaticamente tutta la potenza computazionale disponibile. Nel main attuale non è presente un classificatore autonomo `simple question`; la prima riduzione del lavoro è svolta deterministicamente da context pages, selezione dei tool e fast path. Un eventuale classificatore/router specializzato resta separato e va validato prima di diventare autorevole.
 - **Evitare la sottovalutazione dei task**: il risparmio computazionale non deve portare a classificare come semplice un'attività che richiede più controllo, contesto o verifica. Serviranno test, soglie e meccanismi di escalation.
 - **"Larva" / livello di riposo**: valutare un componente molto leggero, attivo quando Cora è a riposo, capace di osservare eventi/stato, contribuire a controlli e diagnostica e decidere quando è necessario attivare livelli superiori.
 - **Architettura inizialmente lineare**: prima di permettere circuiti temporanei molto dinamici/adattativi, preferire una gestione più lineare e osservabile. L'adattività più spinta potrà essere introdotta dopo aver raccolto dati e addestrato/validato i modelli.
