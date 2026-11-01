@@ -1,6 +1,6 @@
 {
-  "updatedAt": "26/10/2026",
-  "basis": "Decisioni del proprietario e riscontro statico del codice; esiti manuali distinti dai controlli automatizzati. Le versioni installate sul Debian devono essere verificate separatamente.",
+  "updatedAt": "01/11/2026",
+  "basis": "Decisioni del proprietario, riscontro statico del codice e stato dell'architettura orchestratore V1; collaudo del commit installato sul Debian separato dalla presenza del codice.",
   "categories": [
     {
       "id": "M1",
@@ -42,8 +42,8 @@
       "id": "ARCH-ORCHESTRATOR",
       "category": "M1",
       "label": "1 · Orchestratore e tracciabilità delle risposte",
-      "state": "PROSSIMO LAVORO",
-      "detail": "Primo prossimo lavoro: evolvere supervisor/LangGraph esistente, con router verificabile, error tracing da input alla risposta, agent/tool invocation, macchina/modello effettivi, code/priorità, failover e autorizzazioni. Prima studiare opzioni e progettare, poi implementare."
+      "state": "BASE V1 COSTRUITA · COLLAUDO APERTO",
+      "detail": "Prima base architetturale dell'orchestrazione costruita: supervisor/LangGraph come ingresso operativo; router shadow non autorevole; Capability Registry operativo; System Coordinator read-only; runtime/state machine/Event Bus/Component Bus; Permission Engine separato; decisioni standard sugli errori; Larva-system v0 observer-only; contratti ContextRequest→ContextPacket; percorso causale e diagnostica in Attività. Restano evoluzioni successive: Context Manager progressivo completo, Plan strutturato persistente, scheduler multi-worker/failover e circuiti adattivi."
     },
     {
       "id": "ARCH-AI-OS",
@@ -355,16 +355,16 @@
       {
         "title": "Profili worker controllati dal proprietario",
         "detail": "I modelli/limiti del worker si selezionano manualmente; gli agenti possono usare solo risorse rese disponibili."
+      },
+      {
+        "title": "Orchestratore — base V1",
+        "detail": "Separazione A/B/C definita. A usa supervisor/router e Capability Registry; B coordina runtime, bus, permessi, stato, diagnostica e contratti di contesto; Larva v0 osserva senza azioni. Le decisioni operative sono tracciate in Attività."
       }
     ],
     "open": [
       {
         "title": "Distribuzione software e dati (da discutere)",
         "detail": "Non spostare automaticamente ogni database sul NAS: valutare di mantenere PostgreSQL e dati applicativi sensibili sul Debian, NAS per file/foto/backup; scegliere per servizio in base a latenza, integrità e ripristino."
-      },
-      {
-        "title": "Orchestratore — prossimo lavoro (1)",
-        "detail": "Partire da supervisor/LangGraph esistente. Valutare scheduler, routing modelli/worker, priorità, code, gestione timeout, permessi e recupero errori."
       },
       {
         "title": "Hardware finale e NAS",
@@ -381,12 +381,12 @@
     ],
     "missing": [
       {
-        "title": "Tracce causali dell'orchestrazione",
-        "detail": "Per ciascuna risposta mostrare ingresso → decisione routing → agente → tool → modello/worker → esito, tempi ed errori con ID di correlazione. Riutilizzare tracce e registro salute già esistenti."
+        "title": "Orchestrazione V1 — collaudo causale sul Debian",
+        "detail": "La repository mostra route, context pages, tool esposti, Component Bus, decisioni, modello richiesto/riportato e macchina quando il provider restituisce evidenza. Resta da collaudare il percorso completo sulla versione realmente installata."
       },
       {
-        "title": "Scheduler multi-worker resistente agli errori",
-        "detail": "Code persistenti, gestione worker offline, timeout, retry controllati, priorità e nessuna doppia esecuzione di azioni con effetti esterni."
+        "title": "Orchestrazione fase 2 — scheduler multi-worker e failover",
+        "detail": "Evoluzione successiva alla base V1: priorità, code persistenti, worker offline, scelta automatica delle risorse, retry/failover controllati e nessuna doppia esecuzione di effetti esterni."
       },
       {
         "title": "NAS e collocazione definitiva dei dati",
@@ -395,6 +395,10 @@
       {
         "title": "Verifica modello effettivamente eseguito",
         "detail": "Confrontare modello richiesto e modello davvero eseguito da desktop/laptop senza dedurlo dal solo test di connettività."
+      },
+      {
+        "title": "Orchestrazione fase 2 — Context Manager e Plan strutturato",
+        "detail": "I contratti ContextRequest→ContextPacket sono definiti e il contesto attuale usa regole/budget deterministici. Restano da realizzare retrieval progressivo uniforme tramite capability autorizzate e un Plan multi-step strutturato/persistente."
       }
     ]
   },
@@ -402,22 +406,23 @@
     {
       "id": "W1",
       "order": 1,
-      "title": "Orchestratore: routing, tracciabilità ed errori",
-      "status": "Da discutere e progettare",
+      "title": "Orchestratore: base V1 e collaudo",
+      "status": "Base V1 costruita · da collaudare prima di W2",
       "category": "M1",
-      "description": "Analisi delle opzioni esistenti; traccia unificata richiesta→supervisor→agente/tool→worker/modello→risposta; diagnosi e gestione errori, code e scheduler multi-worker.",
+      "description": "Architettura base implementata e documentata: routing supervisor/LangGraph, Capability Registry operativo, System Coordinator, bus/runtime/state, permessi, error decisions, Larva v0, contratti di contesto e tracciabilità in Attività. Prima di passare a W2 verificare CI e un run reale sul Debian.",
       "notes": [
-        "Riutilizzare graph LangGraph e componenti di observability già presenti.",
-        "Separare letture sicure da azioni con effetti e approvazione owner.",
-        "Misurare modello effettivo, tempi e passaggio che fallisce.",
-        "Non cambiare automaticamente profili ON/OFF del worker."
+        "La V1 non abilita scheduling autonomo dei worker né cambia automaticamente profili ON/OFF.",
+        "Il router specializzato resta in shadow mode e non controlla il routing reale.",
+        "Context Manager progressivo completo e Plan strutturato sono evoluzioni della fase 2.",
+        "Scheduler multi-worker, failover e code persistenti restano fase 2.",
+        "Chiudere W1 solo dopo pipeline repository coerente e collaudo di almeno un percorso reale in Attività."
       ]
     },
     {
       "id": "W2",
       "order": 2,
       "title": "Aggiornamenti Immich e Nextcloud dalla Home",
-      "status": "Da implementare dopo W1",
+      "status": "Dopo collaudo W1",
       "category": "M2",
       "description": "Permettere verifica versioni e aggiornamenti di Immich e Nextcloud dall'interfaccia via gestore host protetto; con conferma, backup, controllo post-update e gestione errore.",
       "notes": [
