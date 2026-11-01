@@ -108,3 +108,14 @@ test("Google sync reports sent, skipped and failed counts", async () => {
   assert.equal(result.sent, 2);
   assert.equal(result.skipped, 1);
 });
+
+test("OAuth start preserves authenticated transport and validates Google destination", async () => {
+  globalThis.fetch = async (url, init) => {
+    assert.equal(url, "/backend/api/v1/calendar/google/auth/start");
+    assert.equal(init.method, "POST"); assert.equal(init.headers.get("X-Cora-Client"), "ui");
+    return json({ url: "https://accounts.google.com/o/oauth2/auth", state: "state", completion_key: "key" });
+  };
+  assert.equal((await calendarApi.startGoogleAuth()).state, "state");
+  globalThis.fetch = async () => json({ url: "https://other.example/", state: "state", completion_key: "key" });
+  await assert.rejects(() => calendarApi.startGoogleAuth(), /Indirizzo Google non valido/);
+});

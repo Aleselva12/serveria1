@@ -4401,3 +4401,8 @@ select:disabled {
 .settings-panel>.section-card h2{font-size:14px}
 @media(max-width:900px){.settings-grid{grid-template-columns:1fr}.settings-status-strip,.settings-runtime-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.settings-hero{align-items:flex-start;flex-direction:column}.settings-status-strip,.settings-runtime-grid,.settings-link-grid{grid-template-columns:1fr}.settings-panel{padding:16px}.settings-page{padding-bottom:20px}}
+
+.calendar-google-connection { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:16px 0; padding:16px; border:1px solid #dfe8e1; border-radius:12px; background:#f7fbf8; }
+.calendar-google-connection p { margin:6px 0 0; font-size:12px; color:#64746a; }
+.calendar-google-connection button { flex-shrink:0; }
+@media(max-width:600px) { .calendar-google-connection { align-items:stretch; flex-direction:column; } }
