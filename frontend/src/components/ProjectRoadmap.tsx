@@ -69,7 +69,16 @@ export default function ProjectRoadmap() {
         </div>}
         {(category.id==="M3" || category.id==="M4") && category.goals.map(goal =>
           <div className="settings-row home-goal" key={goal.id}>
-            <div><strong>{goal.label}</strong><p>{goal.detail}</p></div>
+            <div className="home-goal-body">
+              <strong>{goal.label}</strong><p>{goal.detail}</p>
+              {"nextSteps" in goal && Array.isArray(goal.nextSteps) && goal.nextSteps.length > 0 &&
+                <details className="home-goal-evidence">
+                  <summary>Passi previsti e risultato atteso</summary>
+                  <ol>{goal.nextSteps.map(step => <li key={step}>{step}</li>)}</ol>
+                  {"doneWhen" in goal && typeof goal.doneWhen === "string" &&
+                    <p><strong>Traguardo verificabile:</strong> {goal.doneWhen}</p>}
+                </details>}
+            </div>
             <span className="pill">{goal.state}</span>
           </div>
         )}
