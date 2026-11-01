@@ -25,6 +25,7 @@ import FileSidebar from "./FileSidebar";
 import FileThumbnail, { FileTypeIcon, fileStyle } from "./FileVisual";
 import "./file-drive.css";
 import FileEditor from "./FileEditor";
+import WordDocument from "./WordDocument";
 import { sharePageUrl } from "../services/sharedFiles";
 import { filesApi } from "../services/filesApi";
 import {
@@ -619,11 +620,21 @@ function FileBrowser({
         {item.kind === "file" && writable && (
           <button
             disabled={busy}
-            title="Modifica testo"
-            aria-label={"Modifica testo " + item.name}
+            title={
+              item.name.toLowerCase().endsWith(".docx")
+                ? "Modifica Word"
+                : "Modifica testo"
+            }
+            aria-label={
+              (item.name.toLowerCase().endsWith(".docx")
+                ? "Modifica Word "
+                : "Modifica testo ") + item.name
+            }
             onClick={() => setEditor(item)}
           >
-            Modifica testo
+            {item.name.toLowerCase().endsWith(".docx")
+              ? "Modifica Word"
+              : "Modifica testo"}
           </button>
         )}
         {item.kind === "file" && (
@@ -1065,25 +1076,48 @@ function FileBrowser({
               ))}
             </div>
           )}
-          {editor && (
-            <FileEditor
-              area={area}
-              rootId={rootId}
-              token={token}
-              item={editor}
-              close={() => setEditor(null)}
-              saved={() => setReload((n) => n + 1)}
-            />
-          )}
-          {preview && (
-            <FilePreview
-              area={area}
-              rootId={rootId}
-              token={token}
-              item={preview}
-              close={() => setPreview(null)}
-            />
-          )}
+          {editor &&
+            (editor.name.toLowerCase().endsWith(".docx") ? (
+              <WordDocument
+                area={area}
+                rootId={rootId}
+                token={token}
+                item={editor}
+                editable={writable}
+                startEditing
+                close={() => setEditor(null)}
+                saved={() => setReload((n) => n + 1)}
+              />
+            ) : (
+              <FileEditor
+                area={area}
+                rootId={rootId}
+                token={token}
+                item={editor}
+                close={() => setEditor(null)}
+                saved={() => setReload((n) => n + 1)}
+              />
+            ))}
+          {preview &&
+            (preview.name.toLowerCase().endsWith(".docx") ? (
+              <WordDocument
+                area={area}
+                rootId={rootId}
+                token={token}
+                item={preview}
+                editable={writable}
+                close={() => setPreview(null)}
+                saved={() => setReload((n) => n + 1)}
+              />
+            ) : (
+              <FilePreview
+                area={area}
+                rootId={rootId}
+                token={token}
+                item={preview}
+                close={() => setPreview(null)}
+              />
+            ))}
           {error && (
             <div className="connection-error" role="alert">
               {error}
