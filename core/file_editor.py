@@ -73,32 +73,45 @@ def register_editor(router, root_provider):
                 raise HTTPException(413, 'Editor disponibile per file fino a 1 MiB.')
             if any(ord(c) < 32 and c not in '\t\r\n' for c in body.text):
                 raise HTTPException(415, 'Il testo contiene dati binari.')
-            # Short backup names also work for source filenames near NAME_MAX.
-            backup = resolve(base, (target.parent.relative_to(base) / ('cora-backup-' + uuid.uuid4().hex + '.bak')).as_posix())
-            fd, name = tempfile.mkstemp(prefix='.cora-edit-', dir=target.parent)
-            temp = Path(name)
-            try:
-                with os.fdopen(fd, 'wb') as out:
-                    out.write(data)
-                    out.flush()
-                    os.fsync(out.fileno())
-                os.chmod(temp, stat.S_IMODE(before.st_mode))
-                # Keep ownership; if not permitted, leave the original untouched.
-                if hasattr(os, 'chown'):
-                    current = temp.stat()
-                    if (current.st_uid, current.st_gid) != (before.st_uid, before.st_gid):
-                        os.chown(temp, before.st_uid, before.st_gid)
-                with backup.open('xb') as out:
-                    os.chmod(backup, 0o600)
-                    out.write(original)
-                    out.flush()
-                    os.fsync(out.fileno())
-                # Recheck external edits immediately before publishing.
-                resolve(base, body.path)
-                current = target.stat()
-                if (before.st_ino, before.st_mtime_ns, before.st_size) != (current.st_ino, current.st_mtime_ns, current.st_size) or target.read_bytes() != original:
-                    raise HTTPException(409, 'File modificato durante il salvataggio. Riaprilo prima di riprovare.')
-                os.replace(temp, target)
-            finally:
-                temp.unlink(missing_ok=True)
-            return {'revision': revision(data), 'backupPath': backup.relative_to(base).as_posix()}
+            return save_bytes(base, body.path, original, data, body.revision)
+
+
+def save_bytes(base, path, original, data, expected_revision):
+    """Called under the filesystem operation lock; never overwrite a stale revision."""
+    from core.server_files import resolve, exists
+    target = resolve(base, path)
+    exists(target)
+    before = target.stat()
+    if not target.is_file() or before.st_nlink != 1:
+        raise HTTPException(409, 'Seleziona un file normale senza collegamenti fisici.')
+    if revision(original) != expected_revision:
+        raise HTTPException(409, 'Il file è cambiato dopo l’apertura. Conserva la bozza e riapri il file.')
+    # Short backup names also work for source filenames near NAME_MAX.
+    backup = resolve(base, (target.parent.relative_to(base) / ('cora-backup-' + uuid.uuid4().hex + '.bak')).as_posix())
+    fd, name = tempfile.mkstemp(prefix='.cora-edit-', dir=target.parent)
+    temp = Path(name)
+    try:
+        with os.fdopen(fd, 'wb') as out:
+            out.write(data)
+            out.flush()
+            os.fsync(out.fileno())
+        os.chmod(temp, stat.S_IMODE(before.st_mode))
+        # Keep ownership; if not permitted, leave the original untouched.
+        if hasattr(os, 'chown'):
+            current = temp.stat()
+            if (current.st_uid, current.st_gid) != (before.st_uid, before.st_gid):
+                os.chown(temp, before.st_uid, before.st_gid)
+        with backup.open('xb') as out:
+            os.chmod(backup, 0o600)
+            out.write(original)
+            out.flush()
+            os.fsync(out.fileno())
+        # Recheck external edits immediately before publishing.
+        resolve(base, path)
+        current = target.stat()
+        if (before.st_ino, before.st_mtime_ns, before.st_size) != (current.st_ino, current.st_mtime_ns, current.st_size) or target.read_bytes() != original:
+            raise HTTPException(409, 'File modificato durante il salvataggio. Riaprilo prima di riprovare.')
+        os.replace(temp, target)
+    finally:
+        temp.unlink(missing_ok=True)
+    return {'revision': revision(data), 'backupPath': backup.relative_to(base).as_posix()}

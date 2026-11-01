@@ -400,6 +400,8 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
 
     from core.file_editor import register_editor
     register_editor(router, root_provider)
+    from core.word_files import register_word_editor
+    register_word_editor(router, root_provider)
     from core.file_extras import register_extras
     register_extras(router, root_provider, allow_upload=allow_upload)
     return router

@@ -364,3 +364,29 @@ Il ritorno è una pagina statica pubblica, non un'API pubblica: il completamento
 **Scadenza ogni sette giorni:** verificare **Google Auth Platform → Pubblico → Stato di pubblicazione**. Con utente esterno e stato **Testing**, Google limita il refresh token Calendar a sette giorni. Per un uso continuativo valutare **In produzione** nella console del proprio progetto, rispettando gli eventuali requisiti richiesti da Google, poi ricollegare una volta l'account. Non rende pubblico il sito Cora, non dà accesso ai file e non richiede aprire porte del server. Non garantisce che un token non possa essere revocato o invalidato per altri motivi.
 
 Il collegamento dal sito necessita di collaudo nel deploy reale con il client Google dell'utente; i test automatici simulano lo scambio e la verifica Google senza usare credenziali reali.
+
+## Appunti Word dalla pagina File
+
+I documenti **.docx** si aprono dalla scheda/nome del file in una vista con
+paragrafi, formattazione di base e tabelle. La ricerca «Trova cliente o testo»
+individua gli appunti nel documento. In una risorsa scrivibile, «Modifica documento»
+abilita la matita per correggere un paragrafo e il **+** per aggiungere una nota
+subito dopo quel paragrafo, anche dentro una cella. «Aggiungi appunto» nella barra
+inserisce invece una nota in fondo al documento, compresi i documenti vuoti.
+«Salva con backup» scrive il Word sul server: per questi salvataggi non serve
+ricostruire o riavviare i container. Gli appunti non salvati restano nell'editor
+in caso di conflitto con un'altra modifica.
+
+Limiti: 10 MiB per file, 30 MiB decompressi e 3.000 paragrafi. Il salvataggio
+modifica soltanto word/document.xml; gli altri componenti del pacchetto restano
+invariati. I paragrafi non modificati e gli stili dei segmenti esistenti vengono
+conservati. La vista non riproduce l'impaginazione di Word e non modifica immagini,
+campi o altri elementi avanzati; usare Word per questi contenuti. Documenti
+protetti o firmati restano in lettura. I vecchi **.doc** vanno prima salvati come
+.docx con Word o LibreOffice. Nessuna conversione remota o servizio cloud.
+
+Il backup `cora-backup-UUID.bak` conserva esattamente il file precedente nella
+stessa cartella; per aprirlo in Word dopo il download, assegnargli estensione
+.docx. Un file in Libreria IA resta una copia indipendente: la modifica manuale
+non cambia l'originale del server. Questa funzione è riservata al proprietario e
+non modifica i permessi o le regole di scrittura degli agenti.
