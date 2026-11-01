@@ -246,3 +246,22 @@ Prima di spostare il lavoro corrente sugli aggiornamenti Immich/Nextcloud servon
 3. verifica in Attività del percorso: route → contesto/tool → componente → decisione → modello/macchina osservati → esito.
 
 Il collaudo non autorizza scheduling automatico o nuove azioni autonome.
+
+
+## Nuovi traguardi M3/M4 — 1 novembre 2026
+
+La roadmap comprende due **obiettivi futuri, non implementazioni**. Non sostituiscono né anticipano la sequenza dei lavori prioritari W1 → W2 → W3.
+
+### M3: anagrafica clienti strutturata (`CUSTOMER-REGISTRY`)
+
+Gli appunti Word rimangono utili per il lavoro umano ma **non devono essere l'unica fonte strutturata**. Obiettivo: una scheda cliente consultabile e utilizzabile da programmi e agenti (identità, contatti, stabilimenti, storico, attività, appuntamenti, documenti), con collegamento ai Word esistenti. Prima si deve **verificare** lo schema, i permessi, le chiavi e la qualità del database clienti SQL già presente in azienda; non è stato né importato né dichiarato fonte autorevole. Evitare nuovi identificativi divergenti rispetto a Magazzino Tele e Preventivi. La transizione Word→schede dovrà essere incrementale, con riconciliazione di omonimi e duplicati, provenienza dei dati e senza cancellazione automatica degli originali.
+
+### M4: agenti operativi distribuibili (`REMOTE-AGENTS`)
+
+Obiettivo di lungo termine distinto dai normali **worker GPU**: un agente installato sul laptop/desktop può richiamare strumenti e dati locali con permessi specifici, mantenendo una connessione autenticata con l'orchestrazione di Cora sul Debian tramite rete privata. Esempio futuro: leggere in **sola lettura** il SQL clienti presente sul portatile, proporre un'importazione in staging nel database clienti di Cora, mostrare differenze e duplicati e richiedere approvazione per qualsiasi scrittura. Il server non deve ricevere credenziali SQL del portatile né ottenere accesso generalizzato al suo filesystem.
+
+Prima di iniziare sviluppo: valutare agent runtime open source verificati, isolamento e compatibilità, identità per agente/dispositivo, policy di tool/cartelle/database, autorizzazioni granulari, revoca, logging, versione e aggiornamento verificato del pacchetto. Azioni potenzialmente distruttive e installazioni arbitrarie restano disabilitate in assenza di conferma esplicita e permessi specifici.
+
+Non confondere **disponibilità di capacità computazionale su un worker** con **esecuzione autorizzata di strumenti locali**: sono contratti e superfici di sicurezza differenti.
+
+La Home mostra i due traguardi nelle rispettive macroclassi, con passi futuri e condizione di completamento espandibili. Il catalogo e lo storico dei controlli M2 non sono stati modificati, poiché nessuna di queste capacità è stata ancora realizzata.

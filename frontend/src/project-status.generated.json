@@ -273,6 +273,21 @@
       "detail": "La consultazione Libreria e le modifiche supportate esistono già. Sincronizzazione originali/copie, conflitti e nuove capacità agentiche di gestione e ripristino dei file restano rinviati."
     },
     {
+      "id": "CUSTOMER-REGISTRY",
+      "category": "M3",
+      "label": "Anagrafica clienti strutturata e schede cliente",
+      "state": "Da progettare · dopo le priorità attuali",
+      "detail": "Creare un archivio clienti strutturato e consultabile da Cora e dai programmi aziendali, con schede per cliente, contatti, stabilimenti, storico commerciale, appuntamenti e note. Valutare il riuso del database clienti SQL già esistente in azienda come fonte autorevole, senza duplicare le anagrafiche. Gli attuali Word rimangono consultabili e potranno essere collegati o migrati progressivamente, solo dopo verifica e riconciliazione.",
+      "nextSteps": [
+        "Censire schema, chiavi identificative, relazioni e qualità del database clienti già usato in azienda",
+        "Decidere fonte autorevole e modello dati minimo, evitando doppie anagrafiche con Magazzino Tele e Preventivi",
+        "Progettare pagine cliente, ricerca e collegamenti a Word, telefonate, preventivi e appuntamenti",
+        "Importare una copia di prova, identificare omonimi/duplicati e preservare l'origine dei dati",
+        "Validare permessi, backup e integrità prima della migrazione operativa"
+      ],
+      "doneWhen": "Una scheda cliente di prova raccoglie dati SQL e appunti collegati, è interrogabile dalle applicazioni autorizzate e non altera o duplica il database aziendale di origine."
+    },
+    {
       "id": "AUTO-QUOTES",
       "category": "M4",
       "label": "Dalla richiesta email al preventivo",
@@ -292,6 +307,27 @@
       "label": "Evoluzione governata di contesto e memoria simbolica",
       "state": "Da progettare",
       "detail": "Le pagine di contesto e la memoria versionata esistono. Definire pubblicazione e versionamento delle nuove pagine e un eventuale agente di revisione dei valori simbolici, con approvazioni esplicite. Il monitor semantico della Libreria resta escluso."
+    },
+    {
+      "id": "REMOTE-AGENTS",
+      "category": "M4",
+      "label": "Installare agenti Cora su altri dispositivi",
+      "state": "Futuro · da progettare",
+      "detail": "Consentire il deploy autorizzato di agenti operativi su laptop, desktop e altri dispositivi fidati, collegati al server Cora tramite rete privata. Diversamente dai worker GPU, questi agenti devono poter usare strumenti locali specificamente concessi (per esempio leggere un SQL clienti sul portatile e proporre un import in Cora), con identità, ambito, approvazioni e tracciamento separati per dispositivo e operazione.",
+      "nextSteps": [
+        "Studiare agent runtime/open source già esistenti e valutarne licenza, isolamento e integrazione con Cora",
+        "Definire registrazione/revoca dei nodi, autenticazione reciproca su Tailscale e canale cifrato",
+        "Distribuire pacchetti agenti verificati e aggiornabili; nessuna installazione arbitraria da prompt",
+        "Usare permessi minimi per file/cartelle/database e tool, inizialmente SQL in sola lettura senza credenziali trasferite al server",
+        "Preparare import clienti in area di staging, confrontare record e richiedere approvazione esplicita per scritture/deduplica",
+        "Registrare log, versione, risultati, errori, autorizzazioni e possibilità di arresto/rimozione remota"
+      ],
+      "dependencies": [
+        "CUSTOMER-REGISTRY",
+        "ARCH-ORCHESTRATOR",
+        "RUNTIME-MEMORY"
+      ],
+      "doneWhen": "Da Cora si può inviare a un agente su laptop un incarico autorizzato di lettura SQL in sola lettura, ottenere un'anteprima di import con provenienza verificabile, approvarla e revocare l'accesso senza concedere controllo generale del dispositivo."
     }
   ],
   "limits": [
@@ -302,7 +338,8 @@
     "Obiettivi chiusi e decisioni storiche restano esclusi; nessuna modifica automatica ai file, ai modelli e alle applicazioni.",
     "La dashboard dei test è condivisa: M2 elenca problemi e obiettivi, mentre il registro salute raccoglie controlli automatici e collaudi, senza doppia esecuzione.",
     "Conferme manuali dell'utente e risultati automatici sono due fonti diverse e non certificano automaticamente il commit installato.",
-    "Gli aggiornamenti Immich/Nextcloud non sono ancora gestiti dal servizio host; la Home non deve mostrare un pulsante di deploy funzionante finché non esiste l'integrazione."
+    "Gli aggiornamenti Immich/Nextcloud non sono ancora gestiti dal servizio host; la Home non deve mostrare un pulsante di deploy funzionante finché non esiste l'integrazione.",
+    "Obiettivi CUSTOMER-REGISTRY e REMOTE-AGENTS pianificati, non implementati. Non è attestato l'accesso al database SQL aziendale: schema, dati, autorizzazioni e sincronizzazione dovranno essere verificati in una fase dedicata."
   ],
   "nodes": [
     {
