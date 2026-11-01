@@ -1,6 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   CloudUpload,
+  ArrowLeft,
+  Image,
+  LockKeyhole,
+  Plus,
   Copy,
   Download,
   FileText,
@@ -16,10 +20,17 @@ import {
   X,
 } from "lucide-react";
 import FilePreview from "./FilePreview";
+import FileMenu from "./FileMenu";
+import FileSidebar from "./FileSidebar";
+import FileThumbnail, { FileTypeIcon, fileStyle } from "./FileVisual";
+import "./file-drive.css";
 import FileEditor from "./FileEditor";
 import { sharePageUrl } from "../services/sharedFiles";
 import { filesApi } from "../services/filesApi";
-import { libraryMonitorApi, type MonitorStatus } from "../services/libraryMonitorApi";
+import {
+  libraryMonitorApi,
+  type MonitorStatus,
+} from "../services/libraryMonitorApi";
 import type {
   BrowserListing,
   BrowserNode,
@@ -312,24 +323,40 @@ const actionLabels = {
   copy: "Copia",
   library: "Copia nella Libreria IA",
 };
-function FileBrowser({ area, token }: { area: FileArea; token: string }) {
+function FileBrowser({
+  area,
+  token,
+  initialRoot,
+  initialPath,
+  navigation,
+  switchArea,
+}: {
+  area: FileArea;
+  token: string;
+  initialRoot: string;
+  initialPath: string;
+  navigation: ReactNode;
+  switchArea: (area: FileArea, rootId: string, path: string) => void;
+}) {
   const [roots, setRoots] = useState<BrowserRoot[]>([]);
-  const [rootId, setRootId] = useState("");
-  const [path, setPath] = useState("");
+  const [rootId, setRootId] = useState(initialRoot);
+  const [path, setPath] = useState(initialPath);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [listing, setListing] = useState<BrowserListing | null>(null);
   const [trash, setTrash] = useState<TrashItem[]>([]);
-  const [recursive,setRecursive] = useState(false);
-  const [editor,setEditor] = useState<BrowserNode|null>(null);
-  const [preview,setPreview] = useState<BrowserNode|null>(null);
-  const [shareList,setShareList] = useState<{id:string;path:string;expiresAt:string;revoked:boolean}[]|null>(null);
-  const [shareLink,setShareLink] = useState("");
-  const [uploadProgress,setUploadProgress] = useState("");
-  const [monitor,setMonitor] = useState<MonitorStatus|null>(null);
+  const [recursive, setRecursive] = useState(false);
+  const [editor, setEditor] = useState<BrowserNode | null>(null);
+  const [preview, setPreview] = useState<BrowserNode | null>(null);
+  const [shareList, setShareList] = useState<
+    { id: string; path: string; expiresAt: string; revoked: boolean }[] | null
+  >(null);
+  const [shareLink, setShareLink] = useState("");
+  const [uploadProgress, setUploadProgress] = useState("");
+  const [monitor, setMonitor] = useState<MonitorStatus | null>(null);
   const [inTrash, setInTrash] = useState(false);
-  const [view, setView] = useState<"list" | "grid">("list");
+  const [view, setView] = useState<"list" | "grid">("grid");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -338,6 +365,7 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
   const [action, setAction] = useState<EditAction | null>(null);
   const [value, setValue] = useState("");
   const [picker, setPicker] = useState(false);
+  const [thumbnails, setThumbnails] = useState(true);
   const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const mutationLock = useRef(false);
@@ -351,20 +379,38 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
   );
   const isLibrary = area === "library";
   useEffect(() => {
-    if (!isLibrary) { setMonitor(null); return; }
+    if (!isLibrary) {
+      setMonitor(null);
+      return;
+    }
     let active = true;
-    void libraryMonitorApi.status().then(value => { if (active) setMonitor(value); })
-      .catch(() => { if (active) setMonitor(null); });
-    return () => { active = false; };
+    void libraryMonitorApi
+      .status()
+      .then((value) => {
+        if (active) setMonitor(value);
+      })
+      .catch(() => {
+        if (active) setMonitor(null);
+      });
+    return () => {
+      active = false;
+    };
   }, [isLibrary, reload]);
   const toggleMonitor = async (folder: string) => {
     setBusy(true);
     try {
       const enabled = !monitor?.folders.includes(folder);
       setMonitor(await libraryMonitorApi.setFolder(folder, enabled));
-      setNotice(enabled ? "Monitor attivato per la cartella e le sottocartelle." : "Monitor disattivato.");
-    } catch (e) { setError(message(e)); }
-    finally { setBusy(false); }
+      setNotice(
+        enabled
+          ? "Monitor attivato per la cartella e le sottocartelle."
+          : "Monitor disattivato.",
+      );
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
   };
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -435,7 +481,9 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
   }, [area, token, rootId, path, search, offset, recursive, inTrash, reload]);
   function navigate(next: string) {
     setError("");
-    setPreview(null);setShareList(null);setShareLink("");
+    setPreview(null);
+    setShareList(null);
+    setShareLink("");
     setPath(next);
     setOffset(0);
     setQuery("");
@@ -470,7 +518,13 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
       async () => {
         for (const file of files) {
           try {
-            await filesApi.resumableUpload(area, rootId, path, file, setUploadProgress);
+            await filesApi.resumableUpload(
+              area,
+              rootId,
+              path,
+              file,
+              setUploadProgress,
+            );
             completed++;
           } catch (e) {
             setReload((n) => n + 1);
@@ -532,21 +586,70 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
           filesApi.mutate(area, token, "/transfer", {
             root_id: rootId,
             path: action.item!.path,
-            destination: action.kind === "rename" ? join(path, text) : text,
+            destination:
+              action.kind === "rename"
+                ? join(
+                    action.item!.path.split("/").slice(0, -1).join("/"),
+                    text,
+                  )
+                : text,
             mode: action.kind === "copy" ? "copy" : "move",
           }),
         "Operazione completata.",
       );
   }
   async function showShares() {
-    await run(async()=>{const data=await filesApi.shares(area,rootId);setShareList(data.items);}, "Condivisioni caricate.");
+    await run(async () => {
+      const data = await filesApi.shares(area, rootId);
+      setShareList(data.items);
+    }, "Condivisioni caricate.");
   }
   function actions(item: BrowserNode) {
+    if (item.kind === "link" || item.kind === "special") return null;
+    if (
+      item.kind === "folder" &&
+      !isLibrary &&
+      !item.capabilities.some((capability) =>
+        ["rename", "copy", "move", "trash"].includes(capability),
+      )
+    )
+      return null;
     return (
-      <div className="file-actions">
-        {item.kind === "file" && writable && <button disabled={busy} title="Modifica testo" aria-label={"Modifica testo " + item.name} onClick={() => setEditor(item)}>Modifica testo</button>}
-        {item.kind==="file"&&<><button disabled={busy} title="Anteprima" aria-label={"Anteprima "+item.name} onClick={()=>setPreview(item)}>Anteprima</button>
-        <button disabled={busy} title="Condividi per 24 ore (richiede accesso)" onClick={()=>void run(async()=>{const share=await filesApi.share(area,rootId,item.path);setShareLink(sharePageUrl(share.url,window.location.origin));},"Collegamento creato: valido 24 ore, richiede accesso al server.")}>Condividi</button></>}
+      <FileMenu label={"Azioni per " + item.name} disabled={busy}>
+        {item.kind === "file" && writable && (
+          <button
+            disabled={busy}
+            title="Modifica testo"
+            aria-label={"Modifica testo " + item.name}
+            onClick={() => setEditor(item)}
+          >
+            Modifica testo
+          </button>
+        )}
+        {item.kind === "file" && (
+          <>
+            <button
+              disabled={busy}
+              title="Anteprima"
+              aria-label={"Anteprima " + item.name}
+              onClick={() => setPreview(item)}
+            >
+              Anteprima
+            </button>
+            <button
+              disabled={busy}
+              title="Condividi per 24 ore (richiede accesso)"
+              onClick={() =>
+                void run(async () => {
+                  const share = await filesApi.share(area, rootId, item.path);
+                  setShareLink(sharePageUrl(share.url, window.location.origin));
+                }, "Collegamento creato: valido 24 ore, richiede accesso al server.")
+              }
+            >
+              Condividi
+            </button>
+          </>
+        )}
 
         {item.capabilities.includes("download") && (
           <button
@@ -561,6 +664,7 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
             }
           >
             <Download size={15} />
+            <span>Scarica</span>
           </button>
         )}
         {!isLibrary && item.kind === "file" && (
@@ -571,16 +675,21 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
             onClick={() => edit("library", item)}
           >
             <Copy size={15} />
-            <span>IA</span>
+            <span>Copia nella Libreria IA</span>
           </button>
         )}
         {isLibrary && item.kind === "folder" && (
-          <button type="button" disabled={busy || !monitor}
+          <button
+            type="button"
+            disabled={busy || !monitor}
             title="Attiva o disattiva l'analisi proattiva"
             aria-label={"Analisi proattiva cartella " + item.name}
             aria-pressed={Boolean(monitor?.folders.includes(item.path))}
-            onClick={() => void toggleMonitor(item.path)}>
-            {monitor?.folders.includes(item.path) ? "Monitor ON" : "Monitor OFF"}
+            onClick={() => void toggleMonitor(item.path)}
+          >
+            {monitor?.folders.includes(item.path)
+              ? "Monitor ON"
+              : "Monitor OFF"}
           </button>
         )}
         {item.capabilities.includes("rename") && (
@@ -591,6 +700,7 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
             onClick={() => edit("rename", item)}
           >
             <Pencil size={15} />
+            <span>Rinomina</span>
           </button>
         )}
         {item.capabilities.includes("copy") && (
@@ -601,6 +711,7 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
             onClick={() => edit("copy", item)}
           >
             <Copy size={15} />
+            <span>Copia</span>
           </button>
         )}
         {item.capabilities.includes("move") && (
@@ -633,375 +744,594 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
             }
           >
             <Trash2 size={15} />
+            <span>Sposta nel cestino</span>
           </button>
         )}
-      </div>
+      </FileMenu>
     );
   }
   function nameButton(item: BrowserNode) {
     return (
       <button
         className="file-name"
-        disabled={busy || !["folder","file"].includes(item.kind)}
-        onClick={() => item.kind==="folder" ? navigate(item.path) : setPreview(item)}
+        title={item.name}
+        disabled={busy || !["folder", "file"].includes(item.kind)}
+        onClick={() =>
+          item.kind === "folder" ? navigate(item.path) : setPreview(item)
+        }
       >
-        {item.kind === "folder" ? <Folder size={18} /> : <FileText size={18} />}
+        <FileTypeIcon item={item} />
         <span>{item.name}</span>
       </button>
     );
   }
+  function selectResource(
+    nextArea: FileArea,
+    nextRoot: string,
+    nextPath: string,
+  ) {
+    if (nextArea !== area) switchArea(nextArea, nextRoot, nextPath);
+    else {
+      setRootId(nextRoot);
+      navigate(nextPath);
+    }
+  }
   return (
     <>
-      <div className="file-subpage-caption">
-        <p>
-          {isLibrary
-            ? "Copie di lavoro disponibili all’IA. Gli originali restano sul server."
-            : "Esplora e gestisci i file presenti sul server."}
-        </p>
-        {busy && <span role="status">Operazione in corso…</span>}
-      </div>
-      {isLibrary && !inTrash && path && (
-        <div className="settings-row">
-          <div><strong>Analisi proattiva di questa cartella</strong>
-            <p>Scansione leggera, incluse le sottocartelle; nessuna modifica e nessuna chiamata Ollama.
-            {monitor?.folders.some(folder => path.startsWith(folder + "/")) ? " Ereditata da una cartella superiore." : ""}</p>
-          </div>
-          <button type="button" disabled={busy || !monitor}
-            aria-pressed={Boolean(monitor?.folders.includes(path))}
-            onClick={() => void toggleMonitor(path)}>
-            {monitor?.folders.includes(path) ? "Monitor attivo" : "Monitor disattivo"}
-          </button>
-        </div>
-      )}
-      <div className="file-toolbar">
-        <div className="file-toolbar-left">
-          <Breadcrumbs
-            label={root?.label || "Server"}
-            path={inTrash ? "" : path}
-            disabled={busy}
-            navigate={navigate}
-          />
-          {inTrash && <strong>Cestino</strong>}
-          <label className="file-search">
-            <Search size={15} />
-            <input
-              disabled={busy || inTrash}
-              placeholder={recursive?"Cerca anche nelle sottocartelle":"Cerca in questa cartella"}
-              aria-label="Cerca per nome"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </label>
-          <label><input type="checkbox" checked={recursive} disabled={busy||inTrash} onChange={e=>{setRecursive(e.target.checked);setOffset(0);}}/>Sottocartelle</label>
-        </div>
-        <div className="file-toolbar-actions">
-          <button
-            className="file-tool"
-            disabled={busy || loading}
-            title="Aggiorna elenco"
-            aria-label="Aggiorna elenco"
-            onClick={() => {
-              setError("");
-              setReload((n) => n + 1);
-            }}
-          >
-            <RefreshCw size={16} />
-          </button>
-          <button className="file-tool" disabled={busy||!rootId} onClick={()=>void showShares()}>Condivisioni</button>
-          <button className="file-tool" disabled={busy||!writable} onClick={()=>void run(()=>filesApi.cancelPendingUploads(area,rootId,path),"Upload in sospeso annullati per questa cartella.")}>Annulla upload sospesi</button>
-          <div className="view-switch">
-            <button
-              className={view === "list" ? "selected" : ""}
-              aria-label="Vista elenco"
-              aria-pressed={view === "list"}
-              onClick={() => setView("list")}
-            >
-              <List size={16} />
-            </button>
-            <button
-              className={view === "grid" ? "selected" : ""}
-              aria-label="Vista griglia"
-              aria-pressed={view === "grid"}
-              onClick={() => setView("grid")}
-            >
-              <Grid2X2 size={15} />
-            </button>
-          </div>
-          <button
-            className="file-tool"
-            disabled={busy || !writable}
-            onClick={() => edit("folder")}
-          >
-            <Folder size={15} /> Nuova cartella
-          </button>
-          {isLibrary && (
-            <button
-              className="file-tool"
-              disabled={busy || !writable}
-              onClick={() => setPicker(true)}
-            >
-              <Copy size={15} /> Copia dal server
-            </button>
-          )}
-          <button
-            className="upload-button"
-            disabled={busy || !writable}
-            onClick={() => input.current?.click()}
-          >
-            <Upload size={15} />
-            {isLibrary ? "Carica copie" : "Carica file"}
-          </button>
-          <input
-            type="file"
-            multiple
-            hidden
-            ref={input}
-            onChange={(e) => {
-              const files = Array.from(e.target.files || []);
-              e.target.value = "";
-              void uploadFiles(files);
-            }}
-          />
-        </div>
-      </div>
-      {busy&&uploadProgress&&<p role="status">{uploadProgress}</p>}
-      {!busy&&uploadProgress&&error&&<p>Per riprendere un upload interrotto, seleziona nuovamente lo stesso file entro 24 ore.</p>}
-      {shareLink&&<div className="file-notice"><label>Collegamento privato (richiede login)<input readOnly value={shareLink} onFocus={e=>e.target.select()}/></label></div>}
-      {listing&&(listing as BrowserListing & {truncated?:boolean}).truncated&&<p className="connection-notice">Ricerca limitata a 10.000 elementi o 30 livelli. Cerca in una sottocartella per continuare.</p>}
-      {shareList&&<div className="system-card"><div className="metric-head"><h3>Condivisioni della risorsa</h3><button onClick={()=>setShareList(null)}>Chiudi</button></div>{!shareList.length&&<p>Nessun collegamento creato.</p>}{shareList.map(item=><div className="settings-row" key={item.id}><div><strong>{item.path}</strong><small>Scadenza: {new Date(item.expiresAt).toLocaleString("it-IT")} · {item.revoked?"Revocato":""}</small></div><button disabled={busy||item.revoked} onClick={()=>void run(async()=>{await filesApi.revokeShare(area,item.id);setShareList(prev=>prev?.map(s=>s.id===item.id?{...s,revoked:true}:s)||null);},"Collegamento revocato.")}>Revoca</button></div>)}</div>}
-      {editor&&<FileEditor area={area} rootId={rootId} token={token} item={editor} close={()=>setEditor(null)} saved={()=>setReload(n=>n+1)}/>}
-      {preview&&<FilePreview area={area} rootId={rootId} token={token} item={preview} close={()=>setPreview(null)}/>}
-      {error && (
-        <div className="connection-error" role="alert">
-          {error}
-        </div>
-      )}
-      {notice && (
-        <div className="file-notice" role="status">
-          {notice}
-        </div>
-      )}
-      <div className="file-workspace">
-        <aside className="folder-pane">
-          <div className="folder-heading">
-            {isLibrary ? "LIBRERIA IA" : "RISORSE DEL SERVER"}
-          </div>
-          {roots.map((r) => (
-            <button
-              className={
-                "tree-item " + (r.id === rootId && !inTrash ? "selected" : "")
-              }
-              key={r.id}
-              disabled={busy}
-              title={r.path}
-              onClick={() => {
-                setRootId(r.id);
-                navigate("");
-              }}
-            >
-              <Folder size={16} />
-              <span>
-                {r.label}
-                {!r.available
-                  ? " · non disponibile"
-                  : !r.writable
-                    ? " · sola lettura"
-                    : ""}
-              </span>
-            </button>
-          ))}
-          <button
-            className={"tree-item " + (inTrash ? "selected" : "")}
-            disabled={busy || !root?.available}
-            onClick={() => {
-              setInTrash(true);
-              setOffset(0);
-            }}
-          >
-            <Trash2 size={16} /> Cestino
-          </button>
-          <div className="storage-box">
-            <div>
-              <strong>Spazio sul disco</strong>
+      <div className="file-drive-layout">
+        <FileSidebar
+          area={area}
+          token={token}
+          roots={roots}
+          rootId={rootId}
+          path={path}
+          inTrash={inTrash}
+          busy={busy}
+          reload={reload}
+          select={selectResource}
+          showTrash={() => {
+            setInTrash(true);
+            setError("");
+            setOffset(0);
+          }}
+          storage={root?.storage}
+        />
+        <section className="file-drive-main">
+          <header className="drive-topbar">
+            <div className="drive-navigation">{navigation}</div>
+            <div className="drive-top-actions">
+              <button
+                className="drive-icon-button"
+                disabled={busy || loading}
+                aria-label="Aggiorna elenco"
+                title="Aggiorna elenco"
+                onClick={() => {
+                  setError("");
+                  setReload((n) => n + 1);
+                }}
+              >
+                <RefreshCw size={19} />
+              </button>
+              <FileMenu label="Menu file" disabled={busy}>
+                <button
+                  disabled={busy || !writable}
+                  onClick={() => edit("folder")}
+                >
+                  <Plus size={17} />
+                  Nuova cartella
+                </button>
+                <button
+                  disabled={busy || !rootId}
+                  onClick={() => void showShares()}
+                >
+                  Condivisioni
+                </button>
+                <button
+                  disabled={busy || !writable}
+                  onClick={() =>
+                    void run(
+                      () => filesApi.cancelPendingUploads(area, rootId, path),
+                      "Upload in sospeso annullati per questa cartella.",
+                    )
+                  }
+                >
+                  Annulla upload sospesi
+                </button>
+                {isLibrary && (
+                  <button
+                    disabled={busy || !writable}
+                    onClick={() => setPicker(true)}
+                  >
+                    <Copy size={17} />
+                    Copia dal server
+                  </button>
+                )}
+              </FileMenu>
             </div>
-            {root?.storage ? (
-              <>
-                <p>
-                  {bytes(root.storage.freeBytes)} liberi di{" "}
-                  {bytes(root.storage.totalBytes)}
-                </p>
-                <small>Filesystem della cartella selezionata.</small>
-              </>
-            ) : (
-              <small>Spazio non disponibile.</small>
+          </header>
+          <div className="drive-search-row">
+            <label className="drive-search">
+              <Search size={21} />
+              <input
+                disabled={busy || inTrash}
+                placeholder={
+                  isLibrary
+                    ? "Cerca nella Libreria IA"
+                    : "Cerca nei file del server"
+                }
+                aria-label="Cerca per nome"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {query && (
+                <button
+                  type="button"
+                  aria-label="Cancella ricerca"
+                  onClick={() => setQuery("")}
+                >
+                  <X size={17} />
+                </button>
+              )}
+            </label>
+            <button
+              className="drive-upload-button"
+              aria-label={isLibrary ? "Carica copie" : "Carica file"}
+              disabled={busy || !writable}
+              onClick={() => input.current?.click()}
+            >
+              <Upload size={17} />
+              <span>{isLibrary ? "Carica copie" : "Carica file"}</span>
+            </button>
+            <input
+              type="file"
+              multiple
+              hidden
+              ref={input}
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                e.target.value = "";
+                void uploadFiles(files);
+              }}
+            />
+          </div>
+          <div className="drive-location-row">
+            <div className="drive-location">
+              {path && !inTrash && (
+                <button
+                  className="drive-icon-button"
+                  aria-label="Cartella superiore"
+                  disabled={busy}
+                  onClick={() =>
+                    navigate(path.split("/").slice(0, -1).join("/"))
+                  }
+                >
+                  <ArrowLeft size={19} />
+                </button>
+              )}
+              <Breadcrumbs
+                label={
+                  root?.label || (isLibrary ? "Libreria IA" : "File server")
+                }
+                path={inTrash ? "" : path}
+                disabled={busy}
+                navigate={navigate}
+              />
+              {inTrash && <strong>Cestino</strong>}
+            </div>
+            <div className="view-switch" aria-label="Visualizzazione file">
+              <button
+                className={view === "list" ? "selected" : ""}
+                aria-label="Vista elenco"
+                aria-pressed={view === "list"}
+                onClick={() => setView("list")}
+              >
+                <List size={18} />
+              </button>
+              <button
+                className={view === "grid" ? "selected" : ""}
+                aria-label="Vista griglia"
+                aria-pressed={view === "grid"}
+                onClick={() => setView("grid")}
+              >
+                <Grid2X2 size={18} />
+              </button>
+            </div>
+          </div>
+          <div className="drive-filter-row">
+            <label className="drive-filter">
+              <input
+                type="checkbox"
+                checked={recursive}
+                disabled={busy || inTrash}
+                onChange={(e) => {
+                  setRecursive(e.target.checked);
+                  setOffset(0);
+                }}
+              />
+              Includi sottocartelle
+            </label>
+            <button
+              className={"drive-filter " + (thumbnails ? "is-active" : "")}
+              aria-pressed={thumbnails}
+              onClick={() => setThumbnails((value) => !value)}
+            >
+              <Image size={15} />
+              Anteprime
+            </button>
+            <span className="drive-permission">
+              {root && !root.writable ? (
+                <>
+                  <LockKeyhole size={13} />
+                  Sola lettura
+                </>
+              ) : isLibrary ? (
+                "Copie indipendenti dagli originali"
+              ) : (
+                "File sul tuo server"
+              )}
+            </span>
+            {busy && (
+              <span className="drive-operation" role="status">
+                Operazione in corso…
+              </span>
             )}
           </div>
-        </aside>
-        <div className="file-content" aria-busy={loading || busy}>
-          {loading ? (
-            <p className="empty-files" role="status">
-              Caricamento…
-            </p>
-          ) : inTrash ? (
-            <div className="trash-list">
-              {trash.length ? (
-                trash.map((item) => (
-                  <div className="trash-row" key={item.id}>
-                    <div>
-                      <strong>{item.path}</strong>
-                      <small>
-                        {new Date(item.deletedAt).toLocaleString("it-IT")}
-                      </small>
-                    </div>
-                    <button
-                      className="file-tool"
-                      disabled={busy || !root?.writable}
-                      onClick={() =>
-                        void run(
-                          () =>
-                            filesApi.mutate(area, token, "/restore", {
-                              root_id: rootId,
-                              id: item.id,
-                            }),
-                          "Elemento ripristinato.",
-                        )
-                      }
-                    >
-                      <Undo2 size={15} /> Ripristina
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <p className="empty-files">
-                  {error ? "Cestino non disponibile." : "Cestino vuoto."}
+          {isLibrary && !inTrash && path && (
+            <div className="settings-row">
+              <div>
+                <strong>Analisi proattiva di questa cartella</strong>
+                <p>
+                  Scansione leggera, incluse le sottocartelle; nessuna modifica
+                  e nessuna chiamata Ollama.
+                  {monitor?.folders.some((folder) =>
+                    path.startsWith(folder + "/"),
+                  )
+                    ? " Ereditata da una cartella superiore."
+                    : ""}
                 </p>
-              )}
+              </div>
+              <button
+                type="button"
+                disabled={busy || !monitor}
+                aria-pressed={Boolean(monitor?.folders.includes(path))}
+                onClick={() => void toggleMonitor(path)}
+              >
+                {monitor?.folders.includes(path)
+                  ? "Monitor attivo"
+                  : "Monitor disattivo"}
+              </button>
             </div>
-          ) : !listing ? (
-            <p className="empty-files">
-              Elenco non disponibile. Verifica la connessione e aggiorna.
+          )}
+          {busy && uploadProgress && <p role="status">{uploadProgress}</p>}
+          {!busy && uploadProgress && error && (
+            <p>
+              Per riprendere un upload interrotto, seleziona nuovamente lo
+              stesso file entro 24 ore.
             </p>
-          ) : view === "list" ? (
-            <div className="file-table-wrap">
-              <table className="file-table">
-                <thead>
-                  <tr>
-                    <th>Nome</th>
-                    <th>Tipo</th>
-                    <th>Dimensione</th>
-                    <th>Ultima modifica</th>
-                    <th>Azioni</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {listing.items.map((item) => (
-                    <tr key={item.path}>
-                      <td>{nameButton(item)}</td>
-                      <td>
-                        {item.kind === "folder"
-                          ? "Cartella"
-                          : item.kind === "link"
-                            ? "Collegamento"
-                            : item.kind === "special"
-                              ? "File speciale"
-                              : isLibrary
-                                ? "Copia"
-                                : "File"}
-                      </td>
-                      <td>{bytes(item.sizeBytes)}</td>
-                      <td>
-                        {new Date(item.modifiedAt).toLocaleString("it-IT")}
-                      </td>
-                      <td>{actions(item)}</td>
-                    </tr>
-                  ))}
-                  {listing.items.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="empty-files">
-                        {search
-                          ? "Nessun nome corrisponde alla ricerca."
-                          : "Cartella vuota."}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+          )}
+          {shareLink && (
+            <div className="file-notice">
+              <label>
+                Collegamento privato (richiede login)
+                <input
+                  readOnly
+                  value={shareLink}
+                  onFocus={(e) => e.target.select()}
+                />
+              </label>
             </div>
-          ) : (
-            <div className="file-grid">
-              {listing.items.map((item) => (
-                <div className="file-tile" key={item.path}>
-                  {nameButton(item)}
-                  <small>
-                    {item.kind === "folder"
-                      ? "Cartella"
-                      : bytes(item.sizeBytes)}
-                    {isLibrary && item.kind === "file" ? " · Copia IA" : ""}
-                  </small>
-                  {actions(item)}
+          )}
+          {listing &&
+            (listing as BrowserListing & { truncated?: boolean }).truncated && (
+              <p className="connection-notice">
+                Ricerca limitata a 10.000 elementi o 30 livelli. Cerca in una
+                sottocartella per continuare.
+              </p>
+            )}
+          {shareList && (
+            <div className="system-card">
+              <div className="metric-head">
+                <h3>Condivisioni della risorsa</h3>
+                <button onClick={() => setShareList(null)}>Chiudi</button>
+              </div>
+              {!shareList.length && <p>Nessun collegamento creato.</p>}
+              {shareList.map((item) => (
+                <div className="settings-row" key={item.id}>
+                  <div>
+                    <strong>{item.path}</strong>
+                    <small>
+                      Scadenza:{" "}
+                      {new Date(item.expiresAt).toLocaleString("it-IT")} ·{" "}
+                      {item.revoked ? "Revocato" : ""}
+                    </small>
+                  </div>
+                  <button
+                    disabled={busy || item.revoked}
+                    onClick={() =>
+                      void run(async () => {
+                        await filesApi.revokeShare(area, item.id);
+                        setShareList(
+                          (prev) =>
+                            prev?.map((s) =>
+                              s.id === item.id ? { ...s, revoked: true } : s,
+                            ) || null,
+                        );
+                      }, "Collegamento revocato.")
+                    }
+                  >
+                    Revoca
+                  </button>
                 </div>
               ))}
-              {listing.items.length === 0 && (
-                <p className="empty-files">
-                  {search ? "Nessun risultato." : "Cartella vuota."}
-                </p>
-              )}
             </div>
           )}
-          {listing && !inTrash && (
-            <div className="file-pagination">
-              <span>
-                {listing.total
-                  ? `${offset + 1}–${Math.min(offset + 100, listing.total)} di ${listing.total}`
-                  : "0 elementi"}
-              </span>
-              <button
-                disabled={busy || offset === 0}
-                onClick={() => setOffset((n) => Math.max(0, n - 100))}
+          {editor && (
+            <FileEditor
+              area={area}
+              rootId={rootId}
+              token={token}
+              item={editor}
+              close={() => setEditor(null)}
+              saved={() => setReload((n) => n + 1)}
+            />
+          )}
+          {preview && (
+            <FilePreview
+              area={area}
+              rootId={rootId}
+              token={token}
+              item={preview}
+              close={() => setPreview(null)}
+            />
+          )}
+          {error && (
+            <div className="connection-error" role="alert">
+              {error}
+            </div>
+          )}
+          {notice && (
+            <div className="file-notice" role="status">
+              {notice}
+            </div>
+          )}
+          <div className="file-content" aria-busy={loading || busy}>
+            {loading ? (
+              <p className="empty-files" role="status">
+                Caricamento…
+              </p>
+            ) : inTrash ? (
+              <div className="trash-list">
+                {trash.length ? (
+                  trash.map((item) => (
+                    <div className="trash-row" key={item.id}>
+                      <div>
+                        <strong>{item.path}</strong>
+                        <small>
+                          {new Date(item.deletedAt).toLocaleString("it-IT")}
+                        </small>
+                      </div>
+                      <button
+                        className="file-tool"
+                        disabled={busy || !root?.writable}
+                        onClick={() =>
+                          void run(
+                            () =>
+                              filesApi.mutate(area, token, "/restore", {
+                                root_id: rootId,
+                                id: item.id,
+                              }),
+                            "Elemento ripristinato.",
+                          )
+                        }
+                      >
+                        <Undo2 size={15} /> Ripristina
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="empty-files">
+                    {error ? "Cestino non disponibile." : "Cestino vuoto."}
+                  </p>
+                )}
+              </div>
+            ) : !listing ? (
+              <p className="empty-files">
+                Elenco non disponibile. Verifica la connessione e aggiorna.
+              </p>
+            ) : view === "list" ? (
+              <div className="file-table-wrap">
+                <table className="file-table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Tipo</th>
+                      <th>Dimensione</th>
+                      <th>Ultima modifica</th>
+                      <th>Azioni</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {listing.items.map((item) => (
+                      <tr key={item.path}>
+                        <td>
+                          <div className="drive-list-name">
+                            {nameButton(item)}
+                            {search && recursive && <small>{item.path}</small>}
+                          </div>
+                        </td>
+                        <td>
+                          <span
+                            className={
+                              "drive-type-label tone-" + fileStyle(item).tone
+                            }
+                          >
+                            {fileStyle(item).label}
+                          </span>
+                        </td>
+                        <td>{bytes(item.sizeBytes)}</td>
+                        <td>
+                          {new Date(item.modifiedAt).toLocaleString("it-IT")}
+                        </td>
+                        <td>{actions(item)}</td>
+                      </tr>
+                    ))}
+                    {listing.items.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="empty-files">
+                          {search
+                            ? "Nessun nome corrisponde alla ricerca."
+                            : "Cartella vuota."}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="drive-grid-content">
+                {listing.items.some((item) => item.kind === "folder") && (
+                  <section aria-label="Cartelle">
+                    <h2 className="drive-section-title">Cartelle</h2>
+                    <div className="drive-folder-grid">
+                      {listing.items
+                        .filter((item) => item.kind === "folder")
+                        .map((item) => (
+                          <div className="drive-folder-card" key={item.path}>
+                            {nameButton(item)}
+                            {actions(item)}
+                          </div>
+                        ))}
+                    </div>
+                  </section>
+                )}
+                {listing.items.some((item) => item.kind !== "folder") && (
+                  <section aria-label="File nella cartella">
+                    <h2 className="drive-section-title">File</h2>
+                    <div className="drive-card-grid">
+                      {listing.items
+                        .filter((item) => item.kind !== "folder")
+                        .map((item) => (
+                          <article className="drive-file-card" key={item.path}>
+                            <header>
+                              {nameButton(item)}
+                              {actions(item)}
+                            </header>
+                            <button
+                              className="drive-preview-button"
+                              aria-label={"Apri anteprima " + item.name}
+                              disabled={busy || item.kind !== "file"}
+                              onClick={() => setPreview(item)}
+                            >
+                              <FileThumbnail
+                                area={area}
+                                rootId={rootId}
+                                token={token}
+                                item={item}
+                                enabled={thumbnails}
+                              />
+                            </button>
+                            <footer>
+                              <span>
+                                {fileStyle(item).label} ·{" "}
+                                {bytes(item.sizeBytes)}
+                                {isLibrary && item.kind === "file"
+                                  ? " · Copia IA"
+                                  : ""}
+                              </span>
+                              <time dateTime={item.modifiedAt}>
+                                {new Date(item.modifiedAt).toLocaleDateString(
+                                  "it-IT",
+                                )}
+                              </time>
+                            </footer>
+                            {search && recursive && (
+                              <small className="drive-result-path">
+                                {item.path}
+                              </small>
+                            )}
+                          </article>
+                        ))}
+                    </div>
+                  </section>
+                )}
+                {listing.items.length === 0 && (
+                  <div className="drive-empty">
+                    <Search size={34} />
+                    <h2>
+                      {search
+                        ? "Nessun file trovato"
+                        : "Questa cartella è vuota"}
+                    </h2>
+                    <p>
+                      {search
+                        ? "Prova un altro nome o includi le sottocartelle."
+                        : writable
+                          ? "Carica un file o crea una cartella per iniziare."
+                          : "Scegli un’altra cartella dalla barra a sinistra."}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            {listing && !inTrash && (
+              <div className="file-pagination">
+                <span>
+                  {listing.total
+                    ? `${offset + 1}–${Math.min(offset + 100, listing.total)} di ${listing.total}`
+                    : "0 elementi"}
+                </span>
+                <button
+                  disabled={busy || offset === 0}
+                  onClick={() => setOffset((n) => Math.max(0, n - 100))}
+                >
+                  Precedenti
+                </button>
+                <button
+                  disabled={busy || offset + 100 >= listing.total}
+                  onClick={() => setOffset((n) => n + 100)}
+                >
+                  Successivi
+                </button>
+              </div>
+            )}
+            {!inTrash && (
+              <div
+                className={
+                  "file-dropzone " +
+                  (!writable || busy
+                    ? "unavailable"
+                    : dragging
+                      ? "dragging"
+                      : "")
+                }
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (writable && !busy) setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragging(false);
+                  void uploadFiles(Array.from(e.dataTransfer.files));
+                }}
               >
-                Precedenti
-              </button>
-              <button
-                disabled={busy || offset + 100 >= listing.total}
-                onClick={() => setOffset((n) => n + 100)}
-              >
-                Successivi
-              </button>
-            </div>
-          )}
-          {!inTrash && (
-            <div
-              className={
-                "file-dropzone " +
-                (!writable || busy ? "unavailable" : dragging ? "dragging" : "")
-              }
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (writable && !busy) setDragging(true);
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragging(false);
-                void uploadFiles(Array.from(e.dataTransfer.files));
-              }}
-            >
-              <CloudUpload size={27} />
-              <strong>
-                {writable
-                  ? "Trascina qui i file"
-                  : "Caricamento non disponibile"}
-              </strong>
-              <small>
-                {isLibrary
-                  ? "Ogni upload conserva anche un originale in File server → Originali Libreria IA."
-                  : root?.writable === false
-                    ? "Questa risorsa è in sola lettura."
-                    : "I file saranno caricati nella cartella aperta."}
-              </small>
-            </div>
-          )}
-        </div>
+                <CloudUpload size={27} />
+                <strong>
+                  {writable
+                    ? "Trascina qui i file"
+                    : "Caricamento non disponibile"}
+                </strong>
+                <small>
+                  {isLibrary
+                    ? "Ogni upload conserva anche un originale in File server → Originali Libreria IA."
+                    : root?.writable === false
+                      ? "Questa risorsa è in sola lettura."
+                      : "I file saranno caricati nella cartella aperta."}
+                </small>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
       {action && (
         <div className="file-modal-shade">
@@ -1086,43 +1416,58 @@ function FileBrowser({ area, token }: { area: FileArea; token: string }) {
 }
 
 export default function FileManager() {
-  const [area, setArea] = useState<FileArea>("server");
-  const token = "";
-  return (
-    <section className="file-manager">
-      <div className="file-page-heading">
-        <h1>File</h1>
-
-      </div>
-      <div className="file-subnav" role="tablist" aria-label="Sezioni File">
-        <button
-          role="tab"
-          id="server-tab"
-          aria-selected={area === "server"}
-          aria-controls="file-panel"
-          onClick={() => setArea("server")}
-        >
-          File server
-        </button>
-        <button
-          role="tab"
-          id="library-tab"
-          aria-selected={area === "library"}
-          aria-controls="file-panel"
-          onClick={() => setArea("library")}
-        >
-          Libreria IA
-        </button>
-      </div>
-
-      <div
-        id="file-panel"
-        role="tabpanel"
-        aria-labelledby={area === "server" ? "server-tab" : "library-tab"}
+  const [location, setLocation] = useState<{
+    area: FileArea;
+    rootId: string;
+    path: string;
+  }>({ area: "server", rootId: "", path: "" });
+  const area = location.area;
+  const navigation = (
+    <div className="file-subnav" role="tablist" aria-label="Sezioni File">
+      <button
+        role="tab"
+        id="server-tab"
+        aria-selected={area === "server"}
+        aria-controls="file-panel"
+        onClick={() => {
+          if (area !== "server")
+            setLocation({ area: "server", rootId: "", path: "" });
+        }}
       >
-        <FileBrowser key={area + ":" + token} area={area} token={token} />
-      </div>
+        File server
+      </button>
+      <button
+        role="tab"
+        id="library-tab"
+        aria-selected={area === "library"}
+        aria-controls="file-panel"
+        onClick={() => {
+          if (area !== "library")
+            setLocation({ area: "library", rootId: "", path: "" });
+        }}
+      >
+        Libreria IA
+      </button>
+    </div>
+  );
+  return (
+    <section
+      className="file-manager drive-manager"
+      id="file-panel"
+      role="tabpanel"
+      aria-labelledby={area === "server" ? "server-tab" : "library-tab"}
+    >
+      <FileBrowser
+        key={area}
+        area={area}
+        token=""
+        initialRoot={location.rootId}
+        initialPath={location.path}
+        navigation={navigation}
+        switchArea={(next, rootId, path) =>
+          setLocation({ area: next, rootId, path })
+        }
+      />
     </section>
   );
 }
-
