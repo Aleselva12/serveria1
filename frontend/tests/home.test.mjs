@@ -74,7 +74,7 @@ test('M3 customer database and M4 deployable agents are future goals, not execut
   assert.equal(m4.category, 'M4');
   assert.ok(m3.detail.includes('Word') && m3.detail.includes('SQL'));
   assert.ok(m3.nextSteps.some(step => step.includes('fonte autorevole')));
-  assert.ok(m4.detail.includes('laptop') && m4.detail.includes('permessi'));
+  assert.ok(m4.detail.includes('laptop') && m4.nextSteps.some(step => step.includes('permessi minimi')));
   assert.ok(m4.nextSteps.some(step => step.includes('sola lettura')));
   assert.ok(m4.dependencies.includes('CUSTOMER-REGISTRY'));
   assert.equal(new Set(data.goals.map(g => g.id)).size, data.goals.length);
