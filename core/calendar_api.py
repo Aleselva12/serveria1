@@ -7,6 +7,7 @@ from googleapiclient.errors import HttpError
 
 from core import calendar as store
 from core import google_calendar
+from core import google_calendar_web_auth as web_auth
 from core import governance
 from core.access import require_owner
 
@@ -51,7 +52,32 @@ def run(function, *args, **kwargs):
 
 @router.get("/provider")
 def provider():
-    return google_calendar.status()
+    return {**google_calendar.status(), "webAuth": web_auth.configuration_status()}
+
+
+class GoogleAuthFinish(BaseModel):
+    state: str = Field(min_length=1, max_length=128)
+    completion_key: str = Field(min_length=1, max_length=256)
+    code: str = Field(default="", max_length=4096)
+    error: str = Field(default="", max_length=256)
+
+
+@router.post("/google/auth/start")
+def start_google_auth():
+    try:
+        return web_auth.start()
+    except (ValueError, OSError):
+        raise HTTPException(409, "Collegamento dal sito non configurato: carica il client OAuth Applicazione web e configura l'indirizzo di ritorno HTTPS.") from None
+
+
+@router.post("/google/auth/finish")
+def finish_google_auth(data: GoogleAuthFinish):
+    try:
+        return web_auth.finish(**data.model_dump())
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from None
+    except OSError:
+        raise HTTPException(503, "Impossibile salvare l'autorizzazione Google. Verifica lo spazio e i permessi dello stato persistente.") from None
 
 
 @router.post("/sync/google")

@@ -53,6 +53,16 @@ export default function Calendar() {
     connected: false,
     provider: "local",
   });
+  const [authBusy, setAuthBusy] = useState(false);
+  async function reconnectGoogle() {
+    if (authBusy || lock.current) return;
+    setAuthBusy(true); setError("");
+    try {
+      const auth = await calendarApi.startGoogleAuth();
+      sessionStorage.setItem("cora:calendar-oauth:" + auth.state, auth.completion_key);
+      window.location.assign(auth.url);
+    } catch (e) { setError(errorText(e)); setAuthBusy(false); }
+  }
   const creationId = useRef<{fingerprint:string; key:string}|null>(null);
   const lock = useRef(false),
     generation = useRef(0),
@@ -65,7 +75,11 @@ export default function Calendar() {
       const current = ++generation.current;
       if (!quiet) setLoading(true);
       try {
-        const [saved, deleted, pending, providerState] = await Promise.all([
+        // Provider diagnostics must remain visible even if event loading fails.
+        const providerState = await calendarApi.provider(token);
+        if (current !== generation.current) return;
+        setProvider(providerState);
+        const [saved, deleted, pending] = await Promise.all([
           calendarApi.list(dayStart(rangeStart), dayStart(rangeEnd), token),
           calendarApi.list(
             dayStart(rangeStart),
@@ -74,7 +88,6 @@ export default function Calendar() {
             true,
           ),
           calendarApi.proposals(token),
-          calendarApi.provider(token),
         ]);
         if (current !== generation.current) return;
         setEvents(saved);
@@ -295,6 +308,15 @@ export default function Calendar() {
         </span>
       </div>
 
+      <div className="calendar-google-connection">
+        <div><strong>{provider.reauthorizationRequired ? "Autorizzazione Google da rinnovare" : "Collegamento Google Calendar"}</strong>
+          <p>Il rinnovo ordinario è automatico. Se Google richiede un nuovo consenso, puoi ricollegare l'account qui.</p>
+          {provider.webAuth && !provider.webAuth.available && <p>{provider.webAuth.message}</p>}
+        </div>
+        <button className="solid-button" disabled={busy || authBusy} onClick={() => void reconnectGoogle()}>
+          {authBusy ? "Apertura Google…" : provider.connected ? "Ricollega Google" : "Collega Google"}
+        </button>
+      </div>
       {error && (
         <p role="alert" className="calendar-error">
           {error}{" "}

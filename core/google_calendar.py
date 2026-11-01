@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import os
 import hashlib
+import tempfile
+from google.auth.exceptions import RefreshError
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -46,15 +48,26 @@ def connection_fingerprint() -> str:
     return hashlib.sha256(identity).hexdigest()
 
 
+def save_credentials(credentials):
+    """Replace credentials atomically, with private permissions."""
+    TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=".calendar-token-", dir=TOKEN_PATH.parent)
+    try:
+        with os.fdopen(fd, "w") as stream:
+            stream.write(credentials.to_json())
+        os.replace(name, TOKEN_PATH)
+    finally:
+        if os.path.exists(name):
+            os.unlink(name)
+
+
 def _credentials() -> Credentials:
     if not TOKEN_PATH.is_file():
         raise GoogleCalendarNotConnected("Google Calendar non collegato.")
     creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
     if creds.expired and creds.refresh_token:
         creds.refresh(Request())
-        TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
-        TOKEN_PATH.write_text(creds.to_json(), encoding="utf-8")
-        os.chmod(TOKEN_PATH, 0o600)
+        save_credentials(creds)
     if not creds.valid:
         raise GoogleCalendarNotConnected("Token Google Calendar non valido: ricollega l'account.")
     return creds
@@ -85,6 +98,14 @@ def status() -> dict:
             "credentialsAvailable": CREDENTIALS_PATH.is_file(),
             "reachable": True,
             "nextSyncTokenAvailable": bool(result.get("nextSyncToken")),
+        }
+    except (RefreshError, GoogleCalendarNotConnected) as error:
+        retryable = bool(getattr(error, "retryable", False))
+        return {
+            "connected": True, "provider": "google", "reachable": False,
+            "credentialsAvailable": CREDENTIALS_PATH.is_file(), "reauthorizationRequired": not retryable,
+            "error": ("Google Calendar temporaneamente non disponibile. Riprova." if retryable else
+                      "L'autorizzazione Google è scaduta o non è valida. Ricollega Google Calendar."),
         }
     except Exception:
         # Provider exceptions may contain OAuth secrets, URLs or local paths.

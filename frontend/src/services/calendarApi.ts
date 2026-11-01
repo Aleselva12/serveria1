@@ -111,6 +111,8 @@ export type CalendarProviderStatus = {
   provider: "google" | "local";
   reachable?: boolean;
   credentialsAvailable?: boolean;
+  reauthorizationRequired?: boolean;
+  webAuth?: { available: boolean; message?: string };
   error?: string;
 };
 
@@ -131,6 +133,18 @@ export type CalendarGoogleSyncResult = {
 };
 
 export const calendarApi = {
+  startGoogleAuth: async () => {
+    const response = await authenticatedFetch(apiBaseUrl + "/api/v1/calendar/google/auth/start", {
+      method: "POST", headers: { Accept: "application/json" },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Collegamento Google non disponibile.");
+    if (typeof data.url !== "string" || typeof data.state !== "string" || typeof data.completion_key !== "string")
+      throw new Error("Risposta autorizzazione Google non valida.");
+    const target = new URL(data.url);
+    if (target.origin !== "https://accounts.google.com") throw new Error("Indirizzo Google non valido.");
+    return data as { url: string; state: string; completion_key: string };
+  },
   provider: async (token: string) => {
     const response = await authenticatedFetch(apiBaseUrl + "/api/v1/calendar/provider", {
       headers: {
