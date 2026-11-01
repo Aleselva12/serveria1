@@ -140,7 +140,7 @@ Risultati: 130 test frontend superati (5 regressioni nuove sulla Home), build Ty
 
 La Home usa **tre lavori prossimi ordinati**, senza eseguirli automaticamente:
 
-1. **Orchestratore (prossimo lavoro)**: disegnare e poi implementare routing fra agenti, scheduler e osservabilità con passaggi correlati. Riutilizzare il supervisor LangGraph, le tracce esistenti e il registro salute; ricostruire il percorso richiesta → routing → agente → tool → macchina/modello → risposta. I test di contratto già presenti controllano i collegamenti, ma non sostituiscono il tracing delle esecuzioni reali.
+1. **Orchestratore (W1 — base V1 costruita, collaudo aperto)**: routing supervisor/LangGraph, registry operativo, System Coordinator, runtime/bus/state, permessi, error decisions, Larva v0, contratti di contesto e tracciabilità in Attività sono presenti. Context Manager progressivo, Plan strutturato e scheduler/failover multi-worker restano evoluzioni successive. Non passare a W2 prima del collaudo repository + Debian.
 2. **Aggiornamenti Immich/Nextcloud**: aggiungere al gestore host Debian un ciclo sicuro di verifica versione, backup, conferma, deploy e verifica post-aggiornamento. La pagina salute presenta il link di apertura configurato e identifica l'aggiornamento come **lavoro futuro**, non come un bottone di deploy già funzionante. L'updater Cora attuale e il gestore di Magazzino Tele non aggiornano Immich/Nextcloud.
 3. **Agente programmatore**: riprendere test e sviluppo con hardware aggiornato. Una pagina volutamente vuota è riservata come `#programmer-next`, senza rimuovere la pagina Programma attuale (`#code`).
 
@@ -201,3 +201,48 @@ Questa sezione raccoglie idee e vincoli emersi durante la pianificazione. Non eq
 6. Collegare ogni decisione dell'orchestratore a tracciamento e diagnostica nella pagina Attività.
 7. Aprire approfondimenti dedicati su permission engine/regole software e context manager.
 8. Valutare successivamente event bus, runtime state, state machine, Mente saggia e circuiti temporanei adattivi.
+
+
+## Aggiornamento orchestratore — 1 novembre 2026
+
+Il lavoro 1 non è più semplicemente “da progettare”. La repository contiene ora una **base architetturale V1** dell’orchestrazione.
+
+### Realizzato nella V1
+
+- separazione concettuale A / B / C;
+- supervisor/LangGraph come ingresso operativo;
+- router specializzato shadow, osservabile ma non autorevole;
+- Capability Registry operativo derivato dai contratti realmente eseguibili;
+- System Coordinator read-only con ownership esplicita dello stato;
+- runtime persistente, state machine, Event Bus e Component Bus tipizzato;
+- Permission Engine separato dall’orchestrazione intelligente;
+- vocabolario standard delle decisioni di errore;
+- Larva-system v0 deterministica e observer-only;
+- contratti `ContextRequest → ContextPacket`;
+- pagina Attività con route, context pages, tool esposti, Component Bus, decisioni e prova provider/modello/macchina quando disponibile.
+
+### Non attribuire alla V1
+
+Restano evoluzioni successive e NON vanno presentate come già implementate:
+
+- Context Manager progressivo completo basato su capability autorizzate;
+- Plan multi-step strutturato/persistente;
+- scheduler automatico multi-worker;
+- failover automatico e code persistenti general-purpose;
+- circuiti temporanei adattivi;
+- Mente saggia / Custode;
+- Larva con azioni autonome;
+- Event Bus distribuito fra nodi.
+
+Questi punti non bloccano la definizione della **base V1**, ma appartengono alla fase successiva dell’architettura.
+
+### Condizione per chiudere W1 e passare a W2
+
+La Home mostra W1 come **“Base V1 costruita · da collaudare prima di W2”**.
+Prima di spostare il lavoro corrente sugli aggiornamenti Immich/Nextcloud servono:
+
+1. pipeline repository coerente dopo le ultime modifiche;
+2. almeno un run reale sulla versione Debian installata;
+3. verifica in Attività del percorso: route → contesto/tool → componente → decisione → modello/macchina osservati → esito.
+
+Il collaudo non autorizza scheduling automatico o nuove azioni autonome.
