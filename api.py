@@ -235,6 +235,12 @@ def health():
     }
 
 
+@app.get("/runtime/configuration")
+def runtime_configuration():
+    from core.models import performance_configuration
+    return performance_configuration("supervisor")
+
+
 @app.get("/runtime/models")
 def runtime_models():
     try:
