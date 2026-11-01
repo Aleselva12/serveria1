@@ -153,6 +153,23 @@ def diagnostics(run_id: UUID | None = None,limit: int = Query(200,ge=1,le=500),b
     except ValueError as error: raise HTTPException(409,str(error)) from error
 
 
+@router.get('/runtime/context-contracts')
+def context_contracts():
+    from core.context_contracts import ContextRequest, ContextPacket
+    return {
+        'version': 1,
+        'request': ContextRequest.model_json_schema(),
+        'packet': ContextPacket.model_json_schema(),
+        'principles': {
+            'permission_bound': True,
+            'progressive_expansion': True,
+            'literal_wins_conflict': True,
+            'newer_wins_when_equally_authoritative': True,
+            'writes_memory': False,
+        },
+    }
+
+
 @router.get('/runtime/event-contracts')
 def event_contracts():
     from core.observability import PAYLOAD_FIELDS
