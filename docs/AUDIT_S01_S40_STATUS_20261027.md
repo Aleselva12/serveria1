@@ -8,14 +8,14 @@ Legenda: **Fix + test** = modifica proposta nella PR e regressione scritta, non 
 |---|---|---|---|---|
 | S01 | Fix + test | Lifespan pulisce startup parziale e shutdown con ExitStack | tests/test_audit_easy_fixes.py | CI sull'HEAD; Debian non collaudato |
 | S02 | Fix + test | Start idempotente worker embedding | tests/test_audit_easy_fixes.py | CI sull'HEAD |
-| S03 | Rischio aperto | ThreadPoolExecutor postprocess globale, shutdown non coordinato | api.py | Richiede prova di race e progettazione drain/cancel |
+| S03 | Corretto nel codice; verifica host aperta | Coda postprocess avviata dal lifespan e drenata dopo i run, prima del pool DB | api.py, core/postprocessing.py | Regressioni in tests/test_shutdown_drain.py; nessuna attestazione di deploy |
 | S04 | Fix + test | Summary/transcript/episodio isolati e failure metadata-only | tests/test_audit_easy_fixes.py | CI sull'HEAD |
 | S05 | Fix + test | Eccezioni embedding in log tecnico solo tipo | tests/test_audit_easy_fixes.py | CI sull'HEAD |
 | S06 | Osservabilità migliorata | Rilievo ombrello: health scan libreria e notifiche S28/S29 | core/library_monitor.py, core/notifications.py | Verifica host non fatta |
 | S07 | Contratto verificato / diagnostica opzionale | Probe worker con failure closed, risposta booleana voluta | tests/test_machines_api.py | Se serve distinguere TLS/HTTP/protocollo: nuova UI/endpoint |
 | S08 | Fix + test | HTTPError separato da errori connessione | tests/test_monitoring.py | CI sull'HEAD |
 | S09 | Fix + test | DB error 500 sanitizzato; input/FK invalidi 422 | tests/test_audit_easy_fixes.py | CI sull'HEAD |
-| S10 | Rischio aperto | Runtime.shutdown stop cooperativo senza attesa run.done | core/runtime.py | Prova con run bloccato e DB di test; nessun cambio |
+| S10 | Corretto nel codice; verifica host aperta | Runtime.shutdown attende run.done fuori dal lock, incluse finalizzazioni terminali non espulse dalla cronologia | core/runtime.py | Regressioni in tests/test_shutdown_drain.py; test con PostgreSQL usa DB usa-e-getta |
 | S11 | Escluso / pulizia | Import apparentemente non usati non sono bug | app.py, api.py, core/logging.py | Lint separato, non rimuovere export compatibilità |
 | S12 | Escluso | LOG_FILE legacy/test intenzionale | tests/test_events_observability.py | Non rimuovere |
 | S13 | Escluso | Preset PC e Debian distinti per design | .env.example, deploy/deploy.env.example | Nessun allineamento automatico |
@@ -51,7 +51,7 @@ Legenda: **Fix + test** = modifica proposta nella PR e regressione scritta, non 
 
 - Eseguire e ottenere CI verde **sullo SHA HEAD corrente**, non riciclare un esito di commit precedenti.
 - Isolare ogni modifica e non cambiare comportamento agentico, approvazioni, memorie, contratti, struttura del database o permessi.
-- Restano aperti **S03 e S10**: sono rischi di stop con operazioni ancora attive; non inserire un timeout arbitrario che crei falsa sicurezza. Richiedono riproduzione e un piano comune per worker runtime, coda post-processing e PostgreSQL.
+- **S03 e S10 — aggiornamento 2026-11-03:** arresto coordinato implementato: blocco nuove ammissioni, cancellazione cooperativa, attesa delle finalizzazioni dei run, drain dei lavori postprocess accettati, quindi chiusura del pool. Le regressioni riproducono la chiusura prematura senza le correzioni. Il test PostgreSQL richiede `CORA_RUNTIME_TEST_DATABASE_URL` e il database usa-e-getta della CI; gli altri test usano barriere e connessioni simulate. Nessun timeout arbitrario: un'operazione che non ritorna mantiene l'arresto in attesa. Un kill forzato del processo resta fuori dalla garanzia di drain. Verifica sul server e deploy non eseguiti.
 - Restano non verificati su **Debian reale** S36 e S40: verificare con operazioni read-only e senza esporre segreti, poi confermare gli eventuali scostamenti. S07 rimane una lacuna opzionale di granularità diagnostica (health false corretto, causa non dettagliata).
 - **Nessuna correzione funzionale da apportare** ai rilievi esclusi: mantenerli nel registro evita il ritorno di falsi positivi.
 
