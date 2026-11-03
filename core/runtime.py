@@ -136,7 +136,7 @@ class Runtime:
                 create_run(run_id=run.id, thread_id=thread_id, kind=kind, target=target, metadata={"graph_version":graph_version})
             self.runs[run.id] = run
             while len(self.runs) > 200:
-                old = next((key for key, r in self.runs.items() if r.status in TERMINAL), None)
+                old = next((key for key, r in self.runs.items() if r.done.is_set()), None)
                 if old is None: break
                 del self.runs[old]
             bus.publish("run.state", "runtime", run_id=run.id, thread_id=thread_id, payload={"status": "queued"})
@@ -225,11 +225,17 @@ class Runtime:
             return [r.snapshot() for r in self.runs.values() if r.status not in TERMINAL or r.persistence_error]
 
     def shutdown(self):
+        # A terminal status can precede the worker's final database write.
+        # Retain every unfinished run and wait without holding the runtime lock:
+        # workers need it to release their slot and signal done.
         with self.lock:
             self.closed = True
-            for r in self.runs.values():
-                try: r.stop()
-                except DurabilityLost: pass
+            pending = [r for r in self.runs.values() if not r.done.is_set()]
+        for r in pending:
+            try: r.stop()
+            except DurabilityLost: pass
+        for r in pending:
+            r.done.wait()
 
 runtime = Runtime()
 

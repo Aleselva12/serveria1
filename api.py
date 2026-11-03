@@ -53,7 +53,7 @@ from core.runtime import runtime, RunStopped, checkpoint, publish_text
 from core.runtime_api import router as runtime_router
 from core.permissions_api import router as permissions_router
 from programmer_agent.api import router as programmer_router
-from concurrent.futures import ThreadPoolExecutor
+from core.postprocessing import Postprocessing
 from fastapi import HTTPException, Request
 from psycopg.errors import ForeignKeyViolation
 
@@ -83,6 +83,10 @@ async def lifespan(app):
         cleanup.callback(library_monitor.stop)
         library_monitor.start()
         project_checks.start()
+        # Runs may enqueue derived writes until their finalization is complete.
+        # LIFO cleanup drains runs, then post-processing, before closing the DB.
+        cleanup.callback(postprocess.shutdown)
+        postprocess.start()
         cleanup.callback(runtime.shutdown)
         cleanup.callback(notification_worker.stop)
         notification_worker.start()
@@ -596,7 +600,7 @@ async def chat(request: ChatRequest, http_request: Request):
                         "Esecuzione " + run.status + ". Consulta Attività.")
 
 
-postprocess = ThreadPoolExecutor(max_workers=1,thread_name_prefix="cora-postprocess")
+postprocess = Postprocessing()
 
 
 def _postprocess_turn(thread_id,message,response,user_id,assistant_id,run_id="",primary_route="direct"):
