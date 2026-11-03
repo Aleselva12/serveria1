@@ -1,0 +1,33 @@
+{
+  "repo": "Aleselva12/qwe",
+  "commit": "75d97d4cafc3d9f82c92f2845049ede96cf397b3",
+  "environment": "Ambiente di sviluppo \u00b7 Node v24.22.1",
+  "file": "tests/test_profiles_evidence.cjs",
+  "cases": [
+    {
+      "name": "Profiles extend categories, rename defaults and match paths without executing code",
+      "status": "pass"
+    },
+    {
+      "name": "Invalid profiles and broken mappings rejected",
+      "status": "pass"
+    },
+    {
+      "name": "Passing test is never proof of freshness when commit or dirty state is unknown",
+      "status": "pass"
+    },
+    {
+      "name": "Exact explicit links are separate from AI proposals and test-file matches",
+      "status": "pass"
+    },
+    {
+      "name": "Comparisons identify changed results by stable test ID; unknown/new cases are not passes",
+      "status": "pass"
+    },
+    {
+      "name": "Functional roles remain independent of custom categories and flow is a portable default view",
+      "status": "pass"
+    }
+  ],
+  "at": "2026-11-03T21:00:27.214367+00:00"
+}

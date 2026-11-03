@@ -1,3 +1,4 @@
+import "./tree/preview.css";
 import ChatMessage from "./components/ChatMessage";
 import ChatModelBar from "./components/ChatModelBar";
 import "./chat.css";
@@ -52,7 +53,11 @@ import { api, apiBaseUrl } from "./services/api";
 import { useBackend } from "./services/useBackend";
 import { useConversations } from "./services/useConversations";
 
+import {lazy, Suspense} from "react";
+const TreeHome=lazy(()=>import("./tree/TreeHome"));
+
 type Page =
+  | "homepage-schema-albero"
   | "home"
   | "chat"
   | "photos"
@@ -69,7 +74,7 @@ type Page =
   | "memory-management";
 const validPages: ReadonlySet<Page> = new Set([
   "home", "chat", "photos", "architecture", "machines", "code", "calendar",
-  "files", "audio", "activity", "updates", "settings", "memory-management", "programmer-next",
+  "files", "audio", "activity", "updates", "settings", "memory-management", "programmer-next", "homepage-schema-albero",
 ]);
 function isPage(value: string): value is Page {
   return validPages.has(value as Page);
@@ -605,6 +610,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
           )}
           {page === "machines" && <Machines />}
           {page === "code" && <Programmer />}
+          {page === "homepage-schema-albero" && <Suspense fallback={<p>Apertura schema…</p>}><TreeHome /></Suspense>}
           {page === "programmer-next" && <ProgrammerNextPlaceholder />}
           {page === "calendar" && <Calendar />}
           {page === "files" && <FileManager />}

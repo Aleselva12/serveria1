@@ -49,59 +49,11 @@ const { default: MobileHome } = await compile('../src/components/MobileHome.tsx'
 const text = renderer => JSON.stringify(renderer.toJSON());
 const props = health => ({ health, checking: false, onRefresh: () => backendRefreshes++, onNavigate: () => {}, onOpenUpdates: () => updateOpens++ });
 
-test('project goals have four groups and each open goal appears once without claimed server evidence', async () => {
-  let r; await act(async () => { r = create(React.createElement(ProjectRoadmap)); });
-  assert.equal(r.root.findAllByProps({ className: 'home-goal-group' }).length, 4);
-  assert.equal(r.root.findAllByProps({ className: 'settings-row home-goal' }).length,
-    data.goals.filter(g => g.category !== 'M1').length);
-  assert.equal(data.goals.length, 21);
-  assert.equal(data.nodes.length, 4);
-  assert.equal(r.root.findAllByProps({ className: 'home-architecture-node' }).length, 4);
-  assert.equal(r.root.findAllByProps({ className: 'home-architecture-decision confirmed' }).length, 1);
-  assert.equal(r.root.findAllByProps({ className: 'home-architecture-decision open' }).length, 1);
-  assert.equal(r.root.findAllByProps({ className: 'home-architecture-decision missing' }).length, 1);
-  assert.ok(text(r).includes('Vai alla dashboard dei controlli'));
-  assert.ok(!text(r).includes('Funzionamento: Funziona'));
-  assert.ok(!text(r).includes('Riscontrato'));
-  assert.ok(!text(r).includes('Chiuso: causa utente'));
-  await act(async () => r.unmount());
+test('Home preview opens the tree instead of duplicating the roadmap',async()=>{
+ let r;await act(async()=>{r=create(React.createElement(ProjectRoadmap))});
+ assert.equal(r.root.findByType('a').props.href,'#homepage-schema-albero');
+ await act(async()=>r.unmount());
 });
-
-test('M3 customer database and M4 deployable agents are future goals, not executed jobs', async () => {
-  const m3=data.goals.find(g => g.id === 'CUSTOMER-REGISTRY');
-  const m4=data.goals.find(g => g.id === 'REMOTE-AGENTS');
-  assert.equal(m3.category, 'M3');
-  assert.equal(m4.category, 'M4');
-  assert.ok(m3.detail.includes('Word') && m3.detail.includes('SQL'));
-  assert.ok(m3.nextSteps.some(step => step.includes('fonte autorevole')));
-  assert.ok(m4.detail.includes('laptop') && m4.nextSteps.some(step => step.includes('permessi minimi')));
-  assert.ok(m4.nextSteps.some(step => step.includes('sola lettura')));
-  assert.ok(m4.dependencies.includes('CUSTOMER-REGISTRY'));
-  assert.equal(new Set(data.goals.map(g => g.id)).size, data.goals.length);
-  assert.deepEqual(data.nextWork.map(w => w.id), ['W1','W2','W3']);
-  let r;
-  await act(async () => {r=create(React.createElement(ProjectRoadmap));});
-  assert.ok(text(r).includes('Anagrafica clienti strutturata e schede cliente'));
-  assert.ok(text(r).includes('Installare agenti Cora su altri dispositivi'));
-  assert.equal(r.root.findAllByProps({className:'home-goal-evidence'}).length,2);
-  await act(async()=>r.unmount());
-});
-
-test('next jobs are ordered 1 orchestrator, 2 service updates, 3 programmer placeholder', async () => {
-  const jobs=data.nextWork;
-  assert.deepEqual(jobs.map(x=>x.order), [1,2,3]);
-  assert.ok(jobs[0].title.includes("Orchestratore"));
-  assert.ok(jobs[1].title.includes("Immich") && jobs[1].title.includes("Nextcloud"));
-  assert.ok(jobs[2].title.includes("Programmatore") || jobs[2].title.includes("programmatore"));
-  assert.equal(data.nodes.find(n=>n.id==="laptop").phase,"presente");
-  assert.ok(data.architecture.open.some(x=>x.detail.includes("PostgreSQL")));
-  let r;await act(async()=>{r=create(React.createElement(ProjectRoadmap));});
-  assert.equal(r.root.findAllByProps({className:"home-next-work-card"}).length,3);
-  assert.ok(text(r).includes("#programmer-next"));
-  assert.ok(text(r).includes("Aggiornamenti Immich e Nextcloud"));
-  await act(async()=>r.unmount());
-});
-
 test('mobile Home has a dedicated Update Cora button, independent from server-state refresh', async () => {
   reset();
   let r;
@@ -124,7 +76,7 @@ test('mobile with no backend preserves unknown Ollama and absent measurements', 
   assert.ok(!text(r).includes('servizi operativi'));
   assert.ok(!text(r).includes('Offline'));
   assert.ok(!text(r).includes('0%'));
-  assert.equal(r.root.findAllByProps({ className: 'home-goal-group' }).length, 4);
+  assert.ok(r.root.findAllByProps({href:'#homepage-schema-albero'}).length);
   await act(async () => r.unmount());
 });
 
