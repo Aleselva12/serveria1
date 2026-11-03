@@ -18,6 +18,12 @@ class RuntimePostgresTests(unittest.TestCase):
         import api
         self.runtime = Runtime()
         self.patch = patch.object(api,'runtime',self.runtime);self.patch.start()
+        # This client deliberately bypasses the application lifespan.
+        # Own its derived-write queue explicitly, just like its runtime.
+        from core.postprocessing import Postprocessing
+        self.postprocess = Postprocessing(); self.postprocess.start()
+        self.postprocess_patch = patch.object(api, 'postprocess', self.postprocess)
+        self.postprocess_patch.start()
         with db_connection() as c:
             c.execute('TRUNCATE app_sessions,app_users,action_approvals,tool_policies CASCADE')
         import core.permissions as permissions
@@ -27,6 +33,7 @@ class RuntimePostgresTests(unittest.TestCase):
         self.assertEqual(self.client.post('/auth/login',json={'username':'Ale','password':'a-long-local-password'}).status_code,200)
     def tearDown(self):
         self.client.close();self.runtime.shutdown();self.patch.stop()
+        self.postprocess.shutdown();self.postprocess_patch.stop()
         from core.database import close_pool
         close_pool()
 

@@ -196,8 +196,11 @@ class Runtime:
 
     def _finish(self, run, status):
         try:
-            if status in {'cancelled','timed_out'} and run.status == 'running': run.transition('cancelling')
-            run.transition(status)
+            # stop() can be persisting 'cancelling' after setting the event.
+            # Check and transition atomically with respect to that operation.
+            with run.lock:
+                if status in {'cancelled','timed_out'} and run.status == 'running': run.transition('cancelling')
+                run.transition(status)
         except DurabilityLost: self._durability_failure(run)
 
     def _durability_failure(self, run):

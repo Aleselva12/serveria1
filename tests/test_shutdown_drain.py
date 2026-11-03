@@ -97,6 +97,11 @@ class ShutdownDrainTests(unittest.TestCase):
         runtime, queue = Runtime(persistent=use_postgres), Postprocessing()
         running, release_run, processing, release_jobs, pool_closed = (
             threading.Event() for _ in range(5))
+        draining = threading.Event()
+        original_shutdown = queue.shutdown
+        def drain():
+            draining.set()
+            original_shutdown()
         writes, errors = [], []
         def write(value):
             processing.set()
@@ -138,6 +143,7 @@ class ShutdownDrainTests(unittest.TestCase):
                 mocks.enter_context(patch(target))
             mocks.enter_context(patch.object(api, 'runtime', runtime))
             mocks.enter_context(patch.object(api, 'postprocess', queue))
+            mocks.enter_context(patch.object(queue, 'shutdown', drain))
             mocks.enter_context(patch.object(api, 'close_pool', close_pool))
             worker = threading.Thread(target=lifecycle)
             worker.start()
@@ -148,6 +154,12 @@ class ShutdownDrainTests(unittest.TestCase):
                 self.assertFalse(pool_closed.is_set())
                 release_run.set()
                 self.assertTrue(next(iter(runtime.runs.values())).done.wait(2))
+                run = next(iter(runtime.runs.values()))
+                self.assertEqual(run.status, 'cancelled')
+                if use_postgres:
+                    from core.run_lifecycle import get_run
+                    self.assertEqual(get_run(run.id)['status'], 'cancelled')
+                self.assertTrue(draining.wait(2))
                 self.assertFalse(pool_closed.is_set())
             finally:
                 release_run.set(); release_jobs.set(); worker.join(3)
