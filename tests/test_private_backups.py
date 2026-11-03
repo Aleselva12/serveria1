@@ -47,12 +47,21 @@ class BackupTests(unittest.TestCase):
     def test_dump_failure_restarts_pinned_images_and_never_prunes(self):
         self.engine.images.return_value={'api':'sha256:old-api','web':'sha256:old-web'}
         self.engine.compose.side_effect=[None,RuntimeError('dump failed'),None]
-        with patch.object(backup,'audit',return_value={'audit_sha256':'approved'}),patch.object(backup.shutil,'which',return_value='/usr/bin/age'),patch.object(backup,'prune') as prune:
+        # This test exercises recovery after pg_dump fails, independently of
+        # whether the runner's temporary directory is inside a Git checkout.
+        destination=self.root/'backups';destination.mkdir(mode=0o700)
+        with patch.object(backup,'private_root',return_value=destination),patch.object(backup,'audit',return_value={'audit_sha256':'approved'}),patch.object(backup.shutil,'which',return_value='/usr/bin/age'),patch.object(backup,'prune') as prune:
             with self.assertRaises(RuntimeError):backup.create(self.engine,self.settings)
         prune.assert_not_called()
         self.assertEqual(self.engine.compose.call_args.kwargs['images'],self.engine.images.return_value)
         self.assertFalse((self.engine.root/'data-backup-pending.json').exists())
         self.assertEqual(list((self.root/'backups').glob('*/complete.json')),[])
+
+    def test_private_root_rejects_backup_inside_git_checkout(self):
+        (self.root/'.git').mkdir()
+        with self.assertRaisesRegex(ValueError,'checkout Git'):
+            backup.private_root(self.engine,self.settings)
+        self.assertFalse((self.root/'backups').exists())
 
     def test_failed_restart_keeps_recovery_marker_and_boot_recovers_exact_images(self):
         images={'api':'sha256:old','web':'sha256:old-web'}

@@ -55,6 +55,13 @@ Legenda: **Fix + test** = modifica proposta nella PR e regressione scritta, non 
 - Restano non verificati su **Debian reale** S36 e S40: verificare con operazioni read-only e senza esporre segreti, poi confermare gli eventuali scostamenti. S07 rimane una lacuna opzionale di granularità diagnostica (health false corretto, causa non dettagliata).
 - **Nessuna correzione funzionale da apportare** ai rilievi esclusi: mantenerli nel registro evita il ritorno di falsi positivi.
 
+### Verifica locale delle correzioni di arresto — 2026-11-03
+
+- Ripresa la correzione della PR #106, commit `e0794ae`, sulla base `5b05657`.
+- Aggiunta una regressione deterministica sulla concorrenza fra `Run.stop()` e `_finish()`: il codice originale produce `Invalid run transition cancelling -> cancelling`; il codice corretto completa l'annullamento.
+- Il test di recupero dopo errore `pg_dump` isola la validazione della destinazione dal comportamento di riavvio. Un test distinto mantiene la verifica del rifiuto dei backup dentro un checkout Git, anche quando il runner usa una directory temporanea sotto Git.
+- Suite backend: 592 test, 522 superati e 70 saltati, nessun errore. `python smoke_check.py`: OK. I test PostgreSQL reale e le dipendenze opzionali mantengono i rispettivi requisiti; nessun collaudo Debian o deploy eseguito.
+
 ## Comandi non distruttivi per la futura verifica host
 
 Non incollare output contenenti token, URL private o credenziali nei ticket pubblici.
