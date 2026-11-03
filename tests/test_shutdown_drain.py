@@ -82,6 +82,61 @@ class ShutdownDrainTests(unittest.TestCase):
     def test_lifespan_drains_late_and_queued_postprocessing_before_pool_close(self):
         self.check_lifespan_drain()
 
+    def test_cancellation_finalization_waits_for_stop_transition(self):
+        runtime = Runtime(persistent=False)
+        run = Run('cancellation-race')
+        run.status = 'running'
+        stopping, release_stop, finalizing = (threading.Event() for _ in range(3))
+        errors = []
+
+        class ObservedLock:
+            def __init__(self):
+                self.lock = threading.RLock()
+
+            def __enter__(self):
+                if threading.current_thread() is finisher:
+                    finalizing.set()
+                self.lock.acquire()
+                return self
+
+            def __exit__(self, *args):
+                self.lock.release()
+
+        run.lock = ObservedLock()
+        transition = run.transition
+
+        def paused_transition(status):
+            if threading.current_thread() is stopper and status == 'cancelling':
+                stopping.set()
+                if not release_stop.wait(3):
+                    raise TimeoutError('Stop transition was not released')
+            transition(status)
+
+        def capture(fn):
+            try:
+                fn()
+            except BaseException as error:
+                errors.append(error)
+
+        stopper = threading.Thread(target=lambda: capture(run.stop))
+        finisher = threading.Thread(target=lambda: capture(lambda: runtime._finish(run, 'cancelled')))
+        with patch.object(run, 'transition', paused_transition):
+            stopper.start()
+            try:
+                self.assertTrue(stopping.wait(2))
+                self.assertTrue(run.cancel.is_set())
+                finisher.start()
+                self.assertTrue(finalizing.wait(2))
+            finally:
+                release_stop.set()
+                stopper.join(3)
+                if finisher.ident is not None:
+                    finisher.join(3)
+        self.assertFalse(stopper.is_alive())
+        self.assertFalse(finisher.is_alive())
+        self.assertEqual(errors, [])
+        self.assertEqual(run.status, 'cancelled')
+
     @unittest.skipUnless(os.getenv('CORA_RUNTIME_TEST_DATABASE_URL'),
                          'Requires disposable PostgreSQL+pgvector')
     def test_lifespan_drain_with_real_pool_and_durable_run(self):
