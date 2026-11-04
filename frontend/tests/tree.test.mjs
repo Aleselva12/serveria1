@@ -63,12 +63,26 @@ test('constellation keeps free trunk stars rather than connecting them in a fake
    assert.ok(edges.some(e=>e.kind==='child'&&e.from===star.parent&&e.to===star.id),'Unconnected star '+star.id);
  assert.deepEqual(trunkLayout.T6,[571,614]);
 });
-test('frontend V2 inspector shows structured work, problems, tests and time without duplicate test runners',()=>{
+test('frontend V2 inspector shows structured work, live project status and evidence without duplicate test runners',()=>{
  const ui=readFileSync(new URL('../src/tree/TreeHome.tsx',import.meta.url),'utf8');
- for(const q of ['Copia schema','Presente','Problemi','Futuro','Storia','PIANETI','TEST COLLEGATI','RELAZIONI','W1 → W2 → W3','api.healthDashboard()'])
+ for(const q of ['Copia schema','Presente','Problemi','Futuro','Storia','PIANETI','TEST COLLEGATI','RELAZIONI','SEQUENZA OPERATIVA · AUTO','api.healthDashboard()','homeRoadmap.nextWork','Stato progetto'])
    assert.ok(ui.includes(q),'Missing panel section '+q);
  assert.ok(!ui.includes('api.runTests('),'Roadmap must not trigger duplicated test execution');
+ assert.ok(!ui.includes('source.nextWork'),'Current work sequence must come from project-status, not the qwe snapshot');
  assert.ok(ui.includes('knownIssues')&&ui.includes('timeline.future'));
  const evidence=readFileSync(new URL('../src/tree/roadmapEvidence.ts',import.meta.url),'utf8');
  assert.ok(ui.includes('checkState')&&ui.includes('activeRelease')&&evidence.includes('verifiedLiveE2E')&&evidence.includes('activeCommit'));
+});
+
+test('roadmap references current Home goals and shares orchestrator structural evidence',()=>{
+ const goalIds=new Set(projectStatus.goals.map(g=>g.id));
+ for(const node of nodes)
+   for(const ref of node.roadmapRefs||[]) assert.ok(goalIds.has(ref),'Unknown roadmapRef '+node.id+' → '+ref);
+ const ordered=[...projectStatus.nextWork].sort((a,b)=>a.order-b.order);
+ assert.equal(new Set(ordered.map(w=>w.id)).size,ordered.length);
+ assert.deepEqual(ordered.map(w=>w.id),projectStatus.nextWork.map(w=>w.id));
+ assert.equal(projectStatus.nextWork.find(w=>w.id==='W1').status,'COMPLETATO · 04/11/2026');
+ assert.equal(projectStatus.nextWork.find(w=>w.id==='W2').status,'PROSSIMO LAVORO');
+ for(const id of ['T1','T2','T3','T4','T5','T6','T10','T11'])
+   assert.ok(checks[id]?.includes('orchestrator_v1_contract'),'Missing W1 structural evidence on '+id);
 });
