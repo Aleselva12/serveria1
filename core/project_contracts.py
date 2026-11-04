@@ -70,3 +70,48 @@ def worker_contract():
     if not callable(binding) or not callable(remote_ready):
         return "fail", "Collegamento assente: modello agente → macchina"
     return "pass", "Contratti macchina, modello e bridge presenti; inferenza non provata"
+
+
+def orchestrator_v1_contract():
+    """Structural proof of the W1 orchestration baseline, without inference or side effects."""
+    from api import app
+    problem = _assert_routes(app, [
+        ("/api/v1/runtime/capabilities", "GET"),
+        ("/api/v1/runtime/coordinator", "GET"),
+        ("/api/v1/runtime/context-contracts", "GET"),
+        ("/api/v1/runtime/diagnostics", "GET"),
+    ], "Orchestratore V1 → API interna")
+    if problem: return problem
+
+    from core.system_coordinator import validate_ownership
+    ownership = validate_ownership()
+    if not ownership.get("valid"):
+        return "fail", "Ownership stato non coerente nel System Coordinator"
+
+    from core.registry import get_component
+    for component_id in ("system_coordinator", "system_larva", "permission_engine"):
+        component = get_component(component_id)
+        if not component or not component.get("available"):
+            return "fail", "Componente orchestrazione non disponibile: " + component_id
+
+    from core.component_bus import component_bus
+    if not callable(getattr(component_bus, "dispatch_capability", None)):
+        return "fail", "Component Bus non espone dispatch_capability"
+
+    from core.context_contracts import ContextRequest, ContextPacket
+    if ContextRequest.model_json_schema().get("title") != "ContextRequest":
+        return "fail", "Contratto ContextRequest non disponibile"
+    if ContextPacket.model_json_schema().get("title") != "ContextPacket":
+        return "fail", "Contratto ContextPacket non disponibile"
+
+    from core.error_decisions import decide
+    expected = {
+        ("ok", None): "complete",
+        ("pending", None): "needs_approval",
+        ("uncertain", "EffectUncertain"): "effect_uncertain",
+    }
+    for (status, code), decision in expected.items():
+        if decide(status=status, error_code=code) != decision:
+            return "fail", "Classificazione errori orchestrazione incoerente"
+
+    return "pass", "Orchestratore V1 collegato: Coordinator, Bus, permessi, contesto, diagnostica e decisioni standard"
