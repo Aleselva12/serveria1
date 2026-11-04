@@ -185,3 +185,48 @@
   .rm2-inspector{min-height:0;overflow:visible}
   .rm2-footer-work>div:last-child{grid-template-columns:1fr}
 }
+
+
+/* V2.1 — star color is applied to the actual SVG core, not just the sidebar.
+   More specific than the old .rm2-point fallback which hid all color changes. */
+.rm2-point.tone-unknown{--rm2-tone:var(--rm2-unknown)}
+.rm2-point.tone-ok{--rm2-tone:var(--rm2-good)}
+.rm2-point.tone-plan{--rm2-tone:var(--rm2-plan)}
+.rm2-point.tone-minor{--rm2-tone:var(--rm2-minor)}
+.rm2-point.tone-problem{--rm2-tone:var(--rm2-bad)}
+.rm2-point .rm2-core{fill:var(--rm2-tone);stroke:var(--rm2-tone);stroke-width:3}
+.rm2-point.tone-unknown .rm2-core{fill:#7c95a7}
+.rm2-point.tone-ok .rm2-core{fill:var(--rm2-good)}
+.rm2-point.tone-plan .rm2-core{fill:var(--rm2-plan)}
+.rm2-point.tone-minor .rm2-core{fill:var(--rm2-minor)}
+.rm2-point.tone-problem .rm2-core{fill:var(--rm2-bad)}
+.rm2-point .rm2-halo{fill:var(--rm2-tone);opacity:.58}
+.rm2-point.is-objective .rm2-core{fill:#17242e;stroke:#b6c7da;stroke-width:4}
+.rm2-point .rm2-objective-ring{fill:none;stroke:#aabacb;stroke-width:2;stroke-dasharray:5 5;opacity:.95}
+.rm2-point.is-objective .rm2-halo{opacity:.28}
+.rm2-point.is-objective .rm2-code{fill:#d0e0ec}
+.rm2-point.is-objective .rm2-objective-label{fill:#b9cfdb;font-size:13px;font-weight:720;letter-spacing:.09em}
+.rm2-point.is-moon text{font-size:13px}
+.rm2-point.is-active .rm2-core{stroke:#f4fffb;stroke-width:5}
+.rm2-point.is-muted{opacity:.11}
+.rm2-scene{animation:rm2-appear .32s ease-out both}
+@keyframes rm2-appear{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.rm2-scene{animation:none}}
+.rm2-focused .rm2-struct{stroke:#8bcbbe;stroke-opacity:.55;stroke-width:2.4}
+.rm2-focused .rm2-point[data-node]{cursor:pointer}
+.rm2-focused .rm2-spacebar>span{color:#bbe9de}
+.rm2-goal-strip{margin-bottom:12px;background:#101d28;border:1px solid #384757;border-radius:10px;padding:10px 12px;display:grid;gap:8px}
+.rm2-goal-strip-title{font-size:10px;letter-spacing:.11em;display:flex;align-items:center;gap:7px;color:#c1d5e8;font-weight:720}
+.rm2-goal-strip-title span{font-weight:500;letter-spacing:0;margin-left:5px;color:#8da5b3}
+.rm2-goal-strip>div:last-child{display:flex;flex-wrap:wrap;gap:7px}
+.rm2-goal-strip button{display:flex;align-items:center;gap:7px;border:1px dashed #63758a;background:#152435;border-radius:7px;padding:6px 10px;font-size:11px;color:#cbdce9;text-align:left}
+.rm2-goal-strip button:hover{background:#26384b;border-style:solid;border-color:#b8d1e4}
+.rm2-goal-strip button b{font-family:ui-monospace,monospace;font-size:10px;color:#e4f2fc}
+.rm2-goal-glyph{color:#bdd0e0;font-size:18px;line-height:1}
+.rm2-overview-link{background:#142933;border:1px solid #397167;border-radius:7px;padding:7px 10px;font-size:11px;color:#a7e9d1;margin:4px 0 12px}
+.rm2-overview-link:hover{background:#20443d}
+.rm2-code-link{display:grid;gap:4px;text-decoration:none!important;border:1px solid #2e4951;border-radius:7px;margin:6px 0;padding:10px;background:#102831;color:#d5f7e8!important}
+.rm2-code-link:hover{background:#21423d;border-color:#6bb49f}
+.rm2-code-link strong{font-size:11px}
+.rm2-code-link small{font-size:10px;overflow-wrap:anywhere;color:#91b4bb;line-height:1.45}
+@media(max-width:650px){.rm2-goal-strip>div:last-child{flex-wrap:nowrap;overflow:auto;padding-bottom:4px}.rm2-goal-strip button{flex:0 0 auto;max-width:260px}}
