@@ -187,3 +187,19 @@ La pagina Attività mostra:
 - ultima decisione per componente;
 - decisioni orchestrative osservate nel run;
 - eventi tecnici e operation journal già esistenti.
+
+
+## Chiusura base orchestrazione W1 — 4 novembre 2026
+
+La base V1 del Gruppo B è considerata completata come architettura/repository.
+Il catalogo salute include ora `orchestrator_v1_contract`, controllo periodico
+non distruttivo che verifica Coordinator, Component Bus, Permission Engine,
+contratti ContextRequest/ContextPacket, diagnostica API e classificazione
+standard degli errori senza eseguire inferenze o azioni esterne.
+
+Restano volutamente fase 2:
+- Context Manager progressivo completo;
+- Plan multi-step strutturato/persistente;
+- scheduler multi-worker, failover e code persistenti;
+- Larva attiva;
+- Event Bus distribuito.
