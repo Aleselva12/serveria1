@@ -1589,7 +1589,7 @@
     {
       "id": "T1",
       "title": "T1 · Supervisor e orchestrazione",
-      "note": "Supervisor LangGraph e router shadow; collaudo causale Debian aperto",
+      "note": "Supervisor LangGraph e router shadow; base V1 completata, router specializzato ancora non autorevole",
       "priority": "unknown",
       "parent": "tronco",
       "earlierNote": "Proposta V2 parziale. Responsabilità, evidenze e collegamenti da confermare.",
@@ -1600,18 +1600,18 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Supervisor LangGraph e router shadow; collaudo causale Debian aperto",
+          "statement": "Supervisor LangGraph e router shadow; base V1 completata, router specializzato ancora non autorevole",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
         "future": [
-          "W1 collaudo reale end-to-end su Debian",
-          "Router shadow da validare prima di affidargli decisioni",
+          "Validare il router shadow prima di affidargli decisioni reali",
+          "Fase 2: Context Manager progressivo, Plan persistente, scheduler/failover multi-worker",
           "Evoluzioni progressive senza autonomia non autorizzata"
         ]
       },
       "knownIssues": [
-        "Base V1 nel codice; serve prova su server Debian, router specializzato resta shadow"
+        "Router specializzato ancora in shadow mode; non controlla il routing reale"
       ],
       "roadmapRefs": [
         "ARCH-ORCHESTRATOR"
@@ -2620,7 +2620,7 @@
     {
       "id": "T10",
       "title": "T10 · Tracciabilità ed errori",
-      "note": "Attività trace decisioni e diagnosi causale da collaudare",
+      "note": "Attività, trace e decisioni standard presenti; diagnosi causale avanzata resta fase 2",
       "priority": "unknown",
       "parent": "tronco",
       "earlierNote": "Proposta V2 parziale. Responsabilità, evidenze e collegamenti da confermare.",
@@ -2631,7 +2631,7 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Attività trace decisioni e diagnosi causale da collaudare",
+          "statement": "Attività, trace e decisioni standard presenti; diagnosi causale avanzata resta fase 2",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
@@ -2640,7 +2640,7 @@
         ]
       },
       "knownIssues": [
-        "Serve identificare da quale passaggio nasce una regressione fra agenti e programmi"
+        "Attribuzione automatica della causa di regressioni tra componenti non ancora implementata"
       ],
       "roadmapRefs": [
         "ARCH-ORCHESTRATOR",
@@ -2731,7 +2731,7 @@
     {
       "id": "T11",
       "title": "T11 · Registro unico test e salute",
-      "note": "Catalogo e cicli periodici nel codice; non tutto E2E collaudato",
+      "note": "Catalogo salute, cicli periodici e check orchestrator_v1_contract presenti; non tutto E2E collaudato",
       "priority": "unknown",
       "parent": "tronco",
       "earlierNote": "Proposta V2 parziale. Responsabilità, evidenze e collegamenti da confermare.",
@@ -2742,7 +2742,7 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Catalogo e cicli periodici nel codice; non tutto E2E collaudato",
+          "statement": "Catalogo salute, cicli periodici e check orchestrator_v1_contract presenti; non tutto E2E collaudato",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
@@ -5598,7 +5598,7 @@
     }
   ],
   "revision_note": "V2 completa, 45 stelle con pianeti e lune; colori dichiarati e non dedotti dal codice, test o priorità. Conservate identità del piano iniziale e contributi docs/MEMORIA_CORA.md.",
-  "revision": "CORA-V2-2026-11-03",
+  "revision": "CORA-V2-2026-11-04-W1",
   "legend": {
     "unknown": "Da valutare",
     "ok": "Tutto ok",
@@ -5612,8 +5612,8 @@
     "Aleselva12/serveria1:docs/project-status.json"
   ],
   "nextWork": [
-    "W1 Orchestratore V1: CI e collaudo Debian",
-    "W2 Aggiornamenti Immich Nextcloud",
+    "W1 Orchestratore V1: completato 04/11/2026",
+    "W2 Aggiornamenti Immich Nextcloud: prossimo lavoro",
     "W3 Agente programmatore"
   ],
   "relations": [
