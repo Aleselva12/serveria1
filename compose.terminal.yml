@@ -13,7 +13,7 @@ services:
     pids_limit: 64
     mem_limit: 256m
     cpus: 1
-    tmpfs: [/tmp:rw,nosuid,noexec,size=16m]
+    tmpfs: ["/tmp:rw,nosuid,noexec,size=16m"]
     environment:
       CORA_AUTH_MODE: ${CORA_AUTH_MODE:?Configure Tailscale login first}
       CORA_TAILSCALE_LOGIN: ${CORA_TAILSCALE_LOGIN:?Configure Tailscale login first}
