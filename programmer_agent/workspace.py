@@ -19,7 +19,7 @@ CURRENT = contextvars.ContextVar("programmer_workspace", default=None)
 MAX_FILE = 1_000_000
 MAX_FILES = 6000
 MAX_TOTAL = 40_000_000
-SUFFIXES = {".py", ".ts", ".tsx", ".js", ".mjs", ".json", ".md", ".txt", ".css", ".html", ".yml", ".yaml", ".toml", ".sql", ".ini", ".cfg", ".ps1", ".cmd", ".sh", ".conf", ".lock", ".svg", ".example", ".service"}
+SUFFIXES = {".py", ".ts", ".tsx", ".js", ".mjs", ".json", ".md", ".txt", ".css", ".html", ".yml", ".yaml", ".toml", ".sql", ".ini", ".cfg", ".ps1", ".cmd", ".sh", ".conf", ".lock", ".svg", ".example", ".service", ".in", ".webmanifest"}
 EXCLUDED = {"data", "state", "backups", "logs", "knowledge", "audio", "models", "quotes", "structure_workspace", "programmer_workspace", "node_modules", "dist", "venv", "env", "__pycache__"}
 
 
@@ -43,12 +43,12 @@ def safe_name(relative: str) -> str:
     if not isinstance(relative, str) or not relative or "\\" in relative or ":" in relative:
         raise ValueError("Usa un percorso relativo POSIX.")
     path = PurePosixPath(relative)
-    if path.is_absolute() or any(p in {"..", "."} or p.startswith(".") and p not in {".github", ".gitignore", ".dockerignore", ".env.example"} for p in path.parts):
+    if path.is_absolute() or any(p in {"..", "."} or p.startswith(".") and p not in {".github", ".gitignore", ".gitattributes", ".dockerignore", ".env.example"} for p in path.parts):
         raise ValueError("Percorso non autorizzato.")
     if any(p.lower() in EXCLUDED for p in path.parts):
         raise ValueError("Cartella privata o generata esclusa.")
     name = path.name.lower()
-    if (name.endswith(".json") and any(word in name for word in ("credential", "token", "secret"))) or (".env" in name and not name.endswith(".env.example")) or path.suffix.lower() not in SUFFIXES and name not in {"dockerfile", "makefile", ".gitignore", ".dockerignore"} and not name.endswith(".dockerfile"):
+    if (name.endswith(".json") and any(word in name for word in ("credential", "token", "secret"))) or (".env" in name and not name.endswith(".env.example")) or path.suffix.lower() not in SUFFIXES and name not in {"dockerfile", "makefile", ".gitignore", ".gitattributes", ".dockerignore"} and not name.endswith(".dockerfile"):
         raise ValueError("Tipo di file o nome riservato.")
     return path.as_posix()
 
@@ -151,10 +151,46 @@ def list_workspaces() -> list[dict]:
         _no_links(root())
         for path in root().glob("*/manifest.json"):
             try:
-                rows.append(summary(manifest(path.parent.name)))
+                rows.append(organized_summary(path.parent.name))
             except (ValueError, OSError, KeyError):
                 continue
-        return sorted(rows, key=lambda r: r["created_at"], reverse=True)[:100]
+        return sorted(rows, key=lambda r: r["created_at"], reverse=True)[:1000]
+
+
+def organized_summary(identifier: str) -> dict:
+    info = manifest(identifier)
+    path = directory(identifier) / 'organization.json'
+    _no_links(path)
+    organization = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+    row = summary(info)
+    row.update(title=organization.get('title') or info['title'],
+               archived=organization.get('archived', False),
+               purpose=organization.get('purpose') or
+               ('update' if info['title'] == 'Aggiornamento Cora dal branch main' else 'work'))
+    return row
+
+
+def organize(identifier: str, *, title: str | None = None, archived: bool | None = None,
+             purpose: str | None = None) -> dict:
+    """Presentation metadata only: preserve manifests, Git references and conversations."""
+    with LOCK:
+        path = directory(identifier) / 'organization.json'
+        _no_links(path)
+        values = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+        if title is not None:
+            if not 1 <= len(title.strip()) <= 120:
+                raise ValueError('Titolo da 1 a 120 caratteri.')
+            values['title'] = title.strip()
+        if archived is not None:
+            if not isinstance(archived, bool):
+                raise ValueError('Stato archivio non valido.')
+            values['archived'] = archived
+        if purpose is not None:
+            if purpose not in {'work', 'update'}:
+                raise ValueError('Tipo di workspace non valido.')
+            values['purpose'] = purpose
+        _atomic(path, json.dumps(values, ensure_ascii=False))
+        return organized_summary(identifier)
 
 
 def list_files(identifier: str) -> list[str]:

@@ -9,6 +9,8 @@ export type Workspace = {
   mode?: string;
   commit?: string;
   base_commit?: string;
+  archived?: boolean;
+  purpose?: "work" | "update";
 };
 export type CodeFile = {
   path: string;
@@ -38,6 +40,10 @@ export const programmerApi = {
       checks: { docker_cli: boolean; graphify_cli?: boolean };
     }>("/programmer/status"),
   workspaces: () => runtimeRequest<Workspace[]>("/programmer/workspaces"),
+  organize: (id: string, changes: { title?: string; archived?: boolean }) =>
+    runtimeRequest<Workspace>(`/programmer/workspaces/${id}/organization`, {
+      method: "PATCH", body: JSON.stringify(changes),
+    }),
   createGit: (title: string) =>
     runtimeRequest<Workspace>("/programmer/git-workspaces", {
       method: "POST",
