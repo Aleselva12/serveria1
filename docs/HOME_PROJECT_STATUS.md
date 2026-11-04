@@ -140,7 +140,7 @@ Risultati: 130 test frontend superati (5 regressioni nuove sulla Home), build Ty
 
 La Home usa **tre lavori prossimi ordinati**, senza eseguirli automaticamente:
 
-1. **Orchestratore (W1 — base V1 costruita, collaudo aperto)**: routing supervisor/LangGraph, registry operativo, System Coordinator, runtime/bus/state, permessi, error decisions, Larva v0, contratti di contesto e tracciabilità in Attività sono presenti. Context Manager progressivo, Plan strutturato e scheduler/failover multi-worker restano evoluzioni successive. Non passare a W2 prima del collaudo repository + Debian.
+1. **Orchestratore (W1 — COMPLETATO, base V1)**: routing supervisor/LangGraph, Capability Registry operativo, System Coordinator, runtime/bus/state, permessi, decisioni standard, Larva v0, contratti di contesto e tracciabilità in Attività sono presenti. Il controllo periodico `orchestrator_v1_contract` verifica la struttura senza inferenza. Context Manager progressivo, Plan strutturato e scheduler/failover multi-worker restano fase 2.
 2. **Aggiornamenti Immich/Nextcloud**: aggiungere al gestore host Debian un ciclo sicuro di verifica versione, backup, conferma, deploy e verifica post-aggiornamento. La pagina salute presenta il link di apertura configurato e identifica l'aggiornamento come **lavoro futuro**, non come un bottone di deploy già funzionante. L'updater Cora attuale e il gestore di Magazzino Tele non aggiornano Immich/Nextcloud.
 3. **Agente programmatore**: riprendere test e sviluppo con hardware aggiornato. Una pagina volutamente vuota è riservata come `#programmer-next`, senza rimuovere la pagina Programma attuale (`#code`).
 
@@ -236,16 +236,22 @@ Restano evoluzioni successive e NON vanno presentate come già implementate:
 
 Questi punti non bloccano la definizione della **base V1**, ma appartengono alla fase successiva dell’architettura.
 
-### Condizione per chiudere W1 e passare a W2
+### Chiusura W1 — 4 novembre 2026
 
-La Home mostra W1 come **“Base V1 costruita · da collaudare prima di W2”**.
-Prima di spostare il lavoro corrente sugli aggiornamenti Immich/Nextcloud servono:
+W1 è chiuso come **base architetturale V1**. Le pipeline recenti di `main` risultano verdi e la struttura ha ora un controllo automatico dedicato, `orchestrator_v1_contract`, eseguito dal normale monitor periodico quando la versione è installata sul Debian.
 
-1. pipeline repository coerente dopo le ultime modifiche;
-2. almeno un run reale sulla versione Debian installata;
-3. verifica in Attività del percorso: route → contesto/tool → componente → decisione → modello/macchina osservati → esito.
+La chiusura W1 non certifica i singoli servizi reali: inferenza GPU, account esterni, file utenti e comportamento del Debian restano prove operative M2. Questo evita di confondere “architettura completata” con “ogni integrazione collaudata”.
 
-Il collaudo non autorizza scheduling automatico o nuove azioni autonome.
+Il **prossimo lavoro diventa W2: aggiornamenti Immich/Nextcloud**.
+
+Restano fase 2 dell’orchestrazione, senza bloccare W2:
+- Context Manager progressivo completo;
+- Plan multi-step strutturato/persistente;
+- scheduler multi-worker e failover;
+- code persistenti general-purpose;
+- Larva attiva;
+- Event Bus distribuito;
+- Mente saggia/Custode e circuiti adattivi.
 
 
 ## Nuovi traguardi M3/M4 — 1 novembre 2026
