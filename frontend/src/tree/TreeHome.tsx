@@ -104,7 +104,14 @@ export default function TreeHome(){
   const tone=(n:Node)=>starTone(n,health);
   const selectedTone=tone(root);
   const relationRows=source.relations.filter(r=>r.from===root.id||r.to===root.id);
-  const mappedChecks=checks[root.id]||[];
+  // The inspector reuses check IDs from the canonical registry; it never runs tests.
+  const mappedChecks=[...new Set([...(checks[root.id]||[]),...(checks[selected.id]||[])])];
+  const selectedEvidence=checks[selected.id]||[];
+  const newlyObserved=selectedEvidence.some(cid=>{
+    const def=health?.catalog.find(d=>d.id===cid),result=health?.latest[cid];
+    return def?.kind==="e2e"&&evidenceStatus(def,result)==="pass"&&
+      Boolean(result?.commit&&result?.environment);
+  });
   const healthCatalog=health?.catalog||[];
   const matching=useMemo(()=>{
     const q=query.trim().toLocaleLowerCase("it");
@@ -201,7 +208,7 @@ export default function TreeHome(){
     <div className="rm2-goal-strip" aria-label="Stelle obiettivo da realizzare">
       <div className="rm2-goal-strip-title"><Target size={14}/> STELLE OBIETTIVO <span>{goalStars.length} ancora da realizzare</span></div>
       <div>{goalStars.map(n=><button type="button" key={n.id} onClick={()=>jump(n.id)}>
-        <span className="rm2-goal-glyph">◇</span><b>{n.code||n.id}</b>{n.title.replace(/^[A-Z][\\d.]* · /,"")}
+        <span className="rm2-goal-glyph">◇</span><b>{n.code||n.id}</b>{n.title.replace(/^[A-Z][\d.]* · /,"")}
       </button>)}</div>
     </div>
     <div className="rm2-workspace">
@@ -234,6 +241,13 @@ export default function TreeHome(){
           <span className="rm2-impl">{implementation[root.status||"unverified"]||"Da verificare"}</span>
           <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{tones[selectedTone]||"Da valutare"}</span>
         </div>
+        {selected.id!==root.id&&<div className="rm2-current-part">
+          <strong>{selected.classification==="planet"?"Pianeta":selected.classification==="moon"?"Luna":"Elemento"} selezionato</strong>
+          <span>{selected.title} · {implementation[selected.status||"unverified"]||"Da verificare"}</span>
+        </div>}
+        {newlyObserved&&<div className="rm2-observation"><CheckCircle2 size={15}/><div>Esito funzionale E2E presente nel registro per questo nodo.
+          <small>Prova riferita all'ambiente del test, senza cambiare automaticamente il piano o dichiarare collaudato il Debian.</small>
+        </div></div>}
         <p className="rm2-caveat">I colori indicano l'attenzione richiesta. Una funzione nel codice non è necessariamente collaudata sul Debian.</p>
         <div className="rm2-tabs" role="tablist" aria-label="Tempo e problemi">
           {([
