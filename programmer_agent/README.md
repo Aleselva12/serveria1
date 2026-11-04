@@ -4,6 +4,23 @@ Agente LangGraph nativo con modello Ollama (`CORA_MODEL_PROGRAMMER`, fallback gl
 
 ## Utilizzo
 
+La pagina **Programma 2.0** separa Lavoro e codice, Terminale del server, Rilasci
+e Diagnostica. La libreria distingue i lavori personali dai workspace creati
+dagli aggiornamenti da main. Dopo la scelta la libreria si richiude; l’ultimo
+workspace selezionato viene ricordato soltanto nel browser, se lo storage è disponibile.
+
+Rinomina e archivio sono metadati organizzativi persistenti sul server, nel file
+`organization.json` esterno ai sorgenti e al manifest del workspace. Archiviare
+non cancella file, chat, branch o riferimenti ai job e non libera spazio su disco;
+il workspace resta apribile e si può ripristinare. I workspace storici con titolo
+`Aggiornamento Cora dal branch main` sono classificati come aggiornamenti anche
+dopo una rinomina. Nessun workspace viene archiviato o eliminato automaticamente.
+
+Ogni workspace conserva il proprio ID conversazione e la propria versione del codice:
+l’esistenza di altri workspace non aggiunge le loro chat al contesto. Riutilizzare
+un workspace accumula la sua cronologia e non aggiorna la base dopo un deployment.
+Per un nuovo rilascio dopo un aggiornamento serve un workspace Git dalla base attuale.
+
 L’editor manuale permette **Nuovo file** e **Modifica file** nella copia isolata. Carica il sorgente completo (massimo 256 KB), salva con controllo SHA-256 e conserva la bozza in caso di errore o conflitto. Durante la modifica la navigazione del workspace e l’avvio del Copilot/verifiche sono disabilitati; annullare una bozza modificata richiede conferma. Le verifiche e le revisioni precedenti diventano obsolete dopo una scrittura. Non è un IDE con language server o terminale e non applica modifiche al codice attivo.
 
 In **Programma**, creare un workspace, selezionarlo e descrivere il componente nel Copilot. La pagina mostra sorgente, differenze, cronologia del workspace e verifiche. Le conversazioni sono salvate in PostgreSQL con identità `programmer_agent`; l'ID conversazione è l'ID workspace. Run e operazioni restano visibili in Attività, anche dopo un errore o un riavvio. Cambiare pagina interrompe soltanto la lettura dello stream: il lavoro prosegue nel backend e non viene ripetuto automaticamente. Il pulsante Ferma usa la cancellazione del runtime.

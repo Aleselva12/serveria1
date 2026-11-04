@@ -151,10 +151,46 @@ def list_workspaces() -> list[dict]:
         _no_links(root())
         for path in root().glob("*/manifest.json"):
             try:
-                rows.append(summary(manifest(path.parent.name)))
+                rows.append(organized_summary(path.parent.name))
             except (ValueError, OSError, KeyError):
                 continue
-        return sorted(rows, key=lambda r: r["created_at"], reverse=True)[:100]
+        return sorted(rows, key=lambda r: r["created_at"], reverse=True)[:1000]
+
+
+def organized_summary(identifier: str) -> dict:
+    info = manifest(identifier)
+    path = directory(identifier) / 'organization.json'
+    _no_links(path)
+    organization = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+    row = summary(info)
+    row.update(title=organization.get('title') or info['title'],
+               archived=organization.get('archived', False),
+               purpose=organization.get('purpose') or
+               ('update' if info['title'] == 'Aggiornamento Cora dal branch main' else 'work'))
+    return row
+
+
+def organize(identifier: str, *, title: str | None = None, archived: bool | None = None,
+             purpose: str | None = None) -> dict:
+    """Presentation metadata only: preserve manifests, Git references and conversations."""
+    with LOCK:
+        path = directory(identifier) / 'organization.json'
+        _no_links(path)
+        values = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+        if title is not None:
+            if not 1 <= len(title.strip()) <= 120:
+                raise ValueError('Titolo da 1 a 120 caratteri.')
+            values['title'] = title.strip()
+        if archived is not None:
+            if not isinstance(archived, bool):
+                raise ValueError('Stato archivio non valido.')
+            values['archived'] = archived
+        if purpose is not None:
+            if purpose not in {'work', 'update'}:
+                raise ValueError('Tipo di workspace non valido.')
+            values['purpose'] = purpose
+        _atomic(path, json.dumps(values, ensure_ascii=False))
+        return organized_summary(identifier)
 
 
 def list_files(identifier: str) -> list[str]:

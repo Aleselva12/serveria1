@@ -20,6 +20,11 @@ class WorkspaceCreate(StrictRequest):
     title: str = Field(min_length=1, max_length=120)
 
 
+class WorkspaceOrganization(StrictRequest):
+    title: str | None = Field(default=None, min_length=1, max_length=120)
+    archived: bool | None = None
+
+
 class FileWrite(StrictRequest):
     path: str = Field(min_length=1, max_length=300)
     content: str = Field(max_length=ws.MAX_FILE)
@@ -77,6 +82,11 @@ def workspaces():
 @router.post("/workspaces", status_code=201)
 def create_workspace(data: WorkspaceCreate):
     return call(ws.create, data.title)
+
+
+@router.patch('/workspaces/{workspace_id}/organization')
+def organize_workspace(workspace_id: UUID, data: WorkspaceOrganization):
+    return call(ws.organize, str(workspace_id), **data.model_dump(exclude_none=True))
 
 
 @router.get("/workspaces/{workspace_id}/files")

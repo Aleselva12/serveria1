@@ -17,8 +17,12 @@ import ProgrammerArtifacts from "./ProgrammerArtifacts";
 import ProgrammerReleases from "./ProgrammerReleases";
 import WorkspaceEditor from "./WorkspaceEditor";
 import PersonalTerminal from "./PersonalTerminal";
+import WorkspaceLibrary from "./WorkspaceLibrary";
+import "./programmer-v2.css";
 
 export default function Programmer() {
+  const [section, setSection] = useState("work");
+  const [libraryOpen, setLibraryOpen] = useState(true);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]),
     [selected, setSelected] = useState("");
   const [files, setFiles] = useState<string[]>([]),
@@ -29,7 +33,7 @@ export default function Programmer() {
       [],
     ),
     [draft, setDraft] = useState("");
-  const [title, setTitle] = useState("Nuovo tool o automazione"),
+  const [title, setTitle] = useState("Nuovo lavoro su CORA"),
     [filter, setFilter] = useState("");
   const [model, setModel] = useState(""),
     [online, setOnline] = useState(false),
@@ -65,6 +69,11 @@ export default function Programmer() {
       setModel(status.model);
       setGraphifyAvailable(status.checks.graphify_cli === true);
       setWorkspaces(rows);
+      if (!selection.current) {
+        let remembered = "";
+        try { remembered = window.localStorage.getItem("cora.programmer.workspace") || ""; } catch { /* Storage is optional. */ }
+        if (rows.some(row => row.id === remembered && !row.archived)) { setSelected(remembered); setLibraryOpen(false); }
+      }
       setError("");
     } catch (e) {
       if (mounted.current) {
@@ -95,6 +104,7 @@ export default function Programmer() {
   }
   useEffect(() => {
     selection.current = selected;
+    if (selected) { try { window.localStorage.setItem("cora.programmer.workspace", selected); } catch { /* Storage is optional. */ } }
     setThinking({text: "", truncated: false});
     fileRequest.current++;
     setFile(null);
@@ -127,6 +137,7 @@ export default function Programmer() {
       if (mounted.current) {
         setWorkspaces((prev) => [row, ...prev]);
         setSelected(row.id);
+        setLibraryOpen(false);
       }
     } catch (e) {
       if (mounted.current) setError(String(e));
@@ -277,23 +288,37 @@ export default function Programmer() {
           ? "Salva o chiudi l’editor del file prima di inviare."
           : "";
   return (
-    <section className="content-page code-page">
+    <section className="content-page code-page programmer-v2">
       <div className="page-heading">
         <div>
-          <div className="eyebrow">SPAZIO DI CODING</div>
-          <h1>Programma</h1>
-          <p>Creazione di tool e automazioni in un workspace separato.</p>
+          <div className="eyebrow">CORA · PROGRAMMA 2.0</div>
+          <h1>Il tuo laboratorio di sviluppo</h1>
+          <p>Esplora il codice, lavora con il programmatore e verifica le modifiche.</p>
         </div>
         <span className={"pill " + (online ? "" : "pending")}>
-          {online ? "Programmatore collegato" : "Backend non disponibile"}
+          {online ? "Backend collegato" : "Backend non disponibile"}
         </span>
       </div>
-      <PersonalTerminal />
+      <nav className="programmer-nav" aria-label="Sezioni Programma">
+        {[['work', 'Lavoro e codice'], ['terminal', 'Terminale del server'], ['releases', 'Rilasci'], ['health', 'Diagnostica']].map(([id, label]) =>
+          <button key={id} aria-pressed={section === id} disabled={editing !== null && section !== id}
+            onClick={() => setSection(id)}>{label}</button>)}
+      </nav>
+      {section === 'terminal' && <><p className="programmer-section-note">Terminale personale. Il programmatore non può ancora utilizzare questa shell.</p><PersonalTerminal /></>}
       {error && (
         <p className="programmer-error" role="alert">
           {error}
         </p>
       )}
+      <div hidden={section !== 'work'}>
+      <details className="programmer-workspace-picker" open={libraryOpen} onToggle={e => setLibraryOpen(e.currentTarget.open)}>
+      <summary>Libreria dei lavori <span>{workspaces.length} aree · lavori, aggiornamenti e archivio</span></summary>
+      <WorkspaceLibrary rows={workspaces} selected={selected} disabled={busy || creating || importing || editing !== null}
+        onSelect={id => { setSelected(id); setLibraryOpen(false); }} onUpdate={row => setWorkspaces(previous => previous.map(item => item.id === row.id ? row : item))} />
+      </details>
+      <details className="programmer-new-work">
+      <summary>Nuovo lavoro</summary>
+      <p>Git: per modificare CORA e preparare un rilascio. Snapshot: per esperimenti separati.</p>
       <div className="programmer-actions">
         <input
           aria-label="Titolo nuovo workspace"
@@ -323,6 +348,12 @@ export default function Programmer() {
           <RefreshCw size={16} />
         </button>
       </div>
+      </details>
+      <div className="programmer-current" aria-live="polite">
+        <div><span className="eyebrow">LAVORO IN USO</span><strong>{current?.title || 'Seleziona un lavoro o creane uno nuovo'}</strong>
+          {current && <small>{current.mode === 'git' ? 'Workspace Git' : 'Snapshot'} · {current.file_count} file{current.base_commit ? ` · base ${current.base_commit.slice(0, 8)}` : ''}{current.archived ? ' · archiviato' : ''}</small>}</div>
+        <span>{model || 'Modello non disponibile'}</span>
+      </div>
       <div className="program-workspace">
         <div className="editor-shell">
           <aside className="editor-sidebar">
@@ -338,7 +369,7 @@ export default function Programmer() {
                 onChange={(e) => setSelected(e.target.value)}
               >
                 <option value="">Seleziona un workspace</option>
-                {workspaces.map((w) => (
+                {workspaces.filter(w => w.id === selected || (!w.archived && w.purpose !== 'update' && w.title !== 'Aggiornamento Cora dal branch main')).map((w) => (
                   <option key={w.id} value={w.id}>
                     {w.title}
                   </option>
@@ -429,13 +460,12 @@ export default function Programmer() {
                 </>
               ) : (
                 <p className="empty-files">
-                  Crea o seleziona un workspace e apri un file. Il programmatore
-                  lavorerà sulla sua copia.
+                  {selected ? 'Apri un file dall’elenco per esplorare il codice del lavoro in uso.' : 'Crea o seleziona un lavoro e apri un file. Il programmatore lavorerà sulla sua copia.'}
                 </p>
               )}
             </div>
-            <div className="editor-terminal">
-              <div className="terminal-title">VERIFICHE E MAPPA DEL CODICE</div>
+            <details className="editor-terminal">
+              <summary className="terminal-title">Verifiche e mappa del codice</summary>
               <div className="programmer-actions">
                 <button
                   disabled={!selected || busy || importing || editing !== null}
@@ -508,7 +538,7 @@ export default function Programmer() {
                 />
               </label>
               {report && <pre className="programmer-report">{report}</pre>}
-            </div>
+            </details>
           </div>
         </div>
         <aside className="copilot-panel" aria-label="Copilot">
@@ -523,10 +553,9 @@ export default function Programmer() {
             {!messages.length && (
               <div className="copilot-empty">
                 <div className="message-avatar">✦</div>
-                <strong>Crea un tool o un’automazione.</strong>
+                <strong>Da cosa iniziamo?</strong>
                 <p>
-                  Seleziona il workspace e descrivi il risultato. Le modifiche
-                  restano nella copia, consultabile qui.
+                  Chiedimi di esplorare il codice, analizzare un problema o preparare una modifica nel lavoro selezionato.
                 </p>
               </div>
             )}
@@ -551,7 +580,7 @@ export default function Programmer() {
               rows={3}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Descrivi il tool o l’automazione…"
+              placeholder="Cosa vuoi capire, correggere o costruire?"
               aria-label="Messaggio al Copilot"
               aria-describedby={sendBlocked ? "copilot-send-status" : undefined}
             />
@@ -575,6 +604,17 @@ export default function Programmer() {
           </small>
         </aside>
       </div>
+      <details className="programmer-context-help"><summary>Workspace e contesto: cosa vede il programmatore?</summary>
+        <p>Ogni lavoro contiene una copia del codice e una propria conversazione. Gli altri workspace non vengono caricati automaticamente nel contesto.
+          Continuare nello stesso lavoro conserva la sua chat. Dopo un aggiornamento di CORA, crea un nuovo workspace Git per lavorare sulla nuova base.
+          Archiviare riordina l’elenco senza cancellare nulla e non svuota la memoria della conversazione.</p>
+      </details>
+      <details className="programmer-deliveries"><summary>Componenti, consegne e grafo</summary>
+      <ProgrammerArtifacts workspaceId={selected} revision={revision} disabled={busy || importing || creating || editing !== null} />
+      </details>
+      </div>
+      <div hidden={section !== 'releases'}>
+      <p className="programmer-section-note">Rilasci del lavoro selezionato: <strong>{current?.title || 'nessun lavoro selezionato'}</strong>. La cronologia delle copie automatiche è in Lavoro e codice → Aggiornamenti.</p>
       <ProgrammerReleases
         workspaceId={selected}
         gitWorkspace={current?.mode === "git"}
@@ -585,12 +625,8 @@ export default function Programmer() {
             void refresh(selected).catch((e) => setError(String(e)));
         }}
       />
-      <HealthDashboard componentFilter={["cora","worker"]} compact />
-      <ProgrammerArtifacts
-        workspaceId={selected}
-        revision={revision}
-        disabled={busy || importing || creating || editing !== null}
-      />
+      </div>
+      {section === 'health' && <HealthDashboard componentFilter={["cora","worker"]} compact />}
     </section>
   );
 }
