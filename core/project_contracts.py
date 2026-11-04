@@ -98,6 +98,16 @@ def orchestrator_v1_contract():
     if not callable(getattr(component_bus, "dispatch_capability", None)):
         return "fail", "Component Bus non espone dispatch_capability"
 
+    from core.operational_capabilities import operational_registry
+    if not callable(operational_registry):
+        return "fail", "Capability Registry operativo non disponibile"
+
+    from core.run_states import TRANSITIONS
+    required_states = {"queued", "running", "cancelling", "completed", "failed", "awaiting_approval"}
+    known_states = set(TRANSITIONS) | {state for targets in TRANSITIONS.values() for state in targets}
+    if not required_states <= known_states:
+        return "fail", "State Machine incompleta per la base orchestrazione"
+
     from core.context_contracts import ContextRequest, ContextPacket
     if ContextRequest.model_json_schema().get("title") != "ContextRequest":
         return "fail", "Contratto ContextRequest non disponibile"
