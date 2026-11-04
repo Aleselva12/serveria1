@@ -75,13 +75,22 @@ def worker_contract():
 def orchestrator_v1_contract():
     """Structural proof of the W1 orchestration baseline, without inference or side effects."""
     from api import app
-    problem = _assert_routes(app, [
+    expected_routes = [
         ("/api/v1/runtime/capabilities", "GET"),
         ("/api/v1/runtime/coordinator", "GET"),
         ("/api/v1/runtime/context-contracts", "GET"),
         ("/api/v1/runtime/diagnostics", "GET"),
-    ], "Orchestratore V1 → API interna")
-    if problem: return problem
+    ]
+    found_routes = _routes(app)
+    for path, method in expected_routes:
+        if (path, method) not in found_routes:
+            runtime_paths = sorted(path for path, candidate_method in found_routes
+                                   if candidate_method == "GET" and path.startswith("/api/v1/runtime"))
+            return "fail", (
+                "Collegamento assente: Orchestratore V1 → API interna → "
+                + method + " " + path + "; route runtime GET presenti: "
+                + ", ".join(runtime_paths[:40])
+            )
 
     from core.system_coordinator import validate_ownership
     ownership = validate_ownership()
