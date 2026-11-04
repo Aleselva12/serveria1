@@ -322,7 +322,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
       void history.refreshHistory();
     }
   }
-  const withSidebar = !["home", "photos", "files", "audio", "architecture", "code", "calendar", "machines"].includes(page);
+  const withSidebar = !["homepage-schema-albero", "home", "photos", "files", "audio", "architecture", "code", "calendar", "machines"].includes(page);
   return (
     <div
       className={"app app-" + page + " " + (withSidebar ? "has-sidebar" : "")}
