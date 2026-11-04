@@ -4,7 +4,9 @@ import {
   CircleHelp, Clock3, Copy, Download, GitBranch, Layers3, Orbit, Search, Target,
 } from "lucide-react";
 import planSource from "./cora-plan.snapshot.json";
-import { api, type HealthDashboardData, type HealthCheckDefinition, type HealthResult } from "../services/api";
+import { api, apiBaseUrl, type HealthDashboardData } from "../services/api";
+import { authenticatedFetch } from "../services/transport";
+import { checkState, starTone, verifiedLiveE2E } from "./roadmapEvidence";
 import { homeRoadmap } from "../services/connections";
 import { checks, type Node } from "./model";
 import { closure } from "./closure";
@@ -49,29 +51,13 @@ const formatDate=(s?:string|null)=>{
   if(!s||Number.isNaN(Date.parse(s)))return "Data non disponibile";
   return new Date(s).toLocaleString("it-IT");
 };
-function evidenceStatus(def:HealthCheckDefinition|undefined,result:HealthResult|undefined){
-  if(!def||!result||!Number.isFinite(Date.parse(result.at)))return "unknown";
-  if(def.automated&&Date.now()-Date.parse(result.at)>10*60*1000)return "stale";
-  if(result.status==="fail")return "fail";
-  if(result.status==="pass")return "pass";
-  return "unknown";
-}
-/** A red star requires actual check failure; orange notes are issues to investigate, not proven outages.
- * A green star requires an up-to-date functional E2E run with commit+environment, and no missing mapped checks.
- */
-export function starTone(n:Node,health:HealthDashboardData|null):string{
-  if(n.priority&&n.priority!=="unknown")return n.priority;
-  if(!["star","planet","moon"].includes(n.classification||""))return "unknown";
-  const ids=checks[n.id]||[];
-  const evidence=ids.map(id=>({def:health?.catalog.find(c=>c.id===id),result:health?.latest[id]}));
-  if(evidence.some(e=>evidenceStatus(e.def,e.result)==="fail"))return "problem";
-  // An objective remains a visible grey placeholder, not a broken component.
-  if(n.status==="planned"||n.status==="idea")return "unknown";
-  if(n.knownIssues?.length)return "minor";
-  if(ids.length&&evidence.every(e=>evidenceStatus(e.def,e.result)==="pass")&&
-    evidence.some(e=>e.def?.kind==="e2e"&&e.result?.commit&&e.result?.environment))return "ok";
-  if(n.timeline?.future?.length)return "plan";
-  return "unknown";
+/** Same installed-commit endpoint used by the Home; read-only, no additional test runner. */
+async function activeRelease():Promise<string|null>{
+  const response=await authenticatedFetch(apiBaseUrl+"/api/v1/system/update");
+  if(!response.ok)return null;
+  const data=await response.json() as {platform?:string;active_commit?:string};
+  return data.platform==="server"&&/^[a-f0-9]{40}$/i.test(data.active_commit||"")
+    ? data.active_commit!.toLowerCase():null;
 }
 export default function TreeHome(){
   const [selectedId,setSelected]=useState("T1");
@@ -84,16 +70,23 @@ export default function TreeHome(){
   const [view,setView]=useState<"map"|"list">("map");
   const [health,setHealth]=useState<HealthDashboardData|null>(null);
   const [healthError,setHealthError]=useState("");
+  const [activeCommit,setActiveCommit]=useState<string|null>(null);
   const [copied,setCopied]=useState(false);
   useEffect(()=>{
     let active=true,pending=false;
     async function refresh(){
       if(pending)return;pending=true;
       try {
-        const response=await api.healthDashboard();
-        if(active){setHealth(response);setHealthError("");}
-      }catch {
-        if(active){setHealth(null);setHealthError("Registro dei controlli non raggiungibile; non è un esito negativo dei singoli servizi.");}
+        const [dashboard,release]=await Promise.allSettled([api.healthDashboard(),activeRelease()]);
+        if(active){
+          if(dashboard.status==="fulfilled"){
+            setHealth(dashboard.value);setHealthError("");
+          }else{
+            setHealth(null);
+            setHealthError("Registro dei controlli non raggiungibile; non è un esito negativo dei singoli servizi.");
+          }
+          setActiveCommit(release.status==="fulfilled"?release.value:null);
+        }
       }finally{pending=false;}
     }
     void refresh();const timer=window.setInterval(()=>void refresh(),30000);
@@ -101,7 +94,7 @@ export default function TreeHome(){
   },[]);
   const selected=byId.get(selectedId)||byId.get("T1")!;
   const root=rootFor(selected);
-  const tone=(n:Node)=>starTone(n,health);
+  const tone=(n:Node)=>starTone(n,health,activeCommit,checks);
   const selectedTone=tone(root);
   const relationRows=source.relations.filter(r=>r.from===root.id||r.to===root.id);
   // The inspector reuses check IDs from the canonical registry; it never runs tests.
@@ -109,8 +102,7 @@ export default function TreeHome(){
   const selectedEvidence=checks[selected.id]||[];
   const newlyObserved=selectedEvidence.some(cid=>{
     const def=health?.catalog.find(d=>d.id===cid),result=health?.latest[cid];
-    return def?.kind==="e2e"&&evidenceStatus(def,result)==="pass"&&
-      Boolean(result?.commit&&result?.environment);
+    return verifiedLiveE2E(def,result,activeCommit);
   });
   const healthCatalog=health?.catalog||[];
   const matching=useMemo(()=>{
@@ -127,7 +119,7 @@ export default function TreeHome(){
        mode==="future"&&(n.status==="planned"||n.status==="idea"||Boolean(n.timeline?.future?.length)))
     );
   // Health changes are reflected when the response refreshes; no separate test execution.
-  },[query,group,mode,health]);
+  },[query,group,mode,health,activeCommit]);
   const found=new Set(matching.map(n=>n.id));
   const visible=(n:Node)=>n.classification!=="star"||found.has(n.id);
   const choose=(id:string)=>{
@@ -167,7 +159,7 @@ export default function TreeHome(){
   const issues=root.knownIssues||[];
   const otherIssues=mappedChecks.filter(id=>{
     const def=healthCatalog.find(c=>c.id===id);
-    return evidenceStatus(def,health?.latest[id])==="fail";
+    return checkState(def,health?.latest[id],activeCommit)==="fail";
   });
   const relations=relationRows.map(r=>{
     const otherId=r.from===root.id?r.to:r.from;
@@ -180,7 +172,7 @@ export default function TreeHome(){
     {id:"T",label:"T · Tronco condiviso"},
     ...areaGroups.map(n=>({id:n.id,label:(n.code||n.id)+" · "+n.title.replace(/^[A-Z][\d.]* · /,"")})),
   ];
-  const verified=evidenceStatus;
+  const verified=checkState;
   return <section className="rm2-page" aria-label="Direzione Cora - Roadmap V2">
     <header className="rm2-header">
       <a href="#home" className="rm2-brand"><ArrowLeft size={17}/> SERVERIA <span>· DIREZIONE</span></a>
@@ -245,8 +237,8 @@ export default function TreeHome(){
           <strong>{selected.classification==="planet"?"Pianeta":selected.classification==="moon"?"Luna":"Elemento"} selezionato</strong>
           <span>{selected.title} · {implementation[selected.status||"unverified"]||"Da verificare"}</span>
         </div>}
-        {newlyObserved&&<div className="rm2-observation"><CheckCircle2 size={15}/><div>Esito funzionale E2E presente nel registro per questo nodo.
-          <small>Prova riferita all'ambiente del test, senza cambiare automaticamente il piano o dichiarare collaudato il Debian.</small>
+        {newlyObserved&&<div className="rm2-observation"><CheckCircle2 size={15}/><div>Collaudo E2E attribuibile al commit attivo del Debian.
+          <small>Ambiente Debian e versione corrispondente; la struttura della mappa non viene modificata.</small>
         </div></div>}
         <p className="rm2-caveat">I colori indicano l'attenzione richiesta. Una funzione nel codice non è necessariamente collaudata sul Debian.</p>
         <div className="rm2-tabs" role="tablist" aria-label="Tempo e problemi">
@@ -281,14 +273,15 @@ export default function TreeHome(){
         </div>
         <div className="rm2-inspect-bottom">
           <div className="rm2-section-head"><CheckCircle2 size={14}/> TEST COLLEGATI <span>{mappedChecks.length}</span></div>
+          <p className="rm2-test-note">Commit installato: {activeCommit?<code>{activeCommit.slice(0,12)}</code>:"non disponibile. Nessun risultato può confermare il verde sulla versione corrente."}</p>
           {healthError&&<p className="rm2-test-note">{healthError}</p>}
           {!health&&!healthError&&<p className="rm2-test-note">Caricamento registro condiviso…</p>}
           {mappedChecks.map(cid=>{
-            const def=healthCatalog.find(c=>c.id===cid),result=health?.latest[cid],st=verified(def,result);
+            const def=healthCatalog.find(c=>c.id===cid),result=health?.latest[cid],st=verified(def,result,activeCommit);
             return <div key={cid} className="rm2-check">
-              <div><strong>{def?.title||cid}</strong><span className={"rm2-check-state "+st}>{st==="pass"?"Superato":st==="fail"?"Fallito":st==="stale"?"Scaduto":"Da verificare"}</span></div>
-              <small>{def?def.kind+" · "+(def.automated?"automatico":"a richiesta"):"Controllo non esposto dal catalogo"}</small>
-              <small>{result?formatDate(result.at)+" · "+(result.environment||"ambiente ignoto")+(result.commit?" · "+result.commit.slice(0,10):" · commit non disponibile"):"Nessun esito disponibile"}</small>
+              <div><strong>{def?.title||cid}</strong><span className={"rm2-check-state "+st}>{st==="pass"?"Superato sul commit attivo":st==="fail"?"Fallito sul commit attivo":st==="stale"?"Scaduto":st==="outdated"?"Altra versione":st==="unattributed"?"Versione non verificata":st==="planned"?"Da implementare":"Da verificare"}</span></div>
+              <small>{def?def.kind+" · "+(def.frequency==="to_implement"?"non implementato, nessun runner":def.automated?"automatico":"a richiesta"):"Controllo non ancora registrato nel catalogo"}</small>
+              <small>{def?.frequency==="to_implement"?"Controllo proposto: nessuna esecuzione automatica.":result?formatDate(result.at)+" · "+(result.environment||"ambiente ignoto")+(result.commit?" · "+result.commit.slice(0,10):" · commit non disponibile"):"Nessun esito disponibile"}</small>
               {result?.detail&&<small>{result.detail}</small>}
             </div>;
           })}
