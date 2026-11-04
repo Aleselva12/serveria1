@@ -153,6 +153,23 @@ Gli indirizzi si configurano tramite `CORA_SERVICE_<ID>_BROWSER_URL` nel deploy
 (per esempio `CORA_SERVICE_IMMICH_BROWSER_URL`), e devono essere raggiungibili dal
 browser del proprietario, anche via Tailscale. Non vengono modificati dal refresh.
 
+Se la variabile è assente o vuota, il backend legge il collegamento dichiarato
+in `deploy/service-browser-links.json`. Questo profilo del server contiene solo
+Immich, all'indirizzo confermato dal proprietario
+`http://100.112.253.3:2283/photos`. Home e Programmi ricevono lo stesso `browserUrl`
+e lo aprono in una nuova scheda anche se il controllo del backend è sconosciuto
+o non raggiungibile: il browser e il backend possono usare reti diverse.
+Il collegamento non certifica lo stato del servizio e non viene usato per
+effettuare richieste di controllo dal backend. Per un altro server modificare il
+profilo oppure impostare una variabile esplicita, che ha precedenza; per rimuovere
+il collegamento lasciare vuoti sia il valore nel profilo sia la variabile.
+
+Nextcloud non ha un collegamento predefinito: il precedente esempio su porta
+8443 apre ServerAi secondo il riscontro del proprietario. Configurarlo solo dopo
+aver verificato l'indirizzo reale. Il template aggiornato non riscrive il file
+privato `deploy.env` già installato. Applicare e ricostruire la versione di Cora
+per rendere disponibile il profilo al backend in esecuzione.
+
 Orchestrazione, pacchetti modelli e componenti interni sono raccolti dopo i
 programmi in sezioni chiuse inizialmente. I pacchetti usano righe compatte invece
 di schede grandi; download in corso ed errori dei download restano visibili anche

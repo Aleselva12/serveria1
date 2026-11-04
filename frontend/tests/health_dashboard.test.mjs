@@ -97,12 +97,15 @@ test("Health panel renders owner observations separately from automated evidence
     try {
       await act(async()=>{r=create(React.createElement(HealthDashboard,{
         showServices:true,services:[
-          {id:"immich",label:"Immich",status:"ready",checkedAt:"",
-            browserUrl:"https://immich.example.test"},
+          {id:"immich",label:"Immich",status:"unknown",checkedAt:"",
+            browserUrl:"http://100.112.253.3:2283/photos"},
           {id:"nextcloud",label:"Nextcloud",status:"unknown",checkedAt:""},
         ]}));});
       const links=r.root.findAllByType("a");
-      assert.ok(links.some(x=>x.props.href==="https://immich.example.test" && x.children.join("")==="Immich"));
+      const immich=links.find(x=>x.props.href==="http://100.112.253.3:2283/photos" && x.children.join("")==="Immich");
+      assert.ok(immich);
+      assert.equal(immich.props.target,"_blank");
+      assert.ok(immich.props.rel.includes("noopener"));
       assert.ok(!links.some(x=>x.children.join("")==="Nextcloud"));
       assert.ok(rendered(r).includes("Aggiornamento: lavoro 2"));
       assert.ok(rendered(r).includes("Verifiche riferite dall'utente:"));
