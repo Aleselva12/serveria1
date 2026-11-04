@@ -15,6 +15,7 @@ import type {ServiceStatus} from "../types/contracts";
 
 const time = (value?:string) => value ? new Date(value).toLocaleString("it-IT") : "Mai";
 function statusOf(definition:HealthCheckDefinition, evidence?:HealthResult) {
+  if (definition.frequency === "to_implement") return {label:"Da implementare",tone:"unknown"};
   if (!evidence) return {label:"Da verificare",tone:"unknown"};
   if (definition.automated && Date.now() - Date.parse(evidence.at) > 10 * 60 * 1000)
     return {label:"Scaduto",tone:"unknown"};
@@ -106,7 +107,7 @@ export default function HealthDashboard({
               <div className="home-health-check-heading">
                 <strong>{item.title}</strong><span className={"pill "+result.tone}>{result.label}</span>
               </div>
-              <small>{item.stage} · {item.automated ? "ogni 5 minuti" : "collaudo previsto: "+item.frequency}</small>
+              <small>{item.stage} · {item.automated ? "ogni 5 minuti" : (item.frequency === "to_implement" ? "nessun runner" : "collaudo previsto: "+item.frequency)}</small>
               {item.description && <small>{item.description}</small>}
               {item.dependsOn.length > 0 && <small>Dipende da: {item.dependsOn.join(", ")}</small>}
               <small>Ultimo esito: {time(last?.at)} · {last?.environment || "nessuno"}{last?.commit ? " · "+last.commit.slice(0,10):""}</small>
