@@ -8,7 +8,7 @@ La tessera **Schema albero** nella Home desktop e mobile apre `#homepage-schema-
 
 ## Fonte dati e classificazione
 
-- Fonte: `qwe`, branch `progetti/cora-serveria`, `cora-plan.json`, revisione `CORA-V2-2026-11-03`.
+- Fonte: `qwe`, branch `progetti/cora-serveria`, `cora-plan.json`, revisione `CORA-V2-2026-11-04-W1`.
 - Copia statica in repo: `frontend/src/tree/cora-plan.snapshot.json`: **515 nodi**, **45 stelle** (14 radici, 13 tronco, 18 rami), 151 pianeti, 304 lune, 37 relazioni concettuali.
 - Le sei aree radici: R1 Macchine, R2 Dati, R3 Modelli IA, R4 Ambiente operativo, R5 Affidabilità, R6 Sicurezza; R6.2 Permission Engine resta nelle radici.
 - T1–T13: tredici stelle del tronco a **disposizione libera**, senza falsa catena seriale o dipendenze verso Memoria/Context Manager non approvate.
@@ -32,7 +32,19 @@ Questa è una **prima policy visuale locale**, da discutere; non scrive alcuna p
 
 Conserva in scheda le quattro viste **Presente, Problemi, Futuro, Storia**. Le osservazioni dell'utente sono esplicitamente attribuite, i problemi sono elencati da `knownIssues[]`, gli obiettivi da `timeline.future[]` e `roadmapRefs[]`. Il passato vuoto resta vuoto finché non sarà collegato a commit/decisioni veri; una `earlierNote` è una nota precedente, non un commit datato.
 
-La prossima sequenza W1 collaudo orchestratore → W2 aggiornamenti Immich/Nextcloud → W3 Programmatore resta accessibile sotto la mappa. M3 E1 CRM e M4 E2/F2 sono già nel loro ramo, non in un ulteriore ramo «futuro».
+La sequenza operativa sotto la mappa non usa più `source.nextWork` della snapshot: legge `homeRoadmap.nextWork` da `project-status.generated.json`. Al 4 novembre W1 Orchestratore V1 è completato, W2 aggiornamenti Immich/Nextcloud è il prossimo lavoro e W3 Programmatore resta successivo. M3 E1 CRM e M4 E2/F2 sono già nel loro ramo, non in un ulteriore ramo «futuro».
+
+## Aggiornamento automatico senza modifica strutturale
+
+La Roadmap usa tre livelli con responsabilità diverse:
+
+1. **Struttura architetturale** — `qwe/cora-plan.json`, copiata in `cora-plan.snapshot.json`. Cambia solo dopo una decisione esplicita e una nuova revisione qwe.
+2. **Stato dei lavori** — `docs/project-status.json` → `frontend/src/project-status.generated.json`. Le stelle con `roadmapRefs[]` mostrano automaticamente lo stato corrente degli obiettivi collegati e il footer usa la sequenza W1/W2/W3 corrente.
+3. **Salute e verifiche** — `GET /api/v1/system/health-dashboard`. La pagina continua a leggere il registro unico ogni 30 secondi; non esegue un secondo runner.
+
+Il check `orchestrator_v1_contract` è collegato alle stelle T1, T2, T3, T4, T5, T6, T10 e T11. È un controllo strutturale non distruttivo della base W1: Registry operativo, Coordinator, State Machine, Component Bus, contratti di contesto, diagnostica e classificazione errori. Non è un E2E e quindi, da solo, non rende verde una stella.
+
+I test frontend verificano inoltre che ogni `roadmapRef` punti a un obiettivo Home realmente esistente e che la sequenza dei lavori venga letta dal project status, non dalla snapshot qwe. Questo permette di aggiornare stato e priorità operative senza riscrivere la pianta.
 
 ## Come valutare il risultato
 
