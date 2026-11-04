@@ -27,9 +27,15 @@ def main():
     parser.add_argument('--user', required=True, help='Utente Debian esistente, diverso da root')
     parser.add_argument('--container', default='cora-web-1')
     parser.add_argument('--config-root', type=Path, default=Path('/srv/cora-tools/terminal'))
+    parser.add_argument('--updater-root', type=Path,
+                        help='Snapshot dell’updater attivo; fermare l’updater durante il setup')
     args = parser.parse_args()
     if not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', args.user) or pwd.getpwnam(args.user).pw_uid == 0:
         raise ValueError('Scegli un utente Debian esistente, non root.')
+    if args.updater_root:
+        from deploy.terminal_updater import prepare
+        prepare(args, ROOT)
+        return
     env = ROOT/'deploy.env'
     if env.is_symlink() or not env.is_file():
         raise ValueError('deploy.env assente o non regolare.')

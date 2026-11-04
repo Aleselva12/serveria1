@@ -71,6 +71,26 @@ la policy della tailnet. Non attivare Funnel per questo servizio.
 
 ## Aggiornamento e disattivazione
 
+### Installazione gestita dall’updater
+
+Se i container attivi usano `compose.json` e `images.json` dell’updater,
+usare un checkout aggiornato come sorgente del setup (non deve essere la
+directory di lavoro dei container):
+
+```sh
+sudo systemctl stop cora-updater
+python3 deploy/terminal_setup.py --user ale --updater-root /srv/cora-tools/updater
+```
+
+Eseguire i due comandi stampati per costruire l’immagine del terminale e avviare
+soltanto quel servizio, quindi riavviare `cora-updater`. Il setup salva un backup
+privato e aggiunge il servizio allo snapshot persistente: non cambia `images.json`,
+le immagini API/web, i mount o le altre impostazioni. Gli aggiornamenti successivi
+API/web conservano il servizio. Un terminale già configurato non viene sovrascritto.
+L’updater deve restare fermo durante la modifica; il setup rifiuta job in corso o
+da recuperare. Per ripristinare la configurazione precedente, fermare il terminale
+e l’updater e ripristinare il backup `compose.before-terminal-*.json`.
+
 L'immagine del terminale è indipendente dai rilasci API/web dell'updater. Per
 aggiornarla, ripetere il comando Compose stampato dal setup con il nuovo checkout.
 L'updater continua ad aggiornare API/web; non aggiorna automaticamente questo servizio.
