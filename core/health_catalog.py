@@ -25,6 +25,15 @@ _CATALOG = [
           depends=("database",), description="Controlla i collegamenti del codice, non crea eventi."),
     entry("worker_contract", "Orchestratore → worker (contratti)", "worker", "contract", "Modello → macchina → worker", "5m",
           depends=("ollama",), description="Controlla route e risolutori senza accendere modelli."),
+    # Planned checks only: no Gmail runner, no account access and no synthetic result.
+    entry("gmail_contract", "Gmail: lettura e bozze (da implementare)", "gmail", "contract",
+          "Gmail → strumenti → approvazioni", "to_implement",
+          description="Controllo di integrazione pianificato; NON eseguito automaticamente."),
+    entry("gmail_e2e", "Gmail: flusso completo su account test (da implementare)", "gmail", "e2e",
+          "Gmail → bozza → conferma → verifica", "to_implement",
+          depends=("gmail_contract",),
+          description="E2E futuro in ambiente isolato; nessun messaggio viene inviato."),
+
     entry("chat_e2e", "Chat e agente: risposta e persistenza", "cora", "e2e", "Chat → modello → DB", "on_release",
           depends=("chat_contract", "database"), description="Necessario test isolato con modello controllato."),
     entry("memory_e2e", "Memoria dopo riavvio", "cora", "e2e", "Memoria → PostgreSQL → lettura", "on_release"),
@@ -50,6 +59,7 @@ COMPONENTS = {
     "files": "File e Libreria IA",
     "audio": "Audio e Word",
     "calendar": "Calendario",
+    "gmail": "Email e Gmail",
     "worker": "Worker e modelli",
     "immich": "Immich",
     "nextcloud": "Nextcloud",
