@@ -5,6 +5,7 @@ import ts from 'typescript';
 const model=readFileSync(new URL('../src/tree/model.ts',import.meta.url),'utf8');
 const source=readFileSync(new URL('../src/tree/Constellation.tsx',import.meta.url),'utf8');
 const snapshot=JSON.parse(readFileSync(new URL('../src/tree/cora-plan.snapshot.json',import.meta.url),'utf8'));
+const projectStatus=JSON.parse(readFileSync(new URL('../src/project-status.generated.json',import.meta.url),'utf8'));
 const {nodes,relations}=snapshot;
 const mod=code=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText).toString('base64');
 const {severity,checks}=await import(mod(model));
