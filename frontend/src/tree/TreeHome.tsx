@@ -154,7 +154,6 @@ export default function TreeHome(){
     {id:"T",label:"T · Tronco condiviso"},
     ...areaGroups.map(n=>({id:n.id,label:(n.code||n.id)+" · "+n.title.replace(/^[A-Z][\d.]* · /,"")})),
   ];
-  const firstStar=(id:string)=>stars.find(s=>hasAncestor(s,id))?.id;
   const verified=evidenceStatus;
   return <section className="rm2-page" aria-label="Direzione Cora - Roadmap V2">
     <header className="rm2-header">
