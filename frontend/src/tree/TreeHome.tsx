@@ -18,6 +18,7 @@ import "./tree.css";
 type Relation = {from:string;to:string;kind:string;note:string;status?:string};
 type Source = {nodes:Node[];relations:Relation[];revision:string;nextWork:string[]};
 const source=planSource as Source;
+const workTargets:Record<string,string>={W1:"T1",W2:"R5.2",W3:"G1"};
 const nodes:Node[]=source.nodes;
 const byId=new Map(nodes.map(n=>[n.id,n]));
 const childIndex=new Map<string,Node[]>();
@@ -142,7 +143,13 @@ export default function TreeHome(){
     setGroup("all");setMode("all");setQuery("");choose(id);
   };
   const exportData=()=>{
-    const json=JSON.stringify({schema:source.revision,source:"ServerIA frontend snapshot",nodes:source.nodes,relations:source.relations},null,2);
+    const json=JSON.stringify({
+      schema:source.revision,
+      source:"ServerIA frontend snapshot",
+      projectStatus:{updatedAt:homeRoadmap.updatedAt,nextWork:homeRoadmap.nextWork},
+      nodes:source.nodes,
+      relations:source.relations,
+    },null,2);
     const url=URL.createObjectURL(new Blob([json],{type:"application/json"}));
     const anchor=document.createElement("a");anchor.href=url;anchor.download="cora-roadmap-v2.json";anchor.click();
     URL.revokeObjectURL(url);
@@ -156,6 +163,9 @@ export default function TreeHome(){
   const goalStars=stars.filter(n=>n.status==="planned"||n.status==="idea");
   const goalRefs=root.roadmapRefs||[];
   const goals=homeRoadmap.goals.filter(g=>goalRefs.includes(g.id));
+  const workItems=[...homeRoadmap.nextWork].sort((a,b)=>a.order-b.order);
+  const currentWork=workItems.find(w=>/PROSSIMO LAVORO/i.test(w.status))||
+    workItems.find(w=>!/COMPLETATO/i.test(w.status));
   const issues=root.knownIssues||[];
   const otherIssues=mappedChecks.filter(id=>{
     const def=healthCatalog.find(c=>c.id===id);
@@ -233,6 +243,10 @@ export default function TreeHome(){
           <span className="rm2-impl">{implementation[root.status||"unverified"]||"Da verificare"}</span>
           <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{tones[selectedTone]||"Da valutare"}</span>
         </div>
+        {goals.length>0&&<div className="rm2-project-state">
+          <strong>Stato progetto · aggiornato {homeRoadmap.updatedAt}</strong>
+          {goals.map(g=><div key={g.id}><b>{g.id}</b><span>{g.state}</span><small>{g.detail}</small></div>)}
+        </div>}
         {selected.id!==root.id&&<div className="rm2-current-part">
           <strong>{selected.classification==="planet"?"Pianeta":selected.classification==="moon"?"Luna":"Elemento"} selezionato</strong>
           <span>{selected.title} · {implementation[selected.status||"unverified"]||"Da verificare"}</span>
@@ -304,9 +318,9 @@ export default function TreeHome(){
         </div>
       </aside>
     </div>
-    <section className="rm2-footer-work"><div><small>PROSSIME PRIORITÀ</small><h2>W1 → W2 → W3</h2><p>La sequenza di lavoro già concordata, senza creare altre stelle.</p></div>
-      <div>{source.nextWork.slice(0,3).map((w,i)=><button type="button" key={w} onClick={()=>jump(["T1","R5.2","G1"][i])}><b>W{i+1}</b><span>{w.replace(/^W\d\s*/,"")}</span><ArrowRight size={16}/></button>)}</div>
+    <section className="rm2-footer-work"><div><small>SEQUENZA OPERATIVA · AUTO</small><h2>{workItems.slice(0,3).map(w=>w.id).join(" → ")}</h2><p>Stato letto dalla roadmap Home aggiornata il {homeRoadmap.updatedAt}.{currentWork?" Prossimo: "+currentWork.id+" · "+currentWork.title:""}</p></div>
+      <div>{workItems.slice(0,3).map(w=><button type="button" key={w.id} onClick={()=>jump(workTargets[w.id]||"T1")}><b>{w.id}</b><span>{w.title}<small>{w.status}</small></span><ArrowRight size={16}/></button>)}</div>
     </section>
-    <footer className="rm2-footer"><CircleHelp size={14}/>{source.revision} · piano concettuale da qwe · risultati dei test letti dal registro unico, senza eseguirli due volte. <a href="#home">Torna alla Home</a></footer>
+    <footer className="rm2-footer"><CircleHelp size={14}/>{source.revision} · struttura da qwe · stato lavori da project-status · risultati test dal registro unico, senza eseguirli due volte. <a href="#home">Torna alla Home</a></footer>
   </section>;
 }
