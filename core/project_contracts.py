@@ -73,24 +73,20 @@ def worker_contract():
 
 
 def orchestrator_v1_contract():
-    """Structural proof of the W1 orchestration baseline, without inference or side effects."""
-    from api import app
-    expected_routes = [
+    """Structural W1 proof without importing the global FastAPI app or causing side effects."""
+    from core.orchestration_api import router as orchestration_router
+    problem = _assert_routes(orchestration_router, [
         ("/api/v1/runtime/capabilities", "GET"),
         ("/api/v1/runtime/coordinator", "GET"),
         ("/api/v1/runtime/context-contracts", "GET"),
+    ], "Orchestratore V1 → router dedicato")
+    if problem: return problem
+
+    from core.runtime_api import router as runtime_router
+    problem = _assert_routes(runtime_router, [
         ("/api/v1/runtime/diagnostics", "GET"),
-    ]
-    found_routes = _routes(app)
-    for path, method in expected_routes:
-        if (path, method) not in found_routes:
-            runtime_paths = sorted(path for path, candidate_method in found_routes
-                                   if candidate_method == "GET" and path.startswith("/api/v1/runtime"))
-            return "fail", (
-                "Collegamento assente: Orchestratore V1 → API interna → "
-                + method + " " + path + "; route runtime GET presenti: "
-                + ", ".join(runtime_paths[:40])
-            )
+    ], "Orchestratore V1 → diagnostica runtime")
+    if problem: return problem
 
     from core.system_coordinator import validate_ownership
     ownership = validate_ownership()
@@ -133,4 +129,5 @@ def orchestrator_v1_contract():
         if decide(status=status, error_code=code) != decision:
             return "fail", "Classificazione errori orchestrazione incoerente"
 
-    return "pass", "Orchestratore V1 collegato: Coordinator, Bus, permessi, contesto, diagnostica e decisioni standard"
+    return "pass", "Orchestratore V1 collegato: router, Coordinator, Bus, permessi, contesto, diagnostica e decisioni standard"
+
