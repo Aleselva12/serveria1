@@ -36,6 +36,10 @@ class ProjectChecksTests(unittest.TestCase):
         self.assertNotIn("private detail", str(snapshot))
         self.assertIsNotNone(pc.snapshot()["checkedAt"])
 
+    def test_orchestrator_v1_probe_is_registered(self):
+        self.assertIn("orchestrator_v1_contract", pc._PROBES)
+        self.assertIn("orchestrator_v1_contract", pc.CHECKS)
+
     def test_word_append_synthetic_does_not_touch_user_files(self):
         state, message = pc._word_sample()
         self.assertEqual(state, "pass")
