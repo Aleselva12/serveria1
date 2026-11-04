@@ -76,3 +76,15 @@ La Roadmap usa due livelli spaziali distinti, senza introdurre un motore 3D:
 
 ### Lavoro differito: diagnosi causale avanzata
 **Da aggiungere nella futura evoluzione T10–T11 dell'orchestratore.** È necessario attribuire automaticamente un errore all'hop specifico (chat → supervisor → capability → agente → modello/worker → risposta), stabilire se una modifica di un altro componente ha provocato una regressione e raccogliere evidenze su commit/ambiente. La Roadmap V2.1 NON inventa questo livello diagnostico: per ora mostra solo prove esplicite, problemi documentati e collegamenti noti.
+
+
+## Chiusura V2.2: verifica delle informazioni (4 novembre 2026)
+
+- Collegamenti T1, T2, T6 e T8 corretti rispetto alle implementazioni: `graph.py` contiene il grafo supervisor; `core/governance.py` gestisce capability/tool; `tools.py` espone gli strumenti; `core/context_pages.py` e `core/context_budget.py` riguardano contesto e budget.
+- Due nuovi ID nel catalogo centrale: `gmail_contract` e `gmail_e2e`, entrambi con frequenza `to_implement`. Sono proposte non automatizzate, non test eseguiti.
+- La Roadmap legge l'endpoint read-only già usato dalla Home (`/api/v1/system/update`) per confrontare il commit attivo Debian con lo SHA attribuito al risultato di salute.
+- Risultati di altro commit: «Altra versione». SHA non disponibile: «Versione non verificata». Nessuno dei due può certificare il verde corrente o rendere automaticamente rosso il servizio corrente.
+- Il verde richiede tutti i check associati superati sulla versione attiva e almeno un E2E in ambiente Debian con stesso commit. Un E2E passato in CI non certifica la macchina di produzione.
+- Nessun nuovo motore di test, nessuna modifica automatica della struttura e nessun cambiamento alla navigazione grafica.
+
+La Roadmap può restare invariata mentre passiamo al lavoro W1 — Orchestratore.
