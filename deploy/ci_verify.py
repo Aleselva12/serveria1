@@ -78,6 +78,14 @@ assert library_workspace_status()['available']
         with request('/backend/auth/login',{'username':'ci-owner','password':'ci-private-password-123'}) as response:
             cookie=response.headers['Set-Cookie'].split(';')[0]
         with request('/backend/api/v1/runtime',cookie=cookie) as response:assert json.load(response)['version']==3
+        # Real HTTP proof for the W1 orchestration API. This validates the final
+        # FastAPI/nginx registration rather than relying on Python import order.
+        with request('/backend/api/v1/runtime/capabilities',cookie=cookie) as response:
+            capabilities=json.load(response);assert capabilities['version']==1 and 'capabilities' in capabilities
+        with request('/backend/api/v1/runtime/coordinator',cookie=cookie) as response:
+            coordinator=json.load(response);assert coordinator['mode']=='read_only_coordinator'
+        with request('/backend/api/v1/runtime/context-contracts',cookie=cookie) as response:
+            context_contracts=json.load(response);assert context_contracts['version']==1
         run_id=manage.compose('exec','-T','api','cat','/state/files/proof.txt',capture_output=True,text=True).stdout.strip()
         with request('/backend/api/v1/runtime/runs/'+run_id+'/events',cookie=cookie) as response:
             stream=response.read().decode();assert 'event: result' in stream and 'fixture' in stream
