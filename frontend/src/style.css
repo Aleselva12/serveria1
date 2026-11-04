@@ -4327,6 +4327,17 @@ select:disabled {
 .home-health-history p {border-bottom:1px solid #edf0ee;padding:6px 0;overflow-wrap:anywhere;}
 .health-service-row > span:last-child {display:inline-flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
 .health-service-row a {color:#176e56;text-decoration:underline;}
+.health-program-list {display:grid;min-width:0;}
+.health-program-row {display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid #edf0ee;min-width:0;}
+.health-program-name {display:grid;gap:4px;min-width:0;}
+.health-program-name a {color:#176e56;font-weight:600;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere;}
+.health-program-name a:focus-visible {outline:2px solid #176e56;outline-offset:4px;border-radius:2px;}
+.health-program-name small {font-size:11px;color:#65746b;}
+.health-program-status {font-size:11px;text-align:right;flex-shrink:0;color:#65746b;}
+.health-program-status.ready {color:#176e56;}
+.health-program-status.offline,.health-program-status.error {color:#aa3427;}
+.health-service-diagnostics {font-size:12px;color:#65746b;}
+.health-service-diagnostics summary {cursor:pointer;padding:8px 0;}
 @media (max-width:620px) {
   .home-health-dashboard .metric-head {flex-direction:column;align-items:start;}
   .home-health-check-heading {align-items:start;}

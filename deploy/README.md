@@ -29,6 +29,26 @@ e `CORA_COOKIE_SECURE=true` con HTTPS. UI e API condividono la stessa origine.
 PostgreSQL e l'API non pubblicano porte sull'host; `/backend` passa dal proxy
 Nginx, che disabilita il buffering SSE. Un solo worker esegue il runtime.
 
+### Collegamenti ai programmi nella Home
+
+Il pannello «Programmi del server» usa `CORA_SERVICE_<ID>_BROWSER_URL` per i
+collegamenti aperti dal browser e `CORA_SERVICE_<ID>_URL` per il controllo HTTP
+dal backend. Sono due indirizzi distinti: non mostrare al browser nomi interni
+come `host.docker.internal`. Gli ID includono `CORA`, `IMMICH`, `NEXTCLOUD`,
+`MAGAZZINO_TELE`, `PREVENTIVI` e `N8N`. Non configurare link per programmi assenti.
+
+Sul server attuale Nextcloud ascolta soltanto sul loopback host: il controllo
+deve usare `https://serverale.tail7b83c3.ts.net:8443/status.php`, raggiungibile
+dal container, mentre il link browser punta alla stessa origine senza
+`/status.php`. Non occorre pubblicare la porta interna di Nextcloud.
+
+Con l'updater host, la configurazione effettiva risiede in
+`/srv/cora-tools/updater/compose.json`, risolta al provisioning: modificare solo
+il file di esempio o il vecchio `deploy.env` non aggiorna i container installati.
+Conservare un backup privato, aggiornare le sole variabili dei servizi e
+ricreare API e frontend con le immagini correnti; preservare credenziali,
+volumi e override esistenti.
+
 `host.docker.internal` raggiunge l'host Docker, non il PC da cui si apre il
 browser. Se Ollama è su un'altra macchina usare il suo indirizzo privato.
 Se è sullo stesso host deve ascoltare su un indirizzo raggiungibile dalla rete
