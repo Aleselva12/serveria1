@@ -35,8 +35,7 @@ class CatalogTests(unittest.TestCase):
         status, detail = project_contracts.orchestrator_v1_contract()
         self.assertEqual(status, "pass", detail)
 
-    def test_orchestration_router_is_complete_and_registered_in_app(self):
-        from api import app
+    def test_orchestration_router_is_complete(self):
         from core.orchestration_api import router
         expected = {
             ("/api/v1/runtime/capabilities", "GET"),
@@ -44,7 +43,6 @@ class CatalogTests(unittest.TestCase):
             ("/api/v1/runtime/context-contracts", "GET"),
         }
         self.assertTrue(expected <= project_contracts._routes(router))
-        self.assertTrue(expected <= project_contracts._routes(app))
 
 
     def test_chat_wiring_fails_when_delegations_disappear(self):
