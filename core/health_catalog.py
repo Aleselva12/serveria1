@@ -19,6 +19,8 @@ _CATALOG = [
     entry("word_sample", "Word: aggiunta su documento sintetico", "audio", "synthetic", "Word → parser → append", "5m"),
     entry("chat_contract", "Chat → orchestratore → agenti (contratti)", "cora", "contract", "Chat API → grafo → delega", "5m",
           depends=("database",), description="Rileva route, nodi e tool di delega scollegati senza inferenza."),
+    entry("orchestrator_v1_contract", "Orchestratore V1: coordinamento interno (contratti)", "cora", "contract", "A/B → registry → coordinator → bus → context/error policy", "5m",
+          description="Verifica strutturale non distruttiva della base W1 senza inferenza, scheduling o effetti esterni."),
     entry("audio_word_contract", "Audio → analisi → approvazione Word (contratti)", "audio", "contract", "Audio API → proposta → Word", "5m",
           depends=("audio", "library"), description="Controlla endpoint e funzioni, non scrive documenti."),
     entry("calendar_contract", "Calendario → approvazioni → Google (contratti)", "calendar", "contract", "Calendar API → strumenti", "5m",
