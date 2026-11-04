@@ -107,7 +107,7 @@ export default function HealthDashboard({
               <div className="home-health-check-heading">
                 <strong>{item.title}</strong><span className={"pill "+result.tone}>{result.label}</span>
               </div>
-              <small>{item.stage} · {item.automated ? "ogni 5 minuti" : "collaudo previsto: "+item.frequency}</small>
+              <small>{item.stage} · {item.automated ? "ogni 5 minuti" : (item.frequency === "to_implement" ? "nessun runner" : "collaudo previsto: "+item.frequency)}</small>
               {item.description && <small>{item.description}</small>}
               {item.dependsOn.length > 0 && <small>Dipende da: {item.dependsOn.join(", ")}</small>}
               <small>Ultimo esito: {time(last?.at)} · {last?.environment || "nessuno"}{last?.commit ? " · "+last.commit.slice(0,10):""}</small>
