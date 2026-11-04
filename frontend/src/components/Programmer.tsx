@@ -91,15 +91,18 @@ export default function Programmer() {
     };
   }, []);
   async function refresh(id: string) {
-    const [listing, changes, mapping] = await Promise.all([
+    const [listing, changes, mapping] = await Promise.allSettled([
       programmerApi.files(id),
       programmerApi.diff(id),
       programmerApi.graph(id),
     ]);
     if (!mounted.current || selection.current !== id) return;
-    setFiles(listing.files);
-    setDiff(changes);
-    setGraph(mapping);
+    if (listing.status === 'rejected') throw listing.reason;
+    setFiles(listing.value.files);
+    setDiff(changes.status === 'fulfilled' ? changes.value : null);
+    setGraph(mapping.status === 'fulfilled' ? mapping.value : null);
+    const failures = [changes, mapping].filter(result => result.status === 'rejected');
+    if (failures.length) setError('I file sono disponibili. Confronto o mappa non caricati: ' + failures.map(result => result.status === 'rejected' ? String(result.reason) : '').join('; '));
     setRevision((prev) => prev + 1);
   }
   useEffect(() => {

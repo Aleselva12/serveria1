@@ -19,7 +19,7 @@ CURRENT = contextvars.ContextVar("programmer_workspace", default=None)
 MAX_FILE = 1_000_000
 MAX_FILES = 6000
 MAX_TOTAL = 40_000_000
-SUFFIXES = {".py", ".ts", ".tsx", ".js", ".mjs", ".json", ".md", ".txt", ".css", ".html", ".yml", ".yaml", ".toml", ".sql", ".ini", ".cfg", ".ps1", ".cmd", ".sh", ".conf", ".lock", ".svg", ".example", ".service"}
+SUFFIXES = {".py", ".ts", ".tsx", ".js", ".mjs", ".json", ".md", ".txt", ".css", ".html", ".yml", ".yaml", ".toml", ".sql", ".ini", ".cfg", ".ps1", ".cmd", ".sh", ".conf", ".lock", ".svg", ".example", ".service", ".in", ".webmanifest"}
 EXCLUDED = {"data", "state", "backups", "logs", "knowledge", "audio", "models", "quotes", "structure_workspace", "programmer_workspace", "node_modules", "dist", "venv", "env", "__pycache__"}
 
 
@@ -43,12 +43,12 @@ def safe_name(relative: str) -> str:
     if not isinstance(relative, str) or not relative or "\\" in relative or ":" in relative:
         raise ValueError("Usa un percorso relativo POSIX.")
     path = PurePosixPath(relative)
-    if path.is_absolute() or any(p in {"..", "."} or p.startswith(".") and p not in {".github", ".gitignore", ".dockerignore", ".env.example"} for p in path.parts):
+    if path.is_absolute() or any(p in {"..", "."} or p.startswith(".") and p not in {".github", ".gitignore", ".gitattributes", ".dockerignore", ".env.example"} for p in path.parts):
         raise ValueError("Percorso non autorizzato.")
     if any(p.lower() in EXCLUDED for p in path.parts):
         raise ValueError("Cartella privata o generata esclusa.")
     name = path.name.lower()
-    if (name.endswith(".json") and any(word in name for word in ("credential", "token", "secret"))) or (".env" in name and not name.endswith(".env.example")) or path.suffix.lower() not in SUFFIXES and name not in {"dockerfile", "makefile", ".gitignore", ".dockerignore"} and not name.endswith(".dockerfile"):
+    if (name.endswith(".json") and any(word in name for word in ("credential", "token", "secret"))) or (".env" in name and not name.endswith(".env.example")) or path.suffix.lower() not in SUFFIXES and name not in {"dockerfile", "makefile", ".gitignore", ".gitattributes", ".dockerignore"} and not name.endswith(".dockerfile"):
         raise ValueError("Tipo di file o nome riservato.")
     return path.as_posix()
 

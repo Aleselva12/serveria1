@@ -49,3 +49,20 @@ class WorkspaceOrganizationTests(unittest.TestCase):
         rows = ws.list_workspaces()
         self.assertEqual(len(rows), 102)
         self.assertEqual([r['title'] for r in rows if not r['archived']], ['Work 0'])
+
+    def test_git_baseline_supports_repository_attributes_requirements_and_web_manifest(self):
+        row = ws.create('Git source', self.source)
+        identifier = row['id']
+        manifest = ws.manifest(identifier)
+        for name in ('.gitattributes', 'frontend/.gitattributes', 'frontend/public/manifest.webmanifest', 'terminal_service/requirements.in'):
+            content = '{}\n' if name.endswith('.webmanifest') else '# source configuration\n'
+            for area in ('baseline', 'files'):
+                path = ws.directory(identifier) / area / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content)
+            manifest['baseline'][name] = ws.digest(content)
+        ws._atomic(ws.directory(identifier) / 'manifest.json', json.dumps(manifest))
+        self.assertEqual(ws.diff(identifier)['total_changes'], 0)
+        self.assertEqual(len(ws.list_files(identifier)), 5)
+        for private in ('.git/config', '.env', 'tokens.json'):
+            with self.assertRaises(ValueError): ws.safe_name(private)

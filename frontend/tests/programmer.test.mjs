@@ -36,6 +36,18 @@ let code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES20
  .replace(/import \{ runtimeRequest \} from "\.\.\/services\/runtimeApi";/,'const runtimeRequest=(...args)=>globalThis.__programmerRuntime(...args);');
 const Programmer=(await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'))).default;
 const button=(r,text)=>r.root.findAllByType('button').find(b=>b.children.includes(text));
+
+test('code remains accessible when optional graph or diff loading fails',async()=>{
+ const original=globalThis.__programmerApi.diff;let r;
+ globalThis.__programmerApi.diff=async()=>{throw new Error('Diff unavailable');};
+ try{await act(async()=>{r=create(React.createElement(Programmer));});
+ await act(async()=>button(r,'Crea workspace').props.onClick());
+ assert.ok(button(r,'sample.py'));
+ assert.ok(JSON.stringify(r.toJSON()).includes('Diff unavailable'));
+ await act(async()=>button(r,'sample.py').props.onClick());
+ assert.ok(JSON.stringify(r.toJSON()).includes('value = 42'));
+ }finally{if(r)await act(async()=>r.unmount());globalThis.__programmerApi.diff=original;}
+});
 test('programmer creates workspace, sends to its agent and displays real changes',async()=>{
  calls.length=0;writes=false;let r;
  try {
