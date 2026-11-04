@@ -1,0 +1,63 @@
+import type { HealthCheckDefinition, HealthDashboardData, HealthResult } from "../services/api";
+import type { Node } from "./model";
+
+export type CheckState = "pass" | "fail" | "unknown" | "stale" | "outdated" | "unattributed" | "planned";
+export type CheckMapping = Readonly<Record<string, readonly string[]>>;
+const fullSha = /^[0-9a-f]{40}$/i;
+
+/** Only the host updater's active release is an authoritative installed revision.
+ * A result from CI, an older commit, or with no release provenance cannot
+ * certify the currently running Debian deployment.
+ */
+export function checkState(
+  definition: HealthCheckDefinition | undefined,
+  result: HealthResult | undefined,
+  activeCommit: string | null,
+): CheckState {
+  if (!definition) return "unknown";
+  if (definition.frequency === "to_implement") return "planned";
+  if (!result || !Number.isFinite(Date.parse(result.at))) return "unknown";
+  if (definition.automated && Date.now() - Date.parse(result.at) > 10 * 60 * 1000) return "stale";
+  if (result.status !== "pass" && result.status !== "fail") return "unknown";
+  const release = activeCommit?.trim().toLowerCase() || "";
+  const tested = result.commit?.trim().toLowerCase() || "";
+  if (!fullSha.test(release) || !fullSha.test(tested)) return "unattributed";
+  if (release !== tested) return "outdated";
+  return result.status;
+}
+
+/** Green requires a successful E2E tied to both the installed SHA and the
+ * Debian environment. A CI-only E2E or an API preflight does not qualify.
+ */
+export function verifiedLiveE2E(
+  definition: HealthCheckDefinition | undefined,
+  result: HealthResult | undefined,
+  activeCommit: string | null,
+): boolean {
+  return definition?.kind === "e2e" &&
+    checkState(definition, result, activeCommit) === "pass" &&
+    /^debian(?:$|[-_:])/i.test(result?.environment || "");
+}
+
+export function starTone(
+  node: Node,
+  health: HealthDashboardData | null,
+  activeCommit: string | null,
+  mapping: CheckMapping,
+): string {
+  if (node.priority && node.priority !== "unknown") return node.priority;
+  if (!["star", "planet", "moon"].includes(node.classification || "")) return "unknown";
+  const ids = mapping[node.id] || [];
+  const evidence = ids.map(id => ({
+    def: health?.catalog.find(c => c.id === id),
+    result: health?.latest[id],
+  }));
+  if (evidence.some(e => checkState(e.def, e.result, activeCommit) === "fail")) return "problem";
+  // Planned stars remain grey placeholders even when a related prerequisite passes.
+  if (node.status === "planned" || node.status === "idea") return "unknown";
+  if (node.knownIssues?.length) return "minor";
+  if (ids.length && evidence.every(e => checkState(e.def, e.result, activeCommit) === "pass") &&
+      evidence.some(e => verifiedLiveE2E(e.def, e.result, activeCommit))) return "ok";
+  if (node.timeline?.future?.length) return "plan";
+  return "unknown";
+}
