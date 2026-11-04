@@ -9,7 +9,7 @@ const {nodes,relations}=snapshot;
 const mod=code=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText).toString('base64');
 const {severity,checks}=await import(mod(model));
 const first=source.indexOf('export type TreePoint');
-const last=source.indexOf('type Props =');
+const last=source.indexOf('type Props=');
 assert.ok(first>=0&&last>first);
 const {layout,trunkLayout,trunkFlows}=await import(mod(source.slice(first,last)));
 

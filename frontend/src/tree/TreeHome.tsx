@@ -10,6 +10,7 @@ import { checks, type Node } from "./model";
 import { closure } from "./closure";
 import atlasEvidence from "./atlas-evidence.json";
 import Constellation from "./Constellation";
+import {codeLinks,pageLinks,sourceUrl} from "./codeLinks";
 import "./tree.css";
 
 type Relation = {from:string;to:string;kind:string;note:string;status?:string};
@@ -60,12 +61,13 @@ function evidenceStatus(def:HealthCheckDefinition|undefined,result:HealthResult|
  */
 export function starTone(n:Node,health:HealthDashboardData|null):string{
   if(n.priority&&n.priority!=="unknown")return n.priority;
-  if(n.classification!=="star")return "unknown";
+  if(!["star","planet","moon"].includes(n.classification||""))return "unknown";
   const ids=checks[n.id]||[];
   const evidence=ids.map(id=>({def:health?.catalog.find(c=>c.id===id),result:health?.latest[id]}));
   if(evidence.some(e=>evidenceStatus(e.def,e.result)==="fail"))return "problem";
-  if(n.knownIssues?.length)return "minor";
+  // An objective remains a visible grey placeholder, not a broken component.
   if(n.status==="planned"||n.status==="idea")return "unknown";
+  if(n.knownIssues?.length)return "minor";
   if(ids.length&&evidence.every(e=>evidenceStatus(e.def,e.result)==="pass")&&
     evidence.some(e=>e.def?.kind==="e2e"&&e.result?.commit&&e.result?.environment))return "ok";
   if(n.timeline?.future?.length)return "plan";
@@ -73,6 +75,7 @@ export function starTone(n:Node,health:HealthDashboardData|null):string{
 }
 export default function TreeHome(){
   const [selectedId,setSelected]=useState("T1");
+  const [focusId,setFocusId]=useState<string|null>(null);
   const [tab,setTab]=useState<"present"|"issues"|"future"|"past">("present");
   const [openPlanet,setOpenPlanet]=useState<string|null>(null);
   const [query,setQuery]=useState("");
@@ -101,7 +104,14 @@ export default function TreeHome(){
   const tone=(n:Node)=>starTone(n,health);
   const selectedTone=tone(root);
   const relationRows=source.relations.filter(r=>r.from===root.id||r.to===root.id);
-  const mappedChecks=checks[root.id]||[];
+  // The inspector reuses check IDs from the canonical registry; it never runs tests.
+  const mappedChecks=[...new Set([...(checks[root.id]||[]),...(checks[selected.id]||[])])];
+  const selectedEvidence=checks[selected.id]||[];
+  const newlyObserved=selectedEvidence.some(cid=>{
+    const def=health?.catalog.find(d=>d.id===cid),result=health?.latest[cid];
+    return def?.kind==="e2e"&&evidenceStatus(def,result)==="pass"&&
+      Boolean(result?.commit&&result?.environment);
+  });
   const healthCatalog=health?.catalog||[];
   const matching=useMemo(()=>{
     const q=query.trim().toLocaleLowerCase("it");
@@ -121,7 +131,20 @@ export default function TreeHome(){
   const found=new Set(matching.map(n=>n.id));
   const visible=(n:Node)=>n.classification!=="star"||found.has(n.id);
   const choose=(id:string)=>{
-    if(!byId.has(id))return;setSelected(id);setOpenPlanet(null);setTab("present");
+    let node=byId.get(id);
+    if(!node)return;
+    if(node.classification==="area"||node.role==="ramo"){
+      node=stars.find(s=>hasAncestor(s,node!.id));
+      if(!node)return;
+    }
+    const parent=rootFor(node);
+    setSelected(node.id);
+    setOpenPlanet(node.classification==="planet"?node.id:node.classification==="moon"?node.parent||null:null);
+    setTab("present");
+    if(parent.classification==="star")setFocusId(parent.id);
+  };
+  const showAll=()=>{
+    setFocusId(null);setSelected(root.id);setOpenPlanet(null);
   };
   const jump=(id:string)=>{
     setGroup("all");setMode("all");setQuery("");choose(id);
@@ -136,6 +159,9 @@ export default function TreeHome(){
     const lines=stars.map(s=>`${s.code||s.id} — ${s.title} · ${implementation[s.status||"unverified"]||"Da verificare"}\n${(s.knownIssues||[]).map(v=>"  Problema: "+v).join("\n")}\n${(s.timeline?.future||[]).map(v=>"  Obiettivo: "+v).join("\n")}`);
     try{await navigator.clipboard.writeText(lines.join("\n\n"));setCopied(true);}catch{setCopied(false);}
   };
+  const links=codeLinks[root.id]||[];
+  const pageLink=pageLinks[root.id];
+  const goalStars=stars.filter(n=>n.status==="planned"||n.status==="idea");
   const goalRefs=root.roadmapRefs||[];
   const goals=homeRoadmap.goals.filter(g=>goalRefs.includes(g.id));
   const issues=root.knownIssues||[];
@@ -177,7 +203,13 @@ export default function TreeHome(){
         <button aria-pressed={mode==="issues"} onClick={()=>setMode("issues")}>Problemi e attenzioni</button>
         <button aria-pressed={mode==="future"} onClick={()=>setMode("future")}>Da fare / futuri</button>
       </div>
-      <p>Realizzazione ≠ salute. Colori riferiti alle prove disponibili o alle attenzioni documentate.</p>
+      <p>Realizzazione ≠ salute. Grigio = obiettivo non realizzato; test e problemi non modificano la struttura.</p>
+    </div>
+    <div className="rm2-goal-strip" aria-label="Stelle obiettivo da realizzare">
+      <div className="rm2-goal-strip-title"><Target size={14}/> STELLE OBIETTIVO <span>{goalStars.length} ancora da realizzare</span></div>
+      <div>{goalStars.map(n=><button type="button" key={n.id} onClick={()=>jump(n.id)}>
+        <span className="rm2-goal-glyph">◇</span><b>{n.code||n.id}</b>{n.title.replace(/^[A-Z][\d.]* · /,"")}
+      </button>)}</div>
     </div>
     <div className="rm2-workspace">
       <aside className="rm2-sidebar">
@@ -195,7 +227,7 @@ export default function TreeHome(){
         </div>
       </aside>
       <div className="rm2-center">
-        {view==="map"?<Constellation nodes={nodes} selected={root.id} onSelect={choose} priority={tone} visible={visible} related={source.relations.filter(r=>r.from===root.id||r.to===root.id)}/>:
+        {view==="map"?<Constellation nodes={nodes} selected={selected.id} focusId={focusId} onFocusChange={id=>id===null?showAll():setFocusId(id)} onSelect={choose} priority={tone} visible={visible} related={source.relations.filter(r=>r.from===root.id||r.to===root.id)}/>:
           <div className="rm2-list"><h2>Componenti e responsabilità</h2><p>Vista alternativa della stessa mappa: non una seconda roadmap.</p>
             {["radici","tronco","rami"].map(level=><section key={level}><h3>{level.toUpperCase()}</h3><div>{matching.filter(n=>level==="tronco"?n.parent==="tronco":level==="radici"?hasAncestor(n,"radici"):!hasAncestor(n,"radici")&&n.parent!=="tronco").map(n=><button type="button" key={n.id} onClick={()=>choose(n.id)}><i className={"rm2-dot tone-"+tone(n)}/><span>{n.code} · {n.title.replace(/^[A-Z][\d.]* · /,"")}</span><ArrowRight size={14}/></button>)}</div></section>)}
           </div>}
@@ -204,10 +236,18 @@ export default function TreeHome(){
         <small className="rm2-inspect-path">{scope}</small>
         <div className="rm2-inspect-code">{root.code||root.id} · STELLA</div>
         <h2>{root.title.replace(/^[A-Z][\d.]* · /,"")}</h2>
+        {focusId&&<button type="button" className="rm2-overview-link" onClick={showAll}>← Torna alla panoramica delle stelle</button>}
         <div className="rm2-badges">
           <span className="rm2-impl">{implementation[root.status||"unverified"]||"Da verificare"}</span>
           <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{tones[selectedTone]||"Da valutare"}</span>
         </div>
+        {selected.id!==root.id&&<div className="rm2-current-part">
+          <strong>{selected.classification==="planet"?"Pianeta":selected.classification==="moon"?"Luna":"Elemento"} selezionato</strong>
+          <span>{selected.title} · {implementation[selected.status||"unverified"]||"Da verificare"}</span>
+        </div>}
+        {newlyObserved&&<div className="rm2-observation"><CheckCircle2 size={15}/><div>Esito funzionale E2E presente nel registro per questo nodo.
+          <small>Prova riferita all'ambiente del test, senza cambiare automaticamente il piano o dichiarare collaudato il Debian.</small>
+        </div></div>}
         <p className="rm2-caveat">I colori indicano l'attenzione richiesta. Una funzione nel codice non è necessariamente collaudata sul Debian.</p>
         <div className="rm2-tabs" role="tablist" aria-label="Tempo e problemi">
           {([
@@ -253,6 +293,13 @@ export default function TreeHome(){
             </div>;
           })}
           {!mappedChecks.length&&<p className="rm2-test-note">Nessun controllo associato a questa stella. Da progettare; non significa “tutto ok”.</p>}
+          <div className="rm2-section-head"><GitBranch size={14}/> CODICE E PAGINE <span>{links.length}</span></div>
+          {pageLink&&<a className="rm2-code-link" href={pageLink.hash}><strong>{pageLink.label}</strong><small>Pagina esistente di ServerIA</small></a>}
+          {links.map((link,i)=><a key={i} className="rm2-code-link" href={sourceUrl(link)} target="_blank" rel="noopener noreferrer">
+            <strong>{link.label} ↗</strong><small>{link.repo||"Aleselva12/serveria1"} / {link.path}</small>
+          </a>)}
+          {!links.length&&!pageLink&&<p className="rm2-test-note">Nessun collegamento al codice verificato per questa stella: la capacità potrebbe essere futura o da censire.</p>}
+          <small className="rm2-rel-caveat">Collegamenti selezionati e verificati nella repository; non rappresentano da soli una prova end-to-end.</small>
           <div className="rm2-section-head"><GitBranch size={14}/> RELAZIONI <span>{relations.length}</span></div>
           {relations.map(({link,other,outgoing},i)=>other&&<button type="button" className="rm2-relation" key={i} onClick={()=>jump(other.id)}>
             <span>{outgoing?relNames[link.kind]||link.kind:"È collegato da"} {outgoing?"→":"←"}</span>

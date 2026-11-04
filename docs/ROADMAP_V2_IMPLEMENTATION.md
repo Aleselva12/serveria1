@@ -47,11 +47,32 @@ La prossima sequenza W1 collaudo orchestratore → W2 aggiornamenti Immich/Nextc
 
 ## Parti deliberatamente lasciate a una tranche separata
 
-- **True 3D Three.js e animazioni identiche a Lovable**: richiedono migrazione dipendenze e un collaudo maggiore; intanto la costellazione SVG è utilizzabile, navigabile, con geometria architetturale equivalente.
-- **Persistenza e modifica da UI dei nodi**: per ora è una lettura della snapshot sotto versionamento Git; non aggiungere localStorage come secondo database della pianta.
-- **Collegamento automatico di ogni stella ai file/funzioni/commit e test specifici**: richiede una relazione versionata tra qwe, serveria1 e la telemetria reale, non una deduzione da nome file.
+- **Grafica 3D: esclusa per decisione del proprietario (4 novembre 2026).** La Roadmap deve restare bidimensionale, migliorando libertà di navigazione, zoom, pan e leggibilità; non riaprire autonomamente il progetto Three.js.
+- **Modifica strutturale da agenti/IA: non prevista.** Solo il proprietario, tramite decisioni esplicite e lavoro sulla repository, modifica rami, stelle, pianeti, lune, collegamenti e architettura. Non aggiungere un editor IA automatico o localStorage come secondo database della pianta.
+- **Associazione automatica di tutti i file/funzioni/commit alle stelle:** per ora esiste un primo registro *esplicito e verificato* in `frontend/src/tree/codeLinks.ts`, con accesso al codice e alle pagine reali di ServerIA. L'estensione automatica completa e la verifica del cambiamento dei riferimenti restano future; non accettare proposte non confermate come mappature certe.
 - **Storico temporale completo e riconciliazione dei commit**: progettare provenance, versione, sostituzioni e stato precedente senza inventare il passato.
 - **Propagazione intelligente dei guasti e analisi causale per dipendenze**: la diagnosi attuale legge soltanto esiti di test già registrati e problemi dichiarati. Il tracing reale dei run resta nel lavoro orchestratore W1.
 - **Nuovi test E2E isolati e deploy di servizi**: appartengono al registro salute e ai relativi servizi, non alla pagina Roadmap. Nessun update né scrittura su file o database di produzione da questa interfaccia.
 
-Se si passa a Three.js, conservare `cora-plan.snapshot.json`, gli ID, l'inspector e l'accesso al catalogo salute; sostituire soltanto il renderer centrale.
+Non realizzare automaticamente una versione Three.js: **la scelta corrente è 2D**. Conservare la pianta canonica, gli ID, l'inspector e l'accesso al catalogo salute in ogni successiva revisione grafica.
+
+## Revisione V2.1 — decisioni 4 novembre 2026
+
+### Navigazione grafica 2D
+La Roadmap usa due livelli spaziali distinti, senza introdurre un motore 3D:
+- Panoramica delle 45 stelle e delle aree di radici/tronco/rami, con tronco libero;
+- **Selezione di una stella → scena isolata** con solo la stella scelta, tutti i suoi pianeti e le loro lune. «Tutta la mappa» torna alla panoramica. Rotella/mouse, trascinamento, zoom e gesti touch si applicano a entrambe le scene. I pianeti/lune rimangono anche consultabili nell'inspector.
+- Segnale grafico della stella obiettivo non implementata: centro grigio/vuoto, anello tratteggiato e dicitura «◇ OBIETTIVO». Fascia di accesso rapido alle stelle-obiettivo in Home Roadmap, senza ramo “futuro”.
+- Colori applicati **direttamente alla stella SVG**, non soltanto alle voci in elenco.
+
+### Governance: solo test di stato, mai modifica strutturale automatica
+- La gerarchia architetturale, gli ID, i link e i significati appartengono al proprietario. Un agente o modello non può introdurre, spostare o eliminare stelle, rami, pianeti o lune in modo autonomo.
+- I test del catalogo già esistente possono cambiare **soltanto la proiezione dello stato osservato** di un nodo a schermo; per esempio un E2E passato e attribuito a un pianeta può risultare «prova funzionale disponibile», e un test fallito può renderlo rosso.
+- La snapshot JSON di `qwe` resta la base delle decisioni umane: i risultati di test non cambiano permanentemente `status`, `priority` o struttura del JSON. Un eventuale “presente” automatico resta attribuito a test/ambiente/commit, non è promozione architetturale, finché non lo confermiamo.
+- L'unico registro dei test è quello nel backend; la pagina recupera `api.healthDashboard()` senza attivare un altro runner.
+
+### Collegamenti al codice esistente
+`frontend/src/tree/codeLinks.ts` contiene una prima mappatura verificata fra stelle e file reali di ServerIA (`main`) e Atlas/qwe (`progetti/cora-serveria`), oltre ai link verso pagine native di ServerIA. Sono citazioni di sorgenti, non claim che il codice sia funzionante, né analisi semantiche autonome. Le relazioni fra stelle rimangono nel JSON canonico.
+
+### Lavoro differito: diagnosi causale avanzata
+**Da aggiungere nella futura evoluzione T10–T11 dell'orchestratore.** È necessario attribuire automaticamente un errore all'hop specifico (chat → supervisor → capability → agente → modello/worker → risposta), stabilire se una modifica di un altro componente ha provocato una regressione e raccogliere evidenze su commit/ambiente. La Roadmap V2.1 NON inventa questo livello diagnostico: per ora mostra solo prove esplicite, problemi documentati e collegamenti noti.
