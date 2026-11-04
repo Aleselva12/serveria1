@@ -138,7 +138,7 @@ Risultati: 130 test frontend superati (5 regressioni nuove sulla Home), build Ty
 
 ## Aggiornamento roadmap — 26 ottobre 2026
 
-La Home usa **tre lavori prossimi ordinati**, senza eseguirli automaticamente:
+La Home conserva una **sequenza ordinata dei lavori**, senza eseguirli automaticamente: W1 resta visibile come completato, W2 è il prossimo lavoro e W3 rimane successivo.
 
 1. **Orchestratore (W1 — COMPLETATO, base V1)**: routing supervisor/LangGraph, Capability Registry operativo, System Coordinator, runtime/bus/state, permessi, decisioni standard, Larva v0, contratti di contesto e tracciabilità in Attività sono presenti. Il controllo periodico `orchestrator_v1_contract` verifica la struttura senza inferenza. Context Manager progressivo, Plan strutturato e scheduler/failover multi-worker restano fase 2.
 2. **Aggiornamenti Immich/Nextcloud**: aggiungere al gestore host Debian un ciclo sicuro di verifica versione, backup, conferma, deploy e verifica post-aggiornamento. La pagina salute presenta il link di apertura configurato e identifica l'aggiornamento come **lavoro futuro**, non come un bottone di deploy già funzionante. L'updater Cora attuale e il gestore di Magazzino Tele non aggiornano Immich/Nextcloud.
