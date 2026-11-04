@@ -51,6 +51,7 @@ from core.execution_traces import ExecutionTrace
 from core.context_budget import prepare_context, schedule_summary
 from core.runtime import runtime, RunStopped, checkpoint, publish_text
 from core.runtime_api import router as runtime_router
+from core.orchestration_api import router as orchestration_router
 from core.permissions_api import router as permissions_router
 from programmer_agent.api import router as programmer_router
 from core.postprocessing import Postprocessing
@@ -105,6 +106,7 @@ app.include_router(update_router)
 app.include_router(managed_apps_router)
 app.include_router(machines_router)
 app.include_router(runtime_router)
+app.include_router(orchestration_router)
 app.include_router(permissions_router)
 app.include_router(monitoring_router)
 app.include_router(project_checks_router)
