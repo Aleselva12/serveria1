@@ -54,8 +54,8 @@ export const codeLinks:Record<string,SourceLink[]>={
  "G1":[local("frontend/src/components/Programmer.tsx","Interfaccia programmatore")],
 };
 const pages:Record<string,{hash:string;label:string}>={
- R1.1:{hash:"#home",label:"Apri Home"},R3.2:{hash:"#machines",label:"Apri Macchine"},
- R5.2:{hash:"#updates",label:"Apri Aggiornamenti"},
+ "R1.1":{hash:"#home",label:"Apri Home"},"R3.2":{hash:"#machines",label:"Apri Macchine"},
+ "R5.2":{hash:"#updates",label:"Apri Aggiornamenti"},
  T7:{hash:"#memory-management",label:"Apri Gestione Memoria"},
  T8:{hash:"#architecture",label:"Apri Architettura"},
  T10:{hash:"#activity",label:"Apri Attività"},
