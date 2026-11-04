@@ -230,3 +230,9 @@
 .rm2-code-link strong{font-size:11px}
 .rm2-code-link small{font-size:10px;overflow-wrap:anywhere;color:#91b4bb;line-height:1.45}
 @media(max-width:650px){.rm2-goal-strip>div:last-child{flex-wrap:nowrap;overflow:auto;padding-bottom:4px}.rm2-goal-strip button{flex:0 0 auto;max-width:260px}}
+
+/* V2.2: distinguish test provenance from confirmed live health. */
+.rm2-check-state.outdated,.rm2-check-state.unattributed,.rm2-check-state.stale{color:#e6c58c;background:#3b3326}
+.rm2-check-state.planned{color:#b3c2ce;background:#253342}
+.rm2-check-state.unknown{color:#a6bac2;background:#23323b}
+.rm2-test-note code{font-family:ui-monospace,monospace;color:#b5e8d0}
