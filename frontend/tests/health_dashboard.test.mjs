@@ -100,11 +100,17 @@ test("Health panel renders owner observations separately from automated evidence
           {id:"immich",label:"Immich",status:"ready",checkedAt:"",
             browserUrl:"https://immich.example.test"},
           {id:"nextcloud",label:"Nextcloud",status:"unknown",checkedAt:""},
+          {id:"preventivi",label:"Preventivi",status:"unknown",checkedAt:"",browserUrl:"javascript:alert(1)"},
+          {id:"unsafe",label:"Credenziali",status:"unknown",checkedAt:"",browserUrl:"https://user:secret@example.test"},
+          {id:"docker",label:"Docker",status:"unknown",checkedAt:""},
         ]}));});
       const links=r.root.findAllByType("a");
-      assert.ok(links.some(x=>x.props.href==="https://immich.example.test" && x.children.join("")==="Immich"));
+      assert.ok(links.some(x=>x.props.href==="https://immich.example.test/" && x.children[0]==="Immich"));
       assert.ok(!links.some(x=>x.children.join("")==="Nextcloud"));
-      assert.ok(rendered(r).includes("Aggiornamento: lavoro 2"));
+      assert.equal(links.length,1);
+      assert.ok(rendered(r).includes("Diagnostica dei servizi tecnici"));
+      assert.ok(rendered(r).includes("Programmi del server"));
+      assert.ok(rendered(r).includes("Collegamento non configurato"));
       assert.ok(rendered(r).includes("Verifiche riferite dall'utente:"));
       assert.ok(rendered(r).includes("Immich verificato dall'utente"));
       assert.ok(rendered(r).includes("Da verificare"));

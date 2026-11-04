@@ -14,6 +14,14 @@ const goalIds:Record<string,string[]> = {
 import type {ServiceStatus} from "../types/contracts";
 
 const time = (value?:string) => value ? new Date(value).toLocaleString("it-IT") : "Mai";
+function programUrl(value?: string) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password ? url.href : null;
+  } catch { return null; }
+}
+const diagnosticServices = new Set(["fastapi", "ollama", "docker"]);
 function statusOf(definition:HealthCheckDefinition, evidence?:HealthResult) {
   if (definition.frequency === "to_implement") return {label:"Da implementare",tone:"unknown"};
   if (!evidence) return {label:"Da verificare",tone:"unknown"};
@@ -55,6 +63,8 @@ export default function HealthDashboard({
   const failures = filtered.filter(c => statusOf(c,data?.latest[c.id]).tone === "error").length;
   // Missing, expired and inconclusive checks all need verification.
   const notTested = filtered.filter(c => statusOf(c,data?.latest[c.id]).tone === "unknown").length;
+  const programs = services.filter(item => !diagnosticServices.has(item.id) && !item.id.startsWith("docker:"));
+  const diagnostics = services.filter(item => diagnosticServices.has(item.id) || item.id.startsWith("docker:"));
   return <section id={!componentFilter ? "system-health" : undefined} className={"home-health-dashboard" + (compact ? " compact" : "")}
     aria-label="Salute del sistema e collaudi">
     <div className="metric-head">
@@ -63,18 +73,27 @@ export default function HealthDashboard({
       {data && <span className="pill">{failures ? failures+" errori" : notTested ? notTested+" da verificare" : "Risultati disponibili"}</span>}
     </div>
     {showServices && <>
-      <h3>Disponibilità dei servizi</h3>
+      <h3>Programmi del server</h3>
       {servicesError && <p role="alert">{servicesError}</p>}
-      {services.length ? services.map(item => <div key={item.id} className="mobile-service-row health-service-row">
-        <span>{item.browserUrl && /^https?:\/\/[^\s]+$/i.test(item.browserUrl)
-          ? <a href={item.browserUrl} target="_blank" rel="noopener noreferrer">{item.label}</a>
-          : item.label}</span>
-        <span>
-          {(item.id==="immich" || item.id==="nextcloud") &&
-            <small title="Servizio host di aggiornamento esterno ancora da implementare">Aggiornamento: lavoro 2</small>}
-          <strong>{serviceStatusLabels[item.status]}</strong>
-        </span>
-      </div>) : <p>Elenco servizi non disponibile; questo non certifica un guasto di ogni servizio.</p>}
+      <p className="home-health-info">Apri un programma in una nuova scheda.</p>
+      <div className="health-program-list">
+        {programs.length ? programs.map(item => {
+          const href = programUrl(item.browserUrl);
+          return <div key={item.id} className="health-program-row">
+            <div className="health-program-name">
+              {href ? <a href={href} target="_blank" rel="noopener noreferrer">{item.label}<span aria-hidden="true"> ↗</span></a> : <strong>{item.label}</strong>}
+              {!href && <small>Collegamento non configurato</small>}
+            </div>
+            <span className={"health-program-status " + item.status}>{serviceStatusLabels[item.status]}</span>
+          </div>;
+        }) : <p>Elenco programmi non disponibile.</p>}
+      </div>
+      {diagnostics.length > 0 && <details className="health-service-diagnostics">
+        <summary>Diagnostica dei servizi tecnici</summary>
+        {diagnostics.map(item => <div key={item.id} className="health-program-row">
+          <span>{item.label}</span><span className="health-program-status">{serviceStatusLabels[item.status]}</span>
+        </div>)}
+      </details>}
     </>}
     {error && <p role="alert">{error}</p>}
     {!data && !error && <p>Caricamento del catalogo di collaudo…</p>}
