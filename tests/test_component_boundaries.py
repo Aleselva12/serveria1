@@ -31,6 +31,11 @@ class CatalogTests(unittest.TestCase):
         status,detail = project_contracts.chat_contract()
         self.assertEqual(status,"pass",detail)
 
+    def test_orchestrator_v1_structural_contract(self):
+        status, detail = project_contracts.orchestrator_v1_contract()
+        self.assertEqual(status, "pass", detail)
+
+
     def test_chat_wiring_fails_when_delegations_disappear(self):
         import graph
         with patch.object(graph,"supervisor_tools",[]):
