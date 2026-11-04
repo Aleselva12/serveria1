@@ -96,6 +96,7 @@ _PROBES = {
     "database": _database, "library": _library, "audio": _audio,
     "ollama": _ollama, "word_sample": _word_sample,
     "chat_contract": project_contracts.chat_contract,
+    "orchestrator_v1_contract": project_contracts.orchestrator_v1_contract,
     "audio_word_contract": project_contracts.audio_word_contract,
     "calendar_contract": project_contracts.calendar_contract,
     "worker_contract": project_contracts.worker_contract,
