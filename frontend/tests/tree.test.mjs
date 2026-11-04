@@ -68,5 +68,6 @@ test('frontend V2 inspector shows structured work, problems, tests and time with
    assert.ok(ui.includes(q),'Missing panel section '+q);
  assert.ok(!ui.includes('api.runTests('),'Roadmap must not trigger duplicated test execution');
  assert.ok(ui.includes('knownIssues')&&ui.includes('timeline.future'));
- assert.ok(ui.includes('evidenceStatus')&&ui.includes('commit'));
+ const evidence=readFileSync(new URL('../src/tree/roadmapEvidence.ts',import.meta.url),'utf8');
+ assert.ok(ui.includes('checkState')&&ui.includes('activeRelease')&&evidence.includes('verifiedLiveE2E')&&evidence.includes('activeCommit'));
 });
