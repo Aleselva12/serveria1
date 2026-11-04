@@ -61,7 +61,7 @@ function evidenceStatus(def:HealthCheckDefinition|undefined,result:HealthResult|
  */
 export function starTone(n:Node,health:HealthDashboardData|null):string{
   if(n.priority&&n.priority!=="unknown")return n.priority;
-  if(n.classification!=="star")return "unknown";
+  if(!["star","planet","moon"].includes(n.classification||""))return "unknown";
   const ids=checks[n.id]||[];
   const evidence=ids.map(id=>({def:health?.catalog.find(c=>c.id===id),result:health?.latest[id]}));
   if(evidence.some(e=>evidenceStatus(e.def,e.result)==="fail"))return "problem";
