@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, ChevronRight,
   CircleHelp, Clock3, Copy, Download, GitBranch, Layers3, Orbit, Search, Target,
@@ -6,11 +6,12 @@ import {
 import planSource from "./cora-plan.snapshot.json";
 import { api, apiBaseUrl, type HealthDashboardData } from "../services/api";
 import { authenticatedFetch } from "../services/transport";
-import { checkState, starTone, verifiedLiveE2E } from "./roadmapEvidence";
+import { checkState, starTone, verifiedLiveE2E, toneLabels } from "./roadmapEvidence";
 import { homeRoadmap } from "../services/connections";
 import { checks, type Node } from "./model";
 import { closure } from "./closure";
 import atlasEvidence from "./atlas-evidence.json";
+import NodeVerificationPanel from "./NodeVerificationPanel";
 import Constellation from "./Constellation";
 import RoadmapPriorities from "./RoadmapPriorities";
 import {codeLinks,pageLinks,sourceUrl} from "./codeLinks";
@@ -69,11 +70,14 @@ export default function TreeHome(){
   const [query,setQuery]=useState("");
   const [group,setGroup]=useState("all");
   const [mode,setMode]=useState<"all"|"issues"|"future">("all");
+  const [healthFilter,setHealthFilter]=useState("all");
   const [view,setView]=useState<"map"|"list">("map");
   const [health,setHealth]=useState<HealthDashboardData|null>(null);
   const [healthError,setHealthError]=useState("");
   const [activeCommit,setActiveCommit]=useState<string|null>(null);
   const [copied,setCopied]=useState(false);
+  const [verificationRevision,setVerificationRevision]=useState(0);
+  const refreshVerification=useCallback(()=>setVerificationRevision(v=>v+1),[]);
   useEffect(()=>{
     let active=true,pending=false;
     async function refresh(){
@@ -93,11 +97,12 @@ export default function TreeHome(){
     }
     void refresh();const timer=window.setInterval(()=>void refresh(),30000);
     return()=>{active=false;clearInterval(timer);};
-  },[]);
+  },[verificationRevision]);
   const selected=byId.get(selectedId)||byId.get("T1")!;
   const root=rootFor(selected);
   const tone=(n:Node)=>starTone(n,health,activeCommit,checks);
   const selectedTone=tone(root);
+  const counts=Object.fromEntries(Object.keys(toneLabels).map(key=>[key,stars.filter(n=>tone(n)===key).length]));
   const relationRows=source.relations.filter(r=>r.from===root.id||r.to===root.id);
   // The inspector reuses check IDs from the canonical registry; it never runs tests.
   const mappedChecks=[...new Set([...(checks[root.id]||[]),...(checks[selected.id]||[])])];
@@ -115,13 +120,14 @@ export default function TreeHome(){
       walk(n.id);return values.join(" ").toLocaleLowerCase("it");
     };
     return stars.filter(n=>
+      (healthFilter==="all"||tone(n)===healthFilter)&&
       (group==="all"||group==="T"&&n.parent==="tronco"||group!=="T"&&hasAncestor(n,group))&&
       (!q||descendants(n).includes(q))&&
       (mode==="all"||mode==="issues"&&(n.knownIssues?.length||tone(n)==="problem")||
        mode==="future"&&(n.status==="planned"||n.status==="idea"||Boolean(n.timeline?.future?.length)))
     );
   // Health changes are reflected when the response refreshes; no separate test execution.
-  },[query,group,mode,health,activeCommit]);
+  },[query,group,mode,health,activeCommit,healthFilter]);
   const found=new Set(matching.map(n=>n.id));
   const visible=(n:Node)=>n.classification!=="star"||found.has(n.id);
   const choose=(id:string)=>{
@@ -141,13 +147,14 @@ export default function TreeHome(){
     setFocusId(null);setSelected(root.id);setOpenPlanet(null);
   };
   const jump=(id:string)=>{
-    setGroup("all");setMode("all");setQuery("");choose(id);
+    setGroup("all");setMode("all");setHealthFilter("all");setQuery("");choose(id);
   };
   const exportData=()=>{
     const json=JSON.stringify({
       schema:source.revision,
       source:"ServerIA frontend snapshot",
       projectStatus:{updatedAt:homeRoadmap.updatedAt,nextWork:homeRoadmap.nextWork},
+      verification:{activeCommit,updatedAt:health?.updatedAt,stars:stars.map(n=>({id:n.id,tone:tone(n),checks:checks[n.id]||[]})),latest:health?.latest},
       nodes:source.nodes,
       relations:source.relations,
     },null,2);
@@ -208,6 +215,13 @@ export default function TreeHome(){
       </div>
       <p>Realizzazione ≠ salute. Grigio = obiettivo non realizzato; test e problemi non modificano la struttura.</p>
     </div>
+    <NodeVerificationPanel onResults={refreshVerification}/>
+    <div className="rm2-health-summary" role="group" aria-label="Filtra stelle per esito dei test">
+      <button type="button" aria-pressed={healthFilter==="all"} onClick={()=>setHealthFilter("all")}>Tutte · {stars.length}</button>
+      {Object.entries(toneLabels).map(([key,label])=><button type="button" key={key} className={"tone-"+key} aria-pressed={healthFilter===key} onClick={()=>setHealthFilter(key)}><i className="rm2-dot"/>{label} · {counts[key]}</button>)}
+      <p>Esiti sulla versione attiva del Debian. Verde: tutti i controlli superati e almeno un collaudo completo. Rosso: almeno un controllo fallito. Nessun test disponibile non significa superato.</p>
+      {healthError&&<p role="status">{healthError}</p>}
+    </div>
     <div className="rm2-goal-strip" aria-label="Stelle obiettivo da realizzare">
       <div className="rm2-goal-strip-title"><Target size={14}/> STELLE OBIETTIVO <span>{goalStars.length} ancora da realizzare</span></div>
       <div>{goalStars.map(n=><button type="button" key={n.id} onClick={()=>jump(n.id)}>
@@ -224,7 +238,7 @@ export default function TreeHome(){
         <div className="rm2-side-label">STELLE <span>{matching.length} / 45</span></div>
         <div className="rm2-star-index">
           {matching.map(n=><button type="button" key={n.id} onClick={()=>choose(n.id)} aria-pressed={root.id===n.id}>
-            <i className={"rm2-dot tone-"+tone(n)}/><span><b>{n.code||n.id}</b> · {n.title.replace(/^[A-Z][\d.]* · /,"")}</span><ChevronRight size={13}/>
+            <i title={toneLabels[tone(n)]} aria-label={toneLabels[tone(n)]} className={"rm2-dot tone-"+tone(n)}/><span><b>{n.code||n.id}</b> · {n.title.replace(/^[A-Z][\d.]* · /,"")}</span><ChevronRight size={13}/>
           </button>)}
           {!matching.length&&<p>Nessuna stella corrispondente. Azzera i filtri.</p>}
         </div>
@@ -232,7 +246,7 @@ export default function TreeHome(){
       <div className="rm2-center">
         {view==="map"?<Constellation nodes={nodes} selected={selected.id} focusId={focusId} onFocusChange={id=>id===null?showAll():setFocusId(id)} onSelect={choose} priority={tone} visible={visible} related={source.relations.filter(r=>r.from===root.id||r.to===root.id)}/>:
           <div className="rm2-list"><h2>Componenti e responsabilità</h2><p>Vista alternativa della stessa mappa: non una seconda roadmap.</p>
-            {["radici","tronco","rami"].map(level=><section key={level}><h3>{level.toUpperCase()}</h3><div>{matching.filter(n=>level==="tronco"?n.parent==="tronco":level==="radici"?hasAncestor(n,"radici"):!hasAncestor(n,"radici")&&n.parent!=="tronco").map(n=><button type="button" key={n.id} onClick={()=>choose(n.id)}><i className={"rm2-dot tone-"+tone(n)}/><span>{n.code} · {n.title.replace(/^[A-Z][\d.]* · /,"")}</span><ArrowRight size={14}/></button>)}</div></section>)}
+            {["radici","tronco","rami"].map(level=><section key={level}><h3>{level.toUpperCase()}</h3><div>{matching.filter(n=>level==="tronco"?n.parent==="tronco":level==="radici"?hasAncestor(n,"radici"):!hasAncestor(n,"radici")&&n.parent!=="tronco").map(n=><button type="button" key={n.id} onClick={()=>choose(n.id)}><i title={toneLabels[tone(n)]} aria-label={toneLabels[tone(n)]} className={"rm2-dot tone-"+tone(n)}/><span>{n.code} · {n.title.replace(/^[A-Z][\d.]* · /,"")}</span><ArrowRight size={14}/></button>)}</div></section>)}
           </div>}
       </div>
       <aside className="rm2-inspector" aria-label="Scheda della stella">
@@ -242,7 +256,7 @@ export default function TreeHome(){
         {focusId&&<button type="button" className="rm2-overview-link" onClick={showAll}>← Torna alla panoramica delle stelle</button>}
         <div className="rm2-badges">
           <span className="rm2-impl">{implementation[root.status||"unverified"]||"Da verificare"}</span>
-          <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{tones[selectedTone]||"Da valutare"}</span>
+          <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{toneLabels[selectedTone]||tones[selectedTone]||"Da valutare"}</span>
         </div>
         {goals.length>0&&<div className="rm2-project-state">
           <strong>Stato progetto · aggiornato {homeRoadmap.updatedAt}</strong>
@@ -255,7 +269,7 @@ export default function TreeHome(){
         {newlyObserved&&<div className="rm2-observation"><CheckCircle2 size={15}/><div>Collaudo E2E attribuibile al commit attivo del Debian.
           <small>Ambiente Debian e versione corrispondente; la struttura della mappa non viene modificata.</small>
         </div></div>}
-        <p className="rm2-caveat">I colori indicano l'attenzione richiesta. Una funzione nel codice non è necessariamente collaudata sul Debian.</p>
+        <p className="rm2-caveat">Verde = collaudi completi superati; rosso = test fallito sulla versione attiva. Problemi documentati e controlli incompleti restano visibili.</p>
         <div className="rm2-tabs" role="tablist" aria-label="Tempo e problemi">
           {([
             ["present","Presente"],["issues","Problemi"],["future","Futuro"],["past","Storia"],

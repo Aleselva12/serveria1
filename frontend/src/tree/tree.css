@@ -281,3 +281,18 @@
 .rm2-priority-card>button{justify-self:start;display:flex;align-items:center;gap:6px;border:1px solid #395b59;border-radius:6px;background:#1e3b3c;padding:6px 10px;color:#c5f1e0;font-size:11px}
 .rm2-priorities-caution{font-size:10px;color:#a3b4bd;margin:0}
 @media(max-width:650px){.rm2-priorities{padding:12px}.rm2-priorities-ratings{grid-template-columns:1fr}}
+
+.rm2-health-summary{display:flex;flex-wrap:wrap;gap:8px;padding:0 0 16px}
+.rm2-health-summary button{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--rm2-border);border-radius:8px;background:var(--rm2-panel)}
+.rm2-health-summary button[aria-pressed=true]{outline:2px solid var(--rm2-tone,var(--rm2-teal));outline-offset:1px}
+.rm2-health-summary p{flex-basis:100%;margin:2px 0;color:var(--rm2-muted);font-size:12px}
+
+.rm2-verification{border:1px solid var(--rm2-border);background:var(--rm2-panel);border-radius:12px;padding:16px;margin-bottom:16px}
+.rm2-verification-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.rm2-verification h2{font-size:17px;margin:0 0 4px}.rm2-verification p{color:var(--rm2-muted);margin:8px 0}
+.rm2-verification button{border:1px solid #568a78;border-radius:8px;background:#17352f;padding:10px 16px;color:#a9efd5;font-weight:650}
+.rm2-verification button:disabled{opacity:.55;cursor:default}.rm2-verification progress{width:100%;height:12px;accent-color:var(--rm2-good)}
+.rm2-verification details{margin-top:10px}.rm2-verification summary{cursor:pointer}.rm2-verification ul{list-style:none;padding:0;display:grid;gap:8px}
+.rm2-verification-result{display:grid;gap:4px;padding:8px 12px;border-left:3px solid var(--rm2-unknown);background:var(--rm2-bg)}
+.rm2-verification-result span{color:var(--rm2-muted)}.rm2-verification-result.result-pass{border-color:var(--rm2-good)}.rm2-verification-result.result-fail{border-color:var(--rm2-bad)}
+.rm2-verification label{display:inline-flex;align-items:center;gap:8px;margin:8px 18px 8px 0}.rm2-verification select{max-width:100%;background:var(--rm2-bg);color:var(--rm2-ink);padding:6px;border:1px solid var(--rm2-border);border-radius:5px}

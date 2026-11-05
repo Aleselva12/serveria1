@@ -84,3 +84,22 @@ test("the roadmap uses active release and shared checks without a second test ru
   assert.ok(!view.includes("api.runTests("));
   assert.ok(view.includes("Commit installato"));
 });
+
+
+test("manual priorities never hide live failures or fabricate green",()=>{
+  const d=definition("chat_e2e");
+  for(const priority of ["ok","minor","plan","problem"]){
+    const n={...node,priority};
+    assert.equal(starTone(n,dashboard([[d,result(d.id,sha,"debian-api","fail")]]),sha,{A1:[d.id]}),"problem");
+    assert.equal(starTone(n,null,sha,{A1:[d.id]}),"unknown");
+  }
+});
+test("CI failures do not turn a live node red and future timestamps never pass",()=>{
+  const d=definition("chat_e2e");
+  assert.equal(starTone(node,dashboard([[d,result(d.id,sha,"ci","fail")]]),sha,{A1:[d.id]}),"unknown");
+  assert.equal(checkState(d,result(d.id,sha,"debian-api","pass",new Date(Date.now()+3600000).toISOString()),sha),"unknown");
+});
+test("functional evidence expires too",()=>{
+  const d=definition("chat_e2e");
+  assert.equal(checkState(d,result(d.id,sha,"debian-api","pass",new Date(Date.now()-25*3600000).toISOString()),sha),"stale");
+});

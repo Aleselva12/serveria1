@@ -17,7 +17,9 @@ export function checkState(
   if (!definition) return "unknown";
   if (definition.frequency === "to_implement") return "planned";
   if (!result || !Number.isFinite(Date.parse(result.at))) return "unknown";
-  if (definition.automated && Date.now() - Date.parse(result.at) > 10 * 60 * 1000) return "stale";
+  if (Date.parse(result.at) > Date.now() + 60_000) return "unknown";
+  const maxAge = definition.maxAgeSeconds ?? (definition.automated ? 600 : 86400);
+  if (Date.now() - Date.parse(result.at) > maxAge * 1000) return "stale";
   if (result.status !== "pass" && result.status !== "fail") return "unknown";
   const release = activeCommit?.trim().toLowerCase() || "";
   const tested = result.commit?.trim().toLowerCase() || "";
@@ -45,19 +47,25 @@ export function starTone(
   activeCommit: string | null,
   mapping: CheckMapping,
 ): string {
-  if (node.priority && node.priority !== "unknown") return node.priority;
   if (!["star", "planet", "moon"].includes(node.classification || "")) return "unknown";
   const ids = mapping[node.id] || [];
   const evidence = ids.map(id => ({
     def: health?.catalog.find(c => c.id === id),
     result: health?.latest[id],
   }));
-  if (evidence.some(e => checkState(e.def, e.result, activeCommit) === "fail")) return "problem";
+  const live = (e: typeof evidence[number]) => /^debian(?:$|[-_:])/i.test(e.result?.environment || "");
+  if (evidence.some(e => live(e) && checkState(e.def, e.result, activeCommit) === "fail")) return "problem";
   // Planned stars remain grey placeholders even when a related prerequisite passes.
   if (node.status === "planned" || node.status === "idea") return "unknown";
   if (node.knownIssues?.length) return "minor";
-  if (ids.length && evidence.every(e => checkState(e.def, e.result, activeCommit) === "pass") &&
+  if (ids.length && evidence.every(e => live(e) && checkState(e.def, e.result, activeCommit) === "pass") &&
       evidence.some(e => verifiedLiveE2E(e.def, e.result, activeCommit))) return "ok";
   if (node.timeline?.future?.length) return "plan";
   return "unknown";
 }
+
+export const toneLabels: Record<string, string> = {
+  ok: "Verde · collaudato", problem: "Rosso · test fallito",
+  minor: "Arancione · attenzione", plan: "Giallo · lavoro previsto",
+  unknown: "Grigio · non verificato",
+};

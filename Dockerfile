@@ -4,6 +4,8 @@ WORKDIR /app
 COPY requirements-deploy.lock ./
 RUN pip install --no-cache-dir --require-hashes -r requirements-deploy.lock
 COPY . .
+ARG CORA_GIT_COMMIT=
+RUN printf '%s' "$CORA_GIT_COMMIT" > /app/.cora-revision
 ARG CORA_UID=1000
 ARG CORA_GID=1000
 # Host updater extracts sources under umask 0077. COPY retains those modes:

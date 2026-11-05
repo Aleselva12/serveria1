@@ -9,6 +9,22 @@ from worker import worker
 
 
 class WorkerChatTests(unittest.TestCase):
+    def test_generation_reports_backend_identity_instead_of_echoing_request(self):
+        reply = {"model": "actual:8b", "response": "CORA_WORKER_OK", "done": True}
+        with patch.object(worker, "TOKEN", "s"*40), patch.object(worker, "installed_models", return_value=[{"name":"requested:8b"}]), patch.object(worker, "ollama", return_value=reply):
+            server = ThreadingHTTPServer(("127.0.0.1", 0), worker.Handler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                req = Request(f"http://127.0.0.1:{server.server_port}/generate", data=json.dumps({"model":"requested:8b", "prompt":"test"}).encode(), headers={"X-Cora-Worker-Token":"s"*40, "Content-Type":"application/json"})
+                with build_opener(ProxyHandler({})).open(req, timeout=2) as response:
+                    result = json.load(response)
+                self.assertEqual(result["model"], "requested:8b")
+                self.assertEqual(result["actual_model"], "actual:8b")
+                self.assertTrue(result["done"])
+            finally:
+                server.shutdown(); server.server_close(); thread.join()
+
     def test_native_chat_tools_auth_installed_model_and_busy_slot(self):
         reply = {'model': 'small', 'message': {'role': 'assistant', 'content': '', 'tool_calls': [{'function': {'name': 'note', 'arguments': {'content': 'ok'}}}]}, 'done': True}
         with patch.object(worker, 'TOKEN', 's' * 40), patch.object(worker, 'installed_models', return_value=[{'name': 'small'}]), patch.object(worker, 'ollama', return_value=reply) as ollama:
