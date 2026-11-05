@@ -9,7 +9,8 @@ from __future__ import annotations
 def entry(id, title, component, kind, stage, frequency, *, depends=(), description=""):
     return {"id": id, "title": title, "component": component, "kind": kind,
             "stage": stage, "frequency": frequency, "dependsOn": list(depends),
-            "description": description, "automated": frequency == "5m"}
+            "description": description, "automated": frequency == "5m",
+            "maxAgeSeconds": 600 if frequency == "5m" else 86400}
 
 _CATALOG = [
     entry("database", "PostgreSQL leggibile", "cora", "preflight", "API → DB", "5m"),
@@ -37,11 +38,11 @@ _CATALOG = [
           description="E2E futuro in ambiente isolato; nessun messaggio viene inviato."),
     entry("chat_e2e", "Chat e agente: risposta e persistenza", "cora", "e2e", "Chat → modello → DB", "on_release",
           depends=("chat_contract", "database"), description="Necessario test isolato con modello controllato."),
-    entry("memory_e2e", "Memoria dopo riavvio", "cora", "e2e", "Memoria → PostgreSQL → lettura", "on_release"),
+    entry("memory_e2e", "Memoria riletta da un nuovo processo", "cora", "e2e", "Memoria → PostgreSQL → lettura", "on_release"),
     entry("audio_e2e", "Trascrizione campione e Word approvato", "audio", "e2e", "Audio → LLM → Word", "on_release",
           depends=("audio_word_contract",), description="Solo in ambiente isolato, mai sui Word utenti."),
-    entry("calendar_e2e", "Google Calendar e duplicati", "calendar", "e2e", "Calendar → OAuth → Google", "on_release",
-          depends=("calendar_contract",), description="Solo calendario test dedicato."),
+    entry("calendar_e2e", "Google Calendar e duplicati", "calendar", "e2e", "Provider Calendar → OAuth test → Google", "on_release",
+          depends=("calendar_contract",), description="Account test separato: provider, idempotenza, modifica e cancellazione; approvazioni UI escluse."),
     entry("files_e2e", "Upload, download e integrità", "files", "e2e", "Browser → Cora → NAS", "on_release"),
     entry("immich_e2e", "Immich: foto test e recupero", "immich", "e2e", "API → Immich → archivio", "daily"),
     entry("nextcloud_e2e", "Nextcloud: file test e recupero", "nextcloud", "e2e", "API → Nextcloud → archivio", "daily"),
@@ -49,6 +50,12 @@ _CATALOG = [
     entry("preventivi_e2e", "Preventivi: PDF campione", "preventivi", "e2e", "Dati → generatore → PDF", "on_release"),
     entry("worker_e2e", "Inferenza worker e modello effettivo", "worker", "e2e", "Cora → Tailscale → GPU", "on_change",
           depends=("worker_contract",)),
+    entry("desktop_e2e", "Desktop: inferenza e modello effettivo", "worker", "e2e", "API → desktop configurato → modello", "on_change"),
+    entry("laptop_e2e", "Laptop: inferenza e modello effettivo", "worker", "e2e", "API → laptop configurato → modello", "on_change"),
+    entry("memory_regression", "Memoria e contratti contesto: regressioni", "cora", "synthetic", "Test isolati → contesto", "on_release"),
+    entry("calendar_regression", "Calendario e approvazioni: regressioni", "calendar", "synthetic", "Test isolati → approvazioni", "on_release"),
+    entry("orchestration_regression", "Orchestrazione: regressioni", "cora", "synthetic", "Test isolati → coordinamento ed errori", "on_release"),
+    entry("files_regression", "File: regressioni", "files", "synthetic", "Test isolati → scrittura e modifica", "on_release"),
     entry("backup_restore", "Backup e ripristino su DB vuoto", "backups", "e2e", "Backup → restore → verifica", "periodic_isolated"),
     entry("updates_rollback", "Deploy e rollback controllato", "backups", "e2e", "Updater → container → DB", "on_release"),
 ]

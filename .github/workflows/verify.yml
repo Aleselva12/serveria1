@@ -70,6 +70,14 @@ jobs:
           python -c "from core.database import db_connection; c = db_connection(); c.__enter__(); c.__exit__(None, None, None)"
           python -m unittest discover -s tests -v
           python smoke_check.py
+      - name: Node verification regression report
+        run: python -m deploy.verify_nodes --checks memory_regression calendar_regression orchestration_regression files_regression --output node-verification-ci.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: node-verification-ci
+          path: node-verification-ci.json
+          if-no-files-found: ignore
       - run: npm ci && npm test && npm run build
         working-directory: frontend
   deployment:

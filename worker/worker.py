@@ -144,7 +144,7 @@ class Handler(BaseHTTPRequestHandler):
                     "stream": False, "keep_alive": "1m",
                     "options": {"num_ctx": 4096, "num_predict": 256},
                 }, timeout=300)
-                self.send_json(200, {"model": model,
+                self.send_json(200, {"model": model, "actual_model": reply.get("model"), "done": reply.get("done") is True,
                      "response": str(reply.get("response") or "")[:20_000],
                      "total_duration": reply.get("total_duration"),
                      "eval_count": reply.get("eval_count"),

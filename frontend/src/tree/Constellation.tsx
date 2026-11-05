@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState,type PointerEvent,type WheelEvent} from "react";
+import {toneLabels} from "./roadmapEvidence";
 import type {Node} from "./model";
 
 export type TreePoint={node:Node;x:number;y:number;kind:"area"|"branch"|"star"|"planet"|"moon"};
@@ -136,10 +137,10 @@ export default function Constellation({nodes,selected,focusId=null,onFocusChange
   const highlight=visible(p.node);
   return <g key={p.node.id} data-node={p.node.id}
    className={`rm2-point tone-${tone} ${objective?"is-objective":""} ${active?"is-active":""} ${!highlight?"is-muted":""} ${p.kind==="moon"?"is-moon":""}`}
-   role="button" tabIndex={0} aria-pressed={active} aria-label={p.node.title}
+   role="button" tabIndex={0} aria-pressed={active} aria-label={p.node.title+" · "+toneLabels[tone]}
    onClick={()=>onSelect(p.node.id)}
    onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onSelect(p.node.id);}}}>
-   <title>{p.node.title}{objective?" · obiettivo non ancora implementato":""}</title>
+   <title>{p.node.title+" · "+toneLabels[tone]}{objective?" · obiettivo non ancora implementato":""}</title>
    <circle cx={p.x} cy={p.y} r="35" fill="transparent"/>
    <circle className="rm2-halo" cx={p.x} cy={p.y} r={radius*2.5} filter="url(#rm2-halo)"/>
    {objective&&<circle className="rm2-objective-ring" cx={p.x} cy={p.y} r={radius+9}/>}

@@ -21,7 +21,7 @@ import type {
 
 export type HealthCheckDefinition = {
   id: string; title: string; component: string; kind: string; stage: string;
-  frequency: string; dependsOn: string[]; description: string; automated: boolean;
+  frequency: string; dependsOn: string[]; description: string; automated: boolean; maxAgeSeconds?: number;
 };
 export type HealthResult = {
   id: string; status: "pass" | "fail" | "unknown" | "skipped";

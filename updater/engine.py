@@ -301,7 +301,8 @@ class Engine:
         for name in tags:
             target=self.config['api_target'] if name=='api' else 'web'
             self.cmd(['docker','build','--target',target,'--build-arg','CORA_UID='+str(self.config['uid']),
-                      '--build-arg','CORA_GID='+str(self.config['gid']),'-t',tags[name],str(source)],timeout=1800)
+                      '--build-arg','CORA_GID='+str(self.config['gid']),
+                      '--build-arg','CORA_GIT_COMMIT='+row['commit'],'-t',tags[name],str(source)],timeout=1800)
         images={name:self.cmd(['docker','image','inspect','--format={{.Id}}',tag],timeout=30) for name,tag in tags.items()}
         self.phase(row,'testing')
         output=self.cmd(['docker','run','--rm','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges',

@@ -37,6 +37,7 @@ from core.models import get_default_model_name, get_model_name, list_ollama_mode
 from core.runtime_profile import validate_runtime_profile, runtime_mode
 from core.monitoring import router as monitoring_router
 from core.project_checks import router as project_checks_router
+from core.node_verification import router as node_verification_router
 from core.roadmap_classifier_api import router as roadmap_classifier_router
 from core.server_files import router as files_router
 from core.ia_library import router as library_router
@@ -111,6 +112,7 @@ app.include_router(orchestration_router)
 app.include_router(permissions_router)
 app.include_router(monitoring_router)
 app.include_router(project_checks_router)
+app.include_router(node_verification_router)
 app.include_router(roadmap_classifier_router)
 app.include_router(files_router)
 app.include_router(library_router)

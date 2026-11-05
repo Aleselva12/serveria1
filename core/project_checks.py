@@ -7,6 +7,7 @@ The snapshot is process-local and resets after a backend restart.
 from __future__ import annotations
 
 import os
+import sys
 import threading
 from datetime import datetime, timezone
 
@@ -105,8 +106,12 @@ assert set(_PROBES) == set(CHECKS), "Automatic catalog and probe implementations
 
 
 def _release() -> str:
-    # Do not invent a release version if the installed process doesn't expose it.
-    return os.getenv("CORA_GIT_COMMIT", "").strip()[:40]
+    from core.release_identity import revision
+    return revision()
+
+
+def _environment():
+    return "debian-api" if sys.platform == "linux" and os.getenv("CORA_RUNTIME_MODE") == "server" else "local-api"
 
 
 def _persist(checks: list[dict]) -> bool:
@@ -117,9 +122,9 @@ def _persist(checks: list[dict]) -> bool:
             for entry in checks:
                 conn.execute("""INSERT INTO project_health_results
                   (check_id,status,detail,source,environment,commit_sha,duration_ms)
-                  VALUES (%s,%s,%s,'periodic','debian-api',%s,%s)""",
-                  (entry["id"],entry["status"],entry["detail"][:240],
-                   _release(),entry.get("durationMs",0)))
+                  VALUES (%s,%s,%s,'periodic',%s,%s,%s)""",
+                  (entry["id"],entry["status"],entry["detail"][:240],_environment(),
+                   entry.get("commit", ""),entry.get("durationMs",0)))
         return True
     except Exception:
         return False
@@ -130,6 +135,7 @@ def run_once(*, persist: bool = False) -> dict:
     global _LAST
     from time import monotonic
     checks = []
+    commit = _release()
     for key, probe in _PROBES.items():
         start = monotonic()
         try:
@@ -139,7 +145,7 @@ def run_once(*, persist: bool = False) -> dict:
             status, detail = "fail", "Controllo non riuscito: verificare il componente " + key
         checks.append({"id":key, "label":CHECKS[key], "status":status,
                        "detail":str(detail)[:240], "checkedAt":_now(),
-                       "durationMs":int((monotonic()-start)*1000)})
+                       "durationMs":int((monotonic()-start)*1000), "commit":commit, "environment":_environment()})
     stored = _persist(checks) if persist else False
     snap = {"checkedAt":_now(), "intervalSeconds":_INTERVAL,
             "scope":"preflight_only", "checks":checks, "persisted":stored}
@@ -246,8 +252,8 @@ def health_dashboard():
             latest[check["id"]] = {
                 "id":check["id"],"status":check["status"],
                 "detail":check["detail"],"source":"periodic",
-                "environment":"api-process-volatile",
-                "commit":_release() or None,
+                "environment":check.get("environment", "api-process-volatile"),
+                "commit":check.get("commit") or None,
                 "durationMs":check.get("durationMs",0),
                 "at":check["checkedAt"],
             }

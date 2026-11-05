@@ -80,6 +80,8 @@ def parts(path: str):
     segments = path.split("/") if path else []
     if any(p in {"", ".", ".."} or p.casefold() in RESERVED for p in segments):
         raise HTTPException(400, "Percorso relativo non valido.")
+    if any(len(segment.encode("utf-8")) > 255 for segment in segments):
+        raise HTTPException(400, "Nome o percorso troppo lungo.")
     return segments
 
 
