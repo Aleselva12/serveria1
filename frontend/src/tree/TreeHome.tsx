@@ -219,7 +219,7 @@ export default function TreeHome(){
     <div className="rm2-health-summary" role="group" aria-label="Filtra stelle per esito dei test">
       <button type="button" aria-pressed={healthFilter==="all"} onClick={()=>setHealthFilter("all")}>Tutte · {stars.length}</button>
       {Object.entries(toneLabels).map(([key,label])=><button type="button" key={key} className={"tone-"+key} aria-pressed={healthFilter===key} onClick={()=>setHealthFilter(key)}><i className="rm2-dot"/>{label} · {counts[key]}</button>)}
-      <p>Esiti sulla versione attiva del Debian. Verde: tutti i controlli superati e almeno un collaudo completo. Rosso: almeno un controllo fallito. Nessun test disponibile non significa superato.</p>
+      <p>Esiti sulla versione attiva del Debian. Verde: tutti i controlli associati superati. Il perimetro (contratti, simulazione o uso reale) è indicato nei test. Rosso: almeno un controllo fallito. Nessun test disponibile non significa superato.</p>
       {healthError&&<p role="status">{healthError}</p>}
     </div>
     <div className="rm2-goal-strip" aria-label="Stelle obiettivo da realizzare">
@@ -255,7 +255,7 @@ export default function TreeHome(){
         <h2>{root.title.replace(/^[A-Z][\d.]* · /,"")}</h2>
         {focusId&&<button type="button" className="rm2-overview-link" onClick={showAll}>← Torna alla panoramica delle stelle</button>}
         <div className="rm2-badges">
-          <span className="rm2-impl">{implementation[root.status||"unverified"]||"Da verificare"}</span>
+          <span className="rm2-impl">{selectedTone==="ok"?"Controlli superati · stato di progetto separato":implementation[root.status||"unverified"]||"Da verificare"}</span>
           <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{toneLabels[selectedTone]||tones[selectedTone]||"Da valutare"}</span>
         </div>
         {goals.length>0&&<div className="rm2-project-state">
@@ -269,7 +269,7 @@ export default function TreeHome(){
         {newlyObserved&&<div className="rm2-observation"><CheckCircle2 size={15}/><div>Collaudo E2E attribuibile al commit attivo del Debian.
           <small>Ambiente Debian e versione corrispondente; la struttura della mappa non viene modificata.</small>
         </div></div>}
-        <p className="rm2-caveat">Verde = collaudi completi superati; rosso = test fallito sulla versione attiva. Problemi documentati e controlli incompleti restano visibili.</p>
+        <p className="rm2-caveat">Verde = controlli associati superati sulla versione attiva, nel perimetro indicato. Le note di progetto restano visibili e non bloccano il colore dei test.</p>
         <div className="rm2-tabs" role="tablist" aria-label="Tempo e problemi">
           {([
             ["present","Presente"],["issues","Problemi"],["future","Futuro"],["past","Storia"],

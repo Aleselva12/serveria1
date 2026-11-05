@@ -231,7 +231,10 @@ def create_event(data: dict, *, request_id: str | None = None) -> dict:
         event = calendar_service.events().insert(
             calendarId="primary", body=body, sendUpdates="none",
         ).execute()
-        return normalize(event)
+        normalized = normalize(event)
+        from core.verification_usage import calendar_write
+        calendar_write("create", normalized)
+        return normalized
     except Exception:
         if not event_id:
             raise
@@ -258,7 +261,10 @@ def create_event(data: dict, *, request_id: str | None = None) -> dict:
             or any(boundary(existing.get(key) or {}) != boundary(body[key]) for key in ("start", "end"))
             or reminder(existing.get("reminders") or {}) != reminder(body["reminders"])):
             raise ValueError("Chiave richiesta già usata per un evento diverso.")
-        return normalize(existing)
+        normalized = normalize(existing)
+        from core.verification_usage import calendar_write
+        calendar_write("create", normalized)
+        return normalized
 
 
 def _managed_local_event_ids(calendar_service=None) -> set[str]:
@@ -373,9 +379,14 @@ def _conditional_event_request(event_id: str, expected_version: int, *, data: di
         if error.resp.status == 412:
             raise CalendarConflict("L'evento è cambiato su Google Calendar: aggiorna prima di approvare.") from error
         raise
+    from core.verification_usage import calendar_write
     if data is not None:
-        return normalize(result)
-    return {**previous, "deleted_at": datetime.now(timezone.utc).isoformat()}
+        normalized = normalize(result)
+        calendar_write("update", normalized)
+        return normalized
+    normalized = {**previous, "deleted_at": datetime.now(timezone.utc).isoformat()}
+    calendar_write("delete", normalized)
+    return normalized
 
 
 def update_event(event_id: str, data: dict, *, expected_version: int) -> dict:

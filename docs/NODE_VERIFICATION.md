@@ -6,10 +6,10 @@ globali. Le etichette sono presenti anche nei tooltip e per gli screen reader.
 L'esportazione JSON comprende commit attivo, colori e risultati osservati.
 
 - **Verde**: tutti i controlli associati superati sulla versione attiva del Debian,
-  almeno un E2E Debian e nessun problema documentato ancora aperto.
+  nel perimetro indicato (contratto, simulazione, preflight o uso reale).
 - **Rosso**: almeno un controllo associato fallito sul Debian e sul commit attivo.
   Prevale sulle priorità statiche del nodo e sulle note di lavoro.
-- **Arancione**: problemi documentati ancora aperti; non è un test fallito.
+- **Arancione**: prove ancora incomplete e problemi documentati; non è un test fallito.
 - **Giallo**: lavoro futuro previsto.
 - **Grigio**: prove insufficienti o obiettivo non implementato. Nessuna prova non
   equivale a superamento. Risultati CI/locali non certificano il Debian.
@@ -17,8 +17,8 @@ L'esportazione JSON comprende commit attivo, colori e risultati osservati.
 I controlli periodici scadono dopo 10 minuti; gli altri dopo 24 ore.
 Il verde certifica esclusivamente il perimetro descritto dai controlli: ad esempio,
 la prova worker verifica macchina e modello, non utilizzo GPU o prestazioni attese.
-Le note dei problemi non vengono cancellate automaticamente al superamento dei test:
-occorre verificare che il collaudo copra effettivamente il problema prima di chiuderle.
+Le note dei problemi restano visibili, ma non bloccano il verde dei controlli associati.
+Il verde indica il superamento di quei controlli, non la realizzazione di ogni obiettivo futuro.
 
 ## Uso dal sito: una esecuzione per clic
 
@@ -63,7 +63,7 @@ quando cambieranno i processi. Il pannello e il meccanismo di avvio restano gene
 | ID | Verifica | Prerequisiti |
 | --- | --- | --- |
 | `memory_e2e` | Scrittura applicativa e lettura lessicale da un nuovo processo; pulizia della memoria sintetica | Database applicativo esistente |
-| `calendar_e2e` | OAuth, creazione idempotente, modifica, lettura, eliminazione | Account Google **di test separato** |
+| `calendar_e2e` | Scrittura Google confermata con rilettura | Uso normale dal sito, oppure account **di test separato** per la suite |
 | `desktop_e2e` | API → worker selezionato → inferenza campione, modello effettivamente restituito e completamento | `CORA_VERIFY_DESKTOP_ID` |
 | `laptop_e2e` | Come desktop, con destinazione indipendente | `CORA_VERIFY_LAPTOP_ID` |
 | `memory_regression` | Budget del contesto e contratti | Test isolati, nessun modello |
@@ -124,3 +124,45 @@ isolate che non certificano il Debian e non vengono pubblicate nel suo registro.
 
 La presente modifica e pronta nel sorgente locale; pubblicazione e primo rilascio
 sul server non vengono eseguiti dalla semplice creazione della patch.
+
+
+## Uso reale e perimetro dei 30 controlli
+
+Tutti i 30 ID del catalogo hanno ora un esecutore. Sono stati corretti i titoli e
+il tipo di prova degli ID storici che finivano in `_e2e` ma non disponevano di un
+vero E2E: il nome dell'ID resta compatibile con storico e collegamenti; il campo
+`kind` e la descrizione dichiarano il perimetro effettivo.
+
+- Gmail: contratti e generazione MIME con trasporto simulato, nessun account.
+- Chat: grafo compilato e deleghe con agente simulato, non persistenza reale.
+- Audio/Word: configurazione e trasformazioni sintetiche, non trascrizione reale.
+- File: HTTP upload/download, duplicati e integrità in cartella temporanea, non NAS reale.
+- Preventivi: PDF realmente generato e riletto su dati sintetici.
+- Immich/Nextcloud: endpoint HTTP configurato, non upload/download reali.
+- Magazzino: manager applicazioni e allowlist isolate, non import Excel esterno.
+- Backup/rollback: regressioni isolate, non ripristino di un database di produzione.
+
+I prerequisiti mancanti e i test saltati restano non verificati. Il conteggio degli
+esecutori completi non significa 30 flussi reali certificati. I veri E2E esterni di
+foto, Nextcloud, import Excel e restore completo richiedono ancora integrazioni e
+ambienti dedicati; il pannello non li dichiara completati sulla base dei test isolati.
+
+Una scrittura Google confermata con una lettura successiva registra `calendar_e2e`.
+Una chiamata worker effettiva registra `desktop_e2e`/`laptop_e2e` soltanto per le
+macchine scelte esplicitamente nell'ultima suite o nella configurazione server.
+La chat nativa sul worker registra anche `worker_e2e`. Servono il modello richiesto,
+il completamento e una risposta valida: l'abilitazione del worker o il clic sul test
+non sono prove. Il normale utilizzo rinnova l'evidenza e la mappa la legge entro
+30 secondi; cambiare modello/abilitazione o assegnazione Supervisor invalida la prova.
+
+La chat principale segue l'assegnazione **Supervisor in Architettura**. Il test
+**Macchine** usa `/generate` e non cambia quell'assegnazione. Il nuovo controllo
+`worker_e2e` esegue invece `/chat` sul worker del Supervisor; se il Supervisor è
+locale restituisce non verificato con l'indicazione da seguire. Le risposte remote
+senza modello effettivo corrispondente o senza completamento sono rifiutate, senza
+ripiego locale. Non è certificato l'uso GPU dal solo successo dell'inferenza.
+
+I test con provider simulati disabilitano la registrazione di evidenza d'uso reale.
+I dettagli pubblici non contengono testi di chat, titoli di eventi o token.
+Un account di collaudo mancante non cancella una prova d'uso ancora valida: viene
+conservata la sua data originale, senza prolungarne artificialmente la scadenza.

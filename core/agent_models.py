@@ -53,12 +53,19 @@ def remote_machine(machine_id, model):
 
 def chat_on_worker(machine_id, model, params):
     from core.machines_api import _worker_call
-    machine = remote_machine(machine_id, model)
-    require_agent_chat(machine)
-    # Native Ollama messages and tool schemas, not a flattened text prompt.
-    payload = json.loads(json.dumps(params, default=lambda value: value.model_dump(exclude_none=True)))
-    payload.update(model=model, stream=False)
-    return _worker_call(machine, '/chat', payload, timeout=315)
+    from core.verification_usage import worker_reply, worker_failure
+    try:
+        machine = remote_machine(machine_id, model)
+        require_agent_chat(machine)
+        payload = json.loads(json.dumps(params, default=lambda value: value.model_dump(exclude_none=True)))
+        payload.update(model=model, stream=False)
+        response = _worker_call(machine, '/chat', payload, timeout=315)
+        if worker_reply(machine_id, model, response, chat=True) != "pass":
+            raise HTTPException(502, "Il worker non conferma modello effettivo e completamento. Nessun modello del server e stato usato come ripiego.")
+        return response
+    except Exception:
+        worker_failure(machine_id)
+        raise
 
 
 def require_agent_chat(machine):
@@ -103,6 +110,9 @@ def save_binding(agent_id, machine_id, model):
             os.replace(temporary, file)
         finally:
             if temporary: temporary.unlink(missing_ok=True)
+    if ROLES[agent_id] == "supervisor":
+        from core.verification_usage import record
+        record("worker_e2e", "unknown", "Assegnazione Supervisor cambiata: serve una nuova chat")
     return row
 
 

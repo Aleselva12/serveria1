@@ -57,15 +57,14 @@ export function starTone(
   if (evidence.some(e => live(e) && checkState(e.def, e.result, activeCommit) === "fail")) return "problem";
   // Planned stars remain grey placeholders even when a related prerequisite passes.
   if (node.status === "planned" || node.status === "idea") return "unknown";
+  if (ids.length && evidence.every(e => live(e) && checkState(e.def, e.result, activeCommit) === "pass")) return "ok";
   if (node.knownIssues?.length) return "minor";
-  if (ids.length && evidence.every(e => live(e) && checkState(e.def, e.result, activeCommit) === "pass") &&
-      evidence.some(e => verifiedLiveE2E(e.def, e.result, activeCommit))) return "ok";
   if (node.timeline?.future?.length) return "plan";
   return "unknown";
 }
 
 export const toneLabels: Record<string, string> = {
-  ok: "Verde · collaudato", problem: "Rosso · test fallito",
+  ok: "Verde · controlli superati", problem: "Rosso · test fallito",
   minor: "Arancione · attenzione", plan: "Giallo · lavoro previsto",
   unknown: "Grigio · non verificato",
 };

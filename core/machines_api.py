@@ -312,6 +312,10 @@ def save_settings(machine_id: str, body: WorkerSettings):
                 # ON means manually allowed; no model is executed until the
                 # owner also chooses an installed model and makes a request.
                 _write(machines)
+                from core.verification_usage import worker_ids, record
+                if before != _settings(item):
+                    for check_id in ["worker_e2e", *worker_ids(machine_id)]:
+                        record(check_id, "unknown", "Configurazione worker cambiata: serve una nuova inferenza")
                 return _settings(item)
     raise HTTPException(404, "Worker non registrato.")
 
@@ -326,10 +330,18 @@ def generate(machine_id: str, body: InferencePrompt):
     if not model:
         raise HTTPException(409, "Seleziona un modello installato nella pagina Macchine prima di eseguire inferenza.")
     # No caller-supplied model identifier and no model-switch tool for agents.
-    available = _worker_call(machine, "/models").get("models", [])
-    if model not in {row.get("name") for row in available if isinstance(row, dict)}:
-        raise HTTPException(409, "Il modello selezionato non è installato sul desktop.")
-    return _worker_call(machine, "/generate", {"model": model, "prompt": body.prompt}, timeout=315)
+    try:
+        available = _worker_call(machine, "/models").get("models", [])
+        if model not in {row.get("name") for row in available if isinstance(row, dict)}:
+            raise HTTPException(409, "Il modello selezionato non è installato sul desktop.")
+        response = _worker_call(machine, "/generate", {"model": model, "prompt": body.prompt}, timeout=315)
+        from core.verification_usage import worker_reply
+        worker_reply(machine_id, model, response, chat=False)
+        return response
+    except Exception:
+        from core.verification_usage import worker_failure
+        worker_failure(machine_id, chat=False)
+        raise
 
 
 @router.post("/{machine_id}/test")

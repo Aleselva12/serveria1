@@ -16,20 +16,24 @@ import sys
 from time import monotonic
 from uuid import uuid4, UUID
 
+from core.additional_verifications import DIRECT, REGRESSIONS as EXTRA_REGRESSIONS
+
 REGRESSIONS = {
     "memory_regression": ("tests.test_memory_context.ContextContractTests", "tests.test_context_contracts"),
     "calendar_regression": ("tests.test_google_calendar", "tests.test_google_calendar_approvals.GoogleCalendarApprovalTests"),
     "orchestration_regression": ("tests.test_system_coordinator", "tests.test_error_decisions"),
     "files_regression": ("tests.test_library_writes", "tests.test_file_editor"),
 }
-CHECKS = ("memory_e2e", "calendar_e2e", "desktop_e2e", "laptop_e2e", *REGRESSIONS)
+REGRESSIONS.update(EXTRA_REGRESSIONS)
+CHECKS = ("memory_e2e", "calendar_e2e", "desktop_e2e", "laptop_e2e", "worker_e2e", *REGRESSIONS, *DIRECT)
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def _child(action, run_id, timeout=90, settings=None):
     result = subprocess.run([sys.executable, "-m", "deploy.verify_nodes",
                              "--action", action, "--run-id", run_id], cwd=ROOT,
-                            env={**os.environ, **(settings or {}), "CORA_EMBEDDING_MODEL": ""},
+                            env={**os.environ, **(settings or {}), "CORA_EMBEDDING_MODEL": "",
+                                 "CORA_VERIFICATION_SYNTHETIC": "1" if action in REGRESSIONS or action in DIRECT else os.getenv("CORA_VERIFICATION_SYNTHETIC", "0")},
                             capture_output=True, text=True, timeout=timeout)
     # Library logging must not enter public evidence or expose credentials.
     for line in reversed(result.stdout.splitlines()):
@@ -57,6 +61,16 @@ def _calendar_provider():
 def _action(action, run_id):
     token = str(UUID(run_id))
     key = "cora-verification-" + token
+    if action in DIRECT:
+        state, detail = DIRECT[action]()
+        return {"status": state, "detail": detail}
+    if action == "worker_e2e":
+        from core.agent_models import binding, chat_on_worker
+        selected = binding("supervisor")
+        if not selected or selected["machine_id"] == "local":
+            return {"status": "unknown", "detail": "Il Supervisor usa il server: assegna il worker in Architettura per collaudare la chat remota"}
+        response = chat_on_worker(selected["machine_id"], selected["model"], {"messages": [{"role":"user", "content":"Rispondi solo OK"}], "options":{"num_predict":16}})
+        return {"status":"pass", "detail":"Chat remota del Supervisor completata sul worker assegnato; modello effettivo verificato"}
     if action in REGRESSIONS:
         import io
         import unittest
@@ -127,11 +141,11 @@ def _action(action, run_id):
         response = test_worker_inference(machine_id)
         # Match the backend-reported model, not merely the requested name.
         expected = settings["selected_model"]
-        normalize = lambda name: name if ":" in name else name+":latest"
+        from core.model_evidence import matches_requested
         actual = response.get("actual_model")
         if not isinstance(actual, str):
             return {"status": "unknown", "detail": "Worker precedente: aggiornare per verificare il modello effettivo"}
-        if normalize(actual) != normalize(expected) or not response.get("done"):
+        if matches_requested(expected, actual) is not True or not response.get("done"):
             raise ValueError("Modello effettivo diverso o generazione incompleta")
         if "CORA_WORKER_OK" not in response.get("response", ""):
             raise ValueError("Risposta campione non valida")
@@ -171,7 +185,7 @@ def run(check_id, settings=None):
         else:
             cleanup = "calendar_cleanup" if check_id == "calendar_e2e" else None
             result = _child("calendar_check" if cleanup else check_id, run_id,
-                            timeout=330 if check_id in ("desktop_e2e", "laptop_e2e") else 120, settings=settings)
+                            timeout=330 if check_id in ("desktop_e2e", "laptop_e2e", "worker_e2e") else 120, settings=settings)
     except subprocess.TimeoutExpired:
         result = {"status": "fail", "detail": "Tempo massimo del collaudo superato; ID " + run_id}
     except Exception:
