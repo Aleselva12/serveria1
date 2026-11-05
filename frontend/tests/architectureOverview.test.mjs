@@ -117,12 +117,12 @@ test('legacy worker can save the desktop choice and offers concrete update instr
 
 test('program icon opens only a configured HTTP URL; details remain an independent action',async()=>{
  reset();serviceRows=[
- {id:'immich',label:'Immich',status:'ready',browserUrl:'https://photos.example.test:8443',checkedAt:'2026-11-01T00:00:00Z'},
+ {id:'immich',label:'Immich',status:'offline',browserUrl:'http://100.112.253.3:2283/photos',checkedAt:'2026-11-01T00:00:00Z'},
  {id:'nextcloud',label:'Nextcloud',status:'unknown',browserUrl:'javascript:alert(1)',checkedAt:'2026-11-01T00:00:00Z'},
  {id:'unsafe',label:'Private URL',status:'unknown',browserUrl:'https://user:secret@example.test',checkedAt:'2026-11-01T00:00:00Z'}];
  let r;await act(async()=>{r=create(React.createElement(App));});
  const links=r.root.findAllByType('a');assert.equal(links.length,1);
- assert.equal(links[0].props.href,'https://photos.example.test:8443/');
+ assert.equal(links[0].props.href,'http://100.112.253.3:2283/photos');
  assert.equal(links[0].props.target,'_blank');assert.ok(links[0].props.rel.includes('noopener'));
  assert.equal(links[0].findAllByProps({className:'catalog-monogram'}).length,1);
  await act(async()=>r.root.findByProps({'aria-label':'Dettagli Nextcloud'}).props.onClick());
