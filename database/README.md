@@ -41,10 +41,10 @@ Memory edits are versioned in `memory_versions`, with an optimistic expected ver
 
 ## Current persistence boundary
 
-Migrations 0002–0006 add chat attachments/audio/file-share metadata, consultation history, push subscriptions, conversation projects and commercial Word proposals. Runtime runs, capability operations, approvals and memory/context revisions are also persistent SQL state. Inspect `schema.sql` and each migration for the exact table/column contract; do not treat this list as an alternate schema.
+Migrations 0002–0008 add chat attachments/audio/file-share metadata, consultation history, push subscriptions, conversation projects, commercial Word proposals, append-only project health results and the shadow-router example corpus. Runtime runs, capability operations, approvals and memory/context revisions are also persistent SQL state. Inspect `schema.sql` and each migration for the exact table/column contract; do not treat this list as an alternate schema.
 
 SQL does not contain all application data: source audio, attachments, IA Library copies/originals, generated documents and updater workspaces/backups also need their filesystem storage. Runtime/model settings are JSON state, not SQL. Ollama model weights and external NAS mounts are outside the base Cora backup.
 
 The local database Compose publishes its database port on host interfaces by default; it is a development profile. Use private network/firewall controls and changed credentials, or the server Compose with no published PostgreSQL port. Password sessions last seven days; desktop and Tailscale authentication are distinct modes.
 
-Audit 25 October 2026: schema/migrator and callers inspected; integration tests are configured in `.github/workflows/verify.yml`, but queued CI is not a successful result. No production database or Debian migration was accessed. See [audit evidence](../docs/README_AUDIT_20261025.md).
+The [25 October 2026 audit](../docs/README_AUDIT_20261025.md) remains a historical snapshot and did not access the production Debian database. This README instead follows the current repository schema; verify the active server commit and migration table before inferring what has actually been applied in production.
