@@ -25,7 +25,7 @@ Per usare un modello locale diverso senza modificare la chat, impostare:
 CORA_ROADMAP_CLASSIFIER_MODEL=qwen3:0.6b
 ```
 
-Il modello indicato deve già risultare in `/api/tags` del servizio configurato. Non vengono contattati provider cloud né modelli Jev/ScaleDown.
+Il modello indicato deve già risultare in `/api/tags` del servizio configurato. Non vengono contattati provider cloud né modelli Jev/ScaleDown. Il modulo rifiuta URL Ollama pubblici: sono consentiti loopback, reti private RFC1918, indirizzi Tailscale 100.64/10 o hostname `.ts.net`, il servizio Docker locale e il gateway `host.docker.internal`.
 
 ## Funzionamento
 
