@@ -16,6 +16,37 @@ class MonitoringTests(unittest.TestCase):
         app.include_router(m.router)
         self.client = TestClient(app)
 
+    def test_owner_immich_link_is_available_without_claiming_service_health(self):
+        with patch.dict(m.os.environ, {}, clear=True), patch.object(
+            m, "urlopen", side_effect=OSError()
+        ) as probes, patch.object(m, "ollama_urlopen", side_effect=OSError()), patch.object(
+            m.shutil, "which", return_value=None
+        ):
+            rows = self.client.get("/api/v1/system/status").json()["services"]
+        services = {row["id"]: row for row in rows}
+        self.assertEqual(services["immich"]["browserUrl"], "http://100.112.253.3:2283/photos")
+        self.assertEqual(services["immich"]["status"], "unknown")
+        self.assertEqual(services["nextcloud"]["browserUrl"], "")
+        probes.assert_not_called()
+
+    def test_explicit_browser_url_overrides_the_owner_profile(self):
+        with patch.dict(m.os.environ, {
+            "CORA_SERVICE_IMMICH_BROWSER_URL": " https://photos.example.test/photos ",
+        }):
+            self.assertEqual(m.service_browser_url("immich"), "https://photos.example.test/photos")
+
+    def test_unreadable_browser_profile_does_not_break_monitoring(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as directory, patch.dict(m.os.environ, {}, clear=True):
+            path = Path(directory) / "links.json"
+            with patch.object(m, "_browser_links_path", path):
+                self.assertEqual(m.service_browser_url("immich"), "")
+                for invalid in ("not json", "[]", '{"immich": null}'):
+                    path.write_text(invalid)
+                    self.assertEqual(m.service_browser_url("immich"), "")
+
     def test_live_endpoints_without_ollama_or_graph(self):
         response = self.client.get("/api/v1/server/telemetry")
         self.assertEqual(response.status_code, 200)
