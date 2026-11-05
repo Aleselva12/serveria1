@@ -224,7 +224,31 @@ reale resta da eseguire, senza installazione automatica.
 
 ### Aggiornamento richiesto dall’interfaccia
 
-Il servizio host separato in [updater/README.md](../updater/README.md) completa commit, build, backup, prova delle migrazioni su copia, applicazione e recupero da Programma. La prima installazione è manuale. Il normale `manage.py up` resta disponibile per il bootstrap e la manutenzione host; quando si usa l’updater, le immagini attive vengono gestite dal suo file di override privato: non eseguire in parallelo `manage.py up`, checkout o restore manuali.
+Il servizio host separato in [updater/README.md](../updater/README.md) completa commit,
+build, backup, prova delle migrazioni su copia, applicazione e recupero. La pagina
+Aggiornamenti può preparare direttamente il `main` GitHub corrente e applicare il
+candidato soltanto dopo conferma esplicita. La prima installazione dell'updater resta
+manuale. Il normale `manage.py up` resta disponibile per bootstrap/manutenzione host;
+quando si usa l’updater, le immagini attive sono gestite dal suo override privato:
+non eseguire in parallelo `manage.py up`, restore o altri deployment manuali.
+
+**Checkout host e release installata sono due cose diverse.** L'updater può installare
+un commit nuovo nelle immagini Docker senza avanzare automaticamente il checkout
+`/srv/cora-server-test`. Per usare helper host nuovi (per esempio un nuovo comando
+di `deploy/manage.py`), prima verificare che non ci siano modifiche locali e poi
+riallineare esplicitamente:
+
+```sh
+cd /srv/cora-server-test
+git status --short
+git fetch origin
+git checkout main
+git pull --ff-only origin main
+```
+
+Non usare `reset --hard` come scorciatoia: un checkout con modifiche locali va
+revisionato prima. Il commit effettivamente installato resta quello dichiarato
+dall'updater, non quello mostrato dal solo checkout.
 
 
 ### Override e impostazioni persistenti
@@ -368,6 +392,33 @@ Google Calendar ha token separato da Gmail: configurare `CORA_GOOGLE_CALENDAR_CR
 
 
 ## Google Calendar: rinnovo e ricollegamento dal sito
+
+### Bootstrap iniziale con client OAuth Desktop
+
+Per il primo collegamento è supportato anche il flusso CLI con client Google di tipo
+**Applicazione desktop**. Salvare il JSON privato in
+`state/gmail/credentials.json` (nel container `/state/gmail/credentials.json`);
+il token Calendar viene invece salvato separatamente in
+`state/google-calendar/token.json`.
+
+Dal PC aprire un tunnel verso il loopback del server, usando una porta libera:
+
+```powershell
+ssh -L 8766:127.0.0.1:8766 ale@serverale
+```
+
+Poi, dal checkout host:
+
+```sh
+cd /srv/cora-server-test
+python3 deploy/manage.py google-calendar-auth --port 8766 --login-hint owner@example.com
+```
+
+Il comando avvia un container temporaneo usando l'immagine API già installata,
+`--network host` e il solo mount persistente `/state`; il listener OAuth resta
+vincolato a `127.0.0.1`. Non serve aggiungere una porta permanente a `compose.yml`.
+Se la porta è occupata, cambiare **sia** il tunnel sia `--port` con lo stesso valore.
+Non pubblicare mai `credentials.json` o `token.json` in Git.
 
 Il token di accesso si rinnova già automaticamente tramite refresh token. Un consenso revocato/scaduto richiede l'intervento del proprietario: Cora mostra "Autorizzazione Google da rinnovare" e il pulsante **Ricollega Google**. Il pulsante non si apre da solo e non viene avviato un loop di autorizzazioni. Un errore di rete temporaneo non richiede di cambiare account.
 
