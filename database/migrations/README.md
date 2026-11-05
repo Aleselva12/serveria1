@@ -17,7 +17,7 @@ esplicite e revisionabili. Prima di aggiornare creare e verificare un backup.
 Un downgrade del codice non è un downgrade del DB: ripristinare il backup su
 un target vuoto con la versione corrispondente.
 
-## Inventario alla base dell’audit
+## Inventario corrente della repository
 
 | Versione | Contenuto |
 | --- | --- |
@@ -27,7 +27,9 @@ un target vuoto con la versione corrispondente.
 | 0004 | Sottoscrizioni notifiche push |
 | 0005 | Progetti delle conversazioni |
 | 0006 | Proposte di note commerciali Word |
+| 0007 | Risultati append-only dei controlli salute/progetto |
+| 0008 | Corpus di esempi del router shadow locale |
 
 L’esecutore è `core/database.py` dalla radice del repository. Normalizza CRLF in LF prima del checksum; rifiuta versioni duplicate, inserimenti precedenti all’ultima applicata, checksum cambiati e schema più nuovo del codice. Si attiva alla prima connessione che richiede lo schema, non è un comando di deploy separato.
 
-Il test di contratto è `tests/test_database_migration_contract.py`; i test PostgreSQL e il trial updater richiedono istanze sacrificabili. Nessuna migrazione sul Debian reale eseguita nell’[audit del 25 ottobre](../../docs/README_AUDIT_20261025.md).
+Il test di contratto è `tests/test_database_migration_contract.py`; i test PostgreSQL e il trial updater richiedono istanze sacrificabili. L’[audit del 25 ottobre](../../docs/README_AUDIT_20261025.md) resta una fotografia storica e non prova quali migrazioni siano oggi applicate sul Debian: per quello usare il commit attivo dell'updater e `cora_schema_migrations` sul database reale.
