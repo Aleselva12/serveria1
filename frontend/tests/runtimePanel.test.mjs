@@ -10,7 +10,7 @@ import {create,act} from 'react-test-renderer';
 const require=createRequire(import.meta.url);
 const external=n=>JSON.stringify(pathToFileURL(require.resolve(n)).href);
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
-let calls=[],policy='auto',unknownEffects=[],history=[],reviewCalls=[],telemetry=null,failPaths=[];
+let calls=[],policy='auto',unknownEffects=[],history=[],reviewCalls=[],telemetry=null,failPaths=[],domainPages=null,diagnosticGate=null;
 globalThis.__panelRequest=async(path,init={})=>{
  calls.push(path);
  if(failPaths.some(prefix=>path.startsWith(prefix)))throw Error('Endpoint unavailable: '+path);
@@ -20,6 +20,8 @@ globalThis.__panelRequest=async(path,init={})=>{
  if(path==='/runtime')return {runs:[],pool:{},traces:{write_error:null,diagnostics:telemetry}};
  if(path==='/runtime/coordinator')return {mode:'read_only_coordinator',ownership_validation:{valid:true,count:11,duplicate_concerns:[]},runtime:{accepting_runs:true,active_runs:0,worker_slots:1},component_bus:{components:{supervisor:{status:'ready',last_decision:'complete',last_duration_ms:12}},transport:'in_process'},event_bus:{transport:'in_process',sequence:3,authoritative_history:false},permissions:{rules:10,policies:{auto:8,confirm:2},validation:{valid:true}},guarantees:{changes_state:false,routes_user_requests:false,schedules_workers:false,executes_tools:false},larva:{version:0,mode:'observer_only',status:'nominal',issues:[],actions_taken:[]}};
  if(path==='/runtime/capabilities')return {version:1,source:'test',count:1,available:1,capabilities:[{id:'supervisor.calculate',name:'calculator_tool',description:'calcolo',actor:'supervisor',component:'supervisor',connected:true,effect:'compute',retry:'safe',response_mode:'data',approval:'generic',required_inputs:['expression'],permissions:[{action:'calculate',policy:'auto'}],runtime:{status:'ready'},inference:{model:'small',machine_id:'local'},available_now:true,contract_version:1}]};
+ if(path.startsWith('/runtime/domain-events?') && domainPages?.length)return domainPages.shift();
+ if(path.startsWith('/runtime/diagnostics?') && diagnosticGate)return diagnosticGate;
  if(path.startsWith('/runtime/domain-events?'))return {events:[{id:'event1',sequence:1,type:'run.committed',source:'supervisor',component_run_id:'root',payload:{status:'completed'}}],next_cursor:1};
  if(path.startsWith('/runtime/diagnostics?'))return {events:[],next_before:null};
  if(path==='/approvals')return {generic:[],calendar:[],history:[]};
@@ -129,4 +131,33 @@ test('historical archive write failures remain visible after last error clears',
     if(r)await act(async()=>r.unmount());
     telemetry=null;
   }
+});
+
+
+test('live detail polling advances the committed cursor and pause rejects late samples',async()=>{
+ const original=setInterval,clear=clearInterval,doc=globalThis.document;
+ const timers=new Map();let counter=0,r,release;
+ globalThis.setInterval=fn=>{timers.set(++counter,fn);return counter;};
+ globalThis.clearInterval=id=>timers.delete(id);globalThis.document={hidden:false};
+ history=[{id:'root',status:'completed',target:'supervisor',approval_ids:[]}];calls=[];
+ const fact=(id,sequence)=>({id,sequence,type:'run.committed',timestamp:'2026-11-05T10:00:00Z',source:'supervisor',component_run_id:'root',payload:{status:'completed'}});
+ domainPages=[{events:[fact('first',100)],next_cursor:100},{events:[fact('second',101)],next_cursor:101},{events:[fact('late-sample',102)],next_cursor:102}];
+ try {
+  await act(async()=>{r=create(React.createElement(Panel));});
+  await act(async()=>r.root.findAllByType('button').find(b=>b.children.includes('Vedi operazioni')).props.onClick());
+  const poll=()=>[...timers.values()].at(-1)();
+  await act(async()=>poll());
+  assert.ok(calls.some(p=>p.includes('/runtime/domain-events?')&&p.endsWith('after=100')));
+  diagnosticGate=new Promise(resolve=>{release=resolve;});
+  await act(async()=>poll());
+  assert.ok(calls.some(p=>p.includes('/runtime/domain-events?')&&p.endsWith('after=101')));
+  await act(async()=>r.root.findAllByType('button').find(b=>b.children.includes('● Live')).props.onClick());
+  await act(async()=>release({events:[],next_before:null}));
+  assert.ok(!JSON.stringify(r.toJSON()).includes('late-sample'));
+  assert.ok(JSON.stringify(r.toJSON()).includes('Live in pausa'));
+ } finally {
+  if(r)await act(async()=>r.unmount());
+  globalThis.setInterval=original;globalThis.clearInterval=clear;globalThis.document=doc;
+  history=[];domainPages=null;diagnosticGate=null;
+ }
 });

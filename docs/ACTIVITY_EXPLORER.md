@@ -36,13 +36,15 @@ della verifica degli effetti restano nei controlli operativi esistenti.
   consultabile per tutti i passaggi caricati.
 - Live ogni 5 secondi, sospeso nella scheda nascosta. La diagnostica live mostra
   gli ultimi 100 eventi; caricare pagine precedenti mette il live in pausa.
+  Gli eventi persistenti avanzano dal cursore già caricato. Le risposte in
+  ritardo non sostituiscono il campione messo in pausa.
 - Niente nuovi prompt, ragionamenti o output dei tool nell'archivio diagnostico.
 - Layout adattivo e supporto a tastiera/riduzione movimento. Collaudo visivo su
   browser e verifica sul Debian reale ancora da completare.
 
 ## Validazione locale
 
-182 test frontend superati, build TypeScript/Vite riuscita e `git diff --check`
+185 test frontend superati, build TypeScript/Vite riuscita e `git diff --check`
 superato. Test mirati su replay storico, evidenze mancanti, divergenze modello,
 effetti incerti, origine dei fatti persistenti, topologie cicliche, polling e
 preservazione dei controlli operativi. Nessun deploy o inferenza reale eseguiti.

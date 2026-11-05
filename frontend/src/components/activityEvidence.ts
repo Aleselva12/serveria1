@@ -30,6 +30,8 @@ export function buildEvidence(run:RunSnapshot|undefined, events:TraceEvent[], op
   if (!observations.some(o=>o?.reported_model)) warnings.push('Identità del modello non confermata da una risposta del provider.');
   if (operations.some(o=>o.status==='uncertain')) warnings.push('Ci sono effetti incerti: verificare il risultato prima di ripetere azioni.');
   if (run?.status==='completed' && operations.some(o=>['failed','uncertain'].includes(o.status))) warnings.push('Run concluso con operazioni fallite o incerte: il successo globale non certifica ogni effetto.');
+  if ([...spans.values()].some(s=>['failed','error'].includes(s.status))) warnings.push('Una chiamata tracciata è fallita: controlla errore e risultato anche se il run è concluso.');
+  if (run && ['failed','interrupted','cancelled','timed_out'].includes(run.status)) warnings.push('Il run non si è concluso regolarmente: verifica l’esito e gli eventuali effetti già prodotti.');
   return {steps,warnings};
 }
 

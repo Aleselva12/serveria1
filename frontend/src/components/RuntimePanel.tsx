@@ -24,6 +24,8 @@ export default function RuntimePanel() {
   const [events,setEvents] = useState<Event[]>([]);
   const [technical,setTechnical] = useState<Event[]>([]);
   const [eventCursor,setEventCursor] = useState(0);
+  const eventCursorRef = useRef(0);
+  eventCursorRef.current=eventCursor;
   const [olderCursor,setOlderCursor] = useState<string|null>(null);
   const [accepting,setAccepting] = useState(true);
   const detailRevision = useRef(0);
@@ -42,6 +44,16 @@ export default function RuntimePanel() {
   liveRef.current=live;
   const selectedSnapshot = runs.find(r => r.id === selectedRun) || history.find(r => r.id === selectedRun);
   const explorerRuns = [...runs,...history.filter(h=>!runs.some(r=>r.id===h.id))];
+  function changeLive(value:boolean) {
+    liveRef.current=value;
+    setLive(value);
+    if(!value) {
+      // A background request already in flight must not replace a paused sample.
+      detailRevision.current++;
+      detailPending.current=false;
+      setDetailLoading(false);
+    }
+  }
   const causal = (() => {
     const timings = selectedSnapshot?.timings || {};
     const route = typeof timings.primary_route === 'string' ? timings.primary_route : null;
@@ -133,7 +145,7 @@ export default function RuntimePanel() {
     setDetailError("");
     const outcomes = await Promise.allSettled([
       runtimeRequest<CapabilityOperation[]>("/runtime/operations?run_id="+encodeURIComponent(id)+"&limit=100"),
-      runtimeRequest<{events:Event[];next_cursor:number}>("/runtime/domain-events?run_id="+encodeURIComponent(id)+"&limit=100"),
+      runtimeRequest<{events:Event[];next_cursor:number}>("/runtime/domain-events?run_id="+encodeURIComponent(id)+"&limit=100&after="+(keep?eventCursorRef.current:0)),
       runtimeRequest<{events:Event[];next_before:string|null}>("/runtime/diagnostics?run_id="+encodeURIComponent(id)+"&limit=100"),
     ] as const);
     if (revision !== detailRevision.current) return;
@@ -173,7 +185,7 @@ export default function RuntimePanel() {
   return <div className="runtime-panel">
     {error && <p role="alert">{error}</p>}
     {traceError && <p role="status">Tracce tecniche non aggiornate: {traceError}. Gli esiti persistenti sono nella sezione Run.</p>}
-    <ActivityExplorer runs={explorerRuns} selected={selectedSnapshot} selectedId={selectedRun} events={[...technical,...events.filter(e=>!technical.some(t=>t.id===e.id))]} operations={operations} onSelect={id=>void inspectRun(id)} loading={detailLoading} error={[detailError, error, operations.length===100 ? "Limite di 100 operazioni raggiunto: questa vista può essere parziale." : "", diagnostics && (diagnostics.dropped>0 || (diagnostics.write_failures ?? 0)>0) ? "L’archivio diagnostico segnala perdite o errori nel processo: il percorso potrebbe essere incompleto." : ""].filter(Boolean).join(" ")} older={Boolean(olderCursor)} onOlder={()=>{setLive(false);void loadEvents(true);}} live={live} onLive={setLive} onRefresh={()=>{void refresh();if(selectedRun)void inspectRun(selectedRun,true);}} />
+    <ActivityExplorer runs={explorerRuns} selected={selectedSnapshot} selectedId={selectedRun} events={[...technical,...events.filter(e=>!technical.some(t=>t.id===e.id))]} operations={operations} onSelect={id=>void inspectRun(id)} loading={detailLoading} error={[detailError, error, operations.length===100 ? "Limite di 100 operazioni raggiunto: questa vista può essere parziale." : "", diagnostics && (diagnostics.dropped>0 || (diagnostics.write_failures ?? 0)>0) ? "L’archivio diagnostico segnala perdite o errori nel processo: il percorso potrebbe essere incompleto." : ""].filter(Boolean).join(" ")} older={Boolean(olderCursor)} onOlder={()=>{changeLive(false);void loadEvents(true);}} live={live} onLive={changeLive} onRefresh={()=>{void refresh();if(selectedRun)void inspectRun(selectedRun,true);}} />
     <details className="runtime-secondary"><summary>Controlli operativi, approvazioni e diagnostica</summary>
     {coordinator && <article className="section-card"><h2>Coordinamento interno · Gruppo B</h2><p>Vista read-only: non esegue tool, non instrada richieste e non modifica worker o permessi.</p><p>Ownership stato: {coordinator.ownership_validation.valid ? 'coerente' : 'da verificare'} · {coordinator.ownership_validation.count} categorie · run attivi {coordinator.runtime.active_runs} · slot esecuzione {coordinator.runtime.worker_slots}.</p><p>Event Bus: {coordinator.event_bus.transport} · sequenza {coordinator.event_bus.sequence} · storico autorevole: {coordinator.event_bus.authoritative_history ? 'sì' : 'no'} · regole permessi {coordinator.permissions.rules}.</p><details><summary>Component Bus · {Object.keys(coordinator.component_bus.components).length} componenti osservati</summary>{Object.entries(coordinator.component_bus.components).map(([name,state])=><p key={name}><strong>{name}</strong> · {state.status || 'unknown'}{state.last_decision ? ' · '+state.last_decision : ''}{typeof state.last_duration_ms === 'number' ? ' · '+Math.round(state.last_duration_ms)+' ms' : ''}{state.error_type ? ' · '+state.error_type : ''}</p>)}</details>{coordinator.larva && <p>Larva-system v{coordinator.larva.version}: <strong>{coordinator.larva.status}</strong>{coordinator.larva.issues.length ? ' · ' + coordinator.larva.issues.map(i=>i.code).join(', ') : ' · nessuna anomalia oggettiva rilevata'}.</p>}{(!coordinator.ownership_validation.valid || !coordinator.permissions.validation.valid) && <p role="alert">Configurazione interna incoerente: controlla ownership e permessi prima di automatizzare scheduling o recovery.</p>}</article>}
     {capabilities && <article className="section-card"><h2>Capability Registry operativo</h2><p>{capabilities.available}/{capabilities.count} capability disponibili ora. La vista deriva dai contratti eseguibili reali, non da placeholder.</p><details><summary>Mostra capability</summary>{capabilities.capabilities.map(c=><div key={c.id}><strong>{c.id}</strong> · {c.runtime.status} · {c.effect} · retry {c.retry}<p>{c.description}</p><p>Componente: {c.component} · input richiesti: {c.required_inputs.join(', ') || 'nessuno'} · approval: {c.approval}</p><p>Permessi: {c.permissions.map(p=>p.action+':'+p.policy).join(' · ') || '—'}{c.inference ? ' · modello '+c.inference.model+' @ '+c.inference.machine_id : ''}</p></div>)}</details></article>}

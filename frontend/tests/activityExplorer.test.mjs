@@ -40,6 +40,22 @@ test('transactional facts retain their origin and disconnected proofs gain no in
  assert.ok([...layout.positions.values()].every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)));
 });
 
+test('a failed trace remains visible despite global completion',()=>{
+ const result=buildEvidence(run,[{...end,payload:{...end.payload,status:'error',error_type:'ToolError'}}],[]);
+ assert.ok(result.warnings.some(w=>w.includes('chiamata tracciata è fallita')));
+});
+
+test('non-span events with a span reference open their own recorded detail',async()=>{
+ let root;
+ const finished={...end,id:'finished',type:'tool.finished',payload:{status:'completed',operation_id:'operation-proof'}};
+ try {
+  await act(async()=>{root=create(React.createElement(Explorer,{runs:[run],selected:run,selectedId:'r',events:[finished],operations:[],onSelect:()=>{},loading:false,error:'',older:false,onOlder:()=>{},live:false,onLive:()=>{},onRefresh:()=>{}}));});
+  await act(async()=>root.root.findAllByType('button').find(b=>b.props['aria-label']==='Esamina evento 1').props.onClick({stopPropagation(){}}));
+  const inspector=root.root.findByProps({'aria-label':'Dettaglio del passaggio'});
+  assert.ok(inspector.findAllByType('pre').some(n=>n.children.join('').includes('operation-proof')));
+ } finally {if(root)await act(async()=>root.unmount());}
+});
+
 test('replay reveals historical state, not future completion, and cannot invoke tools',async()=>{
  let root,liveChanges=[];
  try {
