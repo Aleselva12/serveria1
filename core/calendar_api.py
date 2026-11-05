@@ -45,6 +45,9 @@ def run(function, *args, **kwargs):
     except google_calendar.GoogleCalendarNotConnected as error:
         raise HTTPException(503, str(error)) from error
     except HttpError as error:
+        from core.verification_usage import record
+        if error.resp.status in (401, 403) or error.resp.status >= 500:
+            record("calendar_e2e", "fail", "Google Calendar ha rifiutato la richiesta reale; verificare autorizzazioni e disponibilità")
         raise HTTPException(502, "Google Calendar non disponibile o autorizzazione insufficiente.") from error
     except (OperationalError, RuntimeError) as error:
         raise HTTPException(503, "Calendario non disponibile: verifica PostgreSQL/Google Calendar.") from error

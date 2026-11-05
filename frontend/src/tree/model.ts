@@ -16,6 +16,13 @@ export function severity(n:Node,nodes:Node[],failures:Set<string>):string {
 }
 /** References only the pre-existing shared health catalog; never runs checks from the map. */
 export const checks:Record<string,string[]>={
+  "R1.2.p2":["desktop_e2e"],"R1.2.p2.m2":["desktop_e2e"],"R1.2.p3.m1":["desktop_e2e"],
+  "R1.3.p2":["laptop_e2e"],
+  "T1.p1":["chat_contract","chat_e2e"],"T1.p1.m2":["chat_e2e"],
+  "T6.p1":["memory_regression"],"T6.p1.m1":["memory_regression"],"T6.p1.m2":["memory_regression"],
+  "T8.p3":["worker_e2e"],"T8.p3.m1":["worker_e2e"],"T8.p3.m2":["worker_e2e"],
+  "B1.p2.m1":["files_e2e"],"B1.p2.m2":["files_regression"],"B1.p3.m2":["files_regression"],
+  "C1b.m1":["calendar_regression"],"C1b.m2":["calendar_regression"],
   "R1.2":["worker_contract","desktop_e2e"],"R1.3":["worker_contract","laptop_e2e"],
   "R2.1":["database"],"B2":["library"],"C3":["audio","audio_word_contract","audio_e2e"],
   "B3":["word_sample"],"R3.1":["ollama"],

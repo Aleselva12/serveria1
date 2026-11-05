@@ -136,7 +136,7 @@ class AssignmentTests(unittest.TestCase):
     def test_remote_dispatch_checks_profile_every_request_and_keeps_settings(self):
         row = {'id': 'pc', 'enabled': True, 'active_profile': 'light', 'profiles': {'heavy': 'big', 'medium': 'mid', 'light': 'small'}}
         before = json.dumps(row, sort_keys=True)
-        with patch.dict(os.environ, {'CORA_RUNTIME_MODE': 'server'}), patch('core.machines_api._find', return_value=row), patch('core.machines_api._worker_call', return_value={'agent_chat': True}) as call:
+        with patch.dict(os.environ, {'CORA_RUNTIME_MODE': 'server'}), patch('core.machines_api._find', return_value=row), patch('core.machines_api._worker_call', return_value={'agent_chat': True, 'model': 'small', 'done': True, 'message': {'role':'assistant','content':'OK'}}) as call:
             assignments.chat_on_worker('pc', 'small', {'messages': [{'role': 'user', 'content': 'hello'}], 'tools': [], 'model': 'small'})
             self.assertEqual(call.call_args.args[1], '/chat')
             self.assertFalse(call.call_args.args[2]['stream'])

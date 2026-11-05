@@ -84,7 +84,7 @@ export default function NodeVerificationPanel({onResults}:{onResults:()=>void}){
   const unknown=job?.results.filter(r=>r.status!=="pass"&&r.status!=="fail").length||0;
   return <section className="rm2-verification" aria-label="Collaudo manuale dal sito">
     <div className="rm2-verification-heading"><div><h2>Collaudi della mappa</h2>
-      <p>Un clic avvia una sola esecuzione sul server. Puoi chiudere la pagina e ritrovare qui l'avanzamento e gli esiti.</p></div>
+      <p>Un clic avvia una sola esecuzione sul server. La mappa si aggiorna anche dopo operazioni reali confermate su Calendar e worker; qui rimane lo storico dell’ultima suite.</p></div>
       <button type="button" onClick={()=>void start()} disabled={starting||running||!state||Boolean(error)}>
         {starting?"Avvio…":running?"Collaudi in corso…":"Avvia collaudi una tantum"}
       </button></div>
@@ -92,7 +92,7 @@ export default function NodeVerificationPanel({onResults}:{onResults:()=>void}){
       {([['Desktop',desktop,setDesktop],['Laptop',laptop,setLaptop]] as const).map(([name,value,set])=><label key={name}>{name}
         <select value={value} disabled={starting||running} onChange={e=>set(e.target.value)}><option value="">Usa configurazione del server</option>
           {machines.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>)}
-      <p>I test usano il modello già selezionato nella pagina Macchine e possono caricarlo in memoria.</p>
+      <p>I test usano il modello già selezionato in Macchine. Per spostare la chat principale sul desktop, assegna quel worker al Supervisor in Architettura.</p>
     </details>}
     {error&&<p role="alert">{error} <button type="button" onClick={()=>setRefreshKey(v=>v+1)}>Riprova stato</button></p>}
     {!state&&!error&&<p role="status">Caricamento collaudi disponibili…</p>}

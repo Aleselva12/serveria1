@@ -63,19 +63,13 @@ test("old automatic checks expire and cannot be considered current",()=>{
   const past=new Date(Date.now()-11*60*1000).toISOString();
   assert.equal(checkState(contract,result(contract.id,sha,"debian-api","pass",past),sha),"stale");
 });
-test("future Gmail entries have no test runner and never show a fabricated pass",()=>{
+test("Gmail runnable scope is explicit and simulated drafts never claim a live account",()=>{
   const catalog=read("../../core/health_catalog.py");
-  for(const id of ["gmail_contract","gmail_e2e"]){
-    assert.match(catalog,new RegExp('entry\\("'+id+'"[\\s\\S]*?"to_implement"'));
-    const def=definition(id,id.endsWith("_e2e")?"e2e":"contract","to_implement");
-    assert.equal(checkState(def,result(id),sha),"planned");
-    assert.equal(verifiedLiveE2E(def,result(id),sha),false);
-  }
-  assert.match(catalog,/"gmail": "Email e Gmail"/);
-  const runner=read("../../core/project_checks.py");
-  assert.match(runner,/if item\["automated"\]/);
-  assert.ok(!runner.includes('def _gmail('));
+  assert.match(catalog,/"Gmail: bozza MIME con trasporto simulato"/);
+  const def=definition("gmail_e2e","synthetic");
+  assert.equal(verifiedLiveE2E(def,result(def.id),sha),false);
 });
+
 test("the roadmap uses active release and shared checks without a second test runner",()=>{
   const view=read("../src/tree/TreeHome.tsx");
   assert.ok(view.includes('api.healthDashboard()'));
@@ -102,4 +96,21 @@ test("CI failures do not turn a live node red and future timestamps never pass",
 test("functional evidence expires too",()=>{
   const d=definition("chat_e2e");
   assert.equal(checkState(d,result(d.id,sha,"debian-api","pass",new Date(Date.now()-25*3600000).toISOString()),sha),"stale");
+});
+
+test("passed checks turn green despite old project notes; contract scope is not a live E2E",()=>{
+ const d=definition("orchestrator_v1_contract","contract","5m");
+ const n={...node,knownIssues:["Sviluppo futuro ancora documentato"]};
+ assert.equal(starTone(n,dashboard([[d,result(d.id)]]),sha,{A1:[d.id]}),"ok");
+ assert.equal(verifiedLiveE2E(d,result(d.id),sha),false);
+ assert.equal(starTone(n,dashboard([[d,result(d.id,sha,"debian-api","fail")]]),sha,{A1:[d.id]}),"problem");
+});
+
+test("focused worker nodes update only covered scopes; GPU is not certified by inference",async()=>{
+ const {checks}=await import("data:text/javascript;base64,"+Buffer.from(ts.transpileModule(read("../src/tree/model.ts"),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString("base64"));
+ const d=definition("desktop_e2e");
+ const health=dashboard([[d,result(d.id)]]);
+ const moon={classification:"moon",status:"partial"};
+ assert.equal(starTone({...moon,id:"R1.2.p3.m1"},health,sha,checks),"ok");
+ assert.notEqual(starTone({...moon,id:"R1.2.p1.m1"},health,sha,checks),"ok");
 });

@@ -111,6 +111,8 @@ def _release() -> str:
 
 
 def _environment():
+    if os.getenv("GITHUB_ACTIONS") == "true":
+        return "ci-api"
     return "debian-api" if sys.platform == "linux" and os.getenv("CORA_RUNTIME_MODE") == "server" else "local-api"
 
 
@@ -245,6 +247,26 @@ def health_dashboard():
 
     latest = {row["check_id"]:public(row) for row in latest_rows if row["check_id"] in CATALOG}
     history = [public(row) for row in records if row["check_id"] in CATALOG]
+    # A missing dedicated test account is not a regression of an operation
+    # already confirmed during normal use. Preserve its ORIGINAL timestamp.
+    pending = [key for key, row in latest.items() if row["status"] in {"unknown", "skipped"}
+               and not row["detail"].startswith("Uso reale:")]
+    if pending:
+        try:
+            with db_connection(ensure_schema=False) as conn:
+                previous = conn.execute("""SELECT DISTINCT ON (check_id)
+                  check_id,status,detail,source,environment,commit_sha,duration_ms,observed_at
+                  FROM project_health_results WHERE check_id=ANY(%s)
+                    AND (status IN ('pass','fail') OR detail LIKE 'Uso reale:%%')
+                  ORDER BY check_id,observed_at DESC,id DESC""", (pending,)).fetchall()
+            for row in previous:
+                age = (datetime.now(timezone.utc) - row["observed_at"]).total_seconds()
+                if (row["status"] in {"pass", "fail"} and row["detail"].startswith("Uso reale:") and row["commit_sha"] == _release()
+                    and row["environment"] == _environment()
+                    and 0 <= age <= CATALOG[row["check_id"]].get("maxAgeSeconds", 86400)):
+                    latest[row["check_id"]] = public(row)
+        except Exception:
+            pass
     volatile = snapshot()
     # Temporary snapshot is expressly labeled as such, not durable evidence.
     if not latest and volatile["checks"]:
