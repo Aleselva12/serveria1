@@ -1,5 +1,34 @@
 # Aggiornamenti richiesti dal proprietario
 
+## Due percorsi distinti
+
+L'updater serve oggi due flussi che condividono lo stesso motore host ma non vanno
+confusi:
+
+1. **Aggiornamento diretto di Cora da `main`**: dalla pagina Aggiornamenti il
+   proprietario preme **Prepara aggiornamento da GitHub**. Il backend chiede
+   all'updater un workspace dal branch `main`, salva il commit esatto, costruisce
+   API/web e completa le verifiche. Solo dopo che il candidato è pronto compare
+   l'azione di installazione e serve una conferma esplicita.
+2. **Rilascio del Programmatore**: un workspace Git separato contiene modifiche
+   richieste dal proprietario; viene committato, verificato, eventualmente pubblicato
+   su un branch GitHub e applicato con il normale ciclo di rilascio.
+
+In entrambi i casi il commit candidato è immutabile durante build/verifica e non
+vengono incorporate modifiche locali non committate. Un errore di preparazione non
+modifica la release attiva.
+
+**Il software updater installato è separato da Cora.** Aggiornare API/web non
+sostituisce automaticamente `/srv/cora-updater/installed` o
+`/srv/cora-tools/updater/installed`: modifiche al controllore host richiedono una
+revisione/installazione separata con servizio fermo e senza job in corso.
+
+**Anche il checkout host è separato dalla release.** L'installazione di un candidato
+aggiorna le immagini e il commit attivo dell'updater, ma un checkout come
+`/srv/cora-server-test` può restare indietro. Per eseguire nuovi helper host dalla
+checkout, riallinearla esplicitamente solo dopo aver verificato `git status`; non
+dedurre la release installata da `git log` del checkout.
+
 Il Programmatore può modificare il codice di Cora, salvare un commit Git locale, preparare immagini Docker e richiederne l'applicazione. L'updater è un servizio **separato sul server Debian**, installato fuori dal repository e da state: continua a lavorare quando Cora si ferma. Non genera proposte, non avvia aggiornamenti periodici del codice e non decide cambiamenti. Può eseguire backup dati periodici solo se abilitati esplicitamente nella configurazione host. Esegue soltanto richieste salvate dal proprietario, incluse richieste già accettate prima di una disconnessione o di un riavvio del servizio.
 
 ## Una volta sul server
