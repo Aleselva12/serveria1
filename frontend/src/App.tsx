@@ -626,10 +626,12 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                     delle esecuzioni di Cora.
                   </p>
                 </div>
-                <span className="pill">Runtime · Sola lettura</span>
+                <span className="pill">Percorsi e prove di esecuzione</span>
               </div>
-              <LibraryMonitorFeed />
               <div className="activity-layout">
+                <RuntimePanel />
+                <details className="activity-secondary"><summary>Registro Libreria e richieste della sessione</summary>
+                <LibraryMonitorFeed />
                 <div className="section-card activity-session-card">
                   <h2>Richieste della sessione</h2>
                   <p className="muted">
@@ -666,8 +668,8 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                     ))
                   )}
                 </div>
-                <RuntimePanel />
-                <ArchitectureRuntime showGraph={false} showTraces />
+                </details>
+                <details className="activity-secondary"><summary>Archivio tecnico delle tracce</summary><ArchitectureRuntime showGraph={false} showTraces /></details>
               </div>
             </section>
           )}

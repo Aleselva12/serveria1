@@ -5,6 +5,7 @@ import {createRequire} from 'node:module';
 import {pathToFileURL} from 'node:url';
 import ts from 'typescript';
 import React from 'react';
+import {explorerUrl} from './activityLoader.mjs';
 import {create,act} from 'react-test-renderer';
 const require=createRequire(import.meta.url);
 const external=n=>JSON.stringify(pathToFileURL(require.resolve(n)).href);
@@ -28,6 +29,7 @@ globalThis.__panelRequest=async(path,init={})=>{
 };
 let s=await readFile(new URL('../src/components/RuntimePanel.tsx',import.meta.url),'utf8');
 let c=ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText.replace(/from "react\/jsx-runtime"/g,'from '+external('react/jsx-runtime')).replace(/from "react"/g,'from '+external('react')).replace('import { runtimeRequest } from "../services/runtimeApi";','const runtimeRequest=globalThis.__panelRequest;');
+c=c.replace(/from ['"]\.\/ActivityExplorer['"]/g,'from '+JSON.stringify(explorerUrl));
 const Panel=(await import('data:text/javascript;base64,'+Buffer.from(c).toString('base64'))).default;
 test('polling loads lightweight permissions once, skips hidden tabs and reloads after policy changes',async()=>{
  const original=globalThis.setInterval,clear=globalThis.clearInterval,doc=globalThis.document;let tick,r;
@@ -38,8 +40,8 @@ test('polling loads lightweight permissions once, skips hidden tabs and reloads 
   assert.equal(calls.filter(p=>p==='/permissions').length,1);assert.ok(!calls.includes('/runtime/registry'));assert.ok(calls.includes('/runtime/coordinator'));assert.ok(calls.includes('/runtime/capabilities'));
   globalThis.document.hidden=true;const count=calls.length;await act(async()=>tick());assert.equal(calls.length,count);
   globalThis.document.hidden=false;
-  await act(async()=>r.root.findByType('select').props.onChange({target:{value:'confirm'}}));
-  assert.equal(calls.filter(p=>p==='/permissions').length,2);assert.equal(r.root.findByType('select').props.value,'confirm');
+  await act(async()=>r.root.findAllByType('select').find(s=>s.props['aria-label']==='supervisor calculate').props.onChange({target:{value:'confirm'}}));
+  assert.equal(calls.filter(p=>p==='/permissions').length,2);assert.equal(r.root.findAllByType('select').find(s=>s.props['aria-label']==='supervisor calculate').props.value,'confirm');
  } finally {if(r)await act(async()=>r.unmount());globalThis.setInterval=original;globalThis.clearInterval=clear;globalThis.document=doc;}
 });
 
@@ -55,7 +57,7 @@ test('diagnostic losses are visible without turning canonical success into failu
   const before=calls.filter(p=>p.includes('/runtime/domain-events?')).length;
   await act(async()=>r.root.findAllByType('button').find(b=>b.children.includes('Carica eventi successivi')).props.onClick());
   assert.equal(calls.filter(p=>p.includes('/runtime/domain-events?')).length,before+1);
-  assert.equal(JSON.stringify(r.toJSON()).match(/run.committed/g).length,1);
+  assert.equal(r.root.findAllByType('strong').filter(n=>n.children.includes('run.committed')).length,1);
  } finally {if(r)await act(async()=>r.unmount());telemetry=null;history=[];}
 });
 
@@ -69,7 +71,7 @@ test('uncertain effects require a recorded verification and review never replays
   let button=r.root.findAllByType('button').find(b=>b.children.includes('Effetto verificato'));
   assert.equal(button.props.disabled,true);
   assert.ok(JSON.stringify(r.toJSON()).includes('esito incerto'));
-  await act(async()=>r.root.findByType('textarea').props.onChange({target:{value:'Ho verificato il file sul server'}}));
+  await act(async()=>r.root.findAllByType('textarea').find(n=>n.props['aria-label']==='Verifica uncertain-op').props.onChange({target:{value:'Ho verificato il file sul server'}}));
   button=r.root.findAllByType('button').find(b=>b.children.includes('Effetto verificato'));
   assert.equal(button.props.disabled,false);
   await act(async()=>button.props.onClick());
