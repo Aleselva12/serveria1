@@ -10,8 +10,10 @@ import json
 import os
 import re
 import threading
+import ipaddress
 from typing import Literal
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request
 
 from fastapi import APIRouter, HTTPException
@@ -93,8 +95,27 @@ def _schema() -> dict:
     return RawRatings.model_json_schema()
 
 
+def _local_ollama_url() -> str:
+    """Refuse public hosts: project notes and owner context must remain local."""
+    base = get_ollama_base_url()
+    url = urlsplit(base)
+    host = (url.hostname or "").lower()
+    if url.scheme not in {"http", "https"} or not host or url.username or url.password:
+        raise ValueError("Endpoint Ollama non valido.")
+    try:
+        address = ipaddress.ip_address(host)
+        local = (address.is_private or address.is_loopback or
+                 address in ipaddress.ip_network("100.64.0.0/10"))
+    except ValueError:
+        # Single-label hosts support Docker services; ts.net supports Tailscale.
+        local = host == "localhost" or "." not in host or host.endswith(".ts.net") or host.endswith(".local")
+    if not local:
+        raise ValueError("Classificatore consentito soltanto su Ollama locale o Tailscale.")
+    return base
+
+
 def _read_tags() -> set[str]:
-    with urlopen(get_ollama_base_url() + "/api/tags", timeout=4) as response:
+    with urlopen(_local_ollama_url() + "/api/tags", timeout=4) as response:
         if not 200 <= response.status < 300:
             raise OSError("Catalogo modelli non disponibile")
         data = json.loads(response.read(250_000))
@@ -152,7 +173,7 @@ def _evaluate(payload: PreviewRequest) -> dict:
         ],
         "keep_alive": "0",
     }
-    request = Request(get_ollama_base_url() + "/api/chat",
+    request = Request(_local_ollama_url() + "/api/chat",
         data=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json"}, method="POST")
     try:
