@@ -1,4 +1,4 @@
-"""Explicit, local-only Roadmap classifier. Read-only advisory output.
+"""Explicit, local-only Roadmap classifier. Persisted advisory output.
 
 No source-code scanning, no Git writes, no changes to map nodes, no background
 inference and no outbound cloud provider. This is an isolated capability that
@@ -11,6 +11,7 @@ import os
 import re
 import threading
 import ipaddress
+from datetime import datetime, timezone
 from typing import Literal
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
@@ -142,7 +143,20 @@ def model_status() -> dict:
 
 @router.get("/classifier/status")
 def classifier_status():
-    return model_status()
+    from core.priority_evaluations import latest
+    history = latest()
+    last = history["evaluation"]
+    return {**model_status(), "provider": "Ollama", "role": "roadmap_classifier",
+            "configuration_source": "CORA_ROADMAP_CLASSIFIER_MODEL" if os.getenv("CORA_ROADMAP_CLASSIFIER_MODEL", "").strip() else "default",
+            "separate_from_supervisor": True, "weights": WEIGHTS, "max_objectives": MAX_TASKS,
+            "history_available": history["available"],
+            "last_evaluation": {key:last.get(key) for key in ("model", "reported_model", "model_verified", "evaluated_at", "objective_count")} if last else None}
+
+
+@router.get("/classifier/latest")
+def latest_evaluation():
+    from core.priority_evaluations import latest
+    return latest()
 
 
 _SYSTEM = (
@@ -195,14 +209,26 @@ def _evaluate(payload: PreviewRequest) -> dict:
     received = [row.id for row in answer.items]
     if set(received) != expected or len(received) != len(expected):
         raise HTTPException(422, "La classificazione contiene ID mancanti, duplicati o inventati.")
+    from core.model_evidence import matches_requested
+    reported = reply.get("model") if isinstance(reply.get("model"), str) else None
+    if reply.get("done") is False or (reported and matches_requested(MODEL, reported) is not True):
+        raise HTTPException(422, "Valutazione incompleta o modello restituito diverso da quello configurato.")
     ordered = sorted(answer.items, key=lambda rating: (-score(rating), rating.id))
+    titles = {item.id:item.title for item in payload.objectives}
     return {
         "mode": "local_preview",
         "model": MODEL,
+        "reported_model": reported,
+        "model_verified": bool(reported and reply.get("done") is True),
+        "provider": "Ollama",
+        "evaluated_at": datetime.now(timezone.utc).isoformat(),
+        "objective_count": len(payload.objectives),
+        "weights": WEIGHTS,
+        "scoring_version": "weighted-v1",
         "source": "owner_requested_inference",
         "writes_map": False,
         "not_a_test_result": True,
-        "ratings": [{"id": r.id, "score": score(r), **r.model_dump(exclude={"id"})}
+        "ratings": [{"id": r.id, "title": titles[r.id], "score": score(r), **r.model_dump(exclude={"id"})}
                     for r in ordered],
         "warning": "Classificazioni indicative del modello locale: non sono verifiche del codice, "
                    "risultati dei test o priorità deliberate dall'utente.",
@@ -215,6 +241,11 @@ async def classifier_preview(payload: PreviewRequest):
     if not _BUSY.acquire(blocking=False):
         raise HTTPException(429, "Classificatore già occupato: completa la valutazione corrente.")
     try:
-        return await run_in_threadpool(_evaluate, payload)
+        evaluation = await run_in_threadpool(_evaluate, payload)
+        from core.priority_evaluations import save
+        persisted = await run_in_threadpool(save, evaluation)
+        return {**evaluation, "persisted": persisted,
+                "persistence_detail": "Valutazione salvata e disponibile in homepage." if persisted else
+                    "Valutazione non salvata: la homepage conserva l'ultimo risultato disponibile. Verifica il database e l'aggiornamento del server."}
     finally:
         _BUSY.release()

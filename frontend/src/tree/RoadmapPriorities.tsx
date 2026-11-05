@@ -1,13 +1,12 @@
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useState,useRef} from "react";
 import {BrainCircuit,AlertTriangle,CheckCircle2,RefreshCcw,Target,ExternalLink} from "lucide-react";
 import {apiBaseUrl} from "../services/api";
 import {authenticatedFetch} from "../services/transport";
+import {priorityApi,type PriorityEvaluation} from "../services/priorityApi";
 import type {Node} from "./model";
 
 type Status={model:string;installed:boolean;available:boolean;detail:string};
-type Rating={id:string;score:number;importance:number;urgency:number;blockers:number;impact:number;
-  effort:number;risk:number;confidence:"low"|"medium"|"high";explanation:string};
-type Preview={mode:string;model:string;ratings:Rating[];warning:string;writes_map:false};
+type Preview=PriorityEvaluation;
 const INITIAL=["T1","R5.2","G1","E1","E2","F2","R1.4","T9"];
 const MAX_ITEMS=8;
 const STRATEGY=["importance","urgency","blockers","impact","effort","risk"] as const;
@@ -24,6 +23,7 @@ export default function RoadmapPriorities({stars,onOpen}:Props){
  const [error,setError]=useState("");
  const [context,setContext]=useState("");
  const [preview,setPreview]=useState<Preview|null>(null);
+ const interactions=useRef(0),evaluationPending=useRef(false);
  const byId=useMemo(()=>new Map(stars.map(x=>[x.id,x])),[stars]);
  const eligible=selected.filter(id=>byId.has(id)).slice(0,MAX_ITEMS);
  const refresh=async()=>{
@@ -34,13 +34,23 @@ export default function RoadmapPriorities({stars,onOpen}:Props){
    setStatus(await response.json() as Status);
   }catch{setStatus(null);}finally{setChecking(false);}
  };
- useEffect(()=>{void refresh();},[]);
+ useEffect(()=>{
+  let active=true;const startedAt=interactions.current;
+  void refresh();
+  void priorityApi.latest().then(data=>{
+   if(active&&interactions.current===startedAt&&data.evaluation){setPreview(data.evaluation);setSelected(data.evaluation.ratings.map(r=>r.id).filter(id=>byId.has(id)).slice(0,MAX_ITEMS));}
+  }).catch(()=>undefined);
+  return()=>{active=false;};
+ },[]);
  const toggle=(id:string)=>{
+  if(evaluationPending.current)return;
+  interactions.current++;
   setPreview(null);setError("");
   setSelected(old=>old.includes(id)?old.filter(x=>x!==id):old.length<MAX_ITEMS?[...old,id]:old);
  };
  const evaluate=async()=>{
-  if(!eligible.length)return;
+  if(!eligible.length||evaluationPending.current)return;
+  evaluationPending.current=true;interactions.current++;
   setBusy(true);setError("");setPreview(null);
   const objectives=eligible.map(id=>{
    const n=byId.get(id)!;
@@ -61,11 +71,12 @@ export default function RoadmapPriorities({stars,onOpen}:Props){
    if(!response.ok)throw Error(body.detail||"Classificazione non disponibile.");
    if(!Array.isArray(body.ratings))throw Error("Il modello non ha restituito dati validi.");
    setPreview(body);
+   if(body.persisted)window.dispatchEvent(new Event("cora:priorities-updated"));
   }catch(e){setError(e instanceof Error?e.message:"Impossibile effettuare la classificazione.");}
-  finally{clearTimeout(timeout);setBusy(false);}
+  finally{evaluationPending.current=false;clearTimeout(timeout);setBusy(false);}
  };
  const display=(id:string)=>byId.get(id)?.title.replace(/^[A-Z][\d.]* · /,"")||id;
- return <section className="rm2-priorities" aria-label="Classificatore locale degli obiettivi">
+ return <section id="roadmap-priorities" className="rm2-priorities" aria-label="Classificatore locale degli obiettivi">
   <div className="rm2-priorities-heading"><div><small>MODULO SPERIMENTALE · SOLO LOCALE</small>
    <h2><BrainCircuit size={20}/> Analisi dei prossimi passi</h2>
    <p>Confronta alcuni obiettivi della mappa con un modello Ollama. Le valutazioni sono consigli,
@@ -80,12 +91,12 @@ export default function RoadmapPriorities({stars,onOpen}:Props){
    <summary>Seleziona obiettivi da confrontare ({eligible.length}/{MAX_ITEMS})</summary>
    <div>{stars.map(star=><label key={star.id}>
       <input type="checkbox" checked={selected.includes(star.id)} onChange={()=>toggle(star.id)}
-       disabled={!selected.includes(star.id)&&selected.length>=MAX_ITEMS}/>
+       disabled={busy||!selected.includes(star.id)&&selected.length>=MAX_ITEMS}/>
       <span>{star.code||star.id} · {display(star.id)}</span>
     </label>)}</div>
   </details>
   <label className="rm2-priorities-context">Ulteriori obiettivi o criteri (facoltativo)
-   <textarea value={context} onChange={e=>{setContext(e.target.value);setPreview(null);}} maxLength={500}
+   <textarea disabled={busy} value={context} onChange={e=>{interactions.current++;setContext(e.target.value);setPreview(null);}} maxLength={500}
     rows={2} placeholder="Esempio: privilegia la stabilità dei servizi rispetto alle funzioni nuove…"/>
   </label>
   <div className="rm2-priorities-actions">
@@ -96,7 +107,9 @@ export default function RoadmapPriorities({stars,onOpen}:Props){
   {error&&<p className="rm2-priorities-error" role="alert"><AlertTriangle size={15}/>{error}</p>}
   {preview&&<>
    <div className="rm2-priorities-result"><CheckCircle2 size={15}/> Proposta del modello {preview.model}.
-      Punteggi 0–100 indicativi; nessun aggiornamento della roadmap.</div>
+      Punteggi 0–100 indicativi · {preview.evaluated_at?new Date(preview.evaluated_at).toLocaleString("it-IT"):"Data non disponibile"}.
+      {preview.model_verified?" Modello effettivo confermato: "+preview.reported_model:" Modello effettivo non confermato dal provider."}</div>
+   {preview.persistence_detail&&<p role={preview.persisted===false?"alert":"status"}>{preview.persistence_detail}</p>}
    <div className="rm2-priorities-ratings">
     {preview.ratings.map((r,i)=><div className="rm2-priority-card" key={r.id}>
      <div><span className="rm2-priority-position">{i+1}</span><strong>{display(r.id)}</strong>

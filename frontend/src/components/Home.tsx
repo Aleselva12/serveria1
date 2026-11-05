@@ -1,3 +1,4 @@
+import PriorityAssessment from "./PriorityAssessment";
 import HealthDashboard from "./HealthDashboard";
 import LibraryMonitorFeed from "./LibraryMonitorFeed";
 import { Activity, HardDrive, PlugZap, ShieldCheck, Wifi } from "lucide-react";
@@ -61,6 +62,7 @@ export default function Home({
           <CurrentCommit />
         </small>
       </div>
+      <PriorityAssessment />
       <ProjectRoadmap />
       {telemetryError && (
         <div className="connection-notice" role="alert">

@@ -1,6 +1,7 @@
 import type { BackendHealth, BackendRegistry } from "../types/contracts";
 import { useState } from "react";
 import ArchitectureOverview from "./ArchitectureOverview";
+import PriorityAssessment from "./PriorityAssessment";
 import ArchitectureTools from "./ArchitectureTools";
 
 export default function Architecture({ health, selectedNode, onSelect }: {
@@ -16,6 +17,6 @@ export default function Architecture({ health, selectedNode, onSelect }: {
       <button aria-current={view === "architecture" ? "page" : undefined} aria-selected={view === "architecture"} onClick={() => setView("architecture")}>Agenti e programmi</button>
       <button aria-current={view === "tools" ? "page" : undefined} aria-selected={view === "tools"} onClick={() => setView("tools")}>Tool e automazioni</button>
     </nav>
-    {view === "tools" ? <ArchitectureTools /> : <><ArchitectureOverview health={health} selectedNode={selectedNode} onSelect={onSelect} /></>}
+    {view === "tools" ? <ArchitectureTools /> : <><PriorityAssessment mode="model"/><ArchitectureOverview health={health} selectedNode={selectedNode} onSelect={onSelect} /></>}
   </section>;
 }

@@ -39,6 +39,7 @@ reset();
 globalThis.__useHomeMonitoring = () => monitoring;
 globalThis.__push = { currentPushState: async () => ({ supported: false, permission: 'unsupported', subscribed: false }) };
 const { default: MobileHome } = await compile('../src/components/MobileHome.tsx', [
+  [/import PriorityAssessment from .*?;/, 'const PriorityAssessment=()=>null;'],
   [/import \{[^}]+\} from "lucide-react";/, 'const Activity=()=>null, CalendarDays=Activity, FileAudio=Activity, Files=Activity, Images=Activity, MessageCircle=Activity, RefreshCw=Activity, Settings=Activity, Server=Activity;'],
   [/import ProjectRoadmap from .*?;/, 'const ProjectRoadmap=globalThis.__ProjectRoadmap;'],
   [/import HealthDashboard from .*?;/, 'const HealthDashboard=()=>null;'],
