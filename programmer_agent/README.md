@@ -31,6 +31,14 @@ Il Supervisor può delegare con `programmer_agent_tool(query, workspace_id)` qua
 
 ## Strumenti e skill
 
+### Contesto documentale
+
+La skill `understand-project` usa una strategia a budget: `README.md` come mappa
+breve, poi [`docs/AGENT_CONTEXT.md`](../docs/AGENT_CONTEXT.md) per scegliere uno
+o due README specialistici. Dopo l'orientamento il Programmatore conferma nel codice
+i contratti che deve modificare. Audit e validation report datati restano fonti
+storiche e non sostituiscono commit attivo, stato runtime o sorgenti correnti.
+
 Ventuno capability (`PROGRAMMER_TOOLS` in `programmer_tools.py`): elenco, lettura, ricerca e scrittura di file; differenze; catalogo dei contratti reali; caricamento di skill e template; verifiche; interrogazione Graphify; validazione delle bozze grafiche; registro componenti, revisioni e pacchetti di consegna; eliminazione di file, commit Git, preparazione/stato/applicazione/ripristino dei rilasci e pubblicazione del branch GitHub. Sono registrate nel catalogo Tools e nel permission engine. La scrittura diretta di codice attivo resta bloccata; le applicazioni richieste passano dal servizio updater e da permessi dedicati.
 
 Le cinque skill sono risorse versionate di **Cora**, non skill installate in ChatGPT: creazione tool, creazione automazioni, verifica componenti, orientamento nel progetto e aggiornamento Cora su richiesta. Il modello riceve soltanto descrizioni e carica le istruzioni quando necessarie. Template e skill sono nel repository e vengono inclusi nello snapshot.
