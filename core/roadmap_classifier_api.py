@@ -104,8 +104,12 @@ def _local_ollama_url() -> str:
         raise ValueError("Endpoint Ollama non valido.")
     try:
         address = ipaddress.ip_address(host)
-        local = (address.is_private or address.is_loopback or
-                 address in ipaddress.ip_network("100.64.0.0/10"))
+        private_ranges = (
+            "127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12",
+            "192.168.0.0/16", "100.64.0.0/10", "fc00::/7", "::1/128",
+        )
+        local = any(address in ipaddress.ip_network(cidr)
+                    for cidr in private_ranges)
     except ValueError:
         # Single-label hosts support Docker services; ts.net supports Tailscale.
         local = host == "localhost" or "." not in host or host.endswith(".ts.net") or host.endswith(".local") or host == "host.docker.internal"
