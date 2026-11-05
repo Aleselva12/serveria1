@@ -6,7 +6,7 @@ Il proxy Vite inoltra `/backend/*` a `http://127.0.0.1:8000`. `CORA_API_TARGET` 
 
 In modalità password il login personale riusa un cookie HttpOnly di sette giorni; desktop e Tailscale hanno percorsi distinti, dichiarati da `/auth/status`. `src/services/transport.ts` è il confine condiviso per cookie, header delle scritture e scadenza della sessione. `AuthGate` richiede il login, oppure consente la sola visualizzazione offline quando il backend non è raggiungibile. L'account iniziale si crea sul PC con `python -m core.auth`, come descritto nel README principale.
 
-Pagine collegate: Home (sensori e servizi), Chat (conversazioni, streaming e annullamento), File server/Libreria IA, Architettura (schede agenti, modelli per agente e programmi separati), Tools (catalogo e bozze grafiche), Calendario (mese/giorno, scritture manuali e proposte), Attività (runtime, approvazioni, policy e tracce), Impostazioni (contesto permanente e logout), Gestione Memoria e Audio (registrazioni presalvate, trascrizioni e correzioni). Programma è collegato al Programmatore con workspace isolati e Copilot; non applica automaticamente le modifiche al codice attivo.
+Pagine collegate: Home (sensori, servizi e stato), Chat (conversazioni, streaming e annullamento), File server/Libreria IA, Foto, Architettura (schede agenti, modelli per agente e programmi separati), Tools, Calendario, Macchine, Roadmap ad albero, Attività, Impostazioni, Gestione Memoria e Audio. Programma è collegato al Programmatore con workspace isolati e Copilot; la pagina Aggiornamenti usa invece il servizio updater host per preparare/applicare il main verificato. Nessuna di queste viste implica da sola che un servizio esterno sia installato o raggiungibile.
 
 `src/services/runtimeApi.ts` crea il run prima di aprire SSE, separa testo provvisorio da risultato persistito e non ritenta automaticamente una scrittura dopo un errore di connessione. Un'interruzione del collegamento non prova che il run sia terminato: consultarne l'esito in Attività. Le vecchie API `/chat` restano per compatibilità.
 
@@ -16,6 +16,41 @@ Contratti TypeScript in `src/types/contracts.ts`; dettaglio integrazioni in [COL
 
 
 Gli allegati della chat e le funzioni avanzate dei file sono collegati. Per limiti, API, storage persistente e migrazione consultare il README principale e [COLLEGAMENTI.md](COLLEGAMENTI.md). Nessuna acquisizione dal microfono è necessaria.
+
+## PWA e uso mobile
+
+Il frontend è installabile come PWA tramite `public/manifest.webmanifest` e registra
+`public/sw.js` con `src/services/pwa.ts`. L'obiettivo mobile principale è l'accesso
+rapido a stato server, calendario, file/foto e caricamento audio. La PWA non trasforma
+i servizi esterni in contenuti locali: Immich/Nextcloud continuano a essere raggiunti
+tramite i rispettivi servizi e collegamenti.
+
+Le notifiche Web Push usano una sottoscrizione del browser e le chiavi VAPID conservate
+nel backend. Per iPhone/iPad e altri dispositivi serve un'origine HTTPS compatibile,
+permesso notifiche e un collaudo reale sul dispositivo installato; il solo service
+worker non prova che una notifica sia stata consegnata.
+
+## Calendario e Google
+
+La pagina Calendario funziona con due provider. Senza token Google usa PostgreSQL;
+quando il token Calendar è presente, le letture e le operazioni manuali usano Google
+Calendar. **Invia nuovi su Google** pubblica gli appuntamenti locali futuri non ancora
+esportati usando un'identità stabile per evitare duplicati in caso di ripetizione.
+Il provider espone anche lo stato del collegamento e, se il deployment ha il client
+OAuth Web configurato, **Ricollega Google** permette di rifare il consenso dal sito.
+
+Le scritture agentiche restano distinte da quelle manuali del proprietario e passano
+dalle approvazioni previste dal backend. Un errore di rete non autorizza la UI a
+ritentare automaticamente una scrittura Google con esito incerto.
+
+## Roadmap ad albero e classificatore locale
+
+La vista Roadmap usa la struttura radici–tronco–rami della snapshot Atlas/qwe e
+sovrappone stato/evidenze provenienti da Cora. La struttura non viene generata
+automaticamente dai test: modifiche a stelle, rami e gerarchie restano manuali.
+Il classificatore locale è un supporto esplicito alla priorità: parte soltanto su
+clic, valuta un insieme limitato di nodi e non riscrive la mappa. Dettagli e regole
+di aggiornamento sono in [src/tree/README.md](src/tree/README.md).
 
 La pagina principale Architettura non mostra il grafo. Vedi [schede agenti e inferenza desktop](../docs/AGENT-CARDS.md): scelta persistente per ruolo, modelli installati locali o del profilo worker attivo, nessun cambio automatico di profilo o fallback.
 
