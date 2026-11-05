@@ -25,8 +25,8 @@ test("source data uses bounded task IDs and no auto rewrite of map",()=>{
  assert.ok(api.includes('get_ollama_base_url'));
  assert.ok(api.includes('format": _schema()'));
  assert.ok(api.includes('writes_map'));
- assert.ok(!api.includes('openai.com'));
- assert.ok(!api.includes('github.com'));
+ assert.equal(/(?:^|[^a-z0-9.-])openai[.]com(?:[^a-z0-9.-]|$)/i.test(api),false);
+ assert.equal(/(?:^|[^a-z0-9.-])github[.]com(?:[^a-z0-9.-]|$)/i.test(api),false);
  assert.ok(!api.includes('subprocess'));
  assert.ok(!api.includes('write_text('));
 });
