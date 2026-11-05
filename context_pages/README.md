@@ -17,6 +17,13 @@ Un messaggio casuale come `ciao` non carica pagine e non espone tool schema.
 Le metriche del run registrano `context_pages`, `selected_tools` e
 `selected_tool_count`.
 
+Queste pagine sono il **bootstrap breve** del Supervisor, non sostituiscono la
+documentazione di progetto. Quando un task di programmazione/sistema richiede
+orientamento nella repository, la mappa documentale autorevole è
+[`docs/AGENT_CONTEXT.md`](../docs/AGENT_CONTEXT.md): partire dal README root e
+caricare soltanto i README specialistici pertinenti. Non precaricare integralmente
+la documentazione in ogni turno.
+
 La selezione automatica usa parole intere e frasi normalizzate, senza confronti
 per sottostringa. Mail e Audio hanno pagine dedicate. Le continuazioni brevi
 (per esempio `sì, procedi`) riprendono il tema precedente dell’utente;
