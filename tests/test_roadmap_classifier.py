@@ -109,6 +109,17 @@ class ClassifierTests(unittest.TestCase):
             self.assertFalse(status["installed"])
             self.assertIn("ollama pull", status["detail"])
 
+    def test_local_model_does_not_send_project_context_to_public_endpoint(self):
+        from unittest.mock import patch
+        for host in ("https://api.example.com:443", "http://203.0.113.7:11434"):
+            with patch.object(classifier, "get_ollama_base_url", return_value=host):
+                with self.assertRaises(ValueError):
+                    classifier._local_ollama_url()
+        for host in ("http://localhost:11434", "http://ollama:11434",
+                     "http://host.docker.internal:11434", "https://worker.tailnet.ts.net"):
+            with patch.object(classifier, "get_ollama_base_url", return_value=host):
+                self.assertEqual(classifier._local_ollama_url(), host)
+
     def test_scalars_are_capped_and_repeatable(self):
         hi = classifier.Rating.model_validate(result("T1", importance=5, urgency=5,
             blockers=5, impact=5, effort=0, risk=0))
