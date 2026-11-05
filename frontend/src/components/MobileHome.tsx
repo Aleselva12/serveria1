@@ -1,3 +1,4 @@
+import PriorityAssessment from "./PriorityAssessment";
 import HealthDashboard from "./HealthDashboard";
 import { useEffect, useState } from "react";
 import {
@@ -184,6 +185,7 @@ export default function MobileHome({
         </div>
       </div>
 
+      <PriorityAssessment />
       <ProjectRoadmap />
 
       <div className="mobile-secondary-links">
