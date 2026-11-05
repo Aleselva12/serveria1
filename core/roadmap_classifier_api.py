@@ -108,7 +108,7 @@ def _local_ollama_url() -> str:
                  address in ipaddress.ip_network("100.64.0.0/10"))
     except ValueError:
         # Single-label hosts support Docker services; ts.net supports Tailscale.
-        local = host == "localhost" or "." not in host or host.endswith(".ts.net") or host.endswith(".local")
+        local = host == "localhost" or "." not in host or host.endswith(".ts.net") or host.endswith(".local") or host == "host.docker.internal"
     if not local:
         raise ValueError("Classificatore consentito soltanto su Ollama locale o Tailscale.")
     return base
