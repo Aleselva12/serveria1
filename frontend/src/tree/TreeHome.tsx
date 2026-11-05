@@ -12,6 +12,7 @@ import { checks, type Node } from "./model";
 import { closure } from "./closure";
 import atlasEvidence from "./atlas-evidence.json";
 import Constellation from "./Constellation";
+import RoadmapPriorities from "./RoadmapPriorities";
 import {codeLinks,pageLinks,sourceUrl} from "./codeLinks";
 import "./tree.css";
 
@@ -318,6 +319,7 @@ export default function TreeHome(){
         </div>
       </aside>
     </div>
+    <RoadmapPriorities stars={stars} onOpen={jump}/>
     <section className="rm2-footer-work"><div><small>SEQUENZA OPERATIVA · AUTO</small><h2>{workItems.slice(0,3).map(w=>w.id).join(" → ")}</h2><p>Stato letto dalla roadmap Home aggiornata il {homeRoadmap.updatedAt}.{currentWork?" Prossimo: "+currentWork.id+" · "+currentWork.title:""}</p></div>
       <div>{workItems.slice(0,3).map(w=><button type="button" key={w.id} onClick={()=>jump(workTargets[w.id]||"T1")}><b>{w.id}</b><span>{w.title}<small>{w.status}</small></span><ArrowRight size={16}/></button>)}</div>
     </section>
