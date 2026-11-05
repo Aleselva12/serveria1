@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 from typing import Literal
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
@@ -24,6 +25,7 @@ MODEL = os.getenv("CORA_ROADMAP_CLASSIFIER_MODEL", "qwen3:1.7b").strip()
 MODEL_NAME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,100}$")
 TIMEOUT_SECONDS = 65
 MAX_TASKS = 8
+_BUSY = threading.BoundedSemaphore(1)
 
 class Objective(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -184,4 +186,10 @@ def _evaluate(payload: PreviewRequest) -> dict:
 
 @router.post("/classifier/preview")
 async def classifier_preview(payload: PreviewRequest):
-    return await run_in_threadpool(_evaluate, payload)
+    # Never allow concurrent inference requests to saturate the coordinator.
+    if not _BUSY.acquire(blocking=False):
+        raise HTTPException(429, "Classificatore già occupato: completa la valutazione corrente.")
+    try:
+        return await run_in_threadpool(_evaluate, payload)
+    finally:
+        _BUSY.release()
