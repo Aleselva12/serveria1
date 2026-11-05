@@ -2,11 +2,44 @@
 
 Cora è un assistente locale con backend FastAPI, frontend React/Vite, agenti LangGraph e modelli Ollama. Backend e frontend sono mantenuti **nella stessa repository**, in cartelle separate. Questa repository contiene il codice dell’applicazione; lo stato di repository esterne non è attestato da questo checkout.
 
+## Stato operativo corrente — 5 novembre 2026
+
+Questa sezione descrive il **codice corrente della repository**; i documenti audit datati
+restano fotografie storiche e non vanno usati come inventario dell'ultima versione.
+
+- **Aggiornamenti Cora:** la UI può preparare dal branch `main` un candidato tramite
+  l'updater host, eseguire build/test/migrazioni su copia e applicarlo solo dopo
+  conferma esplicita. L'updater resta un servizio Debian separato: una release Cora
+  non sostituisce automaticamente il pacchetto updater installato né modifica la
+  configurazione host/Compose.
+- **Calendario:** senza token Google resta attivo il calendario PostgreSQL. Con Google
+  collegato, Google Calendar diventa la fonte per lettura e operazioni manuali.
+  Il pulsante **Invia nuovi su Google** esporta in modo idempotente gli appuntamenti
+  locali futuri non ancora pubblicati. Il bootstrap OAuth può usare il client Desktop
+  via CLI/tunnel SSH; il ricollegamento dal sito usa un client OAuth Web separato.
+- **Mobile/PWA:** il frontend include manifest, service worker e Web Push. La PWA è
+  pensata soprattutto per stato server, calendario, file/foto e caricamento audio;
+  notifiche e comportamento reale vanno comunque verificati sul browser/dispositivo
+  installato e sull'origine HTTPS usata tramite Tailscale.
+- **File e servizi esterni:** Cora gestisce i propri root autorizzati e la Libreria IA.
+  Immich e Nextcloud restano servizi distinti: non puntare Cora alle loro directory
+  interne. Home/Programmi possono esporre un browser link verificato a Immich senza
+  trasformarlo in una prova di health del servizio.
+- **Roadmap ad albero:** la struttura radici–tronco–rami resta manuale e deriva dalla
+  snapshot Atlas/qwe; Cora sovrappone stato/evidenze runtime. Il classificatore locale
+  è solo di supporto: parte su clic esplicito, lavora su un insieme limitato di nodi e
+  non riscrive automaticamente la mappa.
+
+Per i dettagli operativi usare i README specifici: [deploy](deploy/README.md),
+[updater](updater/README.md), [frontend](frontend/README.md),
+[database](database/README.md), [migrazioni](database/migrations/README.md) e
+[roadmap ad albero](frontend/src/tree/README.md).
+
 ## Stato delle evidenze — audit 25 ottobre 2026
 
 Base esaminata: `a8fb19d6acfdec39c65c6c710e4f7769f9c3db3b` di main. “Implementato” indica codice presente; “collegato” indica router, grafo o UI che lo richiama. La presenza di test e workflow non attesta un run CI riuscito. La CI della base risultava in coda al controllo iniziale. Nessun nuovo collaudo Debian è stato eseguito in questo audit; i riscontri storici non certificano la versione oggi installata.
 
-Inventario degli otto README, prove per componente e limiti: [rapporto audit](docs/README_AUDIT_20261025.md). Immich, Nextcloud, hardware, mount NAS e servizi esterni richiedono inventario della macchina reale; questo checkout non ne prova installazione o funzionamento.
+Inventario storico dei README esaminati, prove per componente e limiti: [rapporto audit](docs/README_AUDIT_20261025.md). Immich, Nextcloud, hardware, mount NAS e servizi esterni richiedono inventario della macchina reale; questo checkout non ne prova installazione o funzionamento.
 
 ## Avvio sul PC
 
@@ -34,7 +67,7 @@ Il Supervisor risponde o delega a cinque agenti distinti:
 | Audio | Trascrizione locale faster-whisper, timestamp, diarizzazione locale opzionale, riassunti e salvataggio trascrizioni. |
 | Email & Quotes | Ricerca e lettura Gmail, riepiloghi, bozze Gmail e preventivi PDF da dati strutturati. Invio email bloccato. |
 
-Le azioni calendario sono tool assegnati agli agenti autorizzati, senza un agente calendario dedicato. **Senza token Google Calendar**, PostgreSQL è la fonte degli eventi, con versioni, storico, eliminazione recuperabile e proposte agentiche. **Quando Google Calendar è collegato**, Google è la fonte autorevole per lettura e operazioni manuali dalla pagina Calendario. Le richieste di scrittura agentiche Google usano `action_approvals` (durata 24 ore) e richiedono approvazione del proprietario; gli ID Google restano stringhe e gli aggiornamenti/eliminazioni verificano revisione ETag con `If-Match`. Le richieste approvate non vengono ritentate automaticamente se l'esito esterno è incerto. Una modifica dell'account OAuth invalida le approvazioni precedenti. **Questo percorso è implementato nel codice e ha test sintetici in `tests/test_google_calendar.py` e `tests/test_google_calendar_approvals.py`, ma Google reale e deploy Debian non sono verificati da questo audit**: non considerarlo operativo prima dei collaudi.
+Le azioni calendario sono tool assegnati agli agenti autorizzati, senza un agente calendario dedicato. **Senza token Google Calendar**, PostgreSQL è la fonte degli eventi, con versioni, storico, eliminazione recuperabile e proposte agentiche. **Quando Google Calendar è collegato**, Google è la fonte autorevole per lettura e operazioni manuali dalla pagina Calendario. Il pulsante **Invia nuovi su Google** pubblica gli eventi locali futuri non ancora presenti usando un'identità Cora stabile, così una ripetizione non deve creare duplicati. Il collegamento iniziale può essere eseguito da `deploy/manage.py google-calendar-auth`; il ricollegamento dalla UI usa invece il client OAuth Web configurato nel deployment. Le richieste di scrittura agentiche Google usano `action_approvals` (durata 24 ore) e richiedono approvazione del proprietario; gli ID Google restano stringhe e gli aggiornamenti/eliminazioni verificano revisione ETag con `If-Match`. Le richieste approvate non vengono ritentate automaticamente se l'esito esterno è incerto. Una modifica dell'account OAuth invalida le approvazioni precedenti. **Questo percorso è implementato nel codice e ha test sintetici in `tests/test_google_calendar.py` e `tests/test_google_calendar_approvals.py`, ma Google reale e deploy Debian non sono verificati da questo audit**: non considerarlo operativo prima dei collaudi.
 
 Modello predefinito: `gpt-oss:20b`, endpoint DEV `http://localhost:11434` (Ollama nativo Windows, per conservare l'accelerazione AMD). Le variabili `CORA_MODEL_SUPERVISOR/STRUCTURE/RESEARCH/AUDIO/EMAIL/PROGRAMMER` consentono scelte per ruolo. La precedenza in `core/models.py` è: assegnazione persistente per agente (macchina/modello), selezione globale persistente, variabile per ruolo, `OLLAMA_MODEL`, default. La scelta per agente può usare il worker desktop esplicitamente configurato, senza fallback locale; le richieste dei modelli non usano proxy di ambiente.
 
