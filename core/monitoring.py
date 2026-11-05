@@ -20,6 +20,20 @@ router = APIRouter(prefix="/api/v1", tags=["Home"])
 _lock = threading.Lock()
 _previous = None
 _history = deque(maxlen=120)
+_browser_links_path = Path(__file__).resolve().parents[1] / "deploy" / "service-browser-links.json"
+
+
+def service_browser_url(identifier):
+    """Owner-configured browser links; never used as backend probe targets."""
+    configured = os.getenv(f"CORA_SERVICE_{identifier.upper()}_BROWSER_URL", "").strip()
+    if configured:
+        return configured
+    try:
+        links = json.loads(_browser_links_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    value = links.get(identifier, "") if isinstance(links, dict) else ""
+    return value.strip() if isinstance(value, str) else ""
 
 
 def now():
@@ -193,7 +207,7 @@ def service_status():
     services = [
         {"id": "fastapi", "label": "FastAPI", "status": "ready", "checkedAt": timestamp},
         {"id": "cora", "label": "Cora", "status": "ready", "detail": "Interfaccia Cora sul server",
-         "checkedAt": timestamp, "browserUrl": os.getenv("CORA_SERVICE_CORA_BROWSER_URL", "").strip()},
+         "checkedAt": timestamp, "browserUrl": service_browser_url("cora")},
     ]
     targets = [
         (
@@ -211,7 +225,7 @@ def service_status():
         ("n8n", "n8n"),
     ]:
         configured_url = os.getenv(f"CORA_SERVICE_{identifier.upper()}_URL", "").strip()
-        public_url = os.getenv(f"CORA_SERVICE_{identifier.upper()}_BROWSER_URL", "").strip()
+        public_url = service_browser_url(identifier)
         if identifier == "n8n" and not configured_url and not public_url:
             continue
         targets.append((identifier, label, configured_url))
@@ -234,7 +248,7 @@ def service_status():
                 "status": status,
                 "detail": detail,
                 "checkedAt": timestamp,
-                "browserUrl": os.getenv(f"CORA_SERVICE_{identifier.upper()}_BROWSER_URL", "").strip(),
+                "browserUrl": service_browser_url(identifier),
             }
         )
     docker_status, docker_detail = (
