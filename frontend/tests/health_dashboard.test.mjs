@@ -97,15 +97,18 @@ test("Health panel renders owner observations separately from automated evidence
     try {
       await act(async()=>{r=create(React.createElement(HealthDashboard,{
         showServices:true,services:[
-          {id:"immich",label:"Immich",status:"ready",checkedAt:"",
-            browserUrl:"https://immich.example.test"},
+          {id:"immich",label:"Immich",status:"unknown",checkedAt:"",
+            browserUrl:"http://100.112.253.3:2283/photos"},
           {id:"nextcloud",label:"Nextcloud",status:"unknown",checkedAt:""},
           {id:"preventivi",label:"Preventivi",status:"unknown",checkedAt:"",browserUrl:"javascript:alert(1)"},
           {id:"unsafe",label:"Credenziali",status:"unknown",checkedAt:"",browserUrl:"https://user:secret@example.test"},
           {id:"docker",label:"Docker",status:"unknown",checkedAt:""},
         ]}));});
       const links=r.root.findAllByType("a");
-      assert.ok(links.some(x=>x.props.href==="https://immich.example.test/" && x.children[0]==="Immich"));
+      const immich=links.find(x=>x.props.href==="http://100.112.253.3:2283/photos" && x.children[0]==="Immich");
+      assert.ok(immich);
+      assert.equal(immich.props.target,"_blank");
+      assert.ok(immich.props.rel.includes("noopener"));
       assert.ok(!links.some(x=>x.children.join("")==="Nextcloud"));
       assert.equal(links.length,1);
       assert.ok(rendered(r).includes("Diagnostica dei servizi tecnici"));
