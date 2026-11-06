@@ -9,6 +9,16 @@ from tests.test_roadmap_classifier import FakeResponse, goal, result
 
 
 class PriorityEvaluationTests(unittest.TestCase):
+    def setUp(self):
+        for target, kwargs in [
+            ("core.run_lifecycle.create_run", {"return_value": {"id": "test-run"}}),
+            ("core.run_lifecycle.transition_run", {}),
+            ("core.execution_traces.append_event", {}),
+        ]:
+            patcher = patch(target, **kwargs)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
     def reply(self, **metadata):
         return {"message":{"content":json.dumps({"items":[result("T1")]})}, **metadata}
 
@@ -36,7 +46,7 @@ class PriorityEvaluationTests(unittest.TestCase):
         self.assertIsNone(evaluation["reported_model"])
 
     def test_success_is_saved_for_home_and_failures_never_replace_previous_result(self):
-        evaluation={"model":"selected","ratings":[],"writes_map":False}
+        evaluation={"model":"selected","reported_model":"selected","objective_count":1,"ratings":[],"writes_map":False}
         with patch.object(classifier,"_evaluate",return_value=evaluation),patch.object(store,"save",return_value=True) as save:
             response=asyncio.run(classifier.classifier_preview(classifier.PreviewRequest(objectives=[goal()])))
             self.assertTrue(response["persisted"])
@@ -47,7 +57,7 @@ class PriorityEvaluationTests(unittest.TestCase):
             save.assert_not_called()
 
     def test_save_failure_keeps_preview_and_explains_unchanged_homepage(self):
-        with patch.object(classifier,"_evaluate",return_value={"model":"selected","ratings":[]}),patch.object(store,"save",return_value=False):
+        with patch.object(classifier,"_evaluate",return_value={"model":"selected","reported_model":"selected","objective_count":1,"ratings":[]}),patch.object(store,"save",return_value=False):
             response=asyncio.run(classifier.classifier_preview(classifier.PreviewRequest(objectives=[goal()])))
         self.assertFalse(response["persisted"])
         self.assertIn("non salvata",response["persistence_detail"])

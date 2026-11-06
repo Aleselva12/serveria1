@@ -61,7 +61,7 @@ export default function RoadmapPriorities({stars,onOpen}:Props){
     goals:(n.timeline?.future||[]).slice(0,3).map(x=>x.slice(0,180))};
   });
   const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),80000);
+  const timeout=setTimeout(()=>controller.abort(),210000);
   try{
    const response=await authenticatedFetch(apiBaseUrl+"/api/v1/roadmap/classifier/preview",{
     method:"POST",headers:{"Content-Type":"application/json"},
