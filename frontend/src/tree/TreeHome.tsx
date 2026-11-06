@@ -304,7 +304,7 @@ export default function TreeHome(){
           <div className="rm2-section-head"><CheckCircle2 size={14}/> TEST COLLEGATI <span>{mappedChecks.length}</span></div>
           <p className="rm2-test-note">Commit installato: {activeCommit?<code>{activeCommit.slice(0,12)}</code>:"non disponibile. Nessun risultato può confermare il verde sulla versione corrente."}</p>
           {healthError&&<p className="rm2-test-note">{healthError}</p>}
-          {activeCommit&&mappedChecks.some(cid=>health?.latest[cid]&&!health.latest[cid].commit)&&<p className="rm2-test-note">Il sito conosce il commit installato, ma uno o più collaudi non riportano lo SHA del codice testato. Questi risultati non possono certificare la versione corrente: verificare che il container API sia stato costruito dall’updater con CORA_GIT_COMMIT e ripetere i controlli dopo il rilascio.</p>}
+          {activeCommit&&mappedChecks.some(cid=>health?.latest[cid]&&!health?.latest[cid]?.commit)&&<p className="rm2-test-note">Il sito conosce il commit installato, ma uno o più collaudi non riportano lo SHA del codice testato. Questi risultati non possono certificare la versione corrente: verificare che il container API sia stato costruito dall’updater con CORA_GIT_COMMIT e ripetere i controlli dopo il rilascio.</p>}
           {!health&&!healthError&&<p className="rm2-test-note">Caricamento registro condiviso…</p>}
           {mappedChecks.map(cid=>{
             const def=healthCatalog.find(c=>c.id===cid),result=health?.latest[cid],st=verified(def,result,activeCommit);
