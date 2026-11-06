@@ -10,6 +10,8 @@ import json
 import os
 import re
 import threading
+import time
+from uuid import uuid4
 import ipaddress
 from datetime import datetime, timezone
 from typing import Literal
@@ -26,7 +28,7 @@ from core.ollama_transport import get_ollama_base_url, urlopen
 router = APIRouter(prefix="/api/v1/roadmap", tags=["Roadmap - classificatore locale"])
 MODEL = os.getenv("CORA_ROADMAP_CLASSIFIER_MODEL", "qwen3:1.7b").strip()
 MODEL_NAME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,100}$")
-TIMEOUT_SECONDS = 65
+TIMEOUT_SECONDS = 180
 MAX_TASKS = 8
 _BUSY = threading.BoundedSemaphore(1)
 
@@ -148,7 +150,7 @@ def classifier_status():
     last = history["evaluation"]
     return {**model_status(), "provider": "Ollama", "role": "roadmap_classifier",
             "configuration_source": "CORA_ROADMAP_CLASSIFIER_MODEL" if os.getenv("CORA_ROADMAP_CLASSIFIER_MODEL", "").strip() else "default",
-            "separate_from_supervisor": True, "weights": WEIGHTS, "max_objectives": MAX_TASKS,
+            "separate_from_supervisor": True, "weights": WEIGHTS, "max_objectives": MAX_TASKS, "timeout_seconds": TIMEOUT_SECONDS,
             "history_available": history["available"],
             "last_evaluation": {key:last.get(key) for key in ("model", "reported_model", "model_verified", "evaluated_at", "objective_count")} if last else None}
 
@@ -183,13 +185,13 @@ def _evaluate(payload: PreviewRequest) -> dict:
         "stream": False,
         "think": False,
         "format": _schema(),
-        "options": {"temperature": 0, "num_ctx": 4096, "num_predict": 1500},
+        "options": {"temperature": 0, "num_ctx": 12288, "num_predict": 350 * len(payload.objectives) + 200},
         "messages": [
             {"role": "system", "content": _SYSTEM},
             {"role": "user", "content": "Valuta gli obiettivi seguenti. JSON soltanto:\n" +
                 json.dumps(payload.model_dump(), ensure_ascii=False)},
         ],
-        "keep_alive": "0",
+        "keep_alive": "5m",
     }
     request = Request(_local_ollama_url() + "/api/chat",
         data=json.dumps(body).encode("utf-8"),
@@ -200,8 +202,14 @@ def _evaluate(payload: PreviewRequest) -> dict:
                 raise ValueError("Ollama ha rifiutato la valutazione.")
             reply = json.loads(response.read(65_000))
         answer = RawRatings.model_validate_json(reply["message"]["content"])
-    except (URLError, TimeoutError, HTTPError, OSError) as exc:
-        raise HTTPException(503, "Inferenza locale non disponibile o scaduta.") from exc
+    except HTTPError as exc:
+        detail = "Modello non disponibile su Ollama: verifica il catalogo e la configurazione." if exc.code == 404 else "Ollama ha rifiutato la valutazione (HTTP %s). Verifica risorse e log del servizio." % exc.code
+        raise HTTPException(503, detail) from exc
+    except (TimeoutError, URLError, OSError) as exc:
+        timed_out = isinstance(exc, TimeoutError) or isinstance(getattr(exc, "reason", None), TimeoutError)
+        detail = (f"Inferenza locale scaduta dopo {TIMEOUT_SECONDS} secondi: verifica carico, memoria e caricamento del modello."
+                  if timed_out else "Connessione a Ollama interrotta: verifica endpoint e disponibilità del servizio.")
+        raise HTTPException(504 if timed_out else 503, detail) from exc
     except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         raise HTTPException(422, "Il modello non ha restituito una classificazione valida.") from exc
 
@@ -240,11 +248,47 @@ async def classifier_preview(payload: PreviewRequest):
     # Never allow concurrent inference requests to saturate the coordinator.
     if not _BUSY.acquire(blocking=False):
         raise HTTPException(429, "Classificatore già occupato: completa la valutazione corrente.")
+    from core.run_lifecycle import create_run, transition_run
+    run_id = None
     try:
-        evaluation = await run_in_threadpool(_evaluate, payload)
-        from core.priority_evaluations import save
-        persisted = await run_in_threadpool(save, evaluation)
-        return {**evaluation, "persisted": persisted,
+        # Register before inference so failures and cold starts are visible in Attività.
+        try:
+            row = await run_in_threadpool(create_run, thread_id="roadmap-priorities",
+                kind="roadmap_classifier", target="roadmap_classifier",
+                metadata={"model": MODEL, "objective_count": len(payload.objectives),
+                          "timeout_seconds": TIMEOUT_SECONDS})
+            run_id = str(row["id"])
+            await run_in_threadpool(transition_run, run_id, "running")
+        except Exception as exc:
+            raise HTTPException(503, "Registro Attività non disponibile; valutazione non avviata.") from exc
+        from core.execution_traces import append_event
+        span_id = str(uuid4())
+        started = time.perf_counter()
+        def trace(status, error=None):
+            append_event({"run_id": run_id, "thread_id": "roadmap-priorities",
+                "timestamp": datetime.now(timezone.utc).isoformat(), "span_id": span_id,
+                "kind": "model", "name": "roadmap_classifier", "status": status,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                "error_type": type(error).__name__ if error else None,
+                "error_detail": str(getattr(error, "detail", "")) if error else None})
+        trace("running")
+        try:
+            evaluation = await run_in_threadpool(_evaluate, payload)
+            from core.priority_evaluations import save
+            persisted = await run_in_threadpool(save, evaluation)
+            await run_in_threadpool(transition_run, run_id, "completed",
+                result={"model": evaluation["model"], "reported_model": evaluation["reported_model"],
+                        "objective_count": evaluation["objective_count"], "persisted": persisted,
+                        "response": "Valutazione priorità completata; salvata: " + str(persisted)},
+                metadata={"metrics": {"inference_observations": [{"role": "roadmap_classifier",
+                    "requested_model": MODEL, "reported_model": evaluation["reported_model"]}]}})
+            trace("completed")
+        except Exception as exc:
+            trace("error", exc)
+            await run_in_threadpool(transition_run, run_id, "failed",
+                error_type=type(exc).__name__, result={"response": str(getattr(exc, "detail", "Valutazione fallita"))})
+            raise
+        return {**evaluation, "run_id": run_id, "persisted": persisted,
                 "persistence_detail": "Valutazione salvata e disponibile in homepage." if persisted else
                     "Valutazione non salvata: la homepage conserva l'ultimo risultato disponibile. Verifica il database e l'aggiornamento del server."}
     finally:

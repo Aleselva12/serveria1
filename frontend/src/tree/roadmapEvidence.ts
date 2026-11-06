@@ -46,6 +46,7 @@ export function starTone(
   health: HealthDashboardData | null,
   activeCommit: string | null,
   mapping: CheckMapping,
+  nodes: readonly Node[] = [],
 ): string {
   if (!["star", "planet", "moon"].includes(node.classification || "")) return "unknown";
   const ids = mapping[node.id] || [];
@@ -54,17 +55,21 @@ export function starTone(
     result: health?.latest[id],
   }));
   const live = (e: typeof evidence[number]) => /^debian(?:$|[-_:])/i.test(e.result?.environment || "");
-  if (evidence.some(e => live(e) && checkState(e.def, e.result, activeCommit) === "fail")) return "problem";
+  if (evidence.some(e => live(e) && checkState(e.def, e.result, activeCommit) === "fail")) return evidence.every(e => live(e) && e.def?.kind === "e2e" && checkState(e.def, e.result, activeCommit) === "fail") ? "problem" : "minor";
   // Planned stars remain grey placeholders even when a related prerequisite passes.
   if (node.status === "planned" || node.status === "idea") return "unknown";
-  if (ids.length && evidence.every(e => live(e) && checkState(e.def, e.result, activeCommit) === "pass")) return "ok";
+  const childTones = nodes.filter(child => child.parent === node.id)
+    .map(child => starTone(child, health, activeCommit, mapping, nodes));
+  if (childTones.some(t => t === "problem" || t === "minor")) return "minor";
   if (node.knownIssues?.length) return "minor";
-  if (node.timeline?.future?.length) return "plan";
+  if (node.timeline?.future?.length || childTones.includes("plan")) return "plan";
+  if (evidence.some(e => verifiedLiveE2E(e.def, e.result, activeCommit)) &&
+      childTones.every(t => t === "ok") && ids.length && evidence.every(e => live(e) && checkState(e.def, e.result, activeCommit) === "pass")) return "ok";
   return "unknown";
 }
 
 export const toneLabels: Record<string, string> = {
-  ok: "Verde · controlli superati", problem: "Rosso · test fallito",
+  ok: "Verde · funzionante e collaudato", problem: "Rosso · blocco o guasto totale",
   minor: "Arancione · attenzione", plan: "Giallo · lavoro previsto",
   unknown: "Grigio · non verificato",
 };

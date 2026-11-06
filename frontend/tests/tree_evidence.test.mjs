@@ -51,11 +51,11 @@ test("only fully checked current-commit results with matching Debian E2E can col
   assert.equal(starTone(node,dashboard([[contract,result(contract.id)]]),sha,mapping),"unknown");
   assert.equal(starTone(node,dashboard([[contract,result(contract.id)],[e2e,result(e2e.id,sha,"ci")]]),sha,mapping),"unknown");
 });
-test("old failures are historical, current failures are red; known issues remain orange",()=>{
+test("old failures are historical, partial failures are orange; known issues remain orange",()=>{
   const contract=definition("chat_contract","contract","5m"),e2e=definition("chat_e2e");
   const oldFailure=dashboard([[contract,result(contract.id,old,"debian-api","fail")],[e2e,result(e2e.id,old)]]);
   assert.equal(starTone(node,oldFailure,sha,mapping),"unknown");
-  assert.equal(starTone(node,dashboard([[contract,result(contract.id,sha,"debian-api","fail")]]),sha,mapping),"problem");
+  assert.equal(starTone(node,dashboard([[contract,result(contract.id,sha,"debian-api","fail")]]),sha,mapping),"minor");
   assert.equal(starTone({...node,knownIssues:["Problema da verificare"]},oldFailure,sha,mapping),"minor");
 });
 test("old automatic checks expire and cannot be considered current",()=>{
@@ -98,12 +98,12 @@ test("functional evidence expires too",()=>{
   assert.equal(checkState(d,result(d.id,sha,"debian-api","pass",new Date(Date.now()-25*3600000).toISOString()),sha),"stale");
 });
 
-test("passed checks turn green despite old project notes; contract scope is not a live E2E",()=>{
+test("contract checks never certify functionality or hide known issues",()=>{
  const d=definition("orchestrator_v1_contract","contract","5m");
  const n={...node,knownIssues:["Sviluppo futuro ancora documentato"]};
- assert.equal(starTone(n,dashboard([[d,result(d.id)]]),sha,{A1:[d.id]}),"ok");
+ assert.equal(starTone(n,dashboard([[d,result(d.id)]]),sha,{A1:[d.id]}),"minor");
  assert.equal(verifiedLiveE2E(d,result(d.id),sha),false);
- assert.equal(starTone(n,dashboard([[d,result(d.id,sha,"debian-api","fail")]]),sha,{A1:[d.id]}),"problem");
+ assert.equal(starTone(n,dashboard([[d,result(d.id,sha,"debian-api","fail")]]),sha,{A1:[d.id]}),"minor");
 });
 
 test("focused worker nodes update only covered scopes; GPU is not certified by inference",async()=>{
@@ -114,3 +114,14 @@ test("focused worker nodes update only covered scopes; GPU is not certified by i
  assert.equal(starTone({...moon,id:"R1.2.p3.m1"},health,sha,checks),"ok");
  assert.notEqual(starTone({...moon,id:"R1.2.p1.m1"},health,sha,checks),"ok");
 });
+
+ test("synthetic and HTTP successes stay unverified; child risk propagates without certifying siblings",()=>{
+  for(const kind of ["synthetic","preflight","contract"]){
+   const d=definition("limited",kind);
+   assert.equal(starTone(node,dashboard([[d,result(d.id)]]),sha,{A1:[d.id]}),"unknown");
+  }
+  const d=definition("real"),h=dashboard([[d,result(d.id)]]);
+  const children=[node,{id:"p",parent:"A1",classification:"planet",status:"partial",knownIssues:["Rischio"]}];
+  assert.equal(starTone(node,h,sha,{A1:[d.id]},children),"minor");
+  assert.equal(starTone({...children[1],knownIssues:[]},h,sha,{A1:[d.id]},children),"unknown");
+ });

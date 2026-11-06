@@ -1,4 +1,5 @@
 """No external API calls or Ollama installation required to test advisory classifier."""
+import asyncio
 import io
 import json
 import unittest
@@ -77,6 +78,9 @@ class ClassifierTests(unittest.TestCase):
         self.assertTrue(output["not_a_test_result"])
         self.assertGreater(output["ratings"][0]["score"], output["ratings"][1]["score"])
         sent = json.loads(network.call_args.args[0].data)
+        self.assertEqual(sent["options"]["num_predict"], 900)
+        self.assertEqual(sent["options"]["num_ctx"], 12288)
+        self.assertEqual(sent["keep_alive"], "5m")
         self.assertFalse(sent["stream"])
         self.assertFalse(sent["think"])
         self.assertEqual(sent["format"]["type"], "object")
@@ -119,6 +123,37 @@ class ClassifierTests(unittest.TestCase):
                      "http://host.docker.internal:11434", "https://worker.tailnet.ts.net"):
             with patch.object(classifier, "get_ollama_base_url", return_value=host):
                 self.assertEqual(classifier._local_ollama_url(), host)
+
+    def test_timeout_has_specific_diagnosis_and_larger_cold_start_budget(self):
+        with patch.object(classifier, "model_status", return_value={"available": True, "installed": True}), patch.object(classifier, "urlopen", side_effect=TimeoutError):
+            with self.assertRaises(HTTPException) as err:
+                classifier._evaluate(classifier.PreviewRequest(objectives=[goal()]))
+        self.assertEqual(err.exception.status_code, 504)
+        self.assertIn(str(classifier.TIMEOUT_SECONDS), err.exception.detail)
+
+    def test_activity_records_success_and_failure(self):
+        from core import run_lifecycle
+        from core import priority_evaluations
+        request = classifier.PreviewRequest(objectives=[goal()])
+        evaluation = {"model": classifier.MODEL, "reported_model": classifier.MODEL, "objective_count": 1}
+        for failure in [False, True]:
+            with patch("core.execution_traces.append_event"), patch.object(run_lifecycle, "create_run", return_value={"id": "test-run"}) as create, patch.object(run_lifecycle, "transition_run") as transition, patch.object(classifier, "_evaluate", side_effect=HTTPException(504, "Timeout") if failure else None, return_value=evaluation), patch.object(priority_evaluations, "save", return_value=True):
+                if failure:
+                    with self.assertRaises(HTTPException):
+                        asyncio.run(classifier.classifier_preview(request))
+                else:
+                    self.assertEqual(asyncio.run(classifier.classifier_preview(request))["run_id"], "test-run")
+                self.assertEqual(create.call_args.kwargs["target"], "roadmap_classifier")
+                self.assertEqual([call.args[1] for call in transition.call_args_list], ["running", "failed" if failure else "completed"])
+
+    def test_missing_activity_store_never_starts_untracked_inference(self):
+        with patch("core.run_lifecycle.create_run", side_effect=OSError), patch.object(classifier, "_evaluate") as evaluate:
+            with self.assertRaises(HTTPException) as error:
+                asyncio.run(classifier.classifier_preview(classifier.PreviewRequest(objectives=[goal()])))
+            self.assertEqual(error.exception.status_code, 503)
+            evaluate.assert_not_called()
+        self.assertTrue(classifier._BUSY.acquire(blocking=False))
+        classifier._BUSY.release()
 
     def test_scalars_are_capped_and_repeatable(self):
         hi = classifier.Rating.model_validate(result("T1", importance=5, urgency=5,

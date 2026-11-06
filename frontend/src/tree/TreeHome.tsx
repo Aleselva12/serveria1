@@ -100,7 +100,7 @@ export default function TreeHome(){
   },[verificationRevision]);
   const selected=byId.get(selectedId)||byId.get("T1")!;
   const root=rootFor(selected);
-  const tone=(n:Node)=>starTone(n,health,activeCommit,checks);
+  const tone=(n:Node)=>starTone(n,health,activeCommit,checks,nodes);
   const selectedTone=tone(root);
   const counts=Object.fromEntries(Object.keys(toneLabels).map(key=>[key,stars.filter(n=>tone(n)===key).length]));
   const relationRows=source.relations.filter(r=>r.from===root.id||r.to===root.id);
@@ -213,13 +213,13 @@ export default function TreeHome(){
         <button aria-pressed={mode==="issues"} onClick={()=>setMode("issues")}>Problemi e attenzioni</button>
         <button aria-pressed={mode==="future"} onClick={()=>setMode("future")}>Da fare / futuri</button>
       </div>
-      <p>Realizzazione ≠ salute. Grigio = obiettivo non realizzato; test e problemi non modificano la struttura.</p>
+      <p>Realizzazione ≠ salute. Grigio = obiettivo futuro o non verificato; test e problemi non modificano la struttura.</p>
     </div>
     <NodeVerificationPanel onResults={refreshVerification}/>
     <div className="rm2-health-summary" role="group" aria-label="Filtra stelle per esito dei test">
       <button type="button" aria-pressed={healthFilter==="all"} onClick={()=>setHealthFilter("all")}>Tutte · {stars.length}</button>
       {Object.entries(toneLabels).map(([key,label])=><button type="button" key={key} className={"tone-"+key} aria-pressed={healthFilter===key} onClick={()=>setHealthFilter(key)}><i className="rm2-dot"/>{label} · {counts[key]}</button>)}
-      <p>Esiti sulla versione attiva del Debian. Verde: tutti i controlli associati superati. Il perimetro (contratti, simulazione o uso reale) è indicato nei test. Rosso: almeno un controllo fallito. Nessun test disponibile non significa superato.</p>
+      <p>Esiti sulla versione attiva del Debian. Verde: collaudo reale superato, controlli e sottoelementi verificati. Giallo: miglioramenti previsti. Arancione: problema o rischio. Rosso: blocco o guasto totale. Nessun test disponibile non significa superato.</p>
       {healthError&&<p role="status">{healthError}</p>}
     </div>
     <div className="rm2-goal-strip" aria-label="Stelle obiettivo da realizzare">
@@ -269,7 +269,7 @@ export default function TreeHome(){
         {newlyObserved&&<div className="rm2-observation"><CheckCircle2 size={15}/><div>Collaudo E2E attribuibile al commit attivo del Debian.
           <small>Ambiente Debian e versione corrispondente; la struttura della mappa non viene modificata.</small>
         </div></div>}
-        <p className="rm2-caveat">Verde = controlli associati superati sulla versione attiva, nel perimetro indicato. Le note di progetto restano visibili e non bloccano il colore dei test.</p>
+        <p className="rm2-caveat">Verde = collaudo reale sulla versione attiva. Simulazioni, contratti e check HTTP non certificano una funzionalità. Problemi e miglioramenti si propagano dai sottoelementi.</p>
         <div className="rm2-tabs" role="tablist" aria-label="Tempo e problemi">
           {([
             ["present","Presente"],["issues","Problemi"],["future","Futuro"],["past","Storia"],
@@ -281,8 +281,8 @@ export default function TreeHome(){
             {root.observations?.map((o,i)=><div className="rm2-observation" key={i}><CheckCircle2 size={15}/><div>{o.text}<small>Confermato dall'utente; non prova il commit installato.</small></div></div>)}
             <div className="rm2-section-head"><Orbit size={14}/> PIANETI <span>{children(root.id).length}</span></div>
             <div className="rm2-planets">{children(root.id).map(pl=><div key={pl.id} className="rm2-planet">
-              <button type="button" aria-expanded={openPlanet===pl.id} onClick={()=>setOpenPlanet(openPlanet===pl.id?null:pl.id)}><Orbit size={14}/><span>{pl.title}</span>{openPlanet===pl.id?<ChevronDown size={14}/>:<ChevronRight size={14}/>}</button>
-              {openPlanet===pl.id&&<div className="rm2-moonlist">{children(pl.id).map(m=><p key={m.id}><i className="rm2-moon"/>{m.title}</p>)}{!children(pl.id).length&&<p>Nessuna luna per questo pianeta.</p>}</div>}
+              <button type="button" aria-expanded={openPlanet===pl.id} onClick={()=>setOpenPlanet(openPlanet===pl.id?null:pl.id)}><i title={toneLabels[tone(pl)]} className={"rm2-dot tone-"+tone(pl)}/><span>{pl.title}</span>{openPlanet===pl.id?<ChevronDown size={14}/>:<ChevronRight size={14}/>}</button>
+              {openPlanet===pl.id&&<div className="rm2-moonlist">{children(pl.id).map(m=><p key={m.id}><i title={toneLabels[tone(m)]} className={"rm2-dot tone-"+tone(m)}/>{m.title}</p>)}{!children(pl.id).length&&<p>Nessuna luna per questo pianeta.</p>}</div>}
             </div>)}</div>
           </>}
           {tab==="issues"&&<>
