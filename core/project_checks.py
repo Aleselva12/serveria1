@@ -281,7 +281,7 @@ def health_dashboard():
             }
     return {"catalog":list(CATALOG.values()),"components":CATALOG_COMPONENTS(),
             "latest":latest,"history":history[:100],"historyStore":store,
-            "updatedAt":_now()}
+            "updatedAt":_now(), "runtimeCommit":_release() or None}
 
 
 def CATALOG_COMPONENTS():

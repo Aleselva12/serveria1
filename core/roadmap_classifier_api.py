@@ -28,7 +28,7 @@ from core.ollama_transport import get_ollama_base_url, urlopen
 router = APIRouter(prefix="/api/v1/roadmap", tags=["Roadmap - classificatore locale"])
 MODEL = os.getenv("CORA_ROADMAP_CLASSIFIER_MODEL", "qwen3:1.7b").strip()
 MODEL_NAME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,100}$")
-TIMEOUT_SECONDS = 180
+TIMEOUT_SECONDS = 420
 MAX_TASKS = 8
 _BUSY = threading.BoundedSemaphore(1)
 
@@ -170,7 +170,7 @@ _SYSTEM = (
     "Punteggi interi 0-5: importance (valore strategico), urgency (tempo), "
     "blockers (lavori bloccati), impact (utilità pratica), effort (lavoro necessario), "
     "risk (regressioni). Per prove insufficienti imposta confidence low, non inventare fatti. "
-    "Spiegazioni sintetiche in italiano, motivando le incertezze."
+    "Spiegazioni molto brevi (massimo 100 caratteri) in italiano, motivando le incertezze."
 )
 
 
@@ -185,7 +185,7 @@ def _evaluate(payload: PreviewRequest) -> dict:
         "stream": False,
         "think": False,
         "format": _schema(),
-        "options": {"temperature": 0, "num_ctx": 12288, "num_predict": 350 * len(payload.objectives) + 200},
+        "options": {"temperature": 0, "num_ctx": 4096, "num_predict": 105 * len(payload.objectives) + 120},
         "messages": [
             {"role": "system", "content": _SYSTEM},
             {"role": "user", "content": "Valuta gli obiettivi seguenti. JSON soltanto:\n" +

@@ -74,6 +74,8 @@ test("the roadmap uses active release and shared checks without a second test ru
   const view=read("../src/tree/TreeHome.tsx");
   assert.ok(view.includes('api.healthDashboard()'));
   assert.ok(view.includes('"/api/v1/system/update"'));
+  assert.ok(view.includes('"runtimeCommit" in health'));
+  assert.ok(view.includes('health.runtimeCommit.toLowerCase()===activeCommit.toLowerCase()'));
   assert.ok(view.includes("verifiedLiveE2E"));
   assert.ok(!view.includes("api.runTests("));
   assert.ok(view.includes("Commit installato"));

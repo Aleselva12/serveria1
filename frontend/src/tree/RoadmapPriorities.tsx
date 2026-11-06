@@ -61,7 +61,7 @@ export default function RoadmapPriorities({stars,onOpen}:Props){
     goals:(n.timeline?.future||[]).slice(0,3).map(x=>x.slice(0,180))};
   });
   const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),210000);
+  const timeout=setTimeout(()=>controller.abort(),450000);
   try{
    const response=await authenticatedFetch(apiBaseUrl+"/api/v1/roadmap/classifier/preview",{
     method:"POST",headers:{"Content-Type":"application/json"},
@@ -72,7 +72,7 @@ export default function RoadmapPriorities({stars,onOpen}:Props){
    if(!Array.isArray(body.ratings))throw Error("Il modello non ha restituito dati validi.");
    setPreview(body);
    if(body.persisted)window.dispatchEvent(new Event("cora:priorities-updated"));
-  }catch(e){setError(e instanceof Error?e.message:"Impossibile effettuare la classificazione.");}
+  }catch(e){setError(e instanceof Error&&e.name==="AbortError"?"Tempo massimo di attesa superato (7 minuti e 30 secondi). Controlla il run in Attività e la disponibilità di Ollama.":e instanceof Error?e.message:"Impossibile effettuare la classificazione.");}
   finally{evaluationPending.current=false;clearTimeout(timeout);setBusy(false);}
  };
  const display=(id:string)=>byId.get(id)?.title.replace(/^[A-Z][\d.]* · /,"")||id;

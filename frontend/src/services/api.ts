@@ -34,6 +34,7 @@ export type HealthDashboardData = {
   latest: Record<string,HealthResult>;
   history: HealthResult[];
   historyStore: "postgresql" | "unavailable"; updatedAt: string;
+  runtimeCommit?: string | null;
 };
 
 export type ProjectPreflight = {
