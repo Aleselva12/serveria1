@@ -103,3 +103,6 @@ REGRESSIONS = {
     "backup_restore": ("tests.test_private_backups", "tests.test_deployment"),
     "updates_rollback": ("tests.test_updater",),
 }
+
+# Reuse reviewed fixture-based suites through the existing one-shot runner.
+REGRESSIONS.update({'files_browse_regression': ('tests.test_server_files.ServerFilesTests.test_listing_filter_pagination_and_directories',), 'files_lifecycle_regression': ('tests.test_server_files.ServerFilesTests.test_create_move_copy_and_conflicts', 'tests.test_server_files.ServerFilesTests.test_trash_restore_and_conflicting_original', 'tests.test_file_editor.FileEditorTests.test_edit_backup_conflict_and_mode'), 'files_access_regression': ('tests.test_server_files.ServerFilesTests.test_access_requires_owner_token', 'tests.test_server_files.ServerFilesTests.test_readonly_rejects_all_mutations', 'tests.test_server_files.ServerFilesTests.test_same_prefix_sibling_and_all_public_path_inputs_are_confined'), 'word_document_regression': ('tests.test_word_files.WordFilesTests', 'tests.test_commercial_word.CommercialWordTests')})

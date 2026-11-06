@@ -85,3 +85,7 @@ Il verde di un contenitore è un riepilogo, non un nuovo collaudo E2E.
 
 Queste regole non aggiungono runner, non ampliano l'ambito delle prove esistenti
 e non riscrivono automaticamente problemi o note della snapshot.
+
+## Prima estensione dei controlli
+
+Quattro suite isolate riutilizzano unittest e il runner una tantum: esplorazione file, ciclo di vita file, accesso/confinamento e documenti Word. Undici ulteriori pianeti/lune ricevono associazioni esplicite, includendo le prove già disponibili per bozze MIME e PDF preventivi. Sono controlli sintetici: non certificano account Gmail, NAS, installazione Debian o browser reali. Il risultato compare nel registro condiviso e nella scheda del nodo, senza trasformare una simulazione in verde E2E.

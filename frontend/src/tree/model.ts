@@ -16,6 +16,18 @@ export function severity(n:Node,nodes:Node[],failures:Set<string>):string {
 }
 /** References only the pre-existing shared health catalog; never runs checks from the map. */
 export const checks:Record<string,string[]>={
+  "B1.p1":["files_browse_regression"],
+  "B1.p1.m1":["files_browse_regression"],
+  "B1.p2":["files_e2e", "files_lifecycle_regression", "files_access_regression"],
+  "B3.p1":["word_document_regression"],
+  "B3.p1.m1":["word_document_regression"],
+  "B3.p1.m2":["word_document_regression"],
+  "B3.p4.m1":["word_document_regression"],
+  "C2.p2.m2":["gmail_e2e"],
+  "D4.p2":["preventivi_e2e"],
+  "D4.p2.m1":["preventivi_e2e"],
+  "D4.p2.m2":["preventivi_e2e"],
+
   "R1.2.p2":["desktop_e2e"],"R1.2.p2.m2":["desktop_e2e"],"R1.2.p3.m1":["desktop_e2e"],
   "R1.3.p2":["laptop_e2e"],
   "T1.p1":["chat_contract","chat_e2e"],"T1.p1.m2":["chat_e2e"],

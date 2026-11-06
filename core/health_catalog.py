@@ -60,6 +60,11 @@ _CATALOG = [
     entry("updates_rollback", "Updater: rollback e recupero isolati", "backups", "synthetic", "Updater simulato → recupero; rilascio reale escluso", "on_release"),
 ]
 
+_CATALOG.append(entry('files_browse_regression', 'File: elenco, filtri e paginazione', 'files', "synthetic", "Fixture isolate → funzioni e API", "on_release", description="Regressioni su dati temporanei; installazione, browser e dati reali esclusi."))
+_CATALOG.append(entry('files_lifecycle_regression', 'File: copia, spostamento, cestino e ripristino', 'files', "synthetic", "Fixture isolate → funzioni e API", "on_release", description="Regressioni su dati temporanei; installazione, browser e dati reali esclusi."))
+_CATALOG.append(entry('files_access_regression', 'File: accesso, sola lettura e confinamento', 'files', "synthetic", "Fixture isolate → funzioni e API", "on_release", description="Regressioni su dati temporanei; installazione, browser e dati reali esclusi."))
+_CATALOG.append(entry('word_document_regression', 'Word: lettura, modifica protetta, backup e conflitti', 'audio', "synthetic", "Fixture isolate → funzioni e API", "on_release", description="Regressioni su dati temporanei; installazione, browser e dati reali esclusi."))
+
 CATALOG = {item["id"]: item for item in _CATALOG}
 assert len(CATALOG) == len(_CATALOG), "ID di controlli duplicati"
 COMPONENTS = {
