@@ -28,7 +28,7 @@ from core.ollama_transport import get_ollama_base_url, urlopen
 router = APIRouter(prefix="/api/v1/roadmap", tags=["Roadmap - classificatore locale"])
 MODEL = os.getenv("CORA_ROADMAP_CLASSIFIER_MODEL", "qwen3:1.7b").strip()
 MODEL_NAME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,100}$")
-TIMEOUT_SECONDS = 180
+TIMEOUT_SECONDS = 420
 MAX_TASKS = 8
 _BUSY = threading.BoundedSemaphore(1)
 
