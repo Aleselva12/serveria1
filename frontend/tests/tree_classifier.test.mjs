@@ -17,6 +17,9 @@ test("local model classifier is available from Roadmap only on explicit click",(
 });
 test("source data uses bounded task IDs and no auto rewrite of map",()=>{
  assert.ok(ui.includes('const MAX_ITEMS=8'));
+ assert.ok(ui.includes('controller.abort(),450000'));
+ assert.ok(api.includes('TIMEOUT_SECONDS = 420'));
+ assert.ok(read("../../deploy/nginx.conf").includes("proxy_read_timeout 480s"));
  assert.ok(ui.includes('problems:(n.knownIssues||[])'));
  assert.ok(ui.includes('goals:(n.timeline?.future||[])'));
  assert.ok(ui.includes('additional_context:context'));
