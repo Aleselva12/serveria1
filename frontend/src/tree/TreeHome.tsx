@@ -100,7 +100,11 @@ export default function TreeHome(){
   },[verificationRevision]);
   const selected=byId.get(selectedId)||byId.get("T1")!;
   const root=rootFor(selected);
-  const tone=(n:Node)=>starTone(n,health,activeCommit,checks,nodes);
+  // A release pointer is not sufficient proof: compare it with the revision embedded in the running API image.
+  const verifiedCommit=health&&"runtimeCommit" in health
+    ? (health.runtimeCommit&&activeCommit&&health.runtimeCommit.toLowerCase()===activeCommit.toLowerCase()?activeCommit:null)
+    : activeCommit; // Legacy health responses stay unverified by their individual missing test SHA.
+  const tone=(n:Node)=>starTone(n,health,verifiedCommit,checks,nodes);
   const selectedTone=tone(root);
   const counts=Object.fromEntries(Object.keys(toneLabels).map(key=>[key,stars.filter(n=>tone(n)===key).length]));
   const relationRows=source.relations.filter(r=>r.from===root.id||r.to===root.id);
@@ -109,7 +113,7 @@ export default function TreeHome(){
   const selectedEvidence=checks[selected.id]||[];
   const newlyObserved=selectedEvidence.some(cid=>{
     const def=health?.catalog.find(d=>d.id===cid),result=health?.latest[cid];
-    return verifiedLiveE2E(def,result,activeCommit);
+    return verifiedLiveE2E(def,result,verifiedCommit);
   });
   const healthCatalog=health?.catalog||[];
   const matching=useMemo(()=>{
@@ -309,7 +313,7 @@ export default function TreeHome(){
           {activeCommit&&mappedChecks.some(cid=>health?.latest[cid]&&!health?.latest[cid]?.commit)&&<p className="rm2-test-note">Il sito conosce il commit installato, ma uno o più collaudi non riportano lo SHA del codice testato. Questi risultati non possono certificare la versione corrente: verificare che il container API sia stato costruito dall’updater con CORA_GIT_COMMIT e ripetere i controlli dopo il rilascio.</p>}
           {!health&&!healthError&&<p className="rm2-test-note">Caricamento registro condiviso…</p>}
           {mappedChecks.map(cid=>{
-            const def=healthCatalog.find(c=>c.id===cid),result=health?.latest[cid],st=verified(def,result,activeCommit);
+            const def=healthCatalog.find(c=>c.id===cid),result=health?.latest[cid],st=verified(def,result,verifiedCommit);
             return <div key={cid} className="rm2-check">
               <div><strong>{def?.title||cid}</strong><span className={"rm2-check-state "+st}>{st==="pass"?"Superato sul commit attivo":st==="fail"?"Fallito sul commit attivo":st==="stale"?"Scaduto":st==="outdated"?"Altra versione":st==="unattributed"?"Versione non verificata":st==="planned"?"Da implementare":"Da verificare"}</span></div>
               <small>{def?def.kind+" · "+(def.frequency==="to_implement"?"non implementato, nessun runner":def.automated?"automatico":"a richiesta"):"Controllo non ancora registrato nel catalogo"}</small>
