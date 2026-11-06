@@ -304,6 +304,8 @@ export default function TreeHome(){
           <div className="rm2-section-head"><CheckCircle2 size={14}/> TEST COLLEGATI <span>{mappedChecks.length}</span></div>
           <p className="rm2-test-note">Commit installato: {activeCommit?<code>{activeCommit.slice(0,12)}</code>:"non disponibile. Nessun risultato può confermare il verde sulla versione corrente."}</p>
           {healthError&&<p className="rm2-test-note">{healthError}</p>}
+          {health?.runtimeCommit&&activeCommit&&health.runtimeCommit.toLowerCase()!==activeCommit.toLowerCase()&&<p className="rm2-test-note">Attenzione: il commit dell’API in esecuzione ({health.runtimeCommit.slice(0,12)}) non coincide con quello dichiarato dall’updater ({activeCommit.slice(0,12)}). I risultati dei collaudi non devono certificare una versione diversa: verificare il rilascio e riavviare il container corretto.</p>}
+          {!health?.runtimeCommit&&<p className="rm2-test-note">L’API non comunica una revisione verificabile: il marker .cora-revision potrebbe essere mancante nella build del container. L’aggiornamento della pagina non può attribuire i risultati a un commit.</p>}
           {activeCommit&&mappedChecks.some(cid=>health?.latest[cid]&&!health?.latest[cid]?.commit)&&<p className="rm2-test-note">Il sito conosce il commit installato, ma uno o più collaudi non riportano lo SHA del codice testato. Questi risultati non possono certificare la versione corrente: verificare che il container API sia stato costruito dall’updater con CORA_GIT_COMMIT e ripetere i controlli dopo il rilascio.</p>}
           {!health&&!healthError&&<p className="rm2-test-note">Caricamento registro condiviso…</p>}
           {mappedChecks.map(cid=>{
