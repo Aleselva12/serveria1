@@ -6,7 +6,7 @@ import {
 import planSource from "./cora-plan.snapshot.json";
 import { api, apiBaseUrl, type HealthDashboardData } from "../services/api";
 import { authenticatedFetch } from "../services/transport";
-import { checkState, starTone, verifiedLiveE2E, toneLabels } from "./roadmapEvidence";
+import { checkState, starTone, verifiedLiveE2E, toneLabels, verificationSummary } from "./roadmapEvidence";
 import { homeRoadmap } from "../services/connections";
 import { checks, type Node } from "./model";
 import { closure } from "./closure";
@@ -38,10 +38,6 @@ const ancestry=(n:Node):Node[]=>{
   return result;
 };
 const hasAncestor=(n:Node,id:string)=>ancestry(n).some(a=>a.id===id);
-const implementation:Record<string,string>={
-  present:"Presente nel codice",partial:"Parziale / da collaudare",
-  planned:"Da realizzare",idea:"Idea da valutare",unverified:"Da verificare",
-};
 const tones:Record<string,string>={
   unknown:"Da valutare",ok:"Funzione collaudata",plan:"Lavoro previsto",
   minor:"Attenzione",problem:"Test fallito",
@@ -106,6 +102,7 @@ export default function TreeHome(){
     : activeCommit; // Legacy health responses stay unverified by their individual missing test SHA.
   const tone=(n:Node)=>starTone(n,health,verifiedCommit,checks,nodes);
   const selectedTone=tone(root);
+  const summary=(n:Node)=>verificationSummary(n,health,verifiedCommit,checks,nodes);
   const counts=Object.fromEntries(Object.keys(toneLabels).map(key=>[key,stars.filter(n=>tone(n)===key).length]));
   const relationRows=source.relations.filter(r=>r.from===root.id||r.to===root.id);
   // The inspector reuses check IDs from the canonical registry; it never runs tests.
@@ -127,7 +124,7 @@ export default function TreeHome(){
       (healthFilter==="all"||tone(n)===healthFilter)&&
       (group==="all"||group==="T"&&n.parent==="tronco"||group!=="T"&&hasAncestor(n,group))&&
       (!q||descendants(n).includes(q))&&
-      (mode==="all"||mode==="issues"&&(n.knownIssues?.length||tone(n)==="problem")||
+      (mode==="all"||mode==="issues"&&(n.knownIssues?.length||["problem","unverified","minor"].includes(tone(n)))||
        mode==="future"&&(n.status==="planned"||n.status==="idea"||Boolean(n.timeline?.future?.length)))
     );
   // Health changes are reflected when the response refreshes; no separate test execution.
@@ -167,7 +164,7 @@ export default function TreeHome(){
     URL.revokeObjectURL(url);
   };
   const copyOutline=async()=>{
-    const lines=stars.map(s=>`${s.code||s.id} — ${s.title} · ${implementation[s.status||"unverified"]||"Da verificare"}\n${(s.knownIssues||[]).map(v=>"  Problema: "+v).join("\n")}\n${(s.timeline?.future||[]).map(v=>"  Obiettivo: "+v).join("\n")}`);
+    const lines=stars.map(s=>`${s.code||s.id} — ${s.title} · ${summary(s)}\n${(s.knownIssues||[]).map(v=>"  Problema: "+v).join("\n")}\n${(s.timeline?.future||[]).map(v=>"  Obiettivo: "+v).join("\n")}`);
     try{await navigator.clipboard.writeText(lines.join("\n\n"));setCopied(true);}catch{setCopied(false);}
   };
   const links=codeLinks[root.id]||[];
@@ -181,7 +178,7 @@ export default function TreeHome(){
   const issues=root.knownIssues||[];
   const otherIssues=mappedChecks.filter(id=>{
     const def=healthCatalog.find(c=>c.id===id);
-    return checkState(def,health?.latest[id],activeCommit)==="fail";
+    return checkState(def,health?.latest[id],verifiedCommit)==="fail";
   });
   const relations=relationRows.map(r=>{
     const otherId=r.from===root.id?r.to:r.from;
@@ -206,6 +203,9 @@ export default function TreeHome(){
         <button onClick={exportData} type="button"><Download size={15}/>Esporta JSON</button>
       </div>
     </header>
+    <section className="rm2-footer-work"><div><small>SEQUENZA OPERATIVA · AUTO</small><h2>{workItems.slice(0,3).map(w=>w.id).join(" → ")}</h2><p>Stato letto dalla roadmap Home aggiornata il {homeRoadmap.updatedAt}.{currentWork?" Prossimo: "+currentWork.id+" · "+currentWork.title:""}</p></div>
+      <div>{workItems.slice(0,3).map(w=><button type="button" key={w.id} onClick={()=>jump(workTargets[w.id]||"T1")}><b>{w.id}</b><span>{w.title}<small>{w.status}</small></span><ArrowRight size={16}/></button>)}</div>
+    </section>
     <div className="rm2-metrics">
       <span><b>6</b> RADICI / 14 STELLE</span><span><b>13</b> TRONCO</span>
       <span><b>7</b> RAMI / 18 STELLE</span><span><b>151</b> PIANETI · <b>304</b> LUNE</span>
@@ -217,13 +217,12 @@ export default function TreeHome(){
         <button aria-pressed={mode==="issues"} onClick={()=>setMode("issues")}>Problemi e attenzioni</button>
         <button aria-pressed={mode==="future"} onClick={()=>setMode("future")}>Da fare / futuri</button>
       </div>
-      <p>Realizzazione ≠ salute. Grigio = obiettivo futuro o non verificato; test e problemi non modificano la struttura.</p>
+      <p>Grigio: non presente. Giallo: presente parzialmente. Rosso: non provato o collaudo fallito, con motivazione nella scheda.</p>
     </div>
-    <NodeVerificationPanel onResults={refreshVerification}/>
     <div className="rm2-health-summary" role="group" aria-label="Filtra stelle per esito dei test">
       <button type="button" aria-pressed={healthFilter==="all"} onClick={()=>setHealthFilter("all")}>Tutte · {stars.length}</button>
       {Object.entries(toneLabels).map(([key,label])=><button type="button" key={key} className={"tone-"+key} aria-pressed={healthFilter===key} onClick={()=>setHealthFilter(key)}><i className="rm2-dot"/>{label} · {counts[key]}</button>)}
-      <p>Esiti sulla versione attiva del Debian. Verde: collaudo reale superato, controlli e sottoelementi verificati. Giallo: miglioramenti previsti. Arancione: problema o rischio. Rosso: blocco o guasto totale. Nessun test disponibile non significa superato.</p>
+      <p>Esiti sulla versione attiva del Debian. Verde: collaudo reale superato. Giallo: presente parzialmente. Grigio: non presente. Arancione: attenzione. Rosso: non provato o collaudo fallito. Elementi futuri e parziali non bloccano il verde del genitore.</p>
       {healthError&&<p role="status">{healthError}</p>}
     </div>
     <div className="rm2-goal-strip" aria-label="Stelle obiettivo da realizzare">
@@ -259,7 +258,7 @@ export default function TreeHome(){
         <h2>{root.title.replace(/^[A-Z][\d.]* · /,"")}</h2>
         {focusId&&<button type="button" className="rm2-overview-link" onClick={showAll}>← Torna alla panoramica delle stelle</button>}
         <div className="rm2-badges">
-          <span className="rm2-impl">{selectedTone==="ok"?"Controlli superati · stato di progetto separato":implementation[root.status||"unverified"]||"Da verificare"}</span>
+          <span className="rm2-impl">{selectedTone==="ok"?"Collaudo reale superato":selectedTone==="problem"?"Collaudo fallito":selectedTone==="unverified"?"Non provato":selectedTone==="plan"?"Presente parzialmente":selectedTone==="unknown"?"Non presente":"Richiede attenzione"}</span>
           <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{toneLabels[selectedTone]||tones[selectedTone]||"Da valutare"}</span>
         </div>
         {goals.length>0&&<div className="rm2-project-state">
@@ -268,12 +267,12 @@ export default function TreeHome(){
         </div>}
         {selected.id!==root.id&&<div className="rm2-current-part">
           <strong>{selected.classification==="planet"?"Pianeta":selected.classification==="moon"?"Luna":"Elemento"} selezionato</strong>
-          <span>{selected.title} · {implementation[selected.status||"unverified"]||"Da verificare"}</span>
+          <span>{selected.title} · {summary(selected)}</span>
         </div>}
         {newlyObserved&&<div className="rm2-observation"><CheckCircle2 size={15}/><div>Collaudo E2E attribuibile al commit attivo del Debian.
           <small>Ambiente Debian e versione corrispondente; la struttura della mappa non viene modificata.</small>
         </div></div>}
-        <p className="rm2-caveat">Verde = collaudo reale sulla versione attiva. Simulazioni, contratti e check HTTP non certificano una funzionalità. Problemi e miglioramenti si propagano dai sottoelementi.</p>
+        <p className="rm2-caveat">Verde = collaudo reale sulla versione attiva. Simulazioni, contratti e check HTTP non certificano una funzionalità. I sottoelementi futuri o parziali non bloccano il verde; problemi e mancate verifiche di elementi presenti richiedono attenzione.</p>
         <div className="rm2-tabs" role="tablist" aria-label="Tempo e problemi">
           {([
             ["present","Presente"],["issues","Problemi"],["future","Futuro"],["past","Storia"],
@@ -281,12 +280,13 @@ export default function TreeHome(){
         </div>
         <div className="rm2-tab-body">
           {tab==="present"&&<>
-            <p>{root.note||"Descrizione operativa da verificare."}</p>
+            <p role="status" aria-live="polite">{summary(root)}</p>
+            <details><summary>Descrizione di progetto</summary><p>{root.note||"Descrizione operativa da definire."}</p><small>Nota di progetto; lo stato dei collaudi è riportato sopra.</small></details>
             {root.observations?.map((o,i)=><div className="rm2-observation" key={i}><CheckCircle2 size={15}/><div>{o.text}<small>Confermato dall'utente; non prova il commit installato.</small></div></div>)}
             <div className="rm2-section-head"><Orbit size={14}/> PIANETI <span>{children(root.id).length}</span></div>
             <div className="rm2-planets">{children(root.id).map(pl=><div key={pl.id} className="rm2-planet">
-              <button type="button" aria-expanded={openPlanet===pl.id} onClick={()=>setOpenPlanet(openPlanet===pl.id?null:pl.id)}><i title={toneLabels[tone(pl)]} className={"rm2-dot tone-"+tone(pl)}/><span>{pl.title}</span>{openPlanet===pl.id?<ChevronDown size={14}/>:<ChevronRight size={14}/>}</button>
-              {openPlanet===pl.id&&<div className="rm2-moonlist">{children(pl.id).map(m=><p key={m.id}><i title={toneLabels[tone(m)]} className={"rm2-dot tone-"+tone(m)}/>{m.title}</p>)}{!children(pl.id).length&&<p>Nessuna luna per questo pianeta.</p>}</div>}
+              <button type="button" aria-expanded={openPlanet===pl.id} onClick={()=>setOpenPlanet(openPlanet===pl.id?null:pl.id)}><i title={toneLabels[tone(pl)]} className={"rm2-dot tone-"+tone(pl)}/><span>{pl.title}<small>{summary(pl)}</small></span>{openPlanet===pl.id?<ChevronDown size={14}/>:<ChevronRight size={14}/>}</button>
+              {openPlanet===pl.id&&<div className="rm2-moonlist">{children(pl.id).map(m=><p key={m.id}><i title={toneLabels[tone(m)]} className={"rm2-dot tone-"+tone(m)}/>{m.title}<small>{summary(m)}</small></p>)}{!children(pl.id).length&&<p>Nessuna luna per questo pianeta.</p>}</div>}
             </div>)}</div>
           </>}
           {tab==="issues"&&<>
@@ -341,9 +341,9 @@ export default function TreeHome(){
       </aside>
     </div>
     <RoadmapPriorities stars={stars} onOpen={jump}/>
-    <section className="rm2-footer-work"><div><small>SEQUENZA OPERATIVA · AUTO</small><h2>{workItems.slice(0,3).map(w=>w.id).join(" → ")}</h2><p>Stato letto dalla roadmap Home aggiornata il {homeRoadmap.updatedAt}.{currentWork?" Prossimo: "+currentWork.id+" · "+currentWork.title:""}</p></div>
-      <div>{workItems.slice(0,3).map(w=><button type="button" key={w.id} onClick={()=>jump(workTargets[w.id]||"T1")}><b>{w.id}</b><span>{w.title}<small>{w.status}</small></span><ArrowRight size={16}/></button>)}</div>
-    </section>
+    <NodeVerificationPanel onResults={refreshVerification}/>
+    <button type="button" onClick={refreshVerification}>Aggiorna albero</button>
+
     <footer className="rm2-footer"><CircleHelp size={14}/>{source.revision} · struttura da qwe · stato lavori da project-status · risultati test dal registro unico, senza eseguirli due volte. <a href="#home">Torna alla Home</a></footer>
   </section>;
 }

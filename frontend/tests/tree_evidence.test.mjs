@@ -8,7 +8,7 @@ const source=read("../src/tree/roadmapEvidence.ts");
 const compiled=ts.transpileModule(source,{compilerOptions:{
   target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,
 }}).outputText;
-const {checkState,verifiedLiveE2E,starTone}=await import("data:text/javascript;base64,"+Buffer.from(compiled).toString("base64"));
+const {checkState,verifiedLiveE2E,starTone,verificationSummary}=await import("data:text/javascript;base64,"+Buffer.from(compiled).toString("base64"));
 
 const sha="a".repeat(40),old="b".repeat(40);
 const now=()=>new Date().toISOString();
@@ -47,14 +47,14 @@ test("only fully checked current-commit results with matching Debian E2E can col
   const contract=definition("chat_contract","contract","5m"),e2e=definition("chat_e2e");
   const positive=dashboard([[contract,result(contract.id)],[e2e,result(e2e.id)]]);
   assert.equal(starTone(node,positive,sha,mapping),"ok");
-  assert.equal(starTone(node,positive,old,mapping),"unknown");
-  assert.equal(starTone(node,dashboard([[contract,result(contract.id)]]),sha,mapping),"unknown");
-  assert.equal(starTone(node,dashboard([[contract,result(contract.id)],[e2e,result(e2e.id,sha,"ci")]]),sha,mapping),"unknown");
+  assert.equal(starTone(node,positive,old,mapping),"unverified");
+  assert.equal(starTone(node,dashboard([[contract,result(contract.id)]]),sha,mapping),"unverified");
+  assert.equal(starTone(node,dashboard([[contract,result(contract.id)],[e2e,result(e2e.id,sha,"ci")]]),sha,mapping),"unverified");
 });
 test("old failures are historical, partial failures are orange; known issues remain orange",()=>{
   const contract=definition("chat_contract","contract","5m"),e2e=definition("chat_e2e");
   const oldFailure=dashboard([[contract,result(contract.id,old,"debian-api","fail")],[e2e,result(e2e.id,old)]]);
-  assert.equal(starTone(node,oldFailure,sha,mapping),"unknown");
+  assert.equal(starTone(node,oldFailure,sha,mapping),"unverified");
   assert.equal(starTone(node,dashboard([[contract,result(contract.id,sha,"debian-api","fail")]]),sha,mapping),"minor");
   assert.equal(starTone({...node,knownIssues:["Problema da verificare"]},oldFailure,sha,mapping),"minor");
 });
@@ -87,12 +87,12 @@ test("manual priorities never hide live failures or fabricate green",()=>{
   for(const priority of ["ok","minor","plan","problem"]){
     const n={...node,priority};
     assert.equal(starTone(n,dashboard([[d,result(d.id,sha,"debian-api","fail")]]),sha,{A1:[d.id]}),"problem");
-    assert.equal(starTone(n,null,sha,{A1:[d.id]}),"unknown");
+    assert.equal(starTone(n,null,sha,{A1:[d.id]}),"unverified");
   }
 });
-test("CI failures do not turn a live node red and future timestamps never pass",()=>{
+test("CI failures are not live failures; missing live proof is explicitly unverified",()=>{
   const d=definition("chat_e2e");
-  assert.equal(starTone(node,dashboard([[d,result(d.id,sha,"ci","fail")]]),sha,{A1:[d.id]}),"unknown");
+  assert.equal(starTone(node,dashboard([[d,result(d.id,sha,"ci","fail")]]),sha,{A1:[d.id]}),"unverified");
   assert.equal(checkState(d,result(d.id,sha,"debian-api","pass",new Date(Date.now()+3600000).toISOString()),sha),"unknown");
 });
 test("functional evidence expires too",()=>{
@@ -120,10 +120,58 @@ test("focused worker nodes update only covered scopes; GPU is not certified by i
  test("synthetic and HTTP successes stay unverified; child risk propagates without certifying siblings",()=>{
   for(const kind of ["synthetic","preflight","contract"]){
    const d=definition("limited",kind);
-   assert.equal(starTone(node,dashboard([[d,result(d.id)]]),sha,{A1:[d.id]}),"unknown");
+   assert.equal(starTone(node,dashboard([[d,result(d.id)]]),sha,{A1:[d.id]}),"plan");
   }
   const d=definition("real"),h=dashboard([[d,result(d.id)]]);
   const children=[node,{id:"p",parent:"A1",classification:"planet",status:"partial",knownIssues:["Rischio"]}];
   assert.equal(starTone(node,h,sha,{A1:[d.id]},children),"minor");
-  assert.equal(starTone({...children[1],knownIssues:[]},h,sha,{A1:[d.id]},children),"unknown");
+  assert.equal(starTone({...children[1],knownIssues:[]},h,sha,{A1:[d.id]},children),"plan");
  });
+
+test("future and partial children do not block a star's valid live proof",()=>{
+ const d=definition("real"),h=dashboard([[d,result(d.id)]]),m={A1:[d.id]};
+ const future={id:"future",parent:"A1",classification:"planet",status:"planned"};
+ const partial={id:"partial",parent:"A1",classification:"planet",status:"partial"};
+ const all=[node,future,partial];
+ assert.equal(starTone(future,h,sha,m,all),"unknown");
+ assert.equal(starTone(partial,h,sha,m,all),"plan");
+ assert.equal(starTone({...node,timeline:{future:["An optional upgrade"]}},h,sha,m,all),"ok");
+ const present={...future,status:"present"};
+ assert.equal(starTone(present,h,sha,m,[node,present]),"unverified");
+ assert.equal(starTone(node,h,sha,m,[node,present]),"minor");
+});
+
+test("a mapped E2E without valid proof remains red even for a partial node",()=>{
+ const d=definition("real"),h=dashboard([[d,undefined]]),m={A1:[d.id]};
+ assert.equal(starTone(node,h,sha,m),"unverified");
+ assert.match(verificationSummary(node,h,sha,m),/Non provato/);
+ assert.equal(starTone(node,dashboard([[d,result(d.id)]]),sha,m),"ok");
+ assert.match(verificationSummary(node,dashboard([[d,result(d.id)]]),sha,m),/Collaudo reale superato/);
+});
+
+test("root areas and branches aggregate actual children without claiming their own E2E",()=>{
+ for(const group of [{id:"group",classification:"area"},{id:"group",role:"ramo"}]){
+  const future={id:"future",parent:"group",classification:"star",status:"planned"};
+  const partial={id:"partial",parent:"group",classification:"star",status:"partial"};
+  const present={id:"present",parent:"group",classification:"star",status:"present"};
+  const d=definition("real"),m={present:[d.id]};
+  const all=[group,future,partial,present];
+  const h=dashboard([[d,result(d.id)]]);
+  assert.equal(starTone(group,h,sha,m,all),"ok");
+  assert.equal(starTone(group,h,sha,m,[group,partial]),"ok");
+  assert.match(verificationSummary(group,h,sha,m,all),/Non è un collaudo autonomo/);
+  const failed=dashboard([[d,result(d.id,sha,"debian-api","fail")]]);
+  assert.equal(starTone(group,failed,sha,m,all),"minor");
+  assert.equal(starTone(group,failed,sha,m,[group,present]),"problem");
+  assert.equal(starTone(group,dashboard(),sha,m,[group,present]),"unverified");
+  assert.equal(starTone(group,h,sha,m,[group,future]),"unknown");
+ }
+});
+
+test("runtime descriptions distinguish expired, old and missing proof from a failed test",()=>{
+ const d=definition("real"),m={A1:[d.id]};
+ assert.match(verificationSummary(node,dashboard([[d,result(d.id,old)]]),sha,m),/un’altra versione/);
+ const expired=new Date(Date.now()-25*3600000).toISOString();
+ assert.match(verificationSummary(node,dashboard([[d,result(d.id,sha,"debian-api","pass",expired)]]),sha,m),/scaduti/);
+ assert.match(verificationSummary(node,dashboard([[d,result(d.id,sha,"debian-api","fail")]]),sha,m),/Collaudo fallito/);
+});

@@ -56,3 +56,32 @@ Quando cambia la fonte qwe, aggiornare la snapshot e verificare ID, relazioni,
 mapping delle evidenze e rendering. Per il collaudo sul Debian usare il commit
 **effettivamente installato** dall'updater e verificare i servizi reali: una CI verde
 o una snapshot nuova non certificano da sole il server in esecuzione.
+
+
+## Colori e descrizioni della verifica
+
+La pagina mostra, in ordine: sequenza operativa, albero, analisi dei prossimi passi,
+collaudi e comando di aggiornamento. “Aggiorna albero” rilegge registro e versione,
+senza avviare test o inferenza; il pannello collaudi aggiorna gli stessi dati ad ogni
+avanzamento. Le descrizioni della verifica usano la stessa funzione dei colori.
+La nota statica è separata sotto “Descrizione di progetto”.
+
+- Grigio: stato `planned`/`idea`, quindi elemento non presente.
+- Giallo: elemento `partial`, senza problemi rilevati né un collaudo E2E associato
+  ancora da provare. Non certifica il funzionamento completo.
+- Rosso “non provato”: elemento presente privo di prove valide, oppure collaudo
+  E2E associato ma mancante/scaduto/non attribuibile alla versione attiva.
+  È distinto dal rosso “collaudo fallito”, che richiede un fallimento reale.
+- Verde: E2E Debian valido sulla versione attiva e controlli associati superati.
+  Figli grigi non presenti e gialli parziali non impediscono questo risultato;
+  nemmeno una voce nella lista degli sviluppi futuri lo invalida.
+- Arancione: problemi documentati, fallimenti parziali o sottoelementi presenti
+  non provati. Le criticità non vengono ignorate perché un nodo è parziale.
+
+Rami e aree delle radici aggregano i figli: verde se tutti i figli attivi sono
+verdi/gialli, arancione per criticità miste, rosso se tutti quelli attivi sono
+falliti/non provati. Un insieme di soli obiettivi non presenti rimane grigio.
+Il verde di un contenitore è un riepilogo, non un nuovo collaudo E2E.
+
+Queste regole non aggiungono runner, non ampliano l'ambito delle prove esistenti
+e non riscrivono automaticamente problemi o note della snapshot.
