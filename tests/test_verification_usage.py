@@ -9,10 +9,10 @@ from core import project_checks
 
 
 class UsageEvidenceTests(unittest.TestCase):
-    def test_all_thirty_checks_have_runners_and_explicit_scope(self):
+    def test_catalog_checks_have_runners_and_explicit_scope(self):
         from core.health_catalog import CATALOG
         from deploy.verify_nodes import available_checks
-        self.assertEqual(len(CATALOG), 30)
+        self.assertEqual(len(available_checks()), len(set(available_checks())))
         self.assertEqual(set(available_checks()), set(CATALOG))
         self.assertEqual(CATALOG["gmail_e2e"]["kind"], "synthetic")
         self.assertEqual(CATALOG["immich_e2e"]["kind"], "preflight")

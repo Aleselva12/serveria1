@@ -66,6 +66,22 @@ class VerificationTests(unittest.TestCase):
             infer.return_value = {"actual_model": "different:8b", "done": True, "response": "CORA_WORKER_OK"}
             with self.assertRaises(ValueError): verifier._action("desktop_e2e", "a"*32)
 
+    def test_worker_challenge_rejects_false_positive_responses(self):
+        run_id = "a" * 32
+        valid = {"model":"chosen:8b", "done":True, "message":{"role":"assistant", "content":"CORA_" + run_id}}
+        from copy import deepcopy
+        with patch("core.agent_models.binding", return_value={"machine_id":"remote", "model":"chosen:8b"}), patch("core.agent_models.chat_on_worker") as chat:
+            chat.return_value = valid
+            self.assertEqual(verifier._action("worker_e2e", run_id)["status"], "pass")
+            for bad in ({}, {**valid,"done":False}, {**valid,"model":"wrong"},
+                        {**valid,"message":{"role":"assistant","content":"OK"}},
+                        {**valid,"message":{"role":"assistant","content":"CORA_" + "b"*32}},
+                        {**valid,"message":{"role":"assistant","content":""}},
+                        {**valid,"message":{"role":"assistant","content":"CORA_"+run_id,"tool_calls":[{}]}}):
+                with self.subTest(reply=bad):
+                    chat.return_value = deepcopy(bad)
+                    self.assertEqual(verifier._action("worker_e2e", run_id)["status"], "fail")
+
     def test_baked_revision_wins_and_malformed_identity_is_never_truncated(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(release_identity, "ROOT", Path(folder)), patch.dict(
             os.environ, {"CORA_GIT_COMMIT": "b"*40}
