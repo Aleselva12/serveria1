@@ -89,3 +89,7 @@ e non riscrivono automaticamente problemi o note della snapshot.
 ## Prima estensione dei controlli
 
 Quattro suite isolate riutilizzano unittest e il runner una tantum: esplorazione file, ciclo di vita file, accesso/confinamento e documenti Word. Undici ulteriori pianeti/lune ricevono associazioni esplicite, includendo le prove già disponibili per bozze MIME e PDF preventivi. Sono controlli sintetici: non certificano account Gmail, NAS, installazione Debian o browser reali. Il risultato compare nel registro condiviso e nella scheda del nodo, senza trasformare una simulazione in verde E2E.
+
+## Estensione suite per nodi
+
+`core/tree_verification_suites.py` dichiara 17 ulteriori suite, i test riutilizzati, i 60 nodi coperti e i limiti della prova. Catalogo e runner leggono questa fonte; un test verifica che ogni ID sia presente nella snapshot e nel mapping frontend, senza duplicati né associazioni a elementi pianificati. La scheda mostra la descrizione di ambito accanto agli esiti. La copertura diretta totale è 93/455 pianeti e lune; resta copertura di regressione isolata, non prova automatica di funzionamento reale.

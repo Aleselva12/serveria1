@@ -318,6 +318,7 @@ export default function TreeHome(){
               <div><strong>{def?.title||cid}</strong><span className={"rm2-check-state "+st}>{st==="pass"?"Superato sul commit attivo":st==="fail"?"Fallito sul commit attivo":st==="stale"?"Scaduto":st==="outdated"?"Altra versione":st==="unattributed"?"Versione non verificata":st==="planned"?"Da implementare":"Da verificare"}</span></div>
               <small>{def?def.kind+" · "+(def.frequency==="to_implement"?"non implementato, nessun runner":def.automated?"automatico":"a richiesta"):"Controllo non ancora registrato nel catalogo"}</small>
               <small>{def?.frequency==="to_implement"?"Controllo proposto: nessuna esecuzione automatica.":result?formatDate(result.at)+" · "+(result.environment||"ambiente ignoto")+(result.commit?" · "+result.commit.slice(0,10):" · commit non disponibile"):"Nessun esito disponibile"}</small>
+              {def?.description&&<small>Ambito: {def.description}</small>}
               {result?.detail&&<small>{result.detail}</small>}
             </div>;
           })}

@@ -11,6 +11,30 @@ from core.server_files import router
 from core.ia_library import router as library_router
 
 class FileExtrasTests(unittest.TestCase):
+    def symlink_fixture(self, link, target):
+        try:
+            link.symlink_to(target, target_is_directory=target.is_dir())
+        except OSError as exc:
+            if getattr(exc, "winerror", None) == 1314:
+                self.skipTest("Windows does not grant symbolic-link creation to this test process")
+            raise
+
+    def test_preview_and_search_without_symlink_privileges(self):
+        (self.data/'deep').mkdir()
+        (self.data/'deep'/'report.txt').write_text('<script>do not execute</script>')
+        (self.data/'.cora-staging').mkdir()
+        (self.data/'.cora-staging'/'report.txt').write_text('hidden')
+        response = self.client.get(self.prefix+'/search', params={'root_id':'files','query':'report'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item['path'] for item in response.json()['items']], ['deep/report.txt'])
+        response = self.client.get(self.prefix+'/preview', params={'root_id':'files','path':'deep/report.txt'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['kind'], 'text')
+        self.assertEqual(response.json()['text'], '<script>do not execute</script>')
+        self.assertEqual(response.headers['x-content-type-options'], 'nosniff')
+        (self.data/'bad.html').write_text('<script/>')
+        self.assertEqual(self.client.get(self.prefix+'/preview', params={'root_id':'files','path':'bad.html'}).status_code,415)
+
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory(); self.base=Path(self.temp.name)
         self.data=self.base/'files';self.library=self.base/'library';self.originals=self.base/'originals'
@@ -65,7 +89,7 @@ class FileExtrasTests(unittest.TestCase):
     def test_preview_escapes_html_and_search_ignores_links_and_reserved_areas(self):
         (self.data/'deep').mkdir();(self.data/'deep'/'report.txt').write_text('<script>do not execute</script>')
         (self.data/'.cora-staging').mkdir();(self.data/'.cora-staging'/'report.txt').write_text('hidden')
-        outside=self.base/'external';outside.mkdir();(outside/'report.txt').write_text('secret');(self.data/'link').symlink_to(outside)
+        outside=self.base/'external';outside.mkdir();(outside/'report.txt').write_text('secret');self.symlink_fixture(self.data/'link', outside)
         r=self.client.get(self.prefix+'/search',params={'root_id':'files','query':'report'}).json()
         self.assertEqual([i['path'] for i in r['items']],['deep/report.txt'])
         r=self.client.get(self.prefix+'/preview',params={'root_id':'files','path':'deep/report.txt'})
@@ -93,7 +117,7 @@ class FileExtrasTests(unittest.TestCase):
         for name in ('meta.json','content'):
             ident=self.start();slot=self.data/'.cora-staging'/('upload-'+ident)
             external=self.base/('external-'+name);external.write_text('keep private')
-            (slot/name).unlink();(slot/name).symlink_to(external)
+            (slot/name).unlink();self.symlink_fixture(slot/name, external)
             self.assertEqual(self.client.get(self.prefix+'/uploads/'+ident,params={'root_id':'files'}).status_code,403)
             self.assertEqual(self.chunk(ident,b'bad').status_code,403)
             self.assertEqual(self.complete(ident).status_code,403)
@@ -103,6 +127,6 @@ class FileExtrasTests(unittest.TestCase):
     def test_stale_session_scan_does_not_read_symlinked_metadata(self):
         slot=self.data/'.cora-staging'/('upload-'+'a'*32);slot.mkdir(parents=True)
         external=self.base/'expired.json';external.write_text(json.dumps({'created':0}))
-        (slot/'meta.json').symlink_to(external)
+        self.symlink_fixture(slot/'meta.json', external)
         self.start()
         self.assertTrue(slot.exists());self.assertTrue(external.exists())

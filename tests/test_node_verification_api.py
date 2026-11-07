@@ -32,7 +32,10 @@ class NodeVerificationAPITests(unittest.TestCase):
             self.assertIsNone(response.json()["run"])
             self.assertIn("memory_e2e", [r["id"] for r in response.json()["availableChecks"]])
             self.assertEqual(response.json()["unavailableChecks"], [])
-            self.assertEqual(len(response.json()["availableChecks"]), 30)
+            ids = [row["id"] for row in response.json()["availableChecks"]]
+            self.assertEqual(len(ids), len(set(ids)))
+            self.assertEqual(set(ids), set(service.CATALOG))
+            self.assertTrue({"word_document_regression", "capability_permissions_regression", "file_preview_regression"} <= set(ids))
             worker.assert_not_called()
 
     def test_duplicate_click_is_rejected_across_workers_and_cli(self):

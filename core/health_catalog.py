@@ -65,6 +65,9 @@ _CATALOG.append(entry('files_lifecycle_regression', 'File: copia, spostamento, c
 _CATALOG.append(entry('files_access_regression', 'File: accesso, sola lettura e confinamento', 'files', "synthetic", "Fixture isolate → funzioni e API", "on_release", description="Regressioni su dati temporanei; installazione, browser e dati reali esclusi."))
 _CATALOG.append(entry('word_document_regression', 'Word: lettura, modifica protetta, backup e conflitti', 'audio', "synthetic", "Fixture isolate → funzioni e API", "on_release", description="Regressioni su dati temporanei; installazione, browser e dati reali esclusi."))
 
+from core.tree_verification_suites import SUITES as TREE_SUITES
+_CATALOG.extend(entry(key, item["title"], item["component"], "synthetic", "Suite isolate su fixture", "on_release", description=item["scope"]) for key, item in TREE_SUITES.items())
+
 CATALOG = {item["id"]: item for item in _CATALOG}
 assert len(CATALOG) == len(_CATALOG), "ID di controlli duplicati"
 COMPONENTS = {
