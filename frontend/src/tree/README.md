@@ -92,4 +92,4 @@ Quattro suite isolate riutilizzano unittest e il runner una tantum: esplorazione
 
 ## Estensione suite per nodi
 
-`core/tree_verification_suites.py` dichiara 17 ulteriori suite, i test riutilizzati, i 60 nodi coperti e i limiti della prova. Catalogo e runner leggono questa fonte; un test verifica che ogni ID sia presente nella snapshot e nel mapping frontend, senza duplicati né associazioni a elementi pianificati. La scheda mostra la descrizione di ambito accanto agli esiti. La copertura diretta totale è 93/455 pianeti e lune; resta copertura di regressione isolata, non prova automatica di funzionamento reale.
+`core/tree_verification_suites.py` dichiara 29 ulteriori suite, i test riutilizzati, i nodi associati e i limiti della prova. Catalogo e runner leggono questa fonte; un test verifica che ogni ID sia presente nella snapshot e nel mapping frontend, senza duplicati né associazioni a elementi pianificati. La scheda mostra la descrizione di ambito accanto agli esiti. La copertura diretta totale è 143/455 pianeti e lune; resta copertura di regressione isolata, non prova automatica di funzionamento reale.

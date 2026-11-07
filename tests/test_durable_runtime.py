@@ -278,7 +278,7 @@ class DurablePostgresTests(unittest.TestCase):
             self.assertEqual(run.status,'completed')
             self.assertEqual(get_run(run.id)['result'],{'response':'known result'})
             from core.execution_traces import trace_status
-            self.assertEqual(trace_status()['write_error'],'IsADirectoryError')
+            self.assertEqual(trace_status()['write_error'], 'PermissionError' if os.name == 'nt' else 'IsADirectoryError')
 
     def test_child_cancellation_marks_root_and_all_descendants(self):
         root=create_run(thread_id='root');root_id=str(root['id'])
