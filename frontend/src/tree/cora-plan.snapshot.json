@@ -102,7 +102,7 @@
       "title": "Espansione GPU futura",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R1.1.p2"
     },
@@ -337,7 +337,7 @@
       "title": "Espansione futura",
       "priority": "unknown",
       "classification": "planet",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R1.3"
     },
@@ -346,7 +346,7 @@
       "title": "Agenti operativi locali",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R1.3.p3"
     },
@@ -355,7 +355,7 @@
       "title": "Tool autorizzati",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R1.3.p3"
     },
@@ -669,7 +669,7 @@
       "title": "NAS futuro",
       "priority": "unknown",
       "classification": "planet",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R2.2"
     },
@@ -678,7 +678,7 @@
       "title": "Storage condiviso",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R2.2.p3"
     },
@@ -687,7 +687,7 @@
       "title": "Migrazione controllata",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R2.2.p3"
     },
@@ -888,7 +888,7 @@
       "title": "Ricerca futura",
       "priority": "unknown",
       "classification": "planet",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R3.2"
     },
@@ -897,7 +897,7 @@
       "title": "Colibrì da valutare",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R3.2.p3"
     },
@@ -906,7 +906,7 @@
       "title": "Licenze e disponibilità",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R3.2.p3"
     },
@@ -1221,7 +1221,7 @@
       "title": "NAS futuro",
       "priority": "unknown",
       "classification": "planet",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R5.1"
     },
@@ -1230,7 +1230,7 @@
       "title": "Politica copie",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R5.1.p3"
     },
@@ -1239,7 +1239,7 @@
       "title": "Frequenza e retention",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R5.1.p3"
     },
@@ -1452,7 +1452,7 @@
       "title": "Futuro trust",
       "priority": "unknown",
       "classification": "planet",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R6.1"
     },
@@ -1461,7 +1461,7 @@
       "title": "Identità per agente",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R6.1.p3"
     },
@@ -1470,7 +1470,7 @@
       "title": "Revoca e rotazione",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "R6.1.p3"
     },
@@ -2100,7 +2100,7 @@
       "title": "Futuro distribuito",
       "priority": "unknown",
       "classification": "planet",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "T5"
     },
@@ -2109,7 +2109,7 @@
       "title": "Bus tra nodi",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "T5.p3"
     },
@@ -2118,7 +2118,7 @@
       "title": "Disconnessioni",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "T5.p3"
     },
@@ -2375,7 +2375,7 @@
       "title": "Custodia futura",
       "priority": "unknown",
       "classification": "planet",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "T7"
     },
@@ -2384,7 +2384,7 @@
       "title": "Mente saggia o Custode idea",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "T7.p5"
     },
@@ -2393,7 +2393,7 @@
       "title": "Versionamento governato",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "T7.p5"
     },
@@ -3680,7 +3680,7 @@
       "title": "OCR futuro",
       "priority": "unknown",
       "classification": "planet",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "B3"
     },
@@ -3689,7 +3689,7 @@
       "title": "PDF scansionati",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "B3.p3"
     },
@@ -3698,7 +3698,7 @@
       "title": "Formati avanzati",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "B3.p3"
     },
@@ -4238,7 +4238,7 @@
       "title": "Future schede cliente",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
+      "status": "planned",
       "note": "",
       "parent": "C3.p4"
     },
