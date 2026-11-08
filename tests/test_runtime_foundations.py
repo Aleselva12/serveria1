@@ -126,6 +126,16 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(writes,['first'])
 
 class AuthTests(unittest.TestCase):
+    def setUp(self):
+        # This suite tests password/cookie contracts on a synthetic app, even
+        # when invoked by a production server using Tailscale authentication.
+        environment = patch.dict(os.environ, {
+            'CORA_AUTH_MODE': 'password',
+            'CORA_UI_ORIGINS': 'http://localhost:5173,http://127.0.0.1:5173',
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
+
     def test_hash_salted_and_wrong_password_rejected(self):
         a=password_hash('long-personal-password'); b=password_hash('long-personal-password')
         self.assertNotEqual(a,b); self.assertTrue(verify_password('long-personal-password',a)); self.assertFalse(verify_password('other',a))
