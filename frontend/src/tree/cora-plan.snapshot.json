@@ -38,7 +38,6 @@
           "Upgrade hardware per modelli locali più grandi"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "ARCH-HW"
       ]
@@ -154,7 +153,6 @@
           "Misurare esplicitamente GPU e carico locale durante inferenza remota; identità macchina e modello nei run odierni corrispondono."
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [],
       "observations": [
         {
@@ -404,7 +402,6 @@
           "Realizzare NAS dedicato senza migrare automaticamente ogni database"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "ARCH-HW",
         "BACKUP-UPDATE"
@@ -608,10 +605,7 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "R2.1.p3",
-      "knownIssues": [
-        "Collocazione database sul NAS non decisa; non creare duplicazioni anagrafiche"
-      ]
+      "parent": "R2.1.p3"
     },
     {
       "id": "R2.2",
@@ -634,7 +628,6 @@
           "Gestire originale/copia IA, mount e conflitti"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -746,7 +739,6 @@
         },
         "future": []
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -859,7 +851,6 @@
           "Benchmark ripetibili e valutazione Colibrì o alternative"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "ARCH-MODELS"
       ]
@@ -981,7 +972,6 @@
         },
         "future": []
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -1084,7 +1074,6 @@
         },
         "future": []
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -1433,7 +1422,6 @@
           "Identità verificata per agenti installati su nuovi nodi"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -1538,7 +1526,6 @@
           "Policy per agente remoto, minimo privilegio, revoca"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -1780,7 +1767,6 @@
           "Associazione affidabile tra richiesta, tool e capability autorizzata"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -1886,7 +1872,6 @@
           "Coordinator leggibile e coerente anche con più nodi"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -1992,7 +1977,6 @@
           "Operazioni idempotenti, retry e recupero errori"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -2098,7 +2082,6 @@
           "Futuro Event Bus distribuito tra nodi"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -2205,7 +2188,6 @@
           "Completare in futuro il Context Manager progressivo e i controlli di qualità della cronologia: non è un errore dimostrato dalle prove odierne."
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "ARCH-ORCHESTRATOR"
       ]
@@ -2495,7 +2477,6 @@
           "Estendere ad altri agenti e worker i controlli sull'identità del modello; nei due casi osservati il modello corrispondeva."
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "MODELS-WORKER"
       ]
@@ -2703,10 +2684,7 @@
       "classification": "planet",
       "status": "planned",
       "note": "",
-      "parent": "T9",
-      "knownIssues": [
-        "Code persistenti e scheduling multi-worker general-purpose non implementati"
-      ]
+      "parent": "T9"
     },
     {
       "id": "T9.p3.m1",
@@ -2749,7 +2727,6 @@
           "Diagnostica causale cross-component da sviluppare; le trace dei run osservati risultano disponibili."
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "ARCH-ORCHESTRATOR",
         "AUTO-QUALITY"
@@ -2951,10 +2928,7 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "T11.p3",
-      "knownIssues": [
-        "Test tecnici non equivalgono a E2E, import CI/updater nel registro non completo"
-      ]
+      "parent": "T11.p3"
     },
     {
       "id": "T11.p3.m2",
@@ -3014,7 +2988,6 @@
           "PWA, Home e accesso ad Atlas"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -3147,7 +3120,6 @@
           "Esecuzione reale del workflow dopo editor/validazione"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "AUTO-EXEC"
       ]
@@ -3395,7 +3367,6 @@
           "Persistenza chat e recupero durante i riavvii"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -3516,7 +3487,6 @@
           "Accesso controllato ai file del Debian e al futuro NAS"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "FILES-PHOTOS"
       ]
@@ -3629,7 +3599,6 @@
           "Sincronizzazione sicura copie IA e migliore valutazione fonti"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "FILES-ADVANCED"
       ]
@@ -4143,10 +4112,7 @@
       "classification": "planet",
       "status": "partial",
       "note": "",
-      "parent": "C2",
-      "knownIssues": [
-        "Gmail: esistono tool ma integrazione account e flussi non collaudati"
-      ]
+      "parent": "C2"
     },
     {
       "id": "C2.p2.m1",
@@ -4484,10 +4450,7 @@
       "classification": "planet",
       "status": "partial",
       "note": "",
-      "parent": "immich",
-      "knownIssues": [
-        "Mancano connettore Cora e updater host dedicato"
-      ]
+      "parent": "immich"
     },
     {
       "id": "immich.p3.m1",
@@ -4628,10 +4591,7 @@
       "classification": "planet",
       "status": "partial",
       "note": "",
-      "parent": "nextcloud",
-      "knownIssues": [
-        "Mancano integrazioni complete e updater host dedicato"
-      ]
+      "parent": "nextcloud"
     },
     {
       "id": "nextcloud.p4.m1",
@@ -4676,7 +4636,6 @@
           "Verifica dati importati e bridge con Cora"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "WORK-APPS"
       ]
@@ -4788,7 +4747,6 @@
           "Controllo PDF e interazione con database clienti"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "WORK-APPS"
       ]
@@ -4986,10 +4944,7 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "D5.p3",
-      "knownIssues": [
-        "Direzione Cora ancora prevalentemente vista testuale; mappa 2D e provenienza per stella da integrare"
-      ]
+      "parent": "D5.p3"
     },
     {
       "id": "D5.p4",
@@ -5198,7 +5153,6 @@
           "M4 richiesta email → preventivo → PDF → approvazione"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "AUTO-QUOTES"
       ]
@@ -5323,7 +5277,6 @@
           "Estendere la prova di identità modello/macchina ad altri agenti; sistemare messaggio HTTP 502 con worker disabilitato, verificando assenza di inferenza locale inattesa."
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "MODELS-WORKER"
       ]
