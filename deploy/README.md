@@ -397,7 +397,68 @@ Google Calendar ha token separato da Gmail: configurare `CORA_GOOGLE_CALENDAR_CR
 
 ### Bootstrap iniziale con client OAuth Desktop
 
-Per il primo collegamento è supportato anche il flusso CLI con client …1540 tokens truncated…e precedente nella
+Per il primo collegamento è supportato anche il flusso CLI con client Google di tipo
+**Applicazione desktop**. Salvare il JSON privato in
+`state/gmail/credentials.json` (nel container `/state/gmail/credentials.json`);
+il token Calendar viene invece salvato separatamente in
+`state/google-calendar/token.json`.
+
+Dal PC aprire un tunnel verso il loopback del server, usando una porta libera:
+
+```powershell
+ssh -L 8766:127.0.0.1:8766 ale@serverale
+```
+
+Poi, dal checkout host:
+
+```sh
+cd /srv/cora-server-test
+python3 deploy/manage.py google-calendar-auth --port 8766 --login-hint owner@example.com
+```
+
+Il comando avvia un container temporaneo usando l'immagine API già installata,
+`--network host` e il solo mount persistente `/state`; il listener OAuth resta
+vincolato a `127.0.0.1`. Non serve aggiungere una porta permanente a `compose.yml`.
+Se la porta è occupata, cambiare **sia** il tunnel sia `--port` con lo stesso valore.
+Non pubblicare mai `credentials.json` o `token.json` in Git.
+
+Il token di accesso si rinnova già automaticamente tramite refresh token. Un consenso revocato/scaduto richiede l'intervento del proprietario: Cora mostra "Autorizzazione Google da rinnovare" e il pulsante **Ricollega Google**. Il pulsante non si apre da solo e non viene avviato un loop di autorizzazioni. Un errore di rete temporaneo non richiede di cambiare account.
+
+Per usare il pulsante serve una configurazione una tantum su Google Cloud. Il vecchio client Desktop usato dal comando SSH non può tornare all'indirizzo HTTPS del server.
+
+1. Nel progetto Google Cloud già usato, aprire **Google Auth Platform → Client → Crea client → Applicazione web**. Non eliminare o modificare il client Gmail/Desktop esistente.
+2. In **URI di reindirizzamento autorizzati** registrare l'indirizzo HTTPS del sito Cora seguito da `/google-calendar-callback.html`. Usare esattamente lo stesso dominio e porta aperti nel browser. Per esempio, se Cora è su `https://server.example`, registrare `https://server.example/google-calendar-callback.html`. Non usare `/backend` e non usare l'indirizzo di Nextcloud. Restano applicabili i requisiti Google sul dominio e sulla configurazione dell'app OAuth.
+3. Scaricare il JSON di questo client web e salvarlo, con permessi privati e leggibile dall'utente del container API, nella cartella persistente del server: `state/google-calendar/web-credentials.json` (nel container `/state/google-calendar/web-credentials.json`). **Mai commettere questo file in Git**. Non sostituire `state/gmail/credentials.json`.
+4. Nel `deploy.env` in uso aggiungere `CORA_GOOGLE_CALENDAR_WEB_CREDENTIALS_PATH=/state/google-calendar/web-credentials.json` e `CORA_GOOGLE_CALENDAR_WEB_REDIRECT_URI=` seguito dall'URL esatto del punto 2. `compose.yml` inoltra queste variabili mediante `env_file: deploy.env`. Ricreare il servizio API con gli stessi override Compose in uso; aggiornare anche il frontend per avere la pagina di ritorno statica.
+5. Aprire Cora usando quell'origine HTTPS, andare in Calendario e premere **Ricollega Google**. Il consenso si apre nella stessa scheda e torna a una pagina con **Torna al Calendario**. Non servono tunnel SSH o porte aggiuntive. Nessun token o segreto viene mostrato nell'interfaccia. Se il consenso è annullato o la verifica fallisce, il token precedente resta intatto.
+
+Il ritorno è una pagina statica pubblica, non un'API pubblica: il completamento usa il consueto POST autenticato, con protezione CSRF, PKCE, state e segreto per la singola scheda. Le sessioni scadono dopo dieci minuti e si possono consumare una sola volta. Il codice ricevuto viene rimosso dalla barra indirizzi prima della richiesta; Nginx non registra né memorizza in cache l'URL della pagina di ritorno. I token sono salvati atomicamente con permessi `0600`, soltanto dopo verifica del calendario con le nuove credenziali. Il cambio di identità OAuth continua a invalidare le vecchie approvazioni, tramite il fingerprint già presente.
+
+**Scadenza ogni sette giorni:** verificare **Google Auth Platform → Pubblico → Stato di pubblicazione**. Con utente esterno e stato **Testing**, Google limita il refresh token Calendar a sette giorni. Per un uso continuativo valutare **In produzione** nella console del proprio progetto, rispettando gli eventuali requisiti richiesti da Google, poi ricollegare una volta l'account. Non rende pubblico il sito Cora, non dà accesso ai file e non richiede aprire porte del server. Non garantisce che un token non possa essere revocato o invalidato per altri motivi.
+
+Il collegamento dal sito necessita di collaudo nel deploy reale con il client Google dell'utente; i test automatici simulano lo scambio e la verifica Google senza usare credenziali reali.
+
+## Appunti Word dalla pagina File
+
+I documenti **.docx** si aprono dalla scheda/nome del file in una vista con
+paragrafi, formattazione di base e tabelle. La ricerca «Trova cliente o testo»
+individua gli appunti nel documento. In una risorsa scrivibile, «Modifica documento»
+abilita la matita per correggere un paragrafo e il **+** per aggiungere una nota
+subito dopo quel paragrafo, anche dentro una cella. «Aggiungi appunto» nella barra
+inserisce invece una nota in fondo al documento, compresi i documenti vuoti.
+«Salva con backup» scrive il Word sul server: per questi salvataggi non serve
+ricostruire o riavviare i container. Gli appunti non salvati restano nell'editor
+in caso di conflitto con un'altra modifica.
+
+Limiti: 10 MiB per file, 30 MiB decompressi e 3.000 paragrafi. Il salvataggio
+modifica soltanto word/document.xml; gli altri componenti del pacchetto restano
+invariati. I paragrafi non modificati e gli stili dei segmenti esistenti vengono
+conservati. La vista non riproduce l'impaginazione di Word e non modifica immagini,
+campi o altri elementi avanzati; usare Word per questi contenuti. Documenti
+protetti o firmati restano in lettura. I vecchi **.doc** vanno prima salvati come
+.docx con Word o LibreOffice. Nessuna conversione remota o servizio cloud.
+
+Il backup `cora-backup-UUID.bak` conserva esattamente il file precedente nella
 stessa cartella; per aprirlo in Word dopo il download, assegnargli estensione
 .docx. Un file in Libreria IA resta una copia indipendente: la modifica manuale
 non cambia l'originale del server. Questa funzione è riservata al proprietario e
