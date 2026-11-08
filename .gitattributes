@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# git archive stamps the identity of the exact source snapshot.
+.cora-archive-revision export-subst
