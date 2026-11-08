@@ -38,7 +38,6 @@
           "Upgrade hardware per modelli locali più grandi"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "ARCH-HW"
       ]
@@ -154,7 +153,6 @@
           "Misurare esplicitamente GPU e carico locale durante inferenza remota; identità macchina e modello nei run odierni corrispondono."
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [],
       "observations": [
         {
@@ -289,9 +287,6 @@
         },
         "future": []
       },
-      "knownIssues": [
-        "Inferenza GPU riferita riuscita, ma modello effettivo e routing da certificare"
-      ],
       "roadmapRefs": [],
       "observations": [
         {
@@ -318,7 +313,10 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "R1.3.p1"
+      "parent": "R1.3.p1",
+      "knownIssues": [
+        "Inferenza GPU riferita riuscita, ma modello effettivo e routing da certificare"
+      ]
     },
     {
       "id": "R1.3.p1.m2",
@@ -404,7 +402,6 @@
           "Realizzare NAS dedicato senza migrare automaticamente ogni database"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "ARCH-HW",
         "BACKUP-UPDATE"
@@ -521,9 +518,6 @@
           "Scegliere quali DB restano sul Debian e quali dati sul NAS"
         ]
       },
-      "knownIssues": [
-        "Collocazione database sul NAS non decisa; non creare duplicazioni anagrafiche"
-      ],
       "roadmapRefs": [
         "ARCH-SW",
         "CUSTOMER-REGISTRY"
@@ -581,7 +575,10 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "R2.1.p2"
+      "parent": "R2.1.p2",
+      "knownIssues": [
+        "Collocazione database sul NAS non decisa; non creare duplicazioni anagrafiche"
+      ]
     },
     {
       "id": "R2.1.p3",
@@ -631,7 +628,6 @@
           "Gestire originale/copia IA, mount e conflitti"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -743,7 +739,6 @@
         },
         "future": []
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -856,7 +851,6 @@
           "Benchmark ripetibili e valutazione Colibrì o alternative"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "ARCH-MODELS"
       ]
@@ -978,7 +972,6 @@
         },
         "future": []
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -1081,7 +1074,6 @@
         },
         "future": []
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -1195,9 +1187,6 @@
           "Ripristino su ambiente vuoto e verifica copie"
         ]
       },
-      "knownIssues": [
-        "Non risulta un restore complessivo collaudato sul Debian"
-      ],
       "roadmapRefs": [
         "BACKUP-UPDATE"
       ]
@@ -1236,7 +1225,10 @@
       "classification": "planet",
       "status": "partial",
       "note": "",
-      "parent": "R5.1"
+      "parent": "R5.1",
+      "knownIssues": [
+        "Non risulta un restore complessivo collaudato sul Debian"
+      ]
     },
     {
       "id": "R5.1.p2.m1",
@@ -1304,9 +1296,6 @@
           "W2 aggiornamenti Immich/Nextcloud con backup e post-test"
         ]
       },
-      "knownIssues": [
-        "L'updater host non gestisce ancora Immich/Nextcloud"
-      ],
       "roadmapRefs": [
         "BACKUP-UPDATE"
       ],
@@ -1389,7 +1378,10 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "R5.2.p3"
+      "parent": "R5.2.p3",
+      "knownIssues": [
+        "L'updater host non gestisce ancora Immich/Nextcloud"
+      ]
     },
     {
       "id": "R5.2.p3.m2",
@@ -1430,7 +1422,6 @@
           "Identità verificata per agenti installati su nuovi nodi"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -1535,7 +1526,6 @@
           "Policy per agente remoto, minimo privilegio, revoca"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -1651,9 +1641,6 @@
           "Router shadow non autorevole: valutarne l'adozione futura solo dopo una prova dedicata; non è un guasto del percorso diretto."
         ]
       },
-      "knownIssues": [
-        "Run diretto qwen3:1.7b completato ma lento (127,89 s), contro 54,46 s per prompt diverso in Ollama CLI; causa non isolata e confronti non omogenei."
-      ],
       "roadmapRefs": [
         "ARCH-ORCHESTRATOR"
       ]
@@ -1682,6 +1669,9 @@
           "observedAt": "2026-11-08",
           "commit": null
         }
+      ],
+      "knownIssues": [
+        "Run diretto qwen3:1.7b completato ma lento (127,89 s), contro 54,46 s per prompt diverso in Ollama CLI; causa non isolata e confronti non omogenei."
       ]
     },
     {
@@ -1777,7 +1767,6 @@
           "Associazione affidabile tra richiesta, tool e capability autorizzata"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -1883,7 +1872,6 @@
           "Coordinator leggibile e coerente anche con più nodi"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -1989,7 +1977,6 @@
           "Operazioni idempotenti, retry e recupero errori"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -2095,7 +2082,6 @@
           "Futuro Event Bus distribuito tra nodi"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -2202,7 +2188,6 @@
           "Completare in futuro il Context Manager progressivo e i controlli di qualità della cronologia: non è un errore dimostrato dalle prove odierne."
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "ARCH-ORCHESTRATOR"
       ]
@@ -2492,7 +2477,6 @@
           "Estendere ad altri agenti e worker i controlli sull'identità del modello; nei due casi osservati il modello corrispondeva."
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "MODELS-WORKER"
       ]
@@ -2617,26 +2601,30 @@
       "priority": "unknown",
       "parent": "tronco",
       "earlierNote": "Proposta V2 parziale. Responsabilità, evidenze e collegamenti da confermare.",
-      "status": "planned",
+      "status": "partial",
       "classification": "star",
       "code": "T9",
       "sourceType": "architecture-v2",
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Plan multi step code persistenti scheduler failover fase 2",
-          "source": "architecture-v2",
+          "statement": "Schema e persistenza dei piani presenti nel codice (core/plans.py); orchestrazione multi-step, scheduler e ripresa non dimostrati.",
+          "source": "code-review-2026-11-09",
           "runtimeVerified": false
         },
         "future": [
           "Plan multi-step persistente, code e scheduler multi-worker"
         ]
       },
-      "knownIssues": [
-        "Code persistenti e scheduling multi-worker general-purpose non implementati"
-      ],
       "roadmapRefs": [
         "ARCH-ORCHESTRATOR"
+      ],
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-09",
+          "text": "core/plans.py definisce create_plan_record() con task e dipendenze e save_plan_record() su JSON; non è prova di scheduling, ripresa o funzionamento sul Debian."
+        }
       ]
     },
     {
@@ -2644,18 +2632,32 @@
       "title": "Plan",
       "priority": "unknown",
       "classification": "planet",
-      "status": "planned",
+      "status": "partial",
       "note": "",
-      "parent": "T9"
+      "parent": "T9",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-09",
+          "text": "core/plans.py definisce create_plan_record() con task e dipendenze e save_plan_record() su JSON; non è prova di scheduling, ripresa o funzionamento sul Debian."
+        }
+      ]
     },
     {
       "id": "T9.p1.m1",
       "title": "Multi step strutturato",
       "priority": "unknown",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "note": "",
-      "parent": "T9.p1"
+      "parent": "T9.p1",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-09",
+          "text": "core/plans.py definisce create_plan_record() con task e dipendenze e save_plan_record() su JSON; non è prova di scheduling, ripresa o funzionamento sul Debian."
+        }
+      ]
     },
     {
       "id": "T9.p1.m2",
@@ -2673,7 +2675,10 @@
       "classification": "planet",
       "status": "planned",
       "note": "",
-      "parent": "T9"
+      "parent": "T9",
+      "knownIssues": [
+        "Code persistenti e scheduling multi-worker general-purpose non implementati"
+      ]
     },
     {
       "id": "T9.p2.m1",
@@ -2743,7 +2748,6 @@
           "Diagnostica causale cross-component da sviluppare; le trace dei run osservati risultano disponibili."
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "ARCH-ORCHESTRATOR",
         "AUTO-QUALITY"
@@ -2868,9 +2872,6 @@
           "Collegare CI/updater a commit installato e collaudi E2E reali senza doppioni"
         ]
       },
-      "knownIssues": [
-        "Test tecnici non equivalgono a E2E, import CI/updater nel registro non completo"
-      ],
       "roadmapRefs": [
         "AUTO-QUALITY"
       ]
@@ -2927,7 +2928,10 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "T11.p2"
+      "parent": "T11.p2",
+      "knownIssues": [
+        "Test tecnici non equivalgono a E2E, import CI/updater nel registro non completo"
+      ]
     },
     {
       "id": "T11.p3",
@@ -3005,7 +3009,6 @@
           "PWA, Home e accesso ad Atlas"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -3138,7 +3141,6 @@
           "Esecuzione reale del workflow dopo editor/validazione"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "AUTO-EXEC"
       ]
@@ -3386,7 +3388,6 @@
           "Persistenza chat e recupero durante i riavvii"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": []
     },
     {
@@ -3507,7 +3508,6 @@
           "Accesso controllato ai file del Debian e al futuro NAS"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "FILES-PHOTOS"
       ]
@@ -3620,7 +3620,6 @@
           "Sincronizzazione sicura copie IA e migliore valutazione fonti"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "FILES-ADVANCED"
       ]
@@ -3732,9 +3731,6 @@
           "OCR PDF scansionati e prove reali su copie Word"
         ]
       },
-      "knownIssues": [
-        "Scrittura Word su documento di prova autentico ancora da collaudare"
-      ],
       "roadmapRefs": [
         "DOCUMENTS-OCR"
       ]
@@ -3764,7 +3760,10 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "B3.p1"
+      "parent": "B3.p1",
+      "knownIssues": [
+        "Scrittura Word su documento di prova autentico ancora da collaudare"
+      ]
     },
     {
       "id": "B3.p2",
@@ -3887,9 +3886,6 @@
           "Idea futura: calendario digitale in camera via API"
         ]
       },
-      "knownIssues": [
-        "Rischio duplicazione appuntamenti da sync/audio e retry"
-      ],
       "roadmapRefs": [
         "CALENDAR-MAIL"
       ],
@@ -3954,7 +3950,10 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "C1b"
+      "parent": "C1b",
+      "knownIssues": [
+        "Rischio duplicazione appuntamenti da sync/audio e retry"
+      ]
     },
     {
       "id": "C1c",
@@ -4093,9 +4092,6 @@
           "Verificare Gmail reale e azioni con approvazione"
         ]
       },
-      "knownIssues": [
-        "Gmail: esistono tool ma integrazione account e flussi non collaudati"
-      ],
       "roadmapRefs": [
         "CALENDAR-MAIL"
       ]
@@ -4107,7 +4103,10 @@
       "classification": "planet",
       "status": "partial",
       "note": "",
-      "parent": "C2"
+      "parent": "C2",
+      "knownIssues": [
+        "Gmail: esistono tool ma integrazione account e flussi non collaudati"
+      ]
     },
     {
       "id": "C2.p1.m1",
@@ -4237,9 +4236,6 @@
           "Futuro aggiornamento scheda cliente"
         ]
       },
-      "knownIssues": [
-        "Pubblicazione Word approvata non ancora collaudata end-to-end"
-      ],
       "roadmapRefs": [
         "AUDIO-WORD"
       ],
@@ -4349,7 +4345,10 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "C3.p4"
+      "parent": "C3.p4",
+      "knownIssues": [
+        "Pubblicazione Word approvata non ancora collaudata end-to-end"
+      ]
     },
     {
       "id": "C3.p4.m2",
@@ -4396,9 +4395,6 @@
           "Connettore agentico lettura foto"
         ]
       },
-      "knownIssues": [
-        "Mancano connettore Cora e updater host dedicato"
-      ],
       "roadmapRefs": [
         "FILES-PHOTOS"
       ],
@@ -4454,7 +4450,10 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "immich.p2"
+      "parent": "immich.p2",
+      "knownIssues": [
+        "Mancano connettore Cora e updater host dedicato"
+      ]
     },
     {
       "id": "immich.p2.m2",
@@ -4518,9 +4517,6 @@
           "Connettere client e pagina File con agenti"
         ]
       },
-      "knownIssues": [
-        "Mancano integrazioni complete e updater host dedicato"
-      ],
       "roadmapRefs": [
         "FILES-PHOTOS"
       ]
@@ -4577,7 +4573,10 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "nextcloud.p2"
+      "parent": "nextcloud.p2",
+      "knownIssues": [
+        "Mancano integrazioni complete e updater host dedicato"
+      ]
     },
     {
       "id": "nextcloud.p3",
@@ -4658,7 +4657,6 @@
           "Verifica dati importati e bridge con Cora"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "WORK-APPS"
       ]
@@ -4770,7 +4768,6 @@
           "Controllo PDF e interazione con database clienti"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "WORK-APPS"
       ]
@@ -4884,9 +4881,6 @@
           "Associazione semiautomatica test/commit per stella"
         ]
       },
-      "knownIssues": [
-        "Direzione Cora ancora prevalentemente vista testuale; mappa 2D e provenienza per stella da integrare"
-      ],
       "roadmapRefs": []
     },
     {
@@ -4932,7 +4926,10 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "D5.p2"
+      "parent": "D5.p2",
+      "knownIssues": [
+        "Direzione Cora ancora prevalentemente vista testuale; mappa 2D e provenienza per stella da integrare"
+      ]
     },
     {
       "id": "D5.p2.m2",
@@ -5034,9 +5031,6 @@
           "M3 schede cliente strutturate, database aziendale fonte autorevole da verificare"
         ]
       },
-      "knownIssues": [
-        "Database SQL aziendale non censito come fonte autorevole, rischio duplicati"
-      ],
       "roadmapRefs": [
         "CUSTOMER-REGISTRY"
       ]
@@ -5093,7 +5087,10 @@
       "classification": "moon",
       "status": "planned",
       "note": "",
-      "parent": "E1.p2"
+      "parent": "E1.p2",
+      "knownIssues": [
+        "Database SQL aziendale non censito come fonte autorevole, rischio duplicati"
+      ]
     },
     {
       "id": "E1.p3",
@@ -5177,7 +5174,6 @@
           "M4 richiesta email → preventivo → PDF → approvazione"
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "AUTO-QUOTES"
       ]
@@ -5302,7 +5298,6 @@
           "Estendere la prova di identità modello/macchina ad altri agenti; sistemare messaggio HTTP 502 con worker disabilitato, verificando assenza di inferenza locale inattesa."
         ]
       },
-      "knownIssues": [],
       "roadmapRefs": [
         "MODELS-WORKER"
       ]
@@ -5475,9 +5470,6 @@
           "Import SQL clienti read-only, staging e approvazione"
         ]
       },
-      "knownIssues": [
-        "Un agente operativo non deve avere controllo generale del laptop"
-      ],
       "roadmapRefs": [
         "REMOTE-AGENTS"
       ]
@@ -5588,7 +5580,10 @@
       "classification": "moon",
       "status": "planned",
       "note": "",
-      "parent": "F2.p4"
+      "parent": "F2.p4",
+      "knownIssues": [
+        "Un agente operativo non deve avere controllo generale del laptop"
+      ]
     },
     {
       "id": "G",
@@ -5630,9 +5625,6 @@
           "Possibile futuro collegamento ad Atlas"
         ]
       },
-      "knownIssues": [
-        "Verifica su modello potente e tool reali rinviata alla ripresa W3"
-      ],
       "roadmapRefs": [
         "PROGRAMMER"
       ]
@@ -5698,7 +5690,10 @@
       "classification": "planet",
       "status": "partial",
       "note": "",
-      "parent": "G1"
+      "parent": "G1",
+      "knownIssues": [
+        "Verifica su modello potente e tool reali rinviata alla ripresa W3"
+      ]
     },
     {
       "id": "G1.p3.m1",
@@ -5746,8 +5741,8 @@
       "parent": "G1.p4"
     }
   ],
-  "revision_note": "V2 completa, 45 stelle con pianeti e lune; colori dichiarati e non dedotti dal codice, test o priorità. Conservate identità del piano iniziale e contributi docs/MEMORIA_CORA.md.",
-  "revision": "CORA-V2-2026-11-04-W1",
+  "revision_note": "V2 completa, 45 stelle con pianeti e lune; colori dichiarati e non dedotti dal codice, test o priorità. Conservate identità del piano iniziale e contributi docs/MEMORIA_CORA.md. | ServerIA autorevole; qwe legacy. Criticità localizzate sui nodi operativi e relazioni semantiche esplicite (proposte, non prove runtime).",
+  "revision": "CORA-V2-2026-11-09-CODE-EVIDENCE",
   "legend": {
     "unknown": "Da valutare",
     "ok": "Tutto ok",
@@ -6061,6 +6056,126 @@
       "note": "Collegamento Home Atlas",
       "status": "proposed",
       "provenance": "conceptual-v2"
+    },
+    {
+      "from": "A1.p3.m1",
+      "to": "T11.p4.m1",
+      "kind": "verified_by",
+      "note": "Il controllo chat_e2e è condiviso: una prova di percorso non certifica tutti i passaggi",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "A1.p2.m2",
+      "to": "T2.p3.m1",
+      "kind": "shares_evidence_with",
+      "note": "chat_e2e è associato a entrambi; i risultati non costituiscono due verifiche indipendenti",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "B3.p2.m1",
+      "to": "B3.p2.m2",
+      "kind": "shares_evidence_with",
+      "note": "preventivi_e2e copre più nodi con un solo esito",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "T2.p2.m2",
+      "to": "R6.2.p1",
+      "kind": "depends_on",
+      "note": "I contratti dei tool richiedono decisioni deterministiche del Permission Engine",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "T9.p1",
+      "to": "T4.p1",
+      "kind": "uses",
+      "note": "Il piano è distinto dal runtime che registra le esecuzioni; persistenza di ripresa da verificare",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "T9.p3",
+      "to": "worker.p4",
+      "kind": "depends_on",
+      "note": "Lo scheduling del piano dipende dall'assegnazione ai worker; implementazioni non equivalenti",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "worker.p4",
+      "to": "T4.p2",
+      "kind": "uses",
+      "note": "L'assegnazione del lavoro e le transizioni del run hanno responsabilità diverse",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "R1.2.p2",
+      "to": "worker",
+      "kind": "produces_for",
+      "note": "Il desktop è una risorsa; F1 gestisce la capacità di calcolo remota",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "R1.3.p2",
+      "to": "worker",
+      "kind": "produces_for",
+      "note": "Il laptop è una risorsa; F1 gestisce la capacità di calcolo remota",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "B2.p1",
+      "to": "B1.p2",
+      "kind": "uses",
+      "note": "La libreria IA usa operazioni sui file senza diventare proprietaria degli originali",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "B3.p1",
+      "to": "B1.p2",
+      "kind": "uses",
+      "note": "La gestione Word dipende dalle operazioni file autorizzate",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "nextcloud.p2",
+      "to": "B1.p3",
+      "kind": "communicates_with",
+      "note": "Sincronizzazione cloud e accesso al filesystem sono responsabilità distinte",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "T11.p3",
+      "to": "T10.p1",
+      "kind": "uses",
+      "note": "Il registro delle prove usa tracce, ma una trace non è un collaudo",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "T11.p4.m1",
+      "to": "A1.p3.m1",
+      "kind": "verified_by",
+      "note": "La regressione di chat verifica solo il percorso coperto dal check, non tutte le funzioni",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "C1b.m2",
+      "to": "C1.p6",
+      "kind": "depends_on",
+      "note": "Idempotenza degli eventi e sincronizzazione Google/Cora richiedono verifiche separate",
+      "status": "proposed",
+      "provenance": "code-review-2026-11-09"
     }
   ],
   "visibility": {

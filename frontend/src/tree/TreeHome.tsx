@@ -28,6 +28,8 @@ const byId=new Map(nodes.map(n=>[n.id,n]));
 const childIndex=new Map<string,Node[]>();
 for (const n of nodes) if(n.parent) childIndex.set(n.parent,[...(childIndex.get(n.parent)||[]),n]);
 const children=(id:string)=>childIndex.get(id)||[];
+const descendants=(id:string):Node[]=>children(id).flatMap(n=>[n,...descendants(n.id)]);
+const scopedIssues=(id:string)=>[byId.get(id),...descendants(id)].filter((n):n is Node=>Boolean(n)).flatMap(n=>(n.knownIssues||[]).map(text=>({node:n,text})));
 const stars=nodes.filter(n=>n.classification==="star");
 const rootFor=(n:Node):Node=>{
   let current=n;
@@ -47,6 +49,7 @@ const tones:Record<string,string>={
 const relNames:Record<string,string>={
   uses:"Utilizza",depends_on:"Dipende da",
   communicates_with:"Comunica con",produces_for:"Produce dati per",
+  verified_by:"Verificato da",shares_evidence_with:"Condivide evidenza con",
 };
 const formatDate=(s?:string|null)=>{
   if(!s||Number.isNaN(Date.parse(s)))return "Data non disponibile";
@@ -119,7 +122,7 @@ export default function TreeHome(){
   const matching=useMemo(()=>{
     const q=query.trim().toLocaleLowerCase("it");
     const descendants=(n:Node):string=>{
-      const values=[n.id,n.title,n.note||"",...(n.knownIssues||[]),...(n.timeline?.future||[])];
+      const values=[n.id,n.title,n.note||"",...scopedIssues(n.id).map(i=>i.text),...(n.timeline?.future||[])];
       const walk=(id:string):void=>{for(const c of children(id)){values.push(c.title,c.note||"");walk(c.id);}};
       walk(n.id);return values.join(" ").toLocaleLowerCase("it");
     };
@@ -127,7 +130,7 @@ export default function TreeHome(){
       (healthFilter==="all"||tone(n)===healthFilter)&&
       (group==="all"||group==="T"&&n.parent==="tronco"||group!=="T"&&hasAncestor(n,group))&&
       (!q||descendants(n).includes(q))&&
-      (mode==="all"||mode==="issues"&&(n.knownIssues?.length||["problem","minor"].includes(tone(n)))||
+      (mode==="all"||mode==="issues"&&(scopedIssues(n.id).length||["problem","minor"].includes(tone(n)))||
        mode==="future"&&(n.status==="planned"||n.status==="idea"||Boolean(n.timeline?.future?.length)))
     );
   // Health changes are reflected when the response refreshes; no separate test execution.
@@ -167,7 +170,7 @@ export default function TreeHome(){
     URL.revokeObjectURL(url);
   };
   const copyOutline=async()=>{
-    const lines=stars.map(s=>`${s.code||s.id} — ${s.title} · ${summary(s)}\n${(s.knownIssues||[]).map(v=>"  Problema: "+v).join("\n")}\n${(s.timeline?.future||[]).map(v=>"  Obiettivo: "+v).join("\n")}`);
+    const lines=stars.map(s=>`${s.code||s.id} — ${s.title} · ${summary(s)}\n${scopedIssues(s.id).map(v=>"  Problema ["+v.node.id+"]: "+v.text).join("\n")}\n${(s.timeline?.future||[]).map(v=>"  Obiettivo: "+v).join("\n")}`);
     try{await navigator.clipboard.writeText(lines.join("\n\n"));setCopied(true);}catch{setCopied(false);}
   };
   const links=codeLinks[root.id]||[];
@@ -178,7 +181,7 @@ export default function TreeHome(){
   const workItems=[...homeRoadmap.nextWork].sort((a,b)=>a.order-b.order);
   const currentWork=workItems.find(w=>/PROSSIMO LAVORO/i.test(w.status))||
     workItems.find(w=>!/COMPLETATO/i.test(w.status));
-  const issues=root.knownIssues||[];
+  const issues=scopedIssues(root.id);
   const otherIssues=mappedChecks.filter(id=>{
     const def=healthCatalog.find(c=>c.id===id);
     return checkState(def,health?.latest[id],verifiedCommit)==="fail";
@@ -303,7 +306,7 @@ export default function TreeHome(){
             </div>)}</div>
           </>}
           {tab==="issues"&&<>
-            {issues.length?<ul className="rm2-item-list">{issues.map(issue=><li key={issue}><AlertCircle size={15}/>{issue}</li>)}</ul>:<p>Nessun problema documentato. Non significa che tutti i test siano superati.</p>}
+            {issues.length?<ul className="rm2-item-list">{issues.map(issue=><li key={issue.node.id+issue.text}><AlertCircle size={15}/><span><strong>{issue.node.id===root.id?"Stella":issue.node.title}</strong> · {issue.text}</span></li>)}</ul>:<p>Nessun problema documentato. Non significa che tutti i test siano superati.</p>}
             {otherIssues.length>0&&<p className="rm2-test-fail">{otherIssues.length} test collegati segnalano un errore nel registro condiviso.</p>}
           </>}
           {tab==="future"&&<>

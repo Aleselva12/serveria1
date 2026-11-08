@@ -2,11 +2,12 @@
 
 ## Fonte strutturale
 
-La fonte autorevole della **struttura** è `Aleselva12/qwe`, branch
-`progetti/cora-serveria`. `cora-plan.snapshot.json` è la copia distribuita del
-`cora-plan.json` selezionato. Per cambiare stelle, radici, tronco, rami, pianeti,
-lune o relazioni strutturali si aggiorna la fonte e poi si rigenera/copia la
-snapshot: i test e il classificatore non devono creare automaticamente nuovi nodi.
+La fonte autorevole della **struttura** è ora **questa repository ServerIA**, nel file
+`frontend/src/tree/cora-plan.snapshot.json`. `Aleselva12/qwe` è un archivio legacy:
+non è più necessario aggiornare qwe né sincronizzare modifiche strutturali da lì.
+Stelle, radici, tronco, rami, pianeti, lune e relazioni vengono revisionati qui,
+con ID stabili e controllo delle dipendenze. Test e classificatore non creano
+automaticamente nodi o relazioni.
 
 La roadmap precedente resta nei dati storici. La pagina non modifica il
 `localStorage` di Atlas e non inventa commit, versioni o risultati mancanti.
@@ -52,7 +53,7 @@ strutturale.
 ## Aggiornamento e collaudo
 
 La sequenza W1/W2/W3 non viene più letta dal campo `nextWork` della snapshot.
-Quando cambia la fonte qwe, aggiornare la snapshot e verificare ID, relazioni,
+Quando cambia la struttura in ServerIA, verificare ID, relazioni,
 mapping delle evidenze e rendering. Per il collaudo sul Debian usare il commit
 **effettivamente installato** dall'updater e verificare i servizi reali: una CI verde
 o una snapshot nuova non certificano da sole il server in esecuzione.
@@ -120,3 +121,25 @@ La funzione `verificationIndicator` usa il registro esistente, senza eseguire
 nuovi test o inferenze. I test in `tree_indicators.test.mjs` coprono sviluppo,
 provenienza, scadenza, fallimenti, conferme manuali e indipendenza del genitore.
 La suite frontend controlla anche mapping, riferimenti e filtri esistenti.
+
+## Localizzazione dei problemi e relazioni tipizzate (2026-11-09)
+
+Le criticità note sono attribuite al **pianeta o alla luna responsabile** quando
+il catalogo permette di identificare un ambito specifico. Un problema generale
+non attribuibile con sufficiente precisione rimane sulla stella: non viene
+assegnato arbitrariamente a un sottoelemento. La scheda della stella raccoglie
+anche i problemi dei discendenti e mostra l'ID proprietario; filtri e copia
+riepilogo includono gli stessi problemi localizzati. Un problema documentato
+non è automaticamente un test fallito né una prova che il servizio sia guasto.
+
+Le relazioni `depends_on`, `uses`, `communicates_with`, `produces_for` sono
+integrate da `verified_by` (collegamento con l'ambito della verifica) e
+`shares_evidence_with` (lo stesso risultato di test è utilizzato per più nodi).
+Questi collegamenti sono **descrizioni architetturali proposte**, non nuovi
+risultati di test, e non cambiano la gerarchia radici/tronco/rami. In particolare
+un controllo condiviso non equivale a due collaudi indipendenti. La loro
+rappresentazione nel pannello relazioni serve a rendere visibile la distinzione.
+
+Per la prossima fase rimangono separati: censimento dei link al codice, revisione
+delle classificazioni di implementazione, ridefinizione delle responsabilità
+tra Planner/Runtime/Worker e revisione del classificatore delle priorità.

@@ -21,7 +21,8 @@ test('all canonical 45 stars, 151 planets and 304 moons survive in ServerIA',()=
  assert.equal(nodes.filter(n=>n.classification==='star').length,45);
  assert.equal(nodes.filter(n=>n.classification==='planet').length,151);
  assert.equal(nodes.filter(n=>n.classification==='moon').length,304);
- assert.equal(relations.length,37);
+ assert.ok(relations.length>=37,'Baseline conceptual relations must survive');
+ assert.equal(new Set(relations.map(r=>[r.from,r.to,r.kind].join('|'))).size,relations.length,'Duplicate semantic relations');
  for(const id of [...Object.keys(checks),...nodes.map(n=>n.parent).filter(Boolean),...relations.flatMap(r=>[r.from,r.to])])
    assert.ok(ids.has(id),'Missing id '+id);
  for(const id of ['immich','nextcloud','magazzino','worker','installare','assegnare','C1a','C1b','C1c','C1d','C1e'])
@@ -29,7 +30,7 @@ test('all canonical 45 stars, 151 planets and 304 moons survive in ServerIA',()=
 });
 test('V2 notes preserve actual issues, future ideas and provenance without inventing green health',()=>{
  const byId=new Map(nodes.map(n=>[n.id,n]));
- assert.ok(byId.get('T1').knownIssues.length>0);
+ assert.ok(byId.get('T1.p1.m1').knownIssues.some(t=>t.includes('qwen3')));
  assert.ok(byId.get('F2').timeline.future.some(t=>t.includes('SQL')));
  assert.equal(byId.get('C1d').status,'idea');
  assert.equal(byId.get('C1e').status,'idea');
@@ -37,7 +38,7 @@ test('V2 notes preserve actual issues, future ideas and provenance without inven
    assert.equal(n.priority,'unknown');
    assert.equal(n.timeline.present.runtimeVerified,false);
    assert.ok(Array.isArray(n.timeline.past));
-   assert.ok(Array.isArray(n.knownIssues));
+   assert.ok(n.knownIssues===undefined||Array.isArray(n.knownIssues));
  }
 });
 test('old severity helper does not propagate problems across unrelated branches',()=>{
@@ -85,4 +86,45 @@ test('roadmap references current Home goals and shares orchestrator structural e
  assert.equal(projectStatus.nextWork.find(w=>w.id==='W2').status,'PROSSIMO LAVORO');
  for(const id of ['T1','T2','T3','T4','T5','T6','T10','T11'])
    assert.ok(checks[id]?.includes('orchestrator_v1_contract'),'Missing W1 structural evidence on '+id);
+});
+
+test('documented issues have one owner and star-level views can find descendant issues',()=>{
+ const byId=new Map(nodes.map(n=>[n.id,n]));
+ const issues=nodes.flatMap(n=>(n.knownIssues||[]).map(text=>({id:n.id,text})));
+ assert.equal(issues.length,19,'Do not lose or duplicate the original 19 documented issues');
+ assert.equal(new Set(issues.map(x=>x.text)).size,issues.length);
+ assert.equal(nodes.filter(n=>n.classification==='star'&&n.knownIssues?.length).length,2);
+ for(const [id,owner] of [['C1b.m2','C1'],['R5.2.p3.m1','R5.2'],['B3.p1.m2','B3']]){
+  assert.ok(byId.get(id)?.knownIssues?.length,'Missing scoped issue '+id);
+  let current=byId.get(id);
+  while(current&&current.id!==owner)current=byId.get(current.parent);
+  assert.equal(current?.id,owner,'Issue no longer belongs to original star');
+ }
+ const ui=readFileSync(new URL('../src/tree/TreeHome.tsx',import.meta.url),'utf8');
+ assert.ok(ui.includes('scopedIssues(n.id).length'),'Issue filter must include descendant problems');
+ assert.ok(ui.includes('const issues=scopedIssues(root.id)'),'Inspector must include scoped problems');
+});
+
+test('semantic cross-node relations retain identity and do not imply independent test success',()=>{
+ const allowed=new Set(['uses','depends_on','communicates_with','produces_for','verified_by','shares_evidence_with']);
+ const ids=new Set(nodes.map(n=>n.id));
+ for(const relation of relations){
+  assert.ok(allowed.has(relation.kind),'Unexpected relation type '+relation.kind);
+  assert.ok(ids.has(relation.from)&&ids.has(relation.to));
+  assert.notEqual(relation.from,relation.to);
+  assert.ok(relation.note);
+ }
+ assert.ok(relations.some(r=>r.kind==='shares_evidence_with'));
+ assert.ok(relations.some(r=>r.kind==='verified_by'));
+});
+
+test('planner code review updates only the documented plan schema, not scheduling or runtime certification',()=>{
+ const byId=new Map(nodes.map(n=>[n.id,n]));
+ for(const id of ['T9','T9.p1','T9.p1.m1']){
+  const n=byId.get(id);
+  assert.equal(n.status,'partial',id+' must reflect the existing plan schema');
+  assert.ok(n.observations?.some(o=>o.type==='code_review'&&o.text.includes('core/plans.py')));
+ }
+ for(const id of ['T9.p1.m2','T9.p2','T9.p3'])assert.equal(byId.get(id).status,'planned',id+' must not claim implemented scheduling');
+ assert.equal(byId.get('T9').timeline.present.runtimeVerified,false);
 });
