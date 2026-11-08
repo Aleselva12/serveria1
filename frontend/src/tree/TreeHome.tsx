@@ -258,7 +258,7 @@ export default function TreeHome(){
         <h2>{root.title.replace(/^[A-Z][\d.]* · /,"")}</h2>
         {focusId&&<button type="button" className="rm2-overview-link" onClick={showAll}>← Torna alla panoramica delle stelle</button>}
         <div className="rm2-badges">
-          <span className="rm2-impl">{selectedTone==="ok"?"Verifica positiva circoscritta":selectedTone==="problem"?"Collaudo fallito":selectedTone==="unverified"?"Non collaudato":selectedTone==="plan"?"Presente parzialmente":selectedTone==="unknown"?"Non presente":"Richiede attenzione"}</span>
+          <span className="rm2-impl">{selectedTone==="ok"?"Collaudo reale superato":selectedTone==="problem"?"Collaudo fallito":selectedTone==="unverified"?"Non collaudato":selectedTone==="plan"?"Presente parzialmente":selectedTone==="unknown"?"Non presente":"Richiede attenzione"}</span>
           <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{toneLabels[selectedTone]||tones[selectedTone]||"Da valutare"}</span>
         </div>
         {goals.length>0&&<div className="rm2-project-state">
