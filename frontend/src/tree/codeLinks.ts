@@ -4,7 +4,6 @@
  */
 export type SourceLink={repo?:string;ref?:string;path:string;label:string;purpose?:string};
 const local=(path:string,label:string,purpose?:string):SourceLink=>({path,label,purpose});
-const qwe=(path:string,label:string):SourceLink=>({repo:"Aleselva12/qwe",ref:"progetti/cora-serveria",path,label});
 export const codeLinks:Record<string,SourceLink[]>={
  "R1.1":[local("core/monitoring.py","Monitoraggio host"),local("deploy/doctor.py","Diagnostica Debian")],
  "R1.2":[local("core/machines_api.py","Worker e macchine")],
@@ -39,6 +38,7 @@ export const codeLinks:Record<string,SourceLink[]>={
  "T8":[local("core/architecture_api.py","API catalogo agenti e modelli"),
        local("frontend/src/components/Architecture.tsx","Configurazione agenti"),
        local("frontend/src/components/Machines.tsx","Modelli dei worker")],
+ "T9":[local("core/plans.py","Piani strutturati e persistenza; non prova uno scheduler operativo")],
  "T10":[local("core/error_decisions.py","Decisioni standard sugli errori"),
         local("core/observability.py","Archivio diagnostico"),
         local("frontend/src/components/RuntimePanel.tsx","Attività e percorso causale"),
@@ -60,8 +60,9 @@ export const codeLinks:Record<string,SourceLink[]>={
  "immich":[local("core/monitoring.py","Stato servizio Immich")],
  "nextcloud":[local("core/monitoring.py","Stato servizio Nextcloud")],
  "magazzino":[local("core/managed_apps_api.py","Ponte applicazioni gestite")],
- "D5":[qwe("cora-plan.json","Mappa Cora originale"),
-       qwe("docs/CORA_MAPPA_V2_COMPLETA.md","Descrizione architetturale completa")],
+ "D5":[local("frontend/src/tree/cora-plan.snapshot.json","Catalogo Atlas autorevole"),
+       local("frontend/src/tree/TreeHome.tsx","Navigazione e schede Atlas"),
+       local("frontend/src/tree/roadmapEvidence.ts","Regole delle verifiche Atlas")],
  "worker":[local("core/machines_api.py","API worker"),
            local("frontend/src/components/Machines.tsx","Gestione e test worker")],
  "G1":[local("frontend/src/components/Programmer.tsx","Interfaccia programmatore")],
