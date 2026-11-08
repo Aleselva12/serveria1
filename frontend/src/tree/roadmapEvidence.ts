@@ -41,6 +41,20 @@ export function verifiedLiveE2E(
     /^debian(?:$|[-_:])/i.test(result?.environment || "");
 }
 
+/** Owner-witnessed manual evidence from the map's versioned notes.
+ * This records a narrow observation, not a health-check pass, an installed SHA,
+ * or a proof that a whole parent/star and all its children are operational.
+ */
+export function manualEvidence(node: Node): {kind:"ok"|"plan";date:string;text:string}|null {
+  const records = (node.observations||[]).filter(o=>
+    (o.type==="manual_pass"||o.type==="manual_followup") &&
+    /^\d{4}-\d{2}-\d{2}$/.test(o.observedAt||"") && !!o.text
+  );
+  if(!records.length)return null;
+  const latest=[...records].sort((a,b)=>(b.observedAt||"").localeCompare(a.observedAt||""))[0];
+  return {kind:latest.type==="manual_pass"?"ok":"plan",date:latest.observedAt!,text:latest.text};
+}
+
 /** Future scope is absent, not an untested implementation. */
 export const isFuture = (node: Node): boolean => node.status === "planned" || node.status === "idea";
 
@@ -59,9 +73,10 @@ export function starTone(
     const active = childTones.filter(t => t !== "unknown");
     if (!active.length) return "unknown";
     if (active.every(t => t === "problem")) return "problem";
+    if (active.some(t => ["problem", "minor"].includes(t))) return "minor";
     if (active.every(t => t === "unverified")) return "unverified";
-    if (active.some(t => ["problem", "unverified", "minor"].includes(t))) return "minor";
-    return "ok"; // Green/yellow children summarize as green; future scope is excluded.
+    if (active.some(t => t === "unverified" || t === "plan")) return "plan";
+    return "ok"; // Only all verified children justify a green aggregate.
   }
   if (!["star", "planet", "moon"].includes(node.classification || "")) return "unknown";
   const ids = mapping[node.id] || [];
@@ -69,9 +84,15 @@ export function starTone(
   const live = (e: typeof evidence[number]) => /^debian(?:$|[-_:])/i.test(e.result?.environment || "");
   const failed = (e: typeof evidence[number]) => live(e) && checkState(e.def, e.result, activeCommit) === "fail";
   if (evidence.some(failed)) return evidence.every(e => e.def?.kind === "e2e" && failed(e)) ? "problem" : "minor";
-  if (childTones.some(t => ["problem", "unverified", "minor"].includes(t))) return "minor";
+  if (childTones.some(t => ["problem", "minor"].includes(t))) return "minor";
   if (node.knownIssues?.length) return "minor";
   if (isFuture(node)) return "unknown";
+  // Manual checks are scoped to exact moons/planets and must not override real failures.
+  // No inference about other environments or commits is made from a manual check.
+  const manual=manualEvidence(node);
+  if (manual?.kind==="plan") return "plan";
+  if (manual?.kind==="ok" && !childTones.some(t => t==="unverified" || t==="plan")) return "ok";
+  if (childTones.some(t => t==="unverified")) return "plan";
   if (evidence.some(e => verifiedLiveE2E(e.def, e.result, activeCommit)) &&
       evidence.every(e => live(e) && checkState(e.def, e.result, activeCommit) === "pass")) return "ok";
   // A mapped functional check must be proved, even for a partial implementation.
@@ -82,7 +103,7 @@ export function starTone(
 export const toneLabels: Record<string, string> = {
   ok: "Verde · funzionante e collaudato", problem: "Rosso · collaudo fallito",
   minor: "Arancione · attenzione", plan: "Giallo · presente parzialmente",
-  unknown: "Grigio · non ancora presente", unverified: "Rosso · non provato",
+  unknown: "Grigio · non ancora presente", unverified: "Grigio · non collaudato",
 };
 
 /** Runtime text shares the same decision as the map, never the static project status. */
@@ -91,10 +112,16 @@ export function verificationSummary(node: Node, health: HealthDashboardData | nu
   const tone = starTone(node, health, activeCommit, mapping, nodes);
   const container = node.classification === "area" || node.role === "ramo" || ["radici", "tronco", "rami"].includes(node.id);
   if (container && tone === "ok") return "Riepilogo positivo dei sottoelementi: verdi o parziali gialli; obiettivi non presenti esclusi. Non è un collaudo autonomo del contenitore.";
+  const manual=manualEvidence(node);
+  if (tone === "ok" && manual?.kind === "ok")
+    return "Verifica manuale circoscritta del "+manual.date+": "+manual.text+
+      " Non è un collaudo automatico né una certificazione del commit attuale.";
   if (tone === "ok") return "Collaudo reale superato sulla versione attiva. Elementi futuri e parziali non bloccano questo esito.";
   if (tone === "problem") return "Collaudo fallito sulla versione attiva. Consultare gli esiti collegati.";
   if (tone === "minor") return "Attenzione: problemi documentati, controlli falliti o sottoelementi presenti non provati. Consultare problemi e test collegati.";
   if (tone === "unknown") return "Obiettivo non ancora presente: escluso dalla verifica del genitore.";
+  if (tone === "plan" && manual?.kind === "plan")
+    return "Rifinitura da eseguire (osservazione manuale del "+manual.date+"): "+manual.text;
   if (tone === "plan") return "Presente parzialmente: completamento e collaudi restano da eseguire; non blocca il verde del genitore.";
   const ids = mapping[node.id] || [];
   if (!health || health.historyStore === "unavailable") return "Non provato: registro dei collaudi non disponibile. Non indica un guasto accertato.";
@@ -105,4 +132,37 @@ export function verificationSummary(node: Node, health: HealthDashboardData | nu
   if (states.includes("unattributed")) return "Non provato sulla versione attiva: commit del collaudo non verificabile.";
   if (states.includes("stale")) return "Non provato: collaudi scaduti, da ripetere.";
   return "Non provato: manca un collaudo reale valido sul Debian per questa versione. Controlli parziali o simulati non bastano.";
+}
+
+
+export type NodeIndicator = {label:string;color:string};
+export const indicatorColors = {gray:"#8994a5",blue:"#60a5fa",green:"#34d399",yellow:"#facc15",orange:"#fb923c",red:"#f87171"};
+/** Declared implementation only: tests and descendants cannot change it. */
+export function developmentIndicator(node:Node):NodeIndicator {
+  if(isFuture(node))return {label:"Non implementato",color:indicatorColors.gray};
+  if(node.status==="partial")return {label:"Sviluppo parziale",color:indicatorColors.blue};
+  if(node.status==="present")return {label:"Implementato (dichiarato)",color:indicatorColors.green};
+  return {label:"Sviluppo da valutare",color:indicatorColors.gray};
+}
+/** Exact-node evidence only. Legacy map aggregation remains in starTone. */
+export function verificationIndicator(node:Node,health:HealthDashboardData|null,
+  activeCommit:string|null,mapping:CheckMapping):NodeIndicator {
+  const evidence=(mapping[node.id]||[]).map(id=>({
+    def:health?.catalog.find(c=>c.id===id),result:health?.latest[id]
+  }));
+  const live=(e:typeof evidence[number])=>/^debian(?:$|[-_:])/i.test(e.result?.environment||"");
+  const failed=(e:typeof evidence[number])=>live(e)&&checkState(e.def,e.result,activeCommit)==="fail";
+  if(evidence.some(failed))return evidence.every(e=>e.def?.kind==="e2e"&&failed(e))
+    ?{label:"Collaudo fallito",color:indicatorColors.red}
+    :{label:"Verifiche con criticità",color:indicatorColors.orange};
+  if(node.knownIssues?.length)return {label:"Criticità documentate",color:indicatorColors.orange};
+  const manual=manualEvidence(node);
+  if(manual?.kind==="plan")return {label:"Rifinitura aperta · osservazione manuale del "+manual.date,color:indicatorColors.yellow};
+  if(manual?.kind==="ok")return {label:"Verifica manuale circoscritta del "+manual.date,color:indicatorColors.green};
+  if(evidence.some(e=>verifiedLiveE2E(e.def,e.result,activeCommit))&&
+    evidence.every(e=>live(e)&&checkState(e.def,e.result,activeCommit)==="pass"))
+    return {label:"Collaudo reale superato",color:indicatorColors.green};
+  if(evidence.some(e=>live(e)&&checkState(e.def,e.result,activeCommit)==="pass"))
+    return {label:"Verifica parziale · non certifica il funzionamento reale",color:indicatorColors.yellow};
+  return {label:evidence.length?"Non verificato · nessun esito reale valido":"Non verificato · nessun controllo associato",color:indicatorColors.gray};
 }

@@ -146,15 +146,15 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "RX 6800 con inferenza GPU riportata dall’utente; modello effettivo non sempre attestato",
+          "statement": "Worker desktop 123 raggiunto e modello riportato corrispondente alla richiesta il 08/11/2026; prova GPU fisica non effettuata.",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
-        "future": []
+        "future": [
+          "Misurare esplicitamente GPU e carico locale durante inferenza remota; identità macchina e modello nei run odierni corrispondono."
+        ]
       },
-      "knownIssues": [
-        "Inferenza GPU riferita riuscita, ma modello effettivo e routing da certificare"
-      ],
+      "knownIssues": [],
       "roadmapRefs": [],
       "observations": [
         {
@@ -217,7 +217,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "R1.2.p2"
+      "parent": "R1.2.p2",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "Scheda Architettura e traccia provider: worker 123 ha restituito qwen3-coder:30b-a3b-q4_K_M in circa 30,11 s; run completo circa 30,35 s. Attestata identità applicativa, non utilizzo GPU.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "R1.2.p3",
@@ -235,7 +243,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "R1.2.p3"
+      "parent": "R1.2.p3",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "Risposta provider del worker 123: modello dichiarato qwen3-coder:30b-a3b-q4_K_M, uguale a quello richiesto, nella prova delle 18:42 del 08/11. La GPU fisica non è stata misurata.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "R1.2.p3.m2",
@@ -244,7 +260,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "R1.2.p3"
+      "parent": "R1.2.p3",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "Architettura: test remoto circa 30.110 ms; Attività: modello circa 30,11 s, run circa 30,35 s. Tempo osservato su un singolo run.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "R1.3",
@@ -713,7 +737,7 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Ollama motori audio ed embeddings locali o remoti",
+          "statement": "Ollama in Docker disponibile; inferenze reali qwen3:0.6b e qwen3:1.7b riuscite manualmente 08/11/2026. Altri motori non verificati.",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
@@ -747,7 +771,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "R3.1.p1"
+      "parent": "R3.1.p1",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "Inferenza reale in Ollama Docker riuscita con qwen3:0.6b (risposta OK) e qwen3:1.7b (risposta OK in 54,457 s). Verifica limitata a questi modelli e prompt.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "R3.1.p2",
@@ -872,7 +904,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "R3.2.p2"
+      "parent": "R3.2.p2",
+      "observations": [
+        {
+          "type": "manual_followup",
+          "text": "Qwen3 1.7B ha mancato il vincolo di esattamente 15 parole nonostante lo riconoscesse; la revoca successiva ha prodotto OK. Da valutare qualità del modello/prompt; non è prova di difetto del Context Manager.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "R3.2.p2.m2",
@@ -1607,11 +1647,12 @@
         "future": [
           "Validare il router shadow prima di affidargli decisioni reali",
           "Fase 2: Context Manager progressivo, Plan persistente, scheduler/failover multi-worker",
-          "Evoluzioni progressive senza autonomia non autorizzata"
+          "Evoluzioni progressive senza autonomia non autorizzata",
+          "Router shadow non autorevole: valutarne l'adozione futura solo dopo una prova dedicata; non è un guasto del percorso diretto."
         ]
       },
       "knownIssues": [
-        "Router specializzato ancora in shadow mode; non controlla il routing reale"
+        "Run diretto qwen3:1.7b completato ma lento (127,89 s), contro 54,46 s per prompt diverso in Ollama CLI; causa non isolata e confronti non omogenei."
       ],
       "roadmapRefs": [
         "ARCH-ORCHESTRATOR"
@@ -1633,7 +1674,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "T1.p1"
+      "parent": "T1.p1",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "Richiesta Chat → LangGraph → Supervisor → risposta conclusa (run 33193329, route direct, qwen3:1.7b, 127,89 s). Non certifica la delega agli specialisti.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "T1.p1.m2",
@@ -1642,7 +1691,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "T1.p1"
+      "parent": "T1.p1",
+      "observations": [
+        {
+          "type": "manual_followup",
+          "text": "Delega reale agli specialisti non verificata nei run direct osservati; collaudo successivo prima di colorare verde la delega.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "T1.p2",
@@ -2136,17 +2193,16 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Contratti ContextRequest ContextPacket; retrieval progressivo non completo",
+          "statement": "Run 33193329 produce budget/turni di contesto; cronologia e revoca di vincolo osservate, ma qualità del contesto non interamente verificata.",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
         "future": [
-          "Context Manager progressivo e differenza letterale/rielaborato"
+          "Context Manager progressivo e differenza letterale/rielaborato",
+          "Completare in futuro il Context Manager progressivo e i controlli di qualità della cronologia: non è un errore dimostrato dalle prove odierne."
         ]
       },
-      "knownIssues": [
-        "Contratti ContextRequest/ContextPacket presenti, Context Manager progressivo mancante"
-      ],
+      "knownIssues": [],
       "roadmapRefs": [
         "ARCH-ORCHESTRATOR"
       ]
@@ -2176,7 +2232,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "T6.p1"
+      "parent": "T6.p1",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "Evento context.selected osservato nel run 33193329: input_budget 7040, estimated_tokens 834, dropped_turns 0. Verificata la produzione delle metriche, non la qualità di selezione del contesto.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "T6.p2",
@@ -2194,7 +2258,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "T6.p2"
+      "parent": "T6.p2",
+      "observations": [
+        {
+          "type": "manual_followup",
+          "text": "Cronologia e annullamento di una regola precedente osservati nella chat; il rispetto di un vincolo numerico non è riuscito. Qualità della selezione e precedenza dei ruoli ancora da collaudare.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "T6.p2.m2",
@@ -2411,17 +2483,16 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Ruoli strumenti modelli e configurazione agenti",
+          "statement": "Nelle prove manuali del 08/11/2026, assegnazione agente salvata/riletta e modello effettivamente riportato corrispondente, sia locale sia per worker 123.",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
         "future": [
-          "Identità del modello effettivamente utilizzato in ogni agente"
+          "Identità del modello effettivamente utilizzato in ogni agente",
+          "Estendere ad altri agenti e worker i controlli sull'identità del modello; nei due casi osservati il modello corrispondeva."
         ]
       },
-      "knownIssues": [
-        "Possibile divergenza tra modello selezionato nella UI e modello usato dall'agente"
-      ],
+      "knownIssues": [],
       "roadmapRefs": [
         "MODELS-WORKER"
       ]
@@ -2469,7 +2540,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "T8.p2"
+      "parent": "T8.p2",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "Da Architettura l'assegnazione qwen3:4b su Ollama di Cora è stata salvata e riletta. Il test del modello ha restituito qwen3:4b.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "T8.p2.m2",
@@ -2478,7 +2557,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "T8.p2"
+      "parent": "T8.p2",
+      "observations": [
+        {
+          "type": "manual_followup",
+          "text": "Fallback a modello standard quando l'assegnazione è incompleta: rendere esplicita la scelta automatica e verificarne il perimetro; se un worker specifico è offline non sostituirlo con Ollama locale.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "T8.p3",
@@ -2496,7 +2583,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "T8.p3"
+      "parent": "T8.p3",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "Run 33193329: richiesto e riportato qwen3:1.7b. Run remoto 08/11 ore 18:42:59: richiesto e riportato qwen3-coder:30b-a3b-q4_K_M. Corrispondenza osservata in questi due casi.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "T8.p3.m2",
@@ -2505,7 +2600,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "T8.p3"
+      "parent": "T8.p3",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "Run remoto del 08/11 ore 18:42:59: macchina riportata 2619fc4a-accf-4267-a19b-1a7f18db9d36, associata al worker 123. Non è una misura diretta dell'utilizzo GPU.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "T9",
@@ -2631,17 +2734,16 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Attività, trace e decisioni standard presenti; diagnosi causale avanzata resta fase 2",
+          "statement": "Run, stati, identità di modello/macchina e durate delle prove del 08/11/2026 tracciati; diagnosi causale cross-component non ancora disponibile.",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
         "future": [
-          "Tracciare hop e causa di guasti introdotti da modifiche in altri componenti"
+          "Tracciare hop e causa di guasti introdotti da modifiche in altri componenti",
+          "Diagnostica causale cross-component da sviluppare; le trace dei run osservati risultano disponibili."
         ]
       },
-      "knownIssues": [
-        "Attribuzione automatica della causa di regressioni tra componenti non ancora implementata"
-      ],
+      "knownIssues": [],
       "roadmapRefs": [
         "ARCH-ORCHESTRATOR",
         "AUTO-QUALITY"
@@ -2663,7 +2765,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "T10.p1"
+      "parent": "T10.p1",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "Attività registra run 33193329 dalla richiesta alla risposta, con stati queued/running/completed e tracce supervisor; per worker remoto registra run completato e identità provider.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "T10.p1.m2",
@@ -2717,7 +2827,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "T10.p3"
+      "parent": "T10.p3",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "Diagnostica osservata: 127,66 s inferenza locale, 127,89 s run; 30,11 s inferenza remota, 30,35 s run, con coda e modello. Valori per fase, non una validazione completa della correttezza dei contatori.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "T10.p3.m2",
@@ -5174,18 +5292,17 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Una stella per lavorare con più GPU; inferenza provata, routing da attestare",
+          "statement": "Worker 123 ha completato inferenza remota col modello richiesto il 08/11/2026; il test a worker disattivato ha restituito HTTP 502, non un OK locale.",
           "source": "conceptual-v2",
           "runtimeVerified": false
         },
         "future": [
           "Verificare macchina e modello effettivi; routing",
-          "Scheduler e failover controllati"
+          "Scheduler e failover controllati",
+          "Estendere la prova di identità modello/macchina ad altri agenti; sistemare messaggio HTTP 502 con worker disabilitato, verificando assenza di inferenza locale inattesa."
         ]
       },
-      "knownIssues": [
-        "Worker risponde a inferenza non significa scelta corretta dell'agente"
-      ],
+      "knownIssues": [],
       "roadmapRefs": [
         "MODELS-WORKER"
       ]
@@ -5215,7 +5332,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "installare"
+      "parent": "installare",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "Il worker 123 ha completato una chiamata remota il 08/11; l'identità della macchina è presente nella traccia. Disponibilità attestata solo all'ora della prova.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "assegnare",
@@ -5233,7 +5358,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "assegnare"
+      "parent": "assegnare",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "L'assegnazione a worker 123 e modello qwen3-coder:30b-a3b-q4_K_M è stata salvata e riletta nella scheda Cora centrale; test successivo concluso.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "assegnare.m2",
@@ -5242,7 +5375,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "assegnare"
+      "parent": "assegnare",
+      "observations": [
+        {
+          "type": "manual_pass",
+          "text": "La traccia provider del run remoto riporta stesso modello richiesto/eseguito e macchina identificata; corrispondenza sì. Non certifica assenza di carico locale durante l'inferenza.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "worker.p3",
@@ -5296,7 +5437,15 @@
       "classification": "moon",
       "status": "partial",
       "note": "",
-      "parent": "worker.p4"
+      "parent": "worker.p4",
+      "observations": [
+        {
+          "type": "manual_followup",
+          "text": "Con worker 123 disattivato, il pulsante di test ha restituito HTTP 502: nessuna risposta utile ottenuta. Da rifinire con messaggio esplicito 'worker offline'; resta da escludere con tracing/CPU campionata un fallback locale silenzioso in ogni percorso.",
+          "observedAt": "2026-11-08",
+          "commit": null
+        }
+      ]
     },
     {
       "id": "F2",

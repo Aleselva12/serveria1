@@ -1,3 +1,4 @@
+import type {IndicatorPair} from "./NodeIndicators";
 import {useEffect,useRef,useState,type PointerEvent,type WheelEvent} from "react";
 import {toneLabels} from "./roadmapEvidence";
 import type {Node} from "./model";
@@ -65,6 +66,7 @@ export function focusLayout(nodes:Node[],id:string){
 type Props={
  nodes:Node[];selected:string;focusId?:string|null;onFocusChange?:(id:string|null)=>void;
  onSelect:(id:string)=>void;priority:(n:Node)=>string;visible:(n:Node)=>boolean;
+ indicators?:(n:Node)=>IndicatorPair;
  related?:{from:string;to:string}[];
 };
 const WIDTH=1800,HEIGHT=1450, CX=900,CY=725;
@@ -74,7 +76,7 @@ function pointAt(e:{clientX:number;clientY:number;currentTarget:SVGSVGElement}){
  return {x:CX,y:CY};
 }
 const titleOf=(n:Node)=>n.title.replace(/^[A-Z][\d.]* · /,"");
-export default function Constellation({nodes,selected,focusId=null,onFocusChange,onSelect,priority,visible,related=[]}:Props){
+export default function Constellation({nodes,selected,focusId=null,onFocusChange,onSelect,priority,indicators,visible,related=[]}:Props){
  const [zoom,setZoom]=useState(1),[pan,setPan]=useState({x:0,y:0});
  const pointers=useRef(new Map<number,{x:number;y:number}>());
  const drag=useRef<{x:number;y:number;px:number;py:number}|null>(null);
@@ -135,15 +137,22 @@ export default function Constellation({nodes,selected,focusId=null,onFocusChange
   const tone=priority(p.node),label=labels(p.node,p.kind);
   const radius=p.kind==="star"?(focusId?20:10):p.kind==="planet"?12:p.kind==="moon"?6:15;
   const highlight=visible(p.node);
+  const pair=indicators?.(p.node);
+  const indicatorText=pair?" · Sviluppo: "+pair.development.label+" · Collaudi: "+pair.verification.label:"";
   return <g key={p.node.id} data-node={p.node.id}
    className={`rm2-point tone-${tone} ${objective?"is-objective":""} ${active?"is-active":""} ${!highlight?"is-muted":""} ${p.kind==="moon"?"is-moon":""}`}
-   role="button" tabIndex={0} aria-pressed={active} aria-label={p.node.title+" · "+toneLabels[tone]}
+   role="button" tabIndex={0} aria-pressed={active} aria-label={p.node.title+" · "+toneLabels[tone]+indicatorText}
    onClick={()=>onSelect(p.node.id)}
    onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onSelect(p.node.id);}}}>
-   <title>{p.node.title+" · "+toneLabels[tone]}{objective?" · obiettivo non ancora implementato":""}</title>
+   <title>{p.node.title+" · "+toneLabels[tone]+indicatorText}{objective?" · obiettivo non ancora implementato":""}</title>
    <circle cx={p.x} cy={p.y} r="35" fill="transparent"/>
    <circle className="rm2-halo" cx={p.x} cy={p.y} r={radius*2.5} filter="url(#rm2-halo)"/>
    {objective&&<circle className="rm2-objective-ring" cx={p.x} cy={p.y} r={radius+9}/>}
+   {pair&&<g className="rm2-svg-indicators" aria-hidden="true">
+    <circle cx={p.x+radius+12} cy={p.y-12} r="5" style={{fill:pair.development.color}}/>
+    <circle cx={p.x+radius+27} cy={p.y-12} r="5" style={{fill:pair.verification.color}}/>
+    <text x={p.x+radius+12} y={p.y-22}>S</text><text x={p.x+radius+27} y={p.y-22}>C</text>
+   </g>}
    <circle className="rm2-core" cx={p.x} cy={p.y} r={radius}/>
    <text x={p.x} y={p.y+(p.kind==="moon"?25:p.kind==="star"?(focusId?47:32):37)} textAnchor="middle">
     {p.node.code&&<tspan className="rm2-code" x={p.x}>{p.node.code}</tspan>}

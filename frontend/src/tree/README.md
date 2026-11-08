@@ -95,3 +95,28 @@ Quattro suite isolate riutilizzano unittest e il runner una tantum: esplorazione
 
 
 Gli ambiti esplicitamente futuri (espansione GPU, espansione locale, NAS, ricerca modelli, trust futuro, bus distribuito, Custode, OCR e schede cliente) e i loro sottoelementi sono `planned`: 26 elementi riclassificati da parziali a non presenti. La struttura e gli identificativi restano invariati; gli altri parziali non vengono riclassificati senza evidenza.
+
+## Indicatori indipendenti — tranche autonoma Atlas
+
+Accanto al colore storico della mappa, ogni stella, pianeta e luna mostra due
+indicatori: **S** (sviluppo dichiarato) e **C** (collaudi del solo nodo).
+La legenda è disponibile nella scheda. Gli indicatori compaiono anche nei dettagli
+dei pianeti e delle lune; selezionando un sottoelemento, il suo titolo accompagna
+sempre i suoi indicatori, senza attribuirli alla stella.
+
+- Sviluppo: grigio per `planned`/`idea` o stato sconosciuto, blu per `partial`,
+  verde per `present`. Un test superato non cambia lo sviluppo dichiarato.
+- Collaudi: grigio senza evidenza valida; giallo per prove reali parziali o
+  rifiniture manuali; arancione per criticità documentate o fallimenti parziali;
+  rosso per fallimento di tutti gli E2E associati; verde per esito reale completo
+  oppure osservazione manuale datata, esplicitamente circoscritta.
+- Un esito scaduto, privo di attribuzione, di un altro commit o solo CI non è un
+  fallimento corrente del Debian. Un successo sintetico non certifica la funzione.
+- Nessuna propagazione tra i nuovi indicatori: un fallimento della luna non
+  cambia quelli del pianeta. `starTone`, filtri e colore centrale conservano
+  il comportamento storico; la diagnosi delle priorità resta missione assistita.
+
+La funzione `verificationIndicator` usa il registro esistente, senza eseguire
+nuovi test o inferenze. I test in `tree_indicators.test.mjs` coprono sviluppo,
+provenienza, scadenza, fallimenti, conferme manuali e indipendenza del genitore.
+La suite frontend controlla anche mapping, riferimenti e filtri esistenti.
