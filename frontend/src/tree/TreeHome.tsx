@@ -124,7 +124,7 @@ export default function TreeHome(){
       (healthFilter==="all"||tone(n)===healthFilter)&&
       (group==="all"||group==="T"&&n.parent==="tronco"||group!=="T"&&hasAncestor(n,group))&&
       (!q||descendants(n).includes(q))&&
-      (mode==="all"||mode==="issues"&&(n.knownIssues?.length||["problem","unverified","minor"].includes(tone(n)))||
+      (mode==="all"||mode==="issues"&&(n.knownIssues?.length||["problem","minor"].includes(tone(n)))||
        mode==="future"&&(n.status==="planned"||n.status==="idea"||Boolean(n.timeline?.future?.length)))
     );
   // Health changes are reflected when the response refreshes; no separate test execution.
@@ -258,7 +258,7 @@ export default function TreeHome(){
         <h2>{root.title.replace(/^[A-Z][\d.]* · /,"")}</h2>
         {focusId&&<button type="button" className="rm2-overview-link" onClick={showAll}>← Torna alla panoramica delle stelle</button>}
         <div className="rm2-badges">
-          <span className="rm2-impl">{selectedTone==="ok"?"Collaudo reale superato":selectedTone==="problem"?"Collaudo fallito":selectedTone==="unverified"?"Non provato":selectedTone==="plan"?"Presente parzialmente":selectedTone==="unknown"?"Non presente":"Richiede attenzione"}</span>
+          <span className="rm2-impl">{selectedTone==="ok"?"Collaudo reale superato":selectedTone==="problem"?"Collaudo fallito":selectedTone==="unverified"?"Non collaudato":selectedTone==="plan"?"Presente parzialmente":selectedTone==="unknown"?"Non presente":"Richiede attenzione"}</span>
           <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{toneLabels[selectedTone]||tones[selectedTone]||"Da valutare"}</span>
         </div>
         {goals.length>0&&<div className="rm2-project-state">
@@ -268,11 +268,18 @@ export default function TreeHome(){
         {selected.id!==root.id&&<div className="rm2-current-part">
           <strong>{selected.classification==="planet"?"Pianeta":selected.classification==="moon"?"Luna":"Elemento"} selezionato</strong>
           <span>{selected.title} · {summary(selected)}</span>
+          {selected.observations?.filter(o=>o.type==="manual_pass"||o.type==="manual_followup").map((o,i)=>
+            <div key={i} className={"rm2-manual-evidence "+(o.type==="manual_followup"?"is-followup":"")}>
+              <strong>{o.type==="manual_followup"?"Giallo · rifinitura da fare":"Verde · verificato manualmente"} · {o.observedAt||"data non disponibile"}</strong>
+              <p>{o.text}</p>
+              <small>Osservazione fornita dal proprietario. Non sostituisce i test del catalogo né certifica la versione installata.</small>
+            </div>
+          )}
         </div>}
         {newlyObserved&&<div className="rm2-observation"><CheckCircle2 size={15}/><div>Collaudo E2E attribuibile al commit attivo del Debian.
           <small>Ambiente Debian e versione corrispondente; la struttura della mappa non viene modificata.</small>
         </div></div>}
-        <p className="rm2-caveat">Verde = collaudo reale sulla versione attiva. Simulazioni, contratti e check HTTP non certificano una funzionalità. I sottoelementi futuri o parziali non bloccano il verde; problemi e mancate verifiche di elementi presenti richiedono attenzione.</p>
+        <p className="rm2-caveat">Verde = collaudo reale sul commit attivo oppure verifica manuale datata e circoscritta, esplicitamente indicata nella scheda. Grigio = verifica mancante, non guasto. Giallo = rifinitura/upgrade. Rosso = fallimento di un controllo reale sulla versione attiva. Un test manuale non certifica l’intera stella o l’hardware fisico.</p>
         <div className="rm2-tabs" role="tablist" aria-label="Tempo e problemi">
           {([
             ["present","Presente"],["issues","Problemi"],["future","Futuro"],["past","Storia"],

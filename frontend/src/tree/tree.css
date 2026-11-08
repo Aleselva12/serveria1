@@ -298,6 +298,14 @@
 .rm2-verification label{display:inline-flex;align-items:center;gap:8px;margin:8px 18px 8px 0}.rm2-verification select{max-width:100%;background:var(--rm2-bg);color:var(--rm2-ink);padding:6px;border:1px solid var(--rm2-border);border-radius:5px}
 
 /* Unproved implementation is red, with an explicit label distinct from a failed test. */
-.tone-unverified,.rm2-point.tone-unverified{--rm2-tone:var(--rm2-bad)}
-.rm2-point.tone-unverified .rm2-core{fill:var(--rm2-bad)}
+.tone-unverified,.rm2-point.tone-unverified{--rm2-tone:var(--rm2-unknown)}
+.rm2-point.tone-unverified .rm2-core{fill:var(--rm2-unknown)}
 .rm2-planets small,.rm2-moonlist small{display:block;font-size:11px;line-height:1.4;margin-top:4px;color:var(--rm2-muted)}
+
+/* Manual observation chips disclose the source; they are not automated health checks. */
+.rm2-manual-evidence{display:grid;gap:7px;margin:10px 0;padding:10px 12px;border:1px solid #38554c;background:#152b2d;border-radius:8px}
+.rm2-manual-evidence strong{display:flex;align-items:center;gap:7px;font-size:11px;color:#a5e8c4}
+.rm2-manual-evidence.is-followup{border-color:#635738;background:#302c20}
+.rm2-manual-evidence.is-followup strong{color:#ebcf92}
+.rm2-manual-evidence p{margin:0;font-size:11px;color:#c5d8d5;line-height:1.6}
+.rm2-manual-evidence small{font-size:10px;color:#96b1b2;line-height:1.5}

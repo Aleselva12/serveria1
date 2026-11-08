@@ -128,7 +128,7 @@ test("focused worker nodes update only covered scopes; GPU is not certified by i
   assert.equal(starTone({...children[1],knownIssues:[]},h,sha,{A1:[d.id]},children),"plan");
  });
 
-test("future and partial children do not block a star's valid live proof",()=>{
+test("future scope does not block a valid live E2E; partial children remain yellow",()=>{
  const d=definition("real"),h=dashboard([[d,result(d.id)]]),m={A1:[d.id]};
  const future={id:"future",parent:"A1",classification:"planet",status:"planned"};
  const partial={id:"partial",parent:"A1",classification:"planet",status:"partial"};
@@ -138,10 +138,10 @@ test("future and partial children do not block a star's valid live proof",()=>{
  assert.equal(starTone({...node,timeline:{future:["An optional upgrade"]}},h,sha,m,all),"ok");
  const present={...future,status:"present"};
  assert.equal(starTone(present,h,sha,m,[node,present]),"unverified");
- assert.equal(starTone(node,h,sha,m,[node,present]),"minor");
+ assert.equal(starTone(node,h,sha,m,[node,present]),"plan");
 });
 
-test("a mapped E2E without valid proof remains red even for a partial node",()=>{
+test("a mapped E2E without valid proof remains neutral and unverified",()=>{
  const d=definition("real"),h=dashboard([[d,undefined]]),m={A1:[d.id]};
  assert.equal(starTone(node,h,sha,m),"unverified");
  assert.match(verificationSummary(node,h,sha,m),/Non provato/);
@@ -157,9 +157,9 @@ test("root areas and branches aggregate actual children without claiming their o
   const d=definition("real"),m={present:[d.id]};
   const all=[group,future,partial,present];
   const h=dashboard([[d,result(d.id)]]);
-  assert.equal(starTone(group,h,sha,m,all),"ok");
-  assert.equal(starTone(group,h,sha,m,[group,partial]),"ok");
-  assert.match(verificationSummary(group,h,sha,m,all),/Non è un collaudo autonomo/);
+  assert.equal(starTone(group,h,sha,m,all),"plan");
+  assert.equal(starTone(group,h,sha,m,[group,partial]),"plan");
+  assert.match(verificationSummary(group,h,sha,m,all),/Presente parzialmente/);
   const failed=dashboard([[d,result(d.id,sha,"debian-api","fail")]]);
   assert.equal(starTone(group,failed,sha,m,all),"minor");
   assert.equal(starTone(group,failed,sha,m,[group,present]),"problem");
