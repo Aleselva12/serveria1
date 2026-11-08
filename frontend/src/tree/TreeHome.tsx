@@ -42,6 +42,20 @@ const tones:Record<string,string>={
   unknown:"Da valutare",ok:"Funzione collaudata",plan:"Lavoro previsto",
   minor:"Attenzione",problem:"Test fallito",
 };
+// Indicatori aggiuntivi: non modificano la logica storica di starTone.
+const developmentIndicator=(n:Node)=>{
+  if(n.status==="planned"||n.status==="idea") return {label:"Non implementato",color:"#8994a5"};
+  if(n.status==="partial") return {label:"Sviluppo parziale",color:"#60a5fa"};
+  if(n.status==="present") return {label:"Implementato (dichiarato)",color:"#34d399"};
+  return {label:"Sviluppo da valutare",color:"#8994a5"};
+};
+const verificationIndicator=(tone:string)=>{
+  if(tone==="ok") return {label:"Collaudo superato",color:"#34d399"};
+  if(tone==="problem") return {label:"Collaudo fallito",color:"#f87171"};
+  if(tone==="minor") return {label:"Verifiche con criticità",color:"#fb923c"};
+  if(tone==="plan") return {label:"Verifica parziale o prevista",color:"#facc15"};
+  return {label:"Verifica non disponibile",color:"#8994a5"};
+};
 const relNames:Record<string,string>={
   uses:"Utilizza",depends_on:"Dipende da",
   communicates_with:"Comunica con",produces_for:"Produce dati per",
@@ -258,6 +272,8 @@ export default function TreeHome(){
         <h2>{root.title.replace(/^[A-Z][\d.]* · /,"")}</h2>
         {focusId&&<button type="button" className="rm2-overview-link" onClick={showAll}>← Torna alla panoramica delle stelle</button>}
         <div className="rm2-badges">
+          <span style={{display:"inline-flex",alignItems:"center",gap:6}} title={"Sviluppo: "+developmentIndicator(selected).label}><i aria-hidden="true" style={{width:11,height:11,borderRadius:"50%",background:developmentIndicator(selected).color,display:"inline-block"}}/>Sviluppo · {developmentIndicator(selected).label}</span>
+          <span style={{display:"inline-flex",alignItems:"center",gap:6}} title={"Collaudi: "+verificationIndicator(tone(selected)).label}><i aria-hidden="true" style={{width:11,height:11,borderRadius:"50%",background:verificationIndicator(tone(selected)).color,display:"inline-block"}}/>Collaudi · {verificationIndicator(tone(selected)).label}</span>
           <span className="rm2-impl">{selectedTone==="ok"?"Collaudo reale superato":selectedTone==="problem"?"Collaudo fallito":selectedTone==="unverified"?"Non collaudato":selectedTone==="plan"?"Presente parzialmente":selectedTone==="unknown"?"Non presente":"Richiede attenzione"}</span>
           <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{toneLabels[selectedTone]||tones[selectedTone]||"Da valutare"}</span>
         </div>
