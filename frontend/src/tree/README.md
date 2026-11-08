@@ -66,25 +66,16 @@ senza avviare test o inferenza; il pannello collaudi aggiorna gli stessi dati ad
 avanzamento. Le descrizioni della verifica usano la stessa funzione dei colori.
 La nota statica è separata sotto “Descrizione di progetto”.
 
-- Grigio: stato `planned`/`idea`, quindi elemento non presente.
-- Giallo: elemento `partial`, senza problemi rilevati né un collaudo E2E associato
-  ancora da provare. Non certifica il funzionamento completo.
-- Rosso “non provato”: elemento presente privo di prove valide, oppure collaudo
-  E2E associato ma mancante/scaduto/non attribuibile alla versione attiva.
-  È distinto dal rosso “collaudo fallito”, che richiede un fallimento reale.
-- Verde: E2E Debian valido sulla versione attiva e controlli associati superati.
-  Figli grigi non presenti e gialli parziali non impediscono questo risultato;
-  nemmeno una voce nella lista degli sviluppi futuri lo invalida.
-- Arancione: problemi documentati, fallimenti parziali o sottoelementi presenti
-  non provati. Le criticità non vengono ignorate perché un nodo è parziale.
+- **Grigio** — elemento futuro oppure collaudo assente, scaduto o senza attribuzione alla versione attiva.
+- **Verde** — verifica valida sul Debian per la versione attiva, oppure osservazione manuale datata e limitata al nodo e al percorso provati.
+- **Giallo** — ambito parziale, rifinitura aperta o sviluppo previsto. Il registro dell’8 novembre include il messaggio HTTP 502 a worker disattivato e le regole di autoselezione del modello e di gestione del worker offline.
+- **Arancione** — criticità documentata o fallimento parziale.
+- **Rosso** — fallimento effettivo dei controlli end-to-end associati sul Debian per la versione attiva.
 
-Rami e aree delle radici aggregano i figli: verde se tutti i figli attivi sono
-verdi/gialli, arancione per criticità miste, rosso se tutti quelli attivi sono
-falliti/non provati. Un insieme di soli obiettivi non presenti rimane grigio.
-Il verde di un contenitore è un riepilogo, non un nuovo collaudo E2E.
-
-Queste regole non aggiungono runner, non ampliano l'ambito delle prove esistenti
-e non riscrivono automaticamente problemi o note della snapshot.
+Un fallimento attuale prevale sull’osservazione manuale. Un verde manuale
+vale per il perimetro descritto nella scheda e non certifica il commit installato
+o l’intero ramo. Il [registro manuale dell’8 novembre](../../../docs/NODE_VERIFICATION.md#registro-manuale-del-proprietario--8-novembre-2026)
+riporta i nodi verificati e i limiti delle prove.
 
 ## Prima estensione dei controlli
 
