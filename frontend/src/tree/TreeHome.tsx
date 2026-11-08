@@ -124,7 +124,7 @@ export default function TreeHome(){
       (healthFilter==="all"||tone(n)===healthFilter)&&
       (group==="all"||group==="T"&&n.parent==="tronco"||group!=="T"&&hasAncestor(n,group))&&
       (!q||descendants(n).includes(q))&&
-      (mode==="all"||mode==="issues"&&(n.knownIssues?.length||["problem","unverified","minor"].includes(tone(n)))||
+      (mode==="all"||mode==="issues"&&(n.knownIssues?.length||["problem","minor"].includes(tone(n)))||
        mode==="future"&&(n.status==="planned"||n.status==="idea"||Boolean(n.timeline?.future?.length)))
     );
   // Health changes are reflected when the response refreshes; no separate test execution.
