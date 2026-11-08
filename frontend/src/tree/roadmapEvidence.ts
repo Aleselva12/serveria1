@@ -133,3 +133,36 @@ export function verificationSummary(node: Node, health: HealthDashboardData | nu
   if (states.includes("stale")) return "Non provato: collaudi scaduti, da ripetere.";
   return "Non provato: manca un collaudo reale valido sul Debian per questa versione. Controlli parziali o simulati non bastano.";
 }
+
+
+export type NodeIndicator = {label:string;color:string};
+export const indicatorColors = {gray:"#8994a5",blue:"#60a5fa",green:"#34d399",yellow:"#facc15",orange:"#fb923c",red:"#f87171"};
+/** Declared implementation only: tests and descendants cannot change it. */
+export function developmentIndicator(node:Node):NodeIndicator {
+  if(isFuture(node))return {label:"Non implementato",color:indicatorColors.gray};
+  if(node.status==="partial")return {label:"Sviluppo parziale",color:indicatorColors.blue};
+  if(node.status==="present")return {label:"Implementato (dichiarato)",color:indicatorColors.green};
+  return {label:"Sviluppo da valutare",color:indicatorColors.gray};
+}
+/** Exact-node evidence only. Legacy map aggregation remains in starTone. */
+export function verificationIndicator(node:Node,health:HealthDashboardData|null,
+  activeCommit:string|null,mapping:CheckMapping):NodeIndicator {
+  const evidence=(mapping[node.id]||[]).map(id=>({
+    def:health?.catalog.find(c=>c.id===id),result:health?.latest[id]
+  }));
+  const live=(e:typeof evidence[number])=>/^debian(?:$|[-_:])/i.test(e.result?.environment||"");
+  const failed=(e:typeof evidence[number])=>live(e)&&checkState(e.def,e.result,activeCommit)==="fail";
+  if(evidence.some(failed))return evidence.every(e=>e.def?.kind==="e2e"&&failed(e))
+    ?{label:"Collaudo fallito",color:indicatorColors.red}
+    :{label:"Verifiche con criticità",color:indicatorColors.orange};
+  if(node.knownIssues?.length)return {label:"Criticità documentate",color:indicatorColors.orange};
+  const manual=manualEvidence(node);
+  if(manual?.kind==="plan")return {label:"Rifinitura aperta · osservazione manuale del "+manual.date,color:indicatorColors.yellow};
+  if(manual?.kind==="ok")return {label:"Verifica manuale circoscritta del "+manual.date,color:indicatorColors.green};
+  if(evidence.some(e=>verifiedLiveE2E(e.def,e.result,activeCommit))&&
+    evidence.every(e=>live(e)&&checkState(e.def,e.result,activeCommit)==="pass"))
+    return {label:"Collaudo reale superato",color:indicatorColors.green};
+  if(evidence.some(e=>live(e)&&checkState(e.def,e.result,activeCommit)==="pass"))
+    return {label:"Verifica parziale · non certifica il funzionamento reale",color:indicatorColors.yellow};
+  return {label:evidence.length?"Non verificato · nessun esito reale valido":"Non verificato · nessun controllo associato",color:indicatorColors.gray};
+}
