@@ -48,8 +48,7 @@ ritentare automaticamente una scrittura Google con esito incerto.
 La vista Roadmap usa la struttura radici–tronco–rami della snapshot Atlas/qwe e
 sovrappone stato/evidenze provenienti da Cora. La struttura non viene generata
 automaticamente dai test: modifiche a stelle, rami e gerarchie restano manuali.
-Il classificatore locale è un supporto esplicito alla priorità: parte soltanto su
-clic, valuta un insieme limitato di nodi e non riscrive la mappa. Dettagli e regole
+Dalla Roadmap il proprietario può avviare collaudi una tantum e richiedere una valutazione locale di fino a otto obiettivi. Architettura mostra i modelli, incluso quello delle priorità. Home mostra fino a cinque voci dell'ultima valutazione salvata. La gerarchia della mappa resta manuale. Dettagli e regole
 di aggiornamento sono in [src/tree/README.md](src/tree/README.md).
 
 La pagina principale Architettura non mostra il grafo. Vedi [schede agenti e inferenza desktop](../docs/AGENT-CARDS.md): scelta persistente per ruolo, modelli installati locali o del profilo worker attivo, nessun cambio automatico di profilo o fallback.
@@ -60,6 +59,6 @@ La pagina principale Architettura non mostra il grafo. Vedi [schede agenti e inf
 
 Audio include [proposte di note Word](../docs/COMMERCIAL_AUDIO_WORD.md), da rivedere e approvare. Home collega [applicazioni gestite](../docs/MANAGED_APPS.md); il [terminale personale](../docs/personal-terminal.md) richiede servizio/configurazione separati. La presenza dei pulsanti non prova che i relativi servizi siano installati. Foto e collegamenti privati non implementano multiutenza o un backup fotografico verificato.
 
-Lo streaming SSE del backend è distinto dal trasporto worker: il worker remoto restituisce l’inferenza al termine. Una perdita della connessione non autorizza a ritentare una scrittura. I controlli di modello/machine restano manuali in Architettura/Macchine.
+Lo streaming SSE del backend è distinto dal trasporto worker: il worker remoto restituisce l’inferenza al termine. Una perdita della connessione non autorizza a ritentare una scrittura. Architettura e Macchine permettono controlli manuali. La Roadmap può anche avviare i collaudi registrati per il nodo selezionato.
 
 `npm test` esegue i test Node dichiarati in package.json; `npm run build` esegue TypeScript e Vite. I test di componenti e sorgenti non sono un collaudo end-to-end con Google, Ollama, NAS o Debian. Risultati osservati e limiti nell’[audit](../docs/README_AUDIT_20261025.md).

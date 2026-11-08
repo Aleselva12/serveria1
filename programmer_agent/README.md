@@ -25,7 +25,7 @@ L’editor manuale permette **Nuovo file** e **Modifica file** nella copia isola
 
 In **Programma**, creare un workspace, selezionarlo e descrivere il componente nel Copilot. La pagina mostra sorgente, differenze, cronologia del workspace e verifiche. Le conversazioni sono salvate in PostgreSQL con identità `programmer_agent`; l'ID conversazione è l'ID workspace. Run e operazioni restano visibili in Attività, anche dopo un errore o un riavvio. Cambiare pagina interrompe soltanto la lettura dello stream: il lavoro prosegue nel backend e non viene ripetuto automaticamente. Il pulsante Ferma usa la cancellazione del runtime.
 
-I workspace sono snapshot **filtrati**, non checkout Git completi: escludono dati, credenziali, file nascosti, link, dipendenze e file oltre 1 MB. Sono ammessi fino a 6.000 file e 40 MB per snapshot. Un controllo sha256 impedisce sovrascritture di file cambiati dopo la lettura. Le scritture sono limitate al workspace; non c'è scrittura diretta sul sorgente attivo o caricamento dinamico di Python; l'applicazione di un commit usa il servizio updater. La cartella predefinita è `data/programmer`; nel deployment Compose è `/state/programmer`, già inclusa nel volume persistente e nei backup dello stato.
+I workspace di tipo snapshot sono copie **filtrate**: escludono dati, credenziali, file nascosti, link, dipendenze e file oltre 1 MB. Sono ammessi fino a 6.000 file e 40 MB per snapshot. Un controllo sha256 impedisce sovrascritture di file cambiati dopo la lettura. Le scritture sono limitate al workspace; non c'è scrittura diretta sul sorgente attivo o caricamento dinamico di Python; l'applicazione di un commit usa il servizio updater. La cartella predefinita è `data/programmer`; nel deployment Compose è `/state/programmer`, già inclusa nel volume persistente e nei backup dello stato.
 
 Il Supervisor può delegare con `programmer_agent_tool(query, workspace_id)` quando l'utente fornisce un workspace esistente. Il Copilot chiama direttamente il programmatore senza un passaggio del Supervisor. La cronologia manuale nel Copilot viene recuperata dal database; le deleghe del Supervisor ricevono invece la richiesta delegata, come gli altri specialisti.
 
@@ -100,7 +100,7 @@ L'immagine installa il package-lock del repository fidato con npm ci --ignore-sc
 
 ## Aggiornare Cora su richiesta
 
-Crea workspace Git abilita il progetto testuale completo. Il Programmatore può aggiornare codice, contratti, frontend, grafi e migrazioni; il rilascio conserva Git localmente, costruisce immagini e richiede applicazione esplicita. La pagina mostra commit, job e stati anche dopo il ritorno da un riavvio. Per setup host, recupero, limiti e collaudo leggere il [README updater](../updater/README.md). I vecchi snapshot non vengono convertiti automaticamente in checkout rilasciabili.
+**Crea workspace Git** prepara una copia versionata per lavorare sul progetto e produrre commit. La preparazione del candidato, l'applicazione sul server e la pubblicazione del branch su GitHub sono operazioni distinte. Il Programmatore può aggiornare codice, contratti, frontend, grafi e migrazioni; il rilascio conserva Git localmente, costruisce immagini e richiede applicazione esplicita. La pagina mostra commit, job e stati anche dopo il ritorno da un riavvio. Per setup host, recupero, limiti e collaudo leggere il [README updater](../updater/README.md). I vecchi snapshot non vengono convertiti automaticamente in checkout rilasciabili.
 
 
 ### Attendibilità dei controlli

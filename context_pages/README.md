@@ -52,4 +52,4 @@ tool quando il task lo richiede.
 
 In selezione automatica, `core/library_routing.py` può aggiungere `library_list/search/read` e rimuovere gli strumenti di esplorazione repository per richieste sulla sola Libreria IA. La lista manuale prevale e viene validata in `core/chat_tools.py`; gli specialisti mantengono i propri strumenti governati. Il budget finito e i metadati del modello possono ancora impedire una richiesta: selezione non significa esecuzione riuscita.
 
-Prove nel repository: `tests/test_context_pages.py`, `test_owner_context_pages.py`, `test_chat_tools.py`, `test_library_routing.py`. [Audit del 25 ottobre](../docs/README_AUDIT_20261025.md): collegamento statico verificato, nessun collaudo di inferenza sul Debian reale.
+Per verificare una modifica ai trigger, al contesto del proprietario o alla selezione dei tool, consulta i test in [`tests/`](../tests): `test_context_pages.py`, `test_owner_context_pages.py`, `test_chat_tools.py` e `test_library_routing.py`. [Audit del 25 ottobre](../docs/README_AUDIT_20261025.md): collegamento statico verificato, nessun collaudo di inferenza sul Debian reale.

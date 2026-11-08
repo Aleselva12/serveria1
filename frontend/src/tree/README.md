@@ -42,7 +42,7 @@ spostare o fondere stelle.
 `RoadmapPriorities.tsx` usa il classificatore locale soltanto su **clic esplicito**.
 La richiesta è limitata a un insieme bounded di task/nodi (attualmente massimo 8) e
 passa problemi, obiettivi e contesto aggiuntivo al modello locale configurato da
-`CORA_ROADMAP_CLASSIFIER_MODEL`.
+`CORA_ROADMAP_CLASSIFIER_MODEL` (default `qwen3:1.7b`). L'API concede fino a 420 secondi all'inferenza. Le valutazioni completate sono conservate in PostgreSQL e alimentano le priorità visibili in Home.
 
 Il classificatore serve a suggerire priorità/urgenza e a riassumere il contesto.
 Non usa servizi cloud, non scrive file della roadmap, non chiama `updateRoadmap` e
@@ -83,8 +83,7 @@ verdi/gialli, arancione per criticità miste, rosso se tutti quelli attivi sono
 falliti/non provati. Un insieme di soli obiettivi non presenti rimane grigio.
 Il verde di un contenitore è un riepilogo, non un nuovo collaudo E2E.
 
-Queste regole non aggiungono runner, non ampliano l'ambito delle prove esistenti
-e non riscrivono automaticamente problemi o note della snapshot.
+La revisione dell'API che ha eseguito il controllo deve corrispondere alla release attiva per attribuire l'esito a quella versione. Gli esiti sintetici e le evidenze storiche restano distinguibili dai collaudi E2E.
 
 ## Prima estensione dei controlli
 

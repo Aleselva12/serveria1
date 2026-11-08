@@ -91,6 +91,10 @@ python3 -m updater.recover --root /srv/cora-updater --job UUID_DEL_JOB
 
 Il lock impedisce di recuperare mentre il servizio è ancora attivo. Riavviare poi il servizio. Non modificare a mano job/manifest per aggirare una verifica. Conservare spazio per backup, estrazione e immagini; non viene fatta pulizia automatica di Git, job o backup.
 
+## Identità della release in esecuzione
+
+L'API ricava il commit da `.cora-revision` o dalla configurazione di build. Per gli updater precedenti che preparano i sorgenti con `git archive`, può recuperarlo da `.cora-archive-revision`, valorizzato da Git durante l'esportazione. In un checkout di sviluppo usa `HEAD` soltanto se i file tracciati sono puliti. Quando manca una revisione verificabile, i collaudi non possono essere attribuiti alla release attiva.
+
 ## Confini del rilascio
 
 La configurazione host/Compose e il software updater installato restano fidati e separati. Una modifica a compose.yml viene rifiutata durante la preparazione: nuovi mount, porte, altri servizi o modifiche al controllore richiedono una revisione/installazione host distinta. Il normale rilascio può modificare l'intero codice applicativo, comprese architettura agentica e capacità del programmatore, ma non amministra altri servizi NAS né il sistema operativo.
