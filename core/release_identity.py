@@ -14,6 +14,15 @@ def revision() -> str:
         value = os.getenv("CORA_GIT_COMMIT", "").strip()
     if re.fullmatch(r"[a-fA-F0-9]{40}", value):
         return value.lower()
+    # Older host updaters do not pass the Docker build argument. Their git
+    # archive still embeds the exact source commit through export-subst.
+    # The literal placeholder in a checkout is intentionally not accepted.
+    try:
+        archived = (ROOT / ".cora-archive-revision").read_text().strip()
+    except OSError:
+        archived = ""
+    if re.fullmatch(r"[a-fA-F0-9]{40}", archived):
+        return archived.lower()
     # Source checkouts only: modified tracked files must never certify HEAD.
     if not (ROOT / ".git").exists():
         return ""
