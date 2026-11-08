@@ -11,6 +11,7 @@ const external=name=>JSON.stringify(pathToFileURL(require.resolve(name)).href);
 const read=path=>readFileSync(new URL(path,import.meta.url),"utf8");
 const compile=source=>ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX}}).outputText;
 const url=code=>"data:text/javascript;base64,"+Buffer.from(code).toString("base64");
+const indicatorsUrl=url(compile(read("../src/tree/NodeIndicators.tsx")).replace(/from ["']react\/jsx-runtime["']/g,"from "+external("react/jsx-runtime")));
 const evidenceUrl=url(compile(read("../src/tree/roadmapEvidence.ts")));
 const sha="a".repeat(40),at=new Date().toISOString();
 const definition=id=>({id,title:id,component:"cora",kind:"e2e",frequency:"on_release",automated:false});
@@ -29,6 +30,7 @@ let code=compile(read("../src/tree/TreeHome.tsx"))
  .replace(/import planSource from .*?;/,"const planSource=globalThis.__treePlan;")
  .replace(/import \{[^}]+\} from "\.\.\/services\/api";/,"const api=globalThis.__treeApi,apiBaseUrl='';")
  .replace(/import \{ authenticatedFetch \} from .*?;/,"const authenticatedFetch=globalThis.__treeTransport;")
+ .replace(/from "\.\/NodeIndicators"/g,"from "+JSON.stringify(indicatorsUrl))
  .replace(/from "\.\/roadmapEvidence"/g,"from "+JSON.stringify(evidenceUrl))
  .replace(/import \{ homeRoadmap \} from .*?;/,"const homeRoadmap={goals:[],nextWork:[]};")
  .replace(/import \{ checks \} from .*?;/,"const checks={T1:['good'],A1:['bad']};")

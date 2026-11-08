@@ -1,3 +1,5 @@
+import NodeIndicators, {IndicatorLegend} from "./NodeIndicators";
+import {developmentIndicator,verificationIndicator} from "./roadmapEvidence";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, ChevronRight,
@@ -102,6 +104,7 @@ export default function TreeHome(){
     : activeCommit; // Legacy health responses stay unverified by their individual missing test SHA.
   const tone=(n:Node)=>starTone(n,health,verifiedCommit,checks,nodes);
   const selectedTone=tone(root);
+  const indicators=(n:Node)=>({development:developmentIndicator(n),verification:verificationIndicator(n,health,verifiedCommit,checks)});
   const summary=(n:Node)=>verificationSummary(n,health,verifiedCommit,checks,nodes);
   const counts=Object.fromEntries(Object.keys(toneLabels).map(key=>[key,stars.filter(n=>tone(n)===key).length]));
   const relationRows=source.relations.filter(r=>r.from===root.id||r.to===root.id);
@@ -247,7 +250,7 @@ export default function TreeHome(){
         </div>
       </aside>
       <div className="rm2-center">
-        {view==="map"?<Constellation nodes={nodes} selected={selected.id} focusId={focusId} onFocusChange={id=>id===null?showAll():setFocusId(id)} onSelect={choose} priority={tone} visible={visible} related={source.relations.filter(r=>r.from===root.id||r.to===root.id)}/>:
+        {view==="map"?<Constellation nodes={nodes} selected={selected.id} focusId={focusId} onFocusChange={id=>id===null?showAll():setFocusId(id)} onSelect={choose} priority={tone} indicators={indicators} visible={visible} related={source.relations.filter(r=>r.from===root.id||r.to===root.id)}/>:
           <div className="rm2-list"><h2>Componenti e responsabilità</h2><p>Vista alternativa della stessa mappa: non una seconda roadmap.</p>
             {["radici","tronco","rami"].map(level=><section key={level}><h3>{level.toUpperCase()}</h3><div>{matching.filter(n=>level==="tronco"?n.parent==="tronco":level==="radici"?hasAncestor(n,"radici"):!hasAncestor(n,"radici")&&n.parent!=="tronco").map(n=><button type="button" key={n.id} onClick={()=>choose(n.id)}><i title={toneLabels[tone(n)]} aria-label={toneLabels[tone(n)]} className={"rm2-dot tone-"+tone(n)}/><span>{n.code} · {n.title.replace(/^[A-Z][\d.]* · /,"")}</span><ArrowRight size={14}/></button>)}</div></section>)}
           </div>}
@@ -258,6 +261,7 @@ export default function TreeHome(){
         <h2>{root.title.replace(/^[A-Z][\d.]* · /,"")}</h2>
         {focusId&&<button type="button" className="rm2-overview-link" onClick={showAll}>← Torna alla panoramica delle stelle</button>}
         <div className="rm2-badges">
+          <NodeIndicators {...indicators(root)}/>
           <span className="rm2-impl">{selectedTone==="ok"?"Collaudo reale superato":selectedTone==="problem"?"Collaudo fallito":selectedTone==="unverified"?"Non collaudato":selectedTone==="plan"?"Presente parzialmente":selectedTone==="unknown"?"Non presente":"Richiede attenzione"}</span>
           <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{toneLabels[selectedTone]||tones[selectedTone]||"Da valutare"}</span>
         </div>
@@ -280,6 +284,8 @@ export default function TreeHome(){
           <small>Ambiente Debian e versione corrispondente; la struttura della mappa non viene modificata.</small>
         </div></div>}
         <p className="rm2-caveat">Verde = collaudo reale sul commit attivo oppure verifica manuale datata e circoscritta, esplicitamente indicata nella scheda. Grigio = verifica mancante, non guasto. Giallo = rifinitura/upgrade. Rosso = fallimento di un controllo reale sulla versione attiva. Un test manuale non certifica l’intera stella o l’hardware fisico.</p>
+        <IndicatorLegend/>
+        {selected.id!==root.id&&<div className="rm2-selected-indicators"><b>{selected.title}</b><NodeIndicators {...indicators(selected)}/></div>}
         <div className="rm2-tabs" role="tablist" aria-label="Tempo e problemi">
           {([
             ["present","Presente"],["issues","Problemi"],["future","Futuro"],["past","Storia"],
@@ -292,8 +298,8 @@ export default function TreeHome(){
             {root.observations?.map((o,i)=><div className="rm2-observation" key={i}><CheckCircle2 size={15}/><div>{o.text}<small>Confermato dall'utente; non prova il commit installato.</small></div></div>)}
             <div className="rm2-section-head"><Orbit size={14}/> PIANETI <span>{children(root.id).length}</span></div>
             <div className="rm2-planets">{children(root.id).map(pl=><div key={pl.id} className="rm2-planet">
-              <button type="button" aria-expanded={openPlanet===pl.id} onClick={()=>setOpenPlanet(openPlanet===pl.id?null:pl.id)}><i title={toneLabels[tone(pl)]} className={"rm2-dot tone-"+tone(pl)}/><span>{pl.title}<small>{summary(pl)}</small></span>{openPlanet===pl.id?<ChevronDown size={14}/>:<ChevronRight size={14}/>}</button>
-              {openPlanet===pl.id&&<div className="rm2-moonlist">{children(pl.id).map(m=><p key={m.id}><i title={toneLabels[tone(m)]} className={"rm2-dot tone-"+tone(m)}/>{m.title}<small>{summary(m)}</small></p>)}{!children(pl.id).length&&<p>Nessuna luna per questo pianeta.</p>}</div>}
+              <button type="button" aria-expanded={openPlanet===pl.id} onClick={()=>setOpenPlanet(openPlanet===pl.id?null:pl.id)}><i title={toneLabels[tone(pl)]} className={"rm2-dot tone-"+tone(pl)}/><span>{pl.title}<small>{summary(pl)}</small><NodeIndicators {...indicators(pl)}/></span>{openPlanet===pl.id?<ChevronDown size={14}/>:<ChevronRight size={14}/>}</button>
+              {openPlanet===pl.id&&<div className="rm2-moonlist">{children(pl.id).map(m=><p key={m.id}><i title={toneLabels[tone(m)]} className={"rm2-dot tone-"+tone(m)}/>{m.title}<small>{summary(m)}</small><NodeIndicators {...indicators(m)}/></p>)}{!children(pl.id).length&&<p>Nessuna luna per questo pianeta.</p>}</div>}
             </div>)}</div>
           </>}
           {tab==="issues"&&<>

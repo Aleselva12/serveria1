@@ -309,3 +309,11 @@
 .rm2-manual-evidence.is-followup strong{color:#ebcf92}
 .rm2-manual-evidence p{margin:0;font-size:11px;color:#c5d8d5;line-height:1.6}
 .rm2-manual-evidence small{font-size:10px;color:#96b1b2;line-height:1.5}
+
+.rm2-node-indicators{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;line-height:1.5}
+.rm2-node-indicators>span{display:inline-flex;align-items:center;gap:6px}
+.rm2-node-indicators i{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.rm2-svg-indicators text{font-size:10px;fill:#dce9f5;text-anchor:middle}
+.rm2-svg-indicators circle{stroke:#07121b;stroke-width:1.5px}
+.rm2-indicator-legend,.rm2-selected-indicators{margin:12px 0;padding:10px;border:1px solid #344354;border-radius:8px;font-size:12px}
+.rm2-indicator-legend summary{cursor:pointer;font-weight:600}
