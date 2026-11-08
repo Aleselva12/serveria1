@@ -117,3 +117,14 @@ test('semantic cross-node relations retain identity and do not imply independent
  assert.ok(relations.some(r=>r.kind==='shares_evidence_with'));
  assert.ok(relations.some(r=>r.kind==='verified_by'));
 });
+
+test('planner code review updates only the documented plan schema, not scheduling or runtime certification',()=>{
+ const byId=new Map(nodes.map(n=>[n.id,n]));
+ for(const id of ['T9','T9.p1','T9.p1.m1']){
+  const n=byId.get(id);
+  assert.equal(n.status,'partial',id+' must reflect the existing plan schema');
+  assert.ok(n.observations?.some(o=>o.type==='code_review'&&o.text.includes('core/plans.py')));
+ }
+ for(const id of ['T9.p1.m2','T9.p2','T9.p3'])assert.equal(byId.get(id).status,'planned',id+' must not claim implemented scheduling');
+ assert.equal(byId.get('T9').timeline.present.runtimeVerified,false);
+});
