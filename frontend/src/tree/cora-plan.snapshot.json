@@ -2601,15 +2601,15 @@
       "priority": "unknown",
       "parent": "tronco",
       "earlierNote": "Proposta V2 parziale. Responsabilità, evidenze e collegamenti da confermare.",
-      "status": "planned",
+      "status": "partial",
       "classification": "star",
       "code": "T9",
       "sourceType": "architecture-v2",
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Plan multi step code persistenti scheduler failover fase 2",
-          "source": "architecture-v2",
+          "statement": "Schema e persistenza dei piani presenti nel codice (core/plans.py); orchestrazione multi-step, scheduler e ripresa non dimostrati.",
+          "source": "code-review-2026-11-09",
           "runtimeVerified": false
         },
         "future": [
@@ -2618,6 +2618,13 @@
       },
       "roadmapRefs": [
         "ARCH-ORCHESTRATOR"
+      ],
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-09",
+          "text": "core/plans.py definisce create_plan_record() con task e dipendenze e save_plan_record() su JSON; non è prova di scheduling, ripresa o funzionamento sul Debian."
+        }
       ]
     },
     {
@@ -2625,18 +2632,32 @@
       "title": "Plan",
       "priority": "unknown",
       "classification": "planet",
-      "status": "planned",
+      "status": "partial",
       "note": "",
-      "parent": "T9"
+      "parent": "T9",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-09",
+          "text": "core/plans.py definisce create_plan_record() con task e dipendenze e save_plan_record() su JSON; non è prova di scheduling, ripresa o funzionamento sul Debian."
+        }
+      ]
     },
     {
       "id": "T9.p1.m1",
       "title": "Multi step strutturato",
       "priority": "unknown",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "note": "",
-      "parent": "T9.p1"
+      "parent": "T9.p1",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-09",
+          "text": "core/plans.py definisce create_plan_record() con task e dipendenze e save_plan_record() su JSON; non è prova di scheduling, ripresa o funzionamento sul Debian."
+        }
+      ]
     },
     {
       "id": "T9.p1.m2",
@@ -5721,7 +5742,7 @@
     }
   ],
   "revision_note": "V2 completa, 45 stelle con pianeti e lune; colori dichiarati e non dedotti dal codice, test o priorità. Conservate identità del piano iniziale e contributi docs/MEMORIA_CORA.md. | ServerIA autorevole; qwe legacy. Criticità localizzate sui nodi operativi e relazioni semantiche esplicite (proposte, non prove runtime).",
-  "revision": "CORA-V2-2026-11-09-ISSUE-OWNERSHIP",
+  "revision": "CORA-V2-2026-11-09-CODE-EVIDENCE",
   "legend": {
     "unknown": "Da valutare",
     "ok": "Tutto ok",
