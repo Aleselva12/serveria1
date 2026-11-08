@@ -41,7 +41,7 @@ Memory edits are versioned in `memory_versions`, with an optimistic expected ver
 
 ## Current persistence boundary
 
-Migrations 0002–0008 add chat attachments/audio/file-share metadata, consultation history, push subscriptions, conversation projects, commercial Word proposals, append-only project health results and the shadow-router example corpus. Runtime runs, capability operations, approvals and memory/context revisions are also persistent SQL state. Inspect `schema.sql` and each migration for the exact table/column contract; do not treat this list as an alternate schema.
+Migrations 0002–0008 add chat attachments/audio/file-share metadata, consultation history, push subscriptions, conversation projects, commercial Word proposals, append-only project health results and the shadow-router example corpus. Migrations 0009 and 0010 persist one-off node verification runs and roadmap priority evaluations. See the [migration inventory](migrations/README.md). Runtime runs, capability operations, approvals and memory/context revisions are also persistent SQL state. Inspect `schema.sql` and each migration for the exact table/column contract; do not treat this list as an alternate schema.
 
 SQL does not contain all application data: source audio, attachments, IA Library copies/originals, generated documents and updater workspaces/backups also need their filesystem storage. Runtime/model settings are JSON state, not SQL. Ollama model weights and external NAS mounts are outside the base Cora backup.
 

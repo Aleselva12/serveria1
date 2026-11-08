@@ -11,10 +11,9 @@ deployment distinti.
 > Per agenti e operatori: usa [docs/AGENT_CONTEXT.md](docs/AGENT_CONTEXT.md) per
 > scegliere il README specialistico corretto senza caricare documentazione inutile.
 
-## Stato corrente
+## Funzioni disponibili nel codice
 
-Lo stato qui sotto descrive il **codice corrente della repository**, non certifica
-da solo cosa sia già installato sul Debian.
+Per identificare la versione in servizio sul Debian, confronta il commit dell'API in esecuzione con la release attiva nell'updater. Le integrazioni dipendono dalla configurazione dell'installazione.
 
 - **Updater:** la UI può preparare il `main` GitHub tramite un servizio updater host
   separato, eseguire build/test/migrazioni su copia e applicare il candidato solo
@@ -31,8 +30,7 @@ da solo cosa sia già installato sul Debian.
   Immich/Nextcloud.
 - **Roadmap ad albero:** la struttura radici–tronco–rami deriva dalla snapshot
   Atlas/qwe e resta manuale; stato/test/evidenze possono sovrapporsi senza cambiare
-  automaticamente la gerarchia. Il classificatore locale suggerisce priorità ma
-  non riscrive la mappa.
+  automaticamente la gerarchia. Dalla Roadmap si possono avviare collaudi una tantum e chiedere al classificatore Ollama di valutare fino a otto obiettivi. La Home mostra i primi cinque dell'ultima valutazione salvata, quando disponibile.
 - **Programmatore:** lavora su workspace separati e rilascia tramite l'updater;
   non modifica direttamente il codice attivo.
 
@@ -94,6 +92,7 @@ e [docs/MACHINES.md](docs/MACHINES.md).
 | Migrazioni | [database/migrations/README.md](database/migrations/README.md) |
 | Programmatore | [programmer_agent/README.md](programmer_agent/README.md) |
 | Roadmap ad albero | [frontend/src/tree/README.md](frontend/src/tree/README.md) |
+| Selezione del contesto in chat | [context_pages/README.md](context_pages/README.md) |
 | Agenti e modelli | [docs/AGENT-CARDS.md](docs/AGENT-CARDS.md) |
 | Orchestrazione | [docs/SYSTEM_COORDINATOR.md](docs/SYSTEM_COORDINATOR.md) |
 | Audio → Word | [docs/COMMERCIAL_AUDIO_WORD.md](docs/COMMERCIAL_AUDIO_WORD.md) |
