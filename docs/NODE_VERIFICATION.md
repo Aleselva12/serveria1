@@ -5,14 +5,27 @@ I pulsanti sopra la mappa filtrano le stelle per colore e mostrano i conteggi
 globali. Le etichette sono presenti anche nei tooltip e per gli screen reader.
 L'esportazione JSON comprende commit attivo, colori e risultati osservati.
 
-- **Verde**: tutti i controlli associati superati sulla versione attiva del Debian,
-  nel perimetro indicato (contratto, simulazione, preflight o uso reale).
+- **Verde**: verifica del perimetro specifico. Può derivare da controlli del catalogo
+  sulla versione attiva del Debian **oppure** da un'osservazione manuale datata
+  e circoscritta, mostrata esplicitamente nel nodo. Una prova manuale NON
+  diventa un E2E del catalogo e non certifica il commit installato.
 - **Rosso**: almeno un controllo associato fallito sul Debian e sul commit attivo.
   Prevale sulle priorità statiche del nodo e sulle note di lavoro.
 - **Arancione**: prove ancora incomplete e problemi documentati; non è un test fallito.
 - **Giallo**: lavoro futuro previsto.
-- **Grigio**: prove insufficienti o obiettivo non implementato. Nessuna prova non
-  equivale a superamento. Risultati CI/locali non certificano il Debian.
+- **Grigio**: prove insufficienti, obiettivo non implementato oppure nodo
+  ancora non collaudato. Non è un guasto (e non va conteggiato tra gli errori).
+  Risultati CI/locali non certificano il Debian.
+- **Giallo** comprende rifiniture di worker e fallback, miglioramenti e upgrade
+  hardware previsti: questi ultimi non devono diventare guasti senza un fallimento
+  reale dimostrato.
+
+Le osservazioni del proprietario registrate nella snapshot della Roadmap
+hanno il tipo `manual_pass` o `manual_followup`, data e perimetro descrittivo.
+Non si assegnano automaticamente a tutti i figli o a un'intera stella: i parent
+rimangono parziali quando mancano altre prove. Un `fail` attuale del registro
+ha precedenza su un precedente verde manuale. Nessun test modifica la gerarchia
+dell'albero, gli ID o le priorità deliberate dall'utente.
 
 I controlli periodici scadono dopo 10 minuti; gli altri dopo 24 ore.
 Il verde certifica esclusivamente il perimetro descritto dai controlli: ad esempio,
@@ -166,3 +179,36 @@ I test con provider simulati disabilitano la registrazione di evidenza d'uso rea
 I dettagli pubblici non contengono testi di chat, titoli di eventi o token.
 Un account di collaudo mancante non cancella una prova d'uso ancora valida: viene
 conservata la sua data originale, senza prolungarne artificialmente la scadenza.
+
+## Registro manuale del proprietario — 8 novembre 2026
+
+Raccolta di prove di sessione, **non** esiti prodotti dalla suite `node-verification`
+né attestazioni automatiche della versione del Debian (commit non raccolto
+nell'interfaccia durante queste prove). Sono disponibili nei sottoelementi
+della mappa mediante le osservazioni datate.
+
+| Colore | ID puntuali | Evidenza e limite |
+|---|---|---|
+| Verde | `T1.p1.m1` | Chat → LangGraph → Supervisor → risposta, run 33193329 concluso; non verifica delega |
+| Verde | `T8.p2.m1`, `T8.p3.m1`, `T8.p3.m2` | Assegnazione salvata, modello richiesto/riportato coincidente nei casi locale e remoto, identificativo macchina remoto disponibile |
+| Verde | `R3.1.p1.m2` | Inferenze Ollama Docker 0.6B e 1.7B concluse con OK; 1.7B circa 54,46 s |
+| Verde | `R1.2.p2.m2`, `R1.2.p3.m1`, `R1.2.p3.m2` | Worker 123: modello 30B riportato corrispondente, circa 30,11 s; non prova il carico della GPU |
+| Verde | `installare.m2`, `assegnare.m1`, `assegnare.m2` | Worker raggiunto, assegnazione effettiva, identità modello/macchina nella traccia |
+| Verde | `T10.p1.m1`, `T10.p3.m1` | Run, fasi, modello/macchina e durate registrati; non diagnosi causale automatica |
+| Verde | `T6.p1.m2` | `context.selected` con budget 7040, stima 834 token, nessun turno scartato; non prova correttezza della selezione |
+| Giallo | `worker.p4.m2` | Worker 123 disattivato → HTTP 502, nessun OK: fail-closed osservato. Servono errore leggibile e verifica indipendente contro fallback locale |
+| Giallo | `T8.p2.m2` | Autoselezione del modello e regola worker-offline da rendere esplicite e testare |
+| Giallo | `R3.2.p2.m1` | Qwen3 1.7B non rispetta 15 parole, ma capisce la revoca; potenziale limite del modello/prompt |
+| Giallo | `T1.p1.m2` | Delega a specialisti non osservata nella prova route=direct |
+| Giallo | `T6.p2.m1` | Contesto cronologico visto e revoca riuscita; qualità della selezione non completamente collaudata |
+| Arancione | `T1` | Chat locale 1.7B con 127,89 s contro inferenza diretta con prompt diverso a 54,46 s; causa aperta, confronto non omogeneo |
+
+Le vecchie note di «modello forse diverso», «worker non certificato» e
+«router shadow/Context Manager progressivo/diagnosi causale mancanti»
+non vanno più confuse con guasti confermati: le prime sono state aggiornate
+con le prove raccolte; le seconde sono obiettivi futuri, non malfunzionamenti.
+In particolare **upgrade GPU, CPU, RAM e NAS restano gialli**.
+
+Il test HTTP 502 *non* attesta da solo l'assenza di un'inferenza locale
+silenziosa su ogni percorso: occorrerebbe un controllo contemporaneo delle
+tracce e delle risorse. Le stelle T1, T6, T8, T10 e F1 restano **parziali**.
