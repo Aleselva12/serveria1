@@ -33,7 +33,7 @@ def _child(action, run_id, timeout=90, settings=None):
     result = subprocess.run([sys.executable, "-m", "deploy.verify_nodes",
                              "--action", action, "--run-id", run_id], cwd=ROOT,
                             env={**os.environ, **(settings or {}), "CORA_EMBEDDING_MODEL": "",
-                                 "CORA_VERIFICATION_SYNTHETIC": "1" if action in REGRESSIONS or action in DIRECT else os.getenv("CORA_VERIFICATION_SYNTHETIC", "0")},
+                                 "CORA_VERIFICATION_SYNTHETIC": "1" if action in REGRESSIONS or action in DIRECT or action == "worker_e2e" else os.getenv("CORA_VERIFICATION_SYNTHETIC", "0")},
                             capture_output=True, text=True, timeout=timeout)
     # Library logging must not enter public evidence or expose credentials.
     for line in reversed(result.stdout.splitlines()):
@@ -69,8 +69,18 @@ def _action(action, run_id):
         selected = binding("supervisor")
         if not selected or selected["machine_id"] == "local":
             return {"status": "unknown", "detail": "Il Supervisor usa il server: assegna il worker in Architettura per collaudare la chat remota"}
-        response = chat_on_worker(selected["machine_id"], selected["model"], {"messages": [{"role":"user", "content":"Rispondi solo OK"}], "options":{"num_predict":16}})
-        return {"status":"pass", "detail":"Chat remota del Supervisor completata sul worker assegnato; modello effettivo verificato"}
+        challenge = "CORA_" + token.replace("-", "")
+        response = chat_on_worker(selected["machine_id"], selected["model"], {
+            "messages": [{"role":"user", "content":"Ripeti esattamente questo codice, senza altro testo: " + challenge}],
+            "options":{"temperature":0, "num_predict":96}})
+        from core.model_evidence import matches_requested
+        message = response.get("message") if isinstance(response, dict) else None
+        if (not isinstance(response, dict) or response.get("done") is not True or
+                matches_requested(selected["model"], response.get("model")) is not True or
+                not isinstance(message, dict) or message.get("role") != "assistant" or
+                message.get("tool_calls") or not isinstance(message.get("content"), str) or message["content"].strip() != challenge):
+            return {"status":"fail", "detail":"Worker raggiunto, ma prova funzionale non valida: codice, modello o completamento non corrispondono. Non basta la connessione."}
+        return {"status":"pass", "detail":"Worker assegnato: codice univoco della richiesta restituito correttamente, modello effettivo e completamento verificati. GPU e qualità generale escluse"}
     if action in REGRESSIONS:
         import io
         import unittest

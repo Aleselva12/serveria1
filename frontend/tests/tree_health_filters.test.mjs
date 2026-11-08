@@ -34,7 +34,7 @@ let code=compile(read("../src/tree/TreeHome.tsx"))
  .replace(/import \{ checks \} from .*?;/,"const checks={T1:['good'],A1:['bad']};")
  .replace(/import \{ closure \} from .*?;/,"const closure={};")
  .replace(/import atlasEvidence from .*?;/,"const atlasEvidence={};")
- .replace(/import NodeVerificationPanel from .*?;/,"const NodeVerificationPanel=()=>null;")
+ .replace(/import NodeVerificationPanel from .*?;/,"const NodeVerificationPanel=props=>{globalThis.__verificationOnResults=props.onResults;return null;};")
  .replace(/import Constellation from .*?;/,"const Constellation=()=>null;")
  .replace(/import RoadmapPriorities from .*?;/,"const RoadmapPriorities=()=>null;")
  .replace(/import \{[^}]+\} from "\.\/codeLinks";/,"const codeLinks={},pageLinks={},sourceUrl=()=>'';")
@@ -61,4 +61,33 @@ test("visible green/red counts and filters use live evidence and never run probe
   assert.match(content(index()[0]),/Supervisore/);
   assert.equal(reads,1);
  }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test("refresh updates the rendered verification text and colors from the shared registry",async()=>{
+ let r;
+ const text=n=>typeof n==="string"?n:n.children?.map(text).join("")||"";
+ const original=globalThis.__treeHealth;
+ try{
+  globalThis.__treeHealth={...original,latest:{...original.latest,good:{...original.latest.good,status:"fail"}}};
+  await act(async()=>{r=create(React.createElement(TreeHome));});
+  assert.match(text(r.root.findByProps({className:"rm2-badges"})),/Collaudo fallito/);
+  globalThis.__treeHealth=original;
+  const refresh=r.root.findAllByType("button").find(b=>text(b)==="Aggiorna albero");
+  await act(async()=>refresh.props.onClick());
+  assert.match(text(r.root.findByProps({className:"rm2-badges"})),/Collaudo reale superato/);
+  globalThis.__treeHealth={...original,latest:{...original.latest,good:{...original.latest.good,status:"fail"}}};
+  await act(async()=>globalThis.__verificationOnResults());
+  assert.match(text(r.root.findByProps({className:"rm2-badges"})),/Collaudo fallito/);
+  const page=r.root.findByProps({className:"rm2-page"});
+  const sections=page.children.filter(c=>typeof c!=="string");
+  const sequence=sections.findIndex(c=>c.props.className==="rm2-footer-work");
+  const tree=sections.findIndex(c=>c.props.className==="rm2-workspace");
+  const analysis=sections.findIndex(c=>c.type.name==="RoadmapPriorities");
+  const verification=sections.findIndex(c=>c.type.name==="NodeVerificationPanel");
+  const refreshIndex=sections.findIndex(c=>c.type==="button"&&text(c)==="Aggiorna albero");
+  assert.ok(sequence<tree&&tree<analysis&&analysis<verification&&verification<refreshIndex);
+ }finally{
+  globalThis.__treeHealth=original;
+  if(r)await act(async()=>r.unmount());
+ }
 });
