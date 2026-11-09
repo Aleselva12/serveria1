@@ -128,3 +128,29 @@ test('planner code review updates only the documented plan schema, not schedulin
  for(const id of ['T9.p1.m2','T9.p2','T9.p3'])assert.equal(byId.get(id).status,'planned',id+' must not claim implemented scheduling');
  assert.equal(byId.get('T9').timeline.present.runtimeVerified,false);
 });
+
+test('V3 schema preserves 515 canonical nodes and 19 uniquely owned legacy issues',async()=>{
+ const {legacyIssues,validateAtlasOverlay}=await import(mod(model));
+ const issues=legacyIssues(nodes);
+ assert.equal(snapshot.v3.schemaVersion,3);
+ assert.equal(nodes.length,515);
+ assert.equal(issues.length,19);
+ assert.deepEqual(snapshot.v3.issues,issues);
+ assert.equal(new Set(issues.map(i=>i.id)).size,19);
+ assert.ok(issues.every(i=>i.kind==='unclassified'&&i.state==='open'&&i.source==='legacy'));
+ assert.equal(snapshot.v3.migration.nodeHierarchy,'unchanged');
+ assert.equal(snapshot.v3.migration.relations.startsWith('top-level'),true);
+ const overlay={...snapshot.v3,relations};
+ assert.deepEqual(validateAtlasOverlay(overlay,nodes),[]);
+});
+
+test('V3 issue ownership and evidence validation rejects unknown references and duplicates',async()=>{
+ const {validateAtlasOverlay}=await import(mod(model));
+ const overlay={schemaVersion:3,nodeResponsibilities:{},issues:[
+  {id:'i',ownerNodeId:'not-a-node',title:'Example',kind:'bug',state:'open',affectedNodeIds:['also-unknown'],evidenceIds:['missing']},
+  {id:'i',ownerNodeId:'A1',title:'Example again',kind:'bug',state:'open'}
+ ],evidence:[],relations:[]};
+ const errors=validateAtlasOverlay(overlay,nodes).join(' | ');
+ for(const phrase of ['Duplicate issue','Unknown issue owner','Unknown affected node','Unknown evidence'])
+  assert.ok(errors.includes(phrase),phrase);
+});
