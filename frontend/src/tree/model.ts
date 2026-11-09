@@ -214,7 +214,14 @@ export function validateAtlasOverlay(overlay:AtlasV3Overlay,nodes:Node[]):string
     evidenceIds.add(item.id);
     if(!ids.has(item.nodeId))errors.push("Unknown evidence node: "+item.nodeId);
   }
+  const allowedIssueKinds=new Set<AtlasIssueKind>(["bug","integration","incomplete","missing_verification","improvement","architecture","unclassified"]);
+  const allowedIssueStates=new Set<AtlasIssueState>(["open","in_progress","resolved","needs_verification"]);
+  const allowedEvidenceKinds=new Set<AtlasEvidenceKind>(["code_review","ci_test","debian_test","manual_observation","unknown"]);
+  for(const item of overlay.evidence)
+    if(!allowedEvidenceKinds.has(item.kind))errors.push("Invalid evidence kind: "+item.id);
   for(const item of overlay.issues){
+    if(!allowedIssueKinds.has(item.kind))errors.push("Invalid issue kind: "+item.id);
+    if(!allowedIssueStates.has(item.state))errors.push("Invalid issue state: "+item.id);
     if(issueIds.has(item.id))errors.push("Duplicate issue: "+item.id);
     issueIds.add(item.id);
     if(!ids.has(item.ownerNodeId))errors.push("Unknown issue owner: "+item.ownerNodeId);
