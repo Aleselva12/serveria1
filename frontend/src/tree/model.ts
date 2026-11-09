@@ -161,3 +161,83 @@ export const checks:Record<string,string[]>={
   "immich":["immich_e2e"],"nextcloud":["nextcloud_e2e"],"magazzino":["magazzino_e2e"],
   "D4":["preventivi_e2e"],"R5.1":["backup_restore"],"R5.2":["updates_rollback"],
 };
+
+/**
+ * Atlas V3 semantic model. These records describe architecture and work; they
+ * are not runtime health verdicts. The V2 node hierarchy remains authoritative.
+ */
+export type AtlasNodeKind = "star" | "planet" | "moon" | "area" | "branch" | "trunk" | "roots";
+export type AtlasResponsibilityKind = "user_capability" | "internal_service" | "infrastructure" | "governance" | "unclassified";
+export type AtlasIssueKind = "bug" | "integration" | "incomplete" | "missing_verification" | "improvement" | "architecture" | "unclassified";
+export type AtlasIssueState = "open" | "in_progress" | "resolved" | "needs_verification";
+export type AtlasEvidenceKind = "code_review" | "ci_test" | "debian_test" | "manual_observation" | "unknown";
+export type AtlasRelationKind = "uses" | "depends_on" | "communicates_with" | "produces_for" | "verified_by" | "shares_evidence_with";
+export type AtlasEvidence = {
+  id:string;kind:AtlasEvidenceKind;nodeId:string;description:string;
+  commit?:string;observedAt?:string;checkId?:string;scope?:string;result?:"pass"|"fail"|"unknown";
+};
+export type AtlasIssue = {
+  id:string;ownerNodeId:string;title:string;kind:AtlasIssueKind;state:AtlasIssueState;
+  severity?:"low"|"medium"|"high"|"critical"|"unknown";
+  affectedNodeIds?:string[];evidenceIds?:string[];createdAt?:string;source?:"legacy"|"manual"|"code_review";
+};
+export type AtlasRelation = {
+  from:string;to:string;kind:AtlasRelationKind;note?:string;
+  status?:string;provenance?:string;
+};
+export type AtlasV3Overlay = {
+  schemaVersion:3;
+  nodeResponsibilities:Record<string,AtlasResponsibilityKind>;
+  issues:AtlasIssue[];
+  evidence:AtlasEvidence[];
+  relations:AtlasRelation[];
+};
+/** Deterministic adapter: legacy knownIssues stay readable without double-counting. */
+export function legacyIssues(nodes:Node[]):AtlasIssue[] {
+  return nodes.flatMap(node=>(node.knownIssues||[]).map((title,index)=>({
+    id:`legacy:${node.id}:${index+1}`,ownerNodeId:node.id,title,
+    kind:"unclassified" as const,state:"open" as const,
+    severity:"unknown" as const,source:"legacy" as const
+  })));
+}
+/** A single owner is required; other affected nodes are references, not copies. */
+export function validateAtlasOverlay(overlay:AtlasV3Overlay,nodes:Node[]):string[] {
+  const ids=new Set(nodes.map(n=>n.id));
+  const errors:string[]=[];
+  const issueIds=new Set<string>();
+  const evidenceIds=new Set<string>();
+  if(overlay.schemaVersion!==3)errors.push("Unsupported Atlas schema version");
+  for(const [id] of Object.entries(overlay.nodeResponsibilities))
+    if(!ids.has(id))errors.push("Unknown responsibility node: "+id);
+  for(const item of overlay.evidence){
+    if(evidenceIds.has(item.id))errors.push("Duplicate evidence: "+item.id);
+    evidenceIds.add(item.id);
+    if(!ids.has(item.nodeId))errors.push("Unknown evidence node: "+item.nodeId);
+  }
+  const allowedIssueKinds=new Set<AtlasIssueKind>(["bug","integration","incomplete","missing_verification","improvement","architecture","unclassified"]);
+  const allowedIssueStates=new Set<AtlasIssueState>(["open","in_progress","resolved","needs_verification"]);
+  const allowedEvidenceKinds=new Set<AtlasEvidenceKind>(["code_review","ci_test","debian_test","manual_observation","unknown"]);
+  for(const item of overlay.evidence)
+    if(!allowedEvidenceKinds.has(item.kind))errors.push("Invalid evidence kind: "+item.id);
+  for(const item of overlay.issues){
+    if(!allowedIssueKinds.has(item.kind))errors.push("Invalid issue kind: "+item.id);
+    if(!allowedIssueStates.has(item.state))errors.push("Invalid issue state: "+item.id);
+    if(issueIds.has(item.id))errors.push("Duplicate issue: "+item.id);
+    issueIds.add(item.id);
+    if(!ids.has(item.ownerNodeId))errors.push("Unknown issue owner: "+item.ownerNodeId);
+    for(const id of item.affectedNodeIds||[])
+      if(!ids.has(id))errors.push("Unknown affected node: "+id);
+    for(const id of item.evidenceIds||[])
+      if(!evidenceIds.has(id))errors.push("Unknown evidence: "+id);
+  }
+  const relationIds=new Set<string>();
+  for(const relation of overlay.relations){
+    if(!ids.has(relation.from)||!ids.has(relation.to))
+      errors.push("Unknown relation endpoint: "+relation.from+" -> "+relation.to);
+    if(relation.from===relation.to)errors.push("Self relation: "+relation.from);
+    const key=[relation.from,relation.to,relation.kind].join("|");
+    if(relationIds.has(key))errors.push("Duplicate relation: "+key);
+    relationIds.add(key);
+  }
+  return errors;
+}
