@@ -5742,7 +5742,7 @@
     }
   ],
   "revision_note": "V2 completa, 45 stelle con pianeti e lune; colori dichiarati e non dedotti dal codice, test o priorità. Conservate identità del piano iniziale e contributi docs/MEMORIA_CORA.md. | ServerIA autorevole; qwe legacy. Criticità localizzate sui nodi operativi e relazioni semantiche esplicite (proposte, non prove runtime).",
-  "revision": "CORA-V2-2026-11-09-CODE-EVIDENCE",
+  "revision": "CORA-V3-2026-11-09-RESPONSIBILITY-REVIEW",
   "legend": {
     "unknown": "Da valutare",
     "ok": "Tutto ok",
@@ -6194,7 +6194,53 @@
   "provenancePolicy": "Timeline past remains empty until real decisions/commits with sources are linked. A user report is kept separate from backend/CI evidence. No automatic severity propagation.",
   "v3": {
     "schemaVersion": 3,
-    "nodeResponsibilities": {},
+    "nodeResponsibilities": {
+      "R1.1": "infrastructure",
+      "R1.2": "infrastructure",
+      "R1.3": "infrastructure",
+      "R1.4": "infrastructure",
+      "R2.1": "infrastructure",
+      "R2.2": "infrastructure",
+      "R3.1": "infrastructure",
+      "R3.2": "infrastructure",
+      "R4.1": "infrastructure",
+      "R4.2": "infrastructure",
+      "R5.1": "infrastructure",
+      "R5.2": "infrastructure",
+      "R6.1": "infrastructure",
+      "R6.2": "governance",
+      "T1": "user_capability",
+      "T2": "governance",
+      "T3": "governance",
+      "T4": "governance",
+      "T5": "governance",
+      "T6": "governance",
+      "T7": "governance",
+      "T8": "governance",
+      "T9": "governance",
+      "T10": "governance",
+      "T11": "governance",
+      "T12": "user_capability",
+      "T13": "governance",
+      "A1": "user_capability",
+      "A2": "user_capability",
+      "B1": "user_capability",
+      "B2": "user_capability",
+      "B3": "user_capability",
+      "C1": "user_capability",
+      "C2": "user_capability",
+      "C3": "user_capability",
+      "immich": "internal_service",
+      "nextcloud": "internal_service",
+      "magazzino": "internal_service",
+      "D4": "internal_service",
+      "D5": "internal_service",
+      "E1": "internal_service",
+      "E2": "user_capability",
+      "worker": "internal_service",
+      "F2": "user_capability",
+      "G1": "user_capability"
+    },
     "issues": [
       {
         "id": "legacy:R1.3.p1.m1:1",
@@ -6376,6 +6422,99 @@
       "relations": "top-level relations remains canonical; v3 does not duplicate them",
       "verification": "No runtime state inferred from code structure",
       "classification": "Initial triage from documented issue wording; not proof of failure, severity or runtime status. Review each classification as new evidence arrives."
+    },
+    "responsibilityReview": {
+      "reviewedAt": "2026-11-09",
+      "status": "proposed",
+      "scope": "45 stars; classification describes architectural ownership, not implementation state",
+      "decisions": [
+        {
+          "nodes": [
+            "T2",
+            "R6.2"
+          ],
+          "decision": "keep_separate",
+          "reason": "T2 declares capabilities and tool contracts; R6.2 authorizes actions and scope. Shared checks are not shared ownership.",
+          "codeEvidence": [
+            "core/governance.py",
+            "core/permissions.py"
+          ]
+        },
+        {
+          "nodes": [
+            "T9",
+            "T4",
+            "worker"
+          ],
+          "decision": "keep_separate",
+          "reason": "T9 defines plans; T4 tracks run lifecycle and effects; F1 schedules execution across machines. Planning artifacts are not proof of scheduler integration.",
+          "codeEvidence": [
+            "core/plans.py",
+            "core/runtime.py",
+            "core/run_states.py"
+          ]
+        },
+        {
+          "nodes": [
+            "B1",
+            "B2",
+            "B3",
+            "nextcloud"
+          ],
+          "decision": "keep_separate_review_shared_tools",
+          "reason": "File operations, AI knowledge library, document formats and Nextcloud sync have different ownership; shared DOCX/file tools must be linked rather than duplicated.",
+          "codeEvidence": [
+            "core/library_tools.py",
+            "core/library_preflight.py"
+          ]
+        },
+        {
+          "nodes": [
+            "T10",
+            "T11",
+            "D5"
+          ],
+          "decision": "keep_separate",
+          "reason": "Tracing failures, verifying system health and visualizing architecture/evidence are different responsibilities; shared evidence must not certify independent tests.",
+          "codeEvidence": [
+            "core/health_catalog.py",
+            "deploy/verify_nodes.py",
+            "frontend/src/tree/roadmapEvidence.ts"
+          ]
+        },
+        {
+          "nodes": [
+            "R1.2",
+            "R1.3",
+            "worker",
+            "F2"
+          ],
+          "decision": "keep_separate",
+          "reason": "Physical devices, inference worker coordination and agents deployed on devices have distinct ownership."
+        },
+        {
+          "nodes": [
+            "R5.2",
+            "immich",
+            "nextcloud"
+          ],
+          "decision": "review_shared_capability",
+          "reason": "Host update mechanism is shared; service-specific integration belongs to the corresponding application. Avoid duplicate issue ownership."
+        },
+        {
+          "nodes": [
+            "D5",
+            "T12"
+          ],
+          "decision": "review_boundary",
+          "reason": "D5 owns Atlas model and evidence; T12 owns shared Cora UI navigation and shell, not the Atlas semantic model."
+        }
+      ],
+      "deferred": [
+        "No star moves or merges until individual planet/moon ownership is reviewed",
+        "Do not infer runtime success from Graphify code links",
+        "UI colors and layout unchanged"
+      ]
     }
   }
 }
