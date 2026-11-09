@@ -194,3 +194,15 @@ separati, con relazioni trasversali per le dipendenze. Il problema
 dell'updater comune alle app richiede ancora un owner unico.
 
 Questa revisione non certifica integrazione o funzionamento reale.
+
+## Vista sintetica V3 — proposta, non nuova gerarchia
+
+`v3.atAGlanceReview` propone tre livelli: panorama (radici/tronco/rami),
+responsabilità (stelle raggruppate), operatività (pianeti/lune e prove).
+I gruppi sintetici coprono tutte le 45 stelle una sola volta e **non**
+modificano `parent`, ID, status o codice della UI. Le relazioni trasversali
+sono visualizzabili su richiesta, non linee permanenti nell'albero.
+Un problema su una luna è mostrato come conteggio di attenzione nella stella
+senza dichiarare guasto l'intero programma. Le verifiche runtime restano
+separate dall'implementazione. Sei confini ambigui sono elencati come review
+flags prima di un eventuale reparenting.
