@@ -178,3 +178,19 @@ una decisione o una prova, non che il componente sia guasto. Il registro V3
 conserva testo e proprietario originari; la UI V2 continua a leggere la
 proiezione `knownIssues`. I test controllano che le due rappresentazioni non
 divergano durante la transizione.
+
+## Atlas V3 — fase 2: revisione responsabilità, prima passata
+
+Tutte le 45 stelle hanno ora una classificazione **proposta** in
+`v3.nodeResponsibilities` (capacità utente, servizio interno,
+infrastruttura, governance). La classificazione riguarda la responsabilità,
+non l'esito dei test. Le decisioni motivate su sette confini trasversali sono
+registrate in `v3.responsibilityReview`, con file di codice dove verificati.
+
+Non sono stati spostati pianeti, lune o stelle: prima di modificare la
+gerarchia occorre confrontare i confini funzionali a livello di sotto-nodo.
+I confini T2/R6.2, T9/T4/F1, B1/B2/B3/D2 e T10/T11/D5 sono mantenuti
+separati, con relazioni trasversali per le dipendenze. Il problema
+dell'updater comune alle app richiede ancora un owner unico.
+
+Questa revisione non certifica integrazione o funzionamento reale.
