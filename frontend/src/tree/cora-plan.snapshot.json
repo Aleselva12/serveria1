@@ -6247,6 +6247,30 @@
       "note": "Idempotenza degli eventi e sincronizzazione Google/Cora richiedono verifiche separate",
       "status": "proposed",
       "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "T14",
+      "to": "R6.2",
+      "kind": "depends_on",
+      "note": "Le approvazioni richiedono policy e autorizzazioni, ma non ne duplicano la proprietà",
+      "status": "proposed",
+      "provenance": "architecture-v3"
+    },
+    {
+      "from": "T14",
+      "to": "T2",
+      "kind": "uses",
+      "note": "Il ciclo di approvazione deve applicarsi a capability dichiarate e contratti verificabili",
+      "status": "proposed",
+      "provenance": "architecture-v3"
+    },
+    {
+      "from": "T14",
+      "to": "T4",
+      "kind": "uses",
+      "note": "Le decisioni approvate devono essere collegate agli effetti e agli stati dei run",
+      "status": "proposed",
+      "provenance": "architecture-v3"
     }
   ],
   "visibility": {
