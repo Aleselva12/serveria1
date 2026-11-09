@@ -6200,7 +6200,7 @@
         "id": "legacy:R1.3.p1.m1:1",
         "ownerNodeId": "R1.3.p1.m1",
         "title": "Inferenza GPU riferita riuscita, ma modello effettivo e routing da certificare",
-        "kind": "unclassified",
+        "kind": "missing_verification",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6209,7 +6209,7 @@
         "id": "legacy:R2.1.p2.m2:1",
         "ownerNodeId": "R2.1.p2.m2",
         "title": "Collocazione database sul NAS non decisa; non creare duplicazioni anagrafiche",
-        "kind": "unclassified",
+        "kind": "architecture",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6218,7 +6218,7 @@
         "id": "legacy:R5.1.p2:1",
         "ownerNodeId": "R5.1.p2",
         "title": "Non risulta un restore complessivo collaudato sul Debian",
-        "kind": "unclassified",
+        "kind": "missing_verification",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6227,7 +6227,7 @@
         "id": "legacy:R5.2.p3.m1:1",
         "ownerNodeId": "R5.2.p3.m1",
         "title": "L'updater host non gestisce ancora Immich/Nextcloud",
-        "kind": "unclassified",
+        "kind": "incomplete",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6236,7 +6236,7 @@
         "id": "legacy:T1.p1.m1:1",
         "ownerNodeId": "T1.p1.m1",
         "title": "Run diretto qwen3:1.7b completato ma lento (127,89 s), contro 54,46 s per prompt diverso in Ollama CLI; causa non isolata e confronti non omogenei.",
-        "kind": "unclassified",
+        "kind": "improvement",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6245,7 +6245,7 @@
         "id": "legacy:T7:1",
         "ownerNodeId": "T7",
         "title": "Memoria non ancora collaudata completamente nell'uso reale dopo i cambiamenti",
-        "kind": "unclassified",
+        "kind": "missing_verification",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6254,7 +6254,7 @@
         "id": "legacy:T9.p2:1",
         "ownerNodeId": "T9.p2",
         "title": "Code persistenti e scheduling multi-worker general-purpose non implementati",
-        "kind": "unclassified",
+        "kind": "incomplete",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6263,7 +6263,7 @@
         "id": "legacy:T11.p2.m2:1",
         "ownerNodeId": "T11.p2.m2",
         "title": "Test tecnici non equivalgono a E2E, import CI/updater nel registro non completo",
-        "kind": "unclassified",
+        "kind": "incomplete",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6272,7 +6272,7 @@
         "id": "legacy:A1:1",
         "ownerNodeId": "A1",
         "title": "Regressioni possibili Chat → supervisor → agente → risposta",
-        "kind": "unclassified",
+        "kind": "missing_verification",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6281,7 +6281,7 @@
         "id": "legacy:B3.p1.m2:1",
         "ownerNodeId": "B3.p1.m2",
         "title": "Scrittura Word su documento di prova autentico ancora da collaudare",
-        "kind": "unclassified",
+        "kind": "missing_verification",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6290,7 +6290,7 @@
         "id": "legacy:C1b.m2:1",
         "ownerNodeId": "C1b.m2",
         "title": "Rischio duplicazione appuntamenti da sync/audio e retry",
-        "kind": "unclassified",
+        "kind": "missing_verification",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6299,7 +6299,7 @@
         "id": "legacy:C2.p1:1",
         "ownerNodeId": "C2.p1",
         "title": "Gmail: esistono tool ma integrazione account e flussi non collaudati",
-        "kind": "unclassified",
+        "kind": "missing_verification",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6308,7 +6308,7 @@
         "id": "legacy:C3.p4.m1:1",
         "ownerNodeId": "C3.p4.m1",
         "title": "Pubblicazione Word approvata non ancora collaudata end-to-end",
-        "kind": "unclassified",
+        "kind": "missing_verification",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6317,7 +6317,7 @@
         "id": "legacy:immich.p2.m1:1",
         "ownerNodeId": "immich.p2.m1",
         "title": "Mancano connettore Cora e updater host dedicato",
-        "kind": "unclassified",
+        "kind": "incomplete",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6326,7 +6326,7 @@
         "id": "legacy:nextcloud.p2.m2:1",
         "ownerNodeId": "nextcloud.p2.m2",
         "title": "Mancano integrazioni complete e updater host dedicato",
-        "kind": "unclassified",
+        "kind": "incomplete",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6335,7 +6335,7 @@
         "id": "legacy:D5.p2.m1:1",
         "ownerNodeId": "D5.p2.m1",
         "title": "Direzione Cora ancora prevalentemente vista testuale; mappa 2D e provenienza per stella da integrare",
-        "kind": "unclassified",
+        "kind": "incomplete",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6344,7 +6344,7 @@
         "id": "legacy:E1.p2.m2:1",
         "ownerNodeId": "E1.p2.m2",
         "title": "Database SQL aziendale non censito come fonte autorevole, rischio duplicati",
-        "kind": "unclassified",
+        "kind": "architecture",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6353,7 +6353,7 @@
         "id": "legacy:F2.p4.m2:1",
         "ownerNodeId": "F2.p4.m2",
         "title": "Un agente operativo non deve avere controllo generale del laptop",
-        "kind": "unclassified",
+        "kind": "architecture",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6362,7 +6362,7 @@
         "id": "legacy:G1.p3:1",
         "ownerNodeId": "G1.p3",
         "title": "Verifica su modello potente e tool reali rinviata alla ripresa W3",
-        "kind": "unclassified",
+        "kind": "missing_verification",
         "state": "open",
         "severity": "unknown",
         "source": "legacy"
@@ -6374,7 +6374,8 @@
       "policy": "v3.issues is the canonical issue register; knownIssues is a temporary V2 compatibility projection and must not be counted independently",
       "nodeHierarchy": "unchanged",
       "relations": "top-level relations remains canonical; v3 does not duplicate them",
-      "verification": "No runtime state inferred from code structure"
+      "verification": "No runtime state inferred from code structure",
+      "classification": "Initial triage from documented issue wording; not proof of failure, severity or runtime status. Review each classification as new evidence arrives."
     }
   }
 }
