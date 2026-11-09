@@ -194,3 +194,15 @@ test('V3 glance projection covers each canonical star exactly once without rewri
  for(const flag of snapshot.v3.atAGlanceReview.reviewFlags)
   for(const id of flag.nodes)assert.ok(nodes.some(n=>n.id===id),'Unknown review node '+id);
 });
+
+test('V3 evolution keeps planned stars visible without promoting proposed trunk candidates',()=>{
+ const view=snapshot.v3.evolutionView;
+ assert.equal(view.status,'proposed');
+ assert.equal(view.existingPlannedStars.length,4);
+ for(const entry of view.existingPlannedStars)
+  assert.equal(nodes.find(n=>n.id===entry.id)?.status,entry.status);
+ assert.deepEqual(view.futureStarCandidates.map(x=>x.id),['T14','T15','T16']);
+ assert.ok(view.futureStarCandidates.every(x=>!nodes.some(n=>n.id===x.id)),'Proposed candidate prematurely promoted');
+ assert.ok(view.transitionRules.some(x=>x.includes('history')));
+ assert.equal(nodes.length,515);
+});
