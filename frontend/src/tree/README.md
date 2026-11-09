@@ -206,3 +206,22 @@ Un problema su una luna è mostrato come conteggio di attenzione nella stella
 senza dichiarare guasto l'intero programma. Le verifiche runtime restano
 separate dall'implementazione. Sei confini ambigui sono elencati come review
 flags prima di un eventuale reparenting.
+
+## Fase 2 — primo cambiamento strutturale canonico
+
+La stella `T14` (Approvazioni ed effetti autorizzati) è stata **aggiunta
+come obiettivo pianificato** nel tronco, con due pianeti e quattro lune
+tutti `planned`. Non è una dichiarazione di approvazioni operative:
+nessuna verifica runtime è attribuita a T14. La sua responsabilità è
+distinta da `R6.2` (policy e permessi), `T2` (contratti capability) e
+`T4` (stato dei run). Le dipendenze verso questi tre nodi sono proposte.
+
+Il catalogo passa da 515 a 522 nodi: 46 stelle, 153 pianeti, 308 lune.
+Le 515 identità storiche, i 19 problemi e i loro proprietari rimangono
+invariati. T15 e T16 restano proposte esterne alla gerarchia, non
+funzioni implementate. La posizione di T14 nella costellazione è
+riservata senza rifacimento della pagina.
+
+La vista sintetica e la revisione dei confini sono ancora proposte:
+nessun test automatico o collaudo sul Debian è implicito nel cambio
+di schema.
