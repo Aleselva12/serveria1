@@ -6604,6 +6604,226 @@
         }
       ],
       "migrationRule": "No physical node creation, renaming or reparenting in this proposal. First decide exact planet/moon ownership and stable IDs; preserve existing links and issue ownership."
+    },
+    "atAGlanceReview": {
+      "reviewedAt": "2026-11-09",
+      "status": "proposed",
+      "intent": "A glance view is a projection of the canonical tree, not a replacement hierarchy or runtime health certificate.",
+      "levels": [
+        {
+          "name": "panorama",
+          "show": "three regions plus seven functional branches; collapsed counts and attention summaries",
+          "hide": "planets, moons, full relations and long issue descriptions"
+        },
+        {
+          "name": "responsibilities",
+          "show": "stars in selected branch, grouped into conceptual families; concise status, verification and open issue counts",
+          "hide": "unselected branches and unrelated cross-links"
+        },
+        {
+          "name": "operations",
+          "show": "selected star planets/moons, owner issues, evidence provenance, dependencies and next work",
+          "hide": "global unrelated details"
+        }
+      ],
+      "regionGroups": [
+        {
+          "region": "radici",
+          "label": "Fondamenta",
+          "groups": [
+            {
+              "label": "Macchine e capacità",
+              "starIds": [
+                "R1.1",
+                "R1.2",
+                "R1.3",
+                "R1.4",
+                "R3.1",
+                "R3.2"
+              ]
+            },
+            {
+              "label": "Dati e ambiente",
+              "starIds": [
+                "R2.1",
+                "R2.2",
+                "R4.1",
+                "R4.2"
+              ]
+            },
+            {
+              "label": "Affidabilità e sicurezza",
+              "starIds": [
+                "R5.1",
+                "R5.2",
+                "R6.1",
+                "R6.2"
+              ]
+            }
+          ]
+        },
+        {
+          "region": "tronco",
+          "label": "Servizi comuni",
+          "groups": [
+            {
+              "label": "Decisione e pianificazione",
+              "starIds": [
+                "T1",
+                "T3",
+                "T9",
+                "T13"
+              ]
+            },
+            {
+              "label": "Esecuzione e contratti",
+              "starIds": [
+                "T2",
+                "T4",
+                "T5",
+                "T8"
+              ]
+            },
+            {
+              "label": "Contesto e conoscenza",
+              "starIds": [
+                "T6",
+                "T7"
+              ]
+            },
+            {
+              "label": "Controllo e interfaccia",
+              "starIds": [
+                "T10",
+                "T11",
+                "T12"
+              ]
+            }
+          ]
+        },
+        {
+          "region": "rami",
+          "label": "Utilità e programmi",
+          "groups": [
+            {
+              "label": "Interazione",
+              "starIds": [
+                "A1",
+                "A2"
+              ]
+            },
+            {
+              "label": "File e documenti",
+              "starIds": [
+                "B1",
+                "B2",
+                "B3"
+              ]
+            },
+            {
+              "label": "Organizzazione e comunicazione",
+              "starIds": [
+                "C1",
+                "C2",
+                "C3"
+              ]
+            },
+            {
+              "label": "Applicazioni",
+              "starIds": [
+                "immich",
+                "nextcloud",
+                "magazzino",
+                "D4",
+                "D5"
+              ]
+            },
+            {
+              "label": "Lavoro commerciale",
+              "starIds": [
+                "E1",
+                "E2"
+              ]
+            },
+            {
+              "label": "Distribuzione del lavoro",
+              "starIds": [
+                "worker",
+                "F2"
+              ]
+            },
+            {
+              "label": "Programmazione",
+              "starIds": [
+                "G1"
+              ]
+            }
+          ]
+        }
+      ],
+      "attentionRules": [
+        "Show a parent as affected with scoped counts, not as globally broken because one descendant has an issue",
+        "Keep implementation, runtime verification and issue count independent",
+        "Distinguish proposed architecture from deployed behavior",
+        "Cross-links appear on selection, not as permanent full-screen lines",
+        "No inferred green from code existence or synthetic test success"
+      ],
+      "reviewFlags": [
+        {
+          "nodes": [
+            "T12",
+            "D5"
+          ],
+          "issue": "Atlas ownership vs generic UI shell",
+          "action": "Keep separate and label their distinct responsibilities"
+        },
+        {
+          "nodes": [
+            "T9",
+            "worker",
+            "T4"
+          ],
+          "issue": "Planner, scheduler and worker overlap",
+          "action": "Keep execution scheduler boundary explicit; candidate T16 remains conditional"
+        },
+        {
+          "nodes": [
+            "R6.2",
+            "T2"
+          ],
+          "issue": "Permissions and tool contracts overlap",
+          "action": "Keep policy and capability declarations separate; evaluate T14 approval lifecycle"
+        },
+        {
+          "nodes": [
+            "R5.2",
+            "immich",
+            "nextcloud"
+          ],
+          "issue": "Updater responsibility is repeated",
+          "action": "Keep common updater under R5.2 and service-specific upgrade checks under apps"
+        },
+        {
+          "nodes": [
+            "B1",
+            "B2",
+            "B3"
+          ],
+          "issue": "File storage, knowledge and document editing share operations",
+          "action": "Do not merge; label data ownership and document formats explicitly"
+        },
+        {
+          "nodes": [
+            "C1",
+            "C2",
+            "immich",
+            "nextcloud"
+          ],
+          "issue": "Provider integrations may justify common connector",
+          "action": "T15 remains proposal until actual connector ownership is inventoried"
+        }
+      ],
+      "migration": "No node moved or added. Existing IDs, 19 issues, 52 relations and legacy UI unchanged."
     }
   }
 }
