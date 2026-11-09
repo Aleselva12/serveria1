@@ -225,3 +225,20 @@ riservata senza rifacimento della pagina.
 La vista sintetica e la revisione dei confini sono ancora proposte:
 nessun test automatico o collaudo sul Debian è implicito nel cambio
 di schema.
+
+## Fase 3 — prima interfaccia compatta
+
+`Constellation.tsx` offre ora due modalità senza duplicare la fonte dati:
+**Sintesi** (predefinita nella panoramica) e **Albero** (costellazione
+preesistente). La Sintesi legge `v3.atAGlanceReview.regionGroups`, mostra
+Radici/Tronco/Rami, famiglie espandibili e stelle selezionabili. Ogni famiglia
+riporta conteggi delle stelle, stelle future e problemi documentati dei
+discendenti; ogni stella mostra pianeti e indicatori sviluppo/collaudi
+separati. La selezione apre la vista orbitale dei pianeti e delle lune.
+Le stelle pianificate hanno uno stile neutro tratteggiato.
+
+La vista è responsiva e non cambia né il modello canonico né gli esiti dei
+test. I problemi sono descritti come attenzioni, non automaticamente come
+guasti. La costellazione resta disponibile con il comando **Albero**.
+Sono richiesti build/test frontend e verifica visiva desktop/mobile
+prima del merge.
