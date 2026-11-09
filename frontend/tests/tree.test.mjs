@@ -181,3 +181,16 @@ test('V3 ownership review classifies all 45 stars without changing the canonical
   for(const id of item.nodes)assert.ok(ids.has(id),'Unknown boundary review node '+id);
  assert.equal(nodes.length,515);
 });
+
+test('V3 glance projection covers each canonical star exactly once without rewriting the tree',()=>{
+ const groups=snapshot.v3.atAGlanceReview.regionGroups;
+ const grouped=groups.flatMap(region=>region.groups.flatMap(group=>group.starIds));
+ const canonical=nodes.filter(n=>n.classification==='star').map(n=>n.id);
+ assert.equal(groups.length,3);
+ assert.equal(grouped.length,45);
+ assert.equal(new Set(grouped).size,45,'Duplicated star in glance grouping');
+ assert.deepEqual(new Set(grouped),new Set(canonical),'Missing or extra star in glance grouping');
+ assert.equal(snapshot.v3.atAGlanceReview.status,'proposed');
+ for(const flag of snapshot.v3.atAGlanceReview.reviewFlags)
+  for(const id of flag.nodes)assert.ok(nodes.some(n=>n.id===id),'Unknown review node '+id);
+});
