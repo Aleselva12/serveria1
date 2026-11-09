@@ -2,6 +2,7 @@ import type {IndicatorPair} from "./NodeIndicators";
 import {useEffect,useRef,useState,type PointerEvent,type WheelEvent} from "react";
 import {toneLabels} from "./roadmapEvidence";
 import type {Node} from "./model";
+import planSource from "./cora-plan.snapshot.json";
 
 export type TreePoint={node:Node;x:number;y:number;kind:"area"|"branch"|"star"|"planet"|"moon"};
 export type TreeEdge={from:string;to:string;kind:"child"|"flow"};
@@ -78,11 +79,18 @@ function pointAt(e:{clientX:number;clientY:number;currentTarget:SVGSVGElement}){
 const titleOf=(n:Node)=>n.title.replace(/^[A-Z][\d.]* · /,"");
 export default function Constellation({nodes,selected,focusId=null,onFocusChange,onSelect,priority,indicators,visible,related=[]}:Props){
  const [zoom,setZoom]=useState(1),[pan,setPan]=useState({x:0,y:0});
+ const [overviewMode,setOverviewMode]=useState<"summary"|"map">("summary");
+ const [expandedGroup,setExpandedGroup]=useState<string|null>(null);
  const pointers=useRef(new Map<number,{x:number;y:number}>());
  const drag=useRef<{x:number;y:number;px:number;py:number}|null>(null);
  const pinch=useRef<{distance:number;zoom:number}|null>(null);
  useEffect(()=>{setPan({x:0,y:0});setZoom(1);drag.current=null;pinch.current=null;pointers.current.clear();},[focusId]);
  const {points,edges}=focusId?focusLayout(nodes,focusId):layout(nodes);
+ const glance=planSource.v3.atAGlanceReview.regionGroups;
+ const nodeIndex=new Map(nodes.map(n=>[n.id,n]));
+ const childCount=(id:string)=>nodes.filter(n=>n.parent===id).length;
+ const issuesIn=(id:string)=>{const descendants=new Set([id]);let changed=true;while(changed){changed=false;for(const n of nodes)if(n.parent&&descendants.has(n.parent)&&!descendants.has(n.id)){descendants.add(n.id);changed=true;}}return nodes.filter(n=>descendants.has(n.id)).reduce((sum,n)=>sum+(n.knownIssues?.length||0),0);};
+ const plannedCount=(ids:string[])=>ids.filter(id=>["planned","idea"].includes(nodeIndex.get(id)?.status||"")).length;
  const byId=new Map(points.map(p=>[p.node.id,p])), selectedPoint=byId.get(selected);
  const reset=()=>{setZoom(1);setPan({x:0,y:0});};
  const applyZoom=(factor:number,anchor={x:CX,y:CY})=>{
@@ -165,13 +173,25 @@ export default function Constellation({nodes,selected,focusId=null,onFocusChange
   <div className="rm2-spacebar">
    <span><i className="rm2-live"/>{focusId?"STELLA · PIANETI · LUNE":"RADICI → TRONCO → RAMI"}</span>
    <div>
+    {!focusId&&<button type="button" aria-pressed={overviewMode==="summary"} onClick={()=>setOverviewMode("summary")}>Sintesi</button>}
+    {!focusId&&<button type="button" aria-pressed={overviewMode==="map"} onClick={()=>setOverviewMode("map")}>Albero</button>}
     {focusId&&<button type="button" onClick={()=>onFocusChange?.(null)} aria-label="Torna all'albero completo">← Tutta la mappa</button>}
     <button type="button" onClick={()=>applyZoom(1.2)} aria-label="Ingrandisci">+</button>
     <button type="button" onClick={()=>applyZoom(1/1.2)} aria-label="Riduci">−</button>
     <button type="button" onClick={reset} aria-label="Centra la vista">Centra</button>
    </div>
   </div>
-  <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="group"
+  {!focusId&&overviewMode==="summary"?<div className="rm3-summary" aria-label="Panoramica sintetica delle responsabilità Cora">
+   <div className="rm3-summary-intro"><strong>Una mappa, tre livelli</strong><span>{nodes.filter(n=>n.classification==="star").length} stelle · {nodes.filter(n=>n.classification==="planet").length} pianeti · {nodes.filter(n=>n.classification==="moon").length} lune · {nodes.filter(n=>n.status==="planned"||n.status==="idea").length} nodi futuri</span><small>Seleziona una stella per esplorare pianeti e lune. Il colore di progetto non certifica il collaudo.</small></div>
+   <div className="rm3-regions">{glance.map(region=><section key={region.region} className={"rm3-region rm3-"+region.region}>
+    <header><span className="rm3-region-label">{region.label}</span><span>{region.groups.reduce((n,g)=>n+g.starIds.length,0)} stelle</span></header>
+    {region.groups.map(group=>{const key=region.region+":"+group.label;const expanded=expandedGroup===key;const issueCount=group.starIds.reduce((n,id)=>n+issuesIn(id),0);return <div key={key} className="rm3-family">
+     <button type="button" className="rm3-family-toggle" aria-expanded={expanded} onClick={()=>setExpandedGroup(expanded?null:key)}><strong>{group.label}</strong><span>{group.starIds.length} stelle · {plannedCount(group.starIds)} future{issueCount?` · ${issueCount} attenzioni`:""}</span><span aria-hidden="true">{expanded?"−":"+"}</span></button>
+     {expanded&&<div className="rm3-stars">{group.starIds.map(id=>{const n=nodeIndex.get(id);if(!n)return null;const future=n.status==="planned"||n.status==="idea";const pair=indicators?.(n);return <button key={id} type="button" className={"rm3-star "+(future?"rm3-future ":"")+(selected===id?"rm3-current":"")} onClick={()=>{onSelect(id);onFocusChange?.(id);}}><span className="rm3-star-mark" aria-hidden="true">{future?"◇":"✦"}</span><span className="rm3-star-name"><b>{n.title.replace(/^[A-Z][\\d.]* · /,"")}</b><small>{id} · {childCount(id)} pianeti{issuesIn(id)?` · ${issuesIn(id)} attenzioni`:""}</small></span>{pair&&<span className="rm3-star-indicators" title={`Sviluppo: ${pair.development.label}; Collaudi: ${pair.verification.label}`}><i style={{background:pair.development.color}}/><i style={{background:pair.verification.color}}/></span>}</button>;})}</div>}
+    </div>;})}
+   </section>)}</div>
+   <div className="rm3-summary-legend"><span>◇ Futuro pianificato</span><span>✦ Presente o parziale</span><span>● ● Sviluppo / collaudi</span><span>Attenzioni = punti aperti, non guasti certificati</span></div>
+  </div>:<svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="group"
    aria-label={focusId?"Vista isolata della stella e dei suoi pianeti e lune":"Albero Cora con stelle obiettivo evidenziate"}
    onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel}
    onDoubleClick={e=>{if(!(e.target as Element).closest("[data-node]"))reset();}}>
@@ -196,7 +216,7 @@ export default function Constellation({nodes,selected,focusId=null,onFocusChange
     {selectedPoint&&<circle className="rm2-selection-ring" cx={selectedPoint.x} cy={selectedPoint.y} r={focusId?42:26}/>}
     {points.map(draw)}
    </g>
-  </svg>
-  <div className="rm2-space-foot"><span>{zoom.toFixed(1)}× · trascina / rotella / due dita</span><span>{focusId?`${points.length-1} pianeti e lune · nessun'altra stella`:`${points.length} punti · apri una stella`}</span></div>
+  </svg>}
+  {(focusId||overviewMode==="map")&&<div className="rm2-space-foot"><span>{zoom.toFixed(1)}× · trascina / rotella / due dita</span><span>{focusId?`${points.length-1} pianeti e lune · nessun'altra stella`:`${points.length} punti · apri una stella`}</span></div>}
  </section>;
 }
