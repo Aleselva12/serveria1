@@ -176,9 +176,9 @@ export default function Constellation({nodes,selected,focusId=null,onFocusChange
     {!focusId&&<button type="button" aria-pressed={overviewMode==="summary"} onClick={()=>setOverviewMode("summary")}>Sintesi</button>}
     {!focusId&&<button type="button" aria-pressed={overviewMode==="map"} onClick={()=>setOverviewMode("map")}>Albero</button>}
     {focusId&&<button type="button" onClick={()=>onFocusChange?.(null)} aria-label="Torna all'albero completo">← Tutta la mappa</button>}
-    <button type="button" onClick={()=>applyZoom(1.2)} aria-label="Ingrandisci">+</button>
-    <button type="button" onClick={()=>applyZoom(1/1.2)} aria-label="Riduci">−</button>
-    <button type="button" onClick={reset} aria-label="Centra la vista">Centra</button>
+    {(focusId||overviewMode==="map")&&<button type="button" onClick={()=>applyZoom(1.2)} aria-label="Ingrandisci">+</button>}
+    {(focusId||overviewMode==="map")&&<button type="button" onClick={()=>applyZoom(1/1.2)} aria-label="Riduci">−</button>}
+    {(focusId||overviewMode==="map")&&<button type="button" onClick={reset} aria-label="Centra la vista">Centra</button>}
    </div>
   </div>
   {!focusId&&overviewMode==="summary"?<div className="rm3-summary" aria-label="Panoramica sintetica delle responsabilità Cora">
