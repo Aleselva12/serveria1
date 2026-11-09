@@ -6824,6 +6824,80 @@
         }
       ],
       "migration": "No node moved or added. Existing IDs, 19 issues, 52 relations and legacy UI unchanged."
+    },
+    "evolutionView": {
+      "reviewedAt": "2026-11-09",
+      "status": "proposed",
+      "principle": "One stable tree contains present implementation and future plans. Future nodes are visible placeholders, never inferred as deployed.",
+      "nodePhases": [
+        "idea",
+        "planned",
+        "partial",
+        "present"
+      ],
+      "verificationDimension": "Independent of node phase; code evidence is not runtime verification.",
+      "defaultVisibility": {
+        "panorama": "Show current and future branches/stars; distinguish future placeholders with neutral gray; do not hide them",
+        "responsibilities": "Show existing and planned stars, concise counts of planned descendants and unresolved verification",
+        "detail": "Show planets/moons and future milestones with evidence and temporal history"
+      },
+      "futureStarCandidates": [
+        {
+          "id": "T14",
+          "title": "Governance operativa e approvazioni",
+          "region": "tronco",
+          "decision": "strong"
+        },
+        {
+          "id": "T15",
+          "title": "Integrazioni e connettori esterni",
+          "region": "tronco",
+          "decision": "conditional"
+        },
+        {
+          "id": "T16",
+          "title": "Gestione risorse e assegnazione esecuzioni",
+          "region": "tronco",
+          "decision": "conditional"
+        }
+      ],
+      "existingPlannedStars": [
+        {
+          "id": "R1.4",
+          "title": "R1.4 · NAS dedicato",
+          "status": "planned"
+        },
+        {
+          "id": "E1",
+          "title": "E1 · Anagrafica clienti e CRM",
+          "status": "planned"
+        },
+        {
+          "id": "E2",
+          "title": "E2 · Assistente commerciale",
+          "status": "planned"
+        },
+        {
+          "id": "F2",
+          "title": "F2 · Agenti operativi sui dispositivi",
+          "status": "planned"
+        }
+      ],
+      "transitionRules": [
+        "Promote proposed candidate to canonical node only after responsibility and parent are approved",
+        "Never reuse or change canonical IDs during promotion",
+        "A planned node can contain implemented subcapabilities and vice versa; aggregate state is descriptive, not a test verdict",
+        "Do not create duplicate future nodes when a planned capability belongs under an existing star",
+        "Retain history and provenance across changes; future milestones are not bugs",
+        "Separate status of feature, verification and issue severity"
+      ],
+      "visualContract": {
+        "future": "Neutral gray, dotted outline or ghost star",
+        "partial": "Existing star with separate completion/verification markers",
+        "present": "Normal star, green only with scoped verified evidence",
+        "attention": "Small issue count or marker, not global red by inheritance",
+        "connections": "Future dependencies visible only on focus, with proposed provenance"
+      }
     }
   }
 }
