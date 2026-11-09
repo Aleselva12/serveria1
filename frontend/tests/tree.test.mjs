@@ -167,3 +167,17 @@ test('V3 issue triage has supported categories, preserves original wording and h
   assert.ok(byId.get(i.ownerNodeId)?.knownIssues?.includes(i.title),'V2 projection diverges: '+i.id);
  }
 });
+
+test('V3 ownership review classifies all 45 stars without changing the canonical hierarchy',()=>{
+ const stars=nodes.filter(n=>n.classification==='star');
+ const map=snapshot.v3.nodeResponsibilities;
+ const allowed=new Set(['user_capability','internal_service','infrastructure','governance','unclassified']);
+ assert.equal(stars.length,45);
+ assert.deepEqual(new Set(Object.keys(map)),new Set(stars.map(n=>n.id)));
+ assert.ok(Object.values(map).every(value=>allowed.has(value)));
+ assert.equal(snapshot.v3.responsibilityReview.status,'proposed');
+ const ids=new Set(nodes.map(n=>n.id));
+ for(const item of snapshot.v3.responsibilityReview.decisions)
+  for(const id of item.nodes)assert.ok(ids.has(id),'Unknown boundary review node '+id);
+ assert.equal(nodes.length,515);
+});
