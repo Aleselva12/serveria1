@@ -6515,6 +6515,95 @@
         "Do not infer runtime success from Graphify code links",
         "UI colors and layout unchanged"
       ]
+    },
+    "trunkClassReview": {
+      "reviewedAt": "2026-11-09",
+      "status": "proposal_only",
+      "existingTrunkStars": 13,
+      "principle": "A trunk star owns a shared cross-program contract and lifecycle; no star for a UI page, incidental helper or merely planned feature.",
+      "candidates": [
+        {
+          "proposedId": "T14",
+          "title": "Governance operativa e approvazioni",
+          "recommendation": "strong",
+          "scope": [
+            "Approval lifecycle and explicit human consent",
+            "Policy enforcement at capability execution boundary",
+            "Auditability of authorized side effects"
+          ],
+          "existingOwners": [
+            "R6.2",
+            "T2",
+            "T4"
+          ],
+          "boundary": "R6.2 remains permission policy and identity; T2 remains capability contract; T4 remains run lifecycle. T14 would own approval decisions and enforcement coordination, not duplicate those modules.",
+          "codeEvidence": [
+            "core/governance.py",
+            "core/permissions.py",
+            "core/approvals.py"
+          ],
+          "verification": "Review actual approval enforcement paths before moving nodes."
+        },
+        {
+          "proposedId": "T15",
+          "title": "Integrazioni e connettori esterni",
+          "recommendation": "conditional",
+          "scope": [
+            "Common provider connection state and credential lifecycle",
+            "Provider health and reconnect handling",
+            "Shared connector contracts"
+          ],
+          "existingOwners": [
+            "C1",
+            "C2",
+            "immich",
+            "nextcloud"
+          ],
+          "boundary": "Calendar/Gmail/Immich/Nextcloud retain their domain actions. No centralized connector framework was proven; do not mark it implemented.",
+          "codeEvidence": [
+            "email_agent/email_connector.py",
+            "core/calendar_api.py"
+          ],
+          "verification": "First inventory actual provider adapters and secret storage; avoid duplicating service-specific integrations."
+        },
+        {
+          "proposedId": "T16",
+          "title": "Gestione risorse e assegnazione esecuzioni",
+          "recommendation": "conditional",
+          "scope": [
+            "Resource quotas, concurrency and model execution capacity",
+            "Machine availability and job assignment policy",
+            "Worker admission and controlled failover"
+          ],
+          "existingOwners": [
+            "T9",
+            "T4",
+            "worker",
+            "R3.2"
+          ],
+          "boundary": "T9 plans logical tasks; T4 records lifecycle; F1 operates workers. A separate scheduler star is justified only if shared beyond worker inference.",
+          "codeEvidence": [
+            "core/models.py",
+            "core/protocol.py"
+          ],
+          "verification": "Inventory worker scheduler and queue implementations before extracting responsibility."
+        }
+      ],
+      "notRecommended": [
+        {
+          "name": "Nuova stella per il modello IA",
+          "reason": "Already divided between model catalog R3.2, agent configuration T8 and worker F1; first document dependencies."
+        },
+        {
+          "name": "Nuova stella per i test E2E",
+          "reason": "T11 already owns verification; duplication would create false independent evidence."
+        },
+        {
+          "name": "Nuova stella per ogni provider",
+          "reason": "Provider-specific responsibilities already belong to the corresponding program/agent."
+        }
+      ],
+      "migrationRule": "No physical node creation, renaming or reparenting in this proposal. First decide exact planet/moon ownership and stable IDs; preserve existing links and issue ownership."
     }
   }
 }
