@@ -8,7 +8,7 @@ export type TreeEdge={from:string;to:string;kind:"child"|"flow"};
 export const trunkLayout:Record<string,[number,number]>={
  T1:[900,417],T2:[660,456],T8:[1120,464],T9:[994,520],
  T12:[724,558],T6:[571,614],T7:[647,692],T4:[1130,587],
- T5:[887,633],T13:[1205,694],T10:[736,760],T11:[1021,763],T3:[900,856],
+ T5:[887,633],T13:[1205,694],T10:[736,760],T11:[1021,763],T3:[900,856],T14:[1195,840],
 };
 /** Graphic connections only, not proven runtime calls. */
 export const trunkFlows:Record<string,string[]>={
