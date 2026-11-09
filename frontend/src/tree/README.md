@@ -168,3 +168,13 @@ tipizzate rimangono nel campo top-level `relations`, senza duplicazioni.
 La fase 1 non modifica il rendering, i colori, il planner né i criteri dei
 test esistenti. La fase 2 affronterà responsabilità, duplicazioni e confini
 architetturali; solo dopo verrà aggiornata la facciata.
+
+### Triage iniziale delle 19 criticità
+
+Le 19 note legacy sono state classificate per **natura del lavoro** e non per
+stato di salute. Nessuna nota viene convertita automaticamente in bug verificato.
+La gravità resta `unknown`, lo stato `open` indica che il punto richiede ancora
+una decisione o una prova, non che il componente sia guasto. Il registro V3
+conserva testo e proprietario originari; la UI V2 continua a leggere la
+proiezione `knownIssues`. I test controllano che le due rappresentazioni non
+divergano durante la transizione.
