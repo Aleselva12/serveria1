@@ -219,3 +219,15 @@ test('T14 is a planned common approval responsibility without duplicated existin
  for(const id of ['R6.2','T2','T4'])
   assert.ok(nodes.some(n=>n.id===id),'Existing owner lost: '+id);
 });
+
+test('V3 compact overview exposes all regions, progressive detail and the original tree',()=>{
+ const ui=readFileSync(new URL('../src/tree/Constellation.tsx',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../src/tree/tree.css',import.meta.url),'utf8');
+ for(const expected of ['overviewMode','rm3-regions','expandedGroup','rm3-future','focusLayout(nodes,focusId)','Sintesi','Albero'])
+  assert.ok(ui.includes(expected),'Missing overview feature: '+expected);
+ assert.ok(css.includes('@media(max-width:650px)')&&css.includes('.rm3-summary'),'Responsive overview missing');
+ const regions=snapshot.v3.atAGlanceReview.regionGroups;
+ assert.deepEqual(regions.map(x=>x.region),['radici','tronco','rami']);
+ const ids=regions.flatMap(r=>r.groups.flatMap(g=>g.starIds));
+ assert.deepEqual(new Set(ids),new Set(nodes.filter(n=>n.classification==='star').map(n=>n.id)));
+});
