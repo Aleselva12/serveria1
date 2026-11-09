@@ -135,9 +135,9 @@ test('V3 schema preserves 515 canonical nodes and 19 uniquely owned legacy issue
  assert.equal(snapshot.v3.schemaVersion,3);
  assert.equal(nodes.length,515);
  assert.equal(issues.length,19);
- assert.deepEqual(snapshot.v3.issues,issues);
+ assert.deepEqual(snapshot.v3.issues.map(({id,ownerNodeId,title,source})=>({id,ownerNodeId,title,source})),issues.map(({id,ownerNodeId,title,source})=>({id,ownerNodeId,title,source})));
  assert.equal(new Set(issues.map(i=>i.id)).size,19);
- assert.ok(issues.every(i=>i.kind==='unclassified'&&i.state==='open'&&i.source==='legacy'));
+ assert.ok(snapshot.v3.issues.every(i=>i.state==='open'&&i.source==='legacy'));
  assert.equal(snapshot.v3.migration.nodeHierarchy,'unchanged');
  assert.equal(snapshot.v3.migration.relations.startsWith('top-level'),true);
  const overlay={...snapshot.v3,relations};
@@ -153,4 +153,17 @@ test('V3 issue ownership and evidence validation rejects unknown references and 
  const errors=validateAtlasOverlay(overlay,nodes).join(' | ');
  for(const phrase of ['Duplicate issue','Unknown issue owner','Unknown affected node','Unknown evidence'])
   assert.ok(errors.includes(phrase),phrase);
+});
+
+test('V3 issue triage has supported categories, preserves original wording and has no invented bug verdicts',()=>{
+ const allowed=new Set(['bug','integration','incomplete','missing_verification','improvement','architecture','unclassified']);
+ const canonical=snapshot.v3.issues;
+ assert.equal(canonical.length,19);
+ assert.ok(canonical.every(i=>allowed.has(i.kind)&&i.severity==='unknown'));
+ assert.ok(canonical.every(i=>i.state==='open'));
+ assert.equal(canonical.filter(i=>i.kind==='bug').length,0,'No bug has been established from the legacy notes alone');
+ const byId=new Map(nodes.map(n=>[n.id,n]));
+ for(const i of canonical){
+  assert.ok(byId.get(i.ownerNodeId)?.knownIssues?.includes(i.title),'V2 projection diverges: '+i.id);
+ }
 });
