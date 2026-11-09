@@ -143,3 +143,28 @@ rappresentazione nel pannello relazioni serve a rendere visibile la distinzione.
 Per la prossima fase rimangono separati: censimento dei link al codice, revisione
 delle classificazioni di implementazione, ridefinizione delle responsabilità
 tra Planner/Runtime/Worker e revisione del classificatore delle priorità.
+
+## Atlas V3 — fase 1: contratti, senza cambiare la facciata
+
+Il catalogo ServerIA mantiene invariati tutti i nodi, i loro ID e la gerarchia.
+Il campo `v3` nella snapshot introduce il registro canonico `issues`, la
+struttura `evidence` e il dizionario `nodeResponsibilities`. Le relazioni
+tipizzate rimangono nel campo top-level `relations`, senza duplicazioni.
+
+- **Stella:** responsabilità riconoscibile; **pianeta:** capacità; **luna:**
+  funzione specifica verificabile. La revisione delle singole assegnazioni
+  avverrà nella fase 2, non viene inferita automaticamente da Graphify.
+- **Issue:** un solo `ownerNodeId`, possibili `affectedNodeIds`, tipo, stato,
+  gravità ed evidenze collegate. I 19 problemi esistenti sono migrati come
+  `legacy`, `unclassified`, `open`, senza inventare gravità o verifiche.
+- **Evidenza:** provenienza esplicita (codice, CI, Debian, osservazione manuale),
+  ambito e commit quando noti; un collegamento non certifica il runtime.
+- **Relazione:** dipendenza o uso tra nodi, distinta dalla parentela dell'albero.
+- **Compatibilità:** `knownIssues` resta temporaneamente una proiezione V2
+  per la pagina attuale. Non sommare `knownIssues` e `v3.issues`: sono gli
+  stessi problemi. Durante la fase 2 si dovrà scegliere un unico punto di
+  scrittura e migrare la lettura UI prima di eliminare la proiezione.
+
+La fase 1 non modifica il rendering, i colori, il planner né i criteri dei
+test esistenti. La fase 2 affronterà responsabilità, duplicazioni e confini
+architetturali; solo dopo verrà aggiornata la facciata.
