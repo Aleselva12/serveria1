@@ -5739,10 +5739,81 @@
       "status": "partial",
       "note": "",
       "parent": "G1.p4"
+    },
+    {
+      "id": "T14",
+      "title": "T14 · Approvazioni ed effetti autorizzati",
+      "parent": "tronco",
+      "classification": "star",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Responsabilità futura trasversale per richieste di approvazione, decisioni esplicite e applicazione degli effetti; non certifica un approval engine operativo.",
+      "timeline": {
+        "past": [],
+        "present": {
+          "statement": "Responsabilità proposta, da integrare con permessi, capability e runtime; nessuna approvazione end-to-end certificata.",
+          "source": "architecture-v3",
+          "runtimeVerified": false
+        },
+        "future": [
+          "Flusso comune richiesta → approvazione → esecuzione autorizzata",
+          "Tracciamento, scadenza e revoca delle approvazioni"
+        ]
+      }
+    },
+    {
+      "id": "T14.p1",
+      "title": "Ciclo di approvazione",
+      "parent": "T14",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Richieste, decisioni e scadenze condivise"
+    },
+    {
+      "id": "T14.p1.m1",
+      "title": "Richiesta e consenso esplicito",
+      "parent": "T14.p1",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown"
+    },
+    {
+      "id": "T14.p1.m2",
+      "title": "Scadenza e revoca",
+      "parent": "T14.p1",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown"
+    },
+    {
+      "id": "T14.p2",
+      "title": "Applicazione della decisione",
+      "parent": "T14",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Collegamento tra permessi, capability ed effetti"
+    },
+    {
+      "id": "T14.p2.m1",
+      "title": "Controllo prima dell'effetto",
+      "parent": "T14.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown"
+    },
+    {
+      "id": "T14.p2.m2",
+      "title": "Audit della decisione",
+      "parent": "T14.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown"
     }
   ],
   "revision_note": "V2 completa, 45 stelle con pianeti e lune; colori dichiarati e non dedotti dal codice, test o priorità. Conservate identità del piano iniziale e contributi docs/MEMORIA_CORA.md. | ServerIA autorevole; qwe legacy. Criticità localizzate sui nodi operativi e relazioni semantiche esplicite (proposte, non prove runtime).",
-  "revision": "CORA-V3-2026-11-09-RESPONSIBILITY-REVIEW",
+  "revision": "CORA-V3-2026-11-09-PHASE2-T14",
   "legend": {
     "unknown": "Da valutare",
     "ok": "Tutto ok",
@@ -6239,7 +6310,8 @@
       "E2": "user_capability",
       "worker": "internal_service",
       "F2": "user_capability",
-      "G1": "user_capability"
+      "G1": "user_capability",
+      "T14": "governance"
     },
     "issues": [
       {
@@ -6425,7 +6497,7 @@
     },
     "responsibilityReview": {
       "reviewedAt": "2026-11-09",
-      "status": "proposed",
+      "status": "proposed_with_T14_planned",
       "scope": "45 stars; classification describes architectural ownership, not implementation state",
       "decisions": [
         {
@@ -6519,13 +6591,13 @@
     "trunkClassReview": {
       "reviewedAt": "2026-11-09",
       "status": "proposal_only",
-      "existingTrunkStars": 13,
+      "existingTrunkStars": 14,
       "principle": "A trunk star owns a shared cross-program contract and lifecycle; no star for a UI page, incidental helper or merely planned feature.",
       "candidates": [
         {
           "proposedId": "T14",
           "title": "Governance operativa e approvazioni",
-          "recommendation": "strong",
+          "recommendation": "promoted_as_planned",
           "scope": [
             "Approval lifecycle and explicit human consent",
             "Policy enforcement at capability execution boundary",
@@ -6603,7 +6675,8 @@
           "reason": "Provider-specific responsibilities already belong to the corresponding program/agent."
         }
       ],
-      "migrationRule": "No physical node creation, renaming or reparenting in this proposal. First decide exact planet/moon ownership and stable IDs; preserve existing links and issue ownership."
+      "migrationRule": "No physical node creation, renaming or reparenting in this proposal. First decide exact planet/moon ownership and stable IDs; preserve existing links and issue ownership.",
+      "migrationNote": "T14 is now a canonical planned star with two planned planets and four planned moons; no existing implementation was moved or claimed."
     },
     "atAGlanceReview": {
       "reviewedAt": "2026-11-09",
@@ -6681,7 +6754,8 @@
                 "T2",
                 "T4",
                 "T5",
-                "T8"
+                "T8",
+                "T14"
               ]
             },
             {
@@ -6823,11 +6897,11 @@
           "action": "T15 remains proposal until actual connector ownership is inventoried"
         }
       ],
-      "migration": "No node moved or added. Existing IDs, 19 issues, 52 relations and legacy UI unchanged."
+      "migration": "T14 added as planned star (7 nodes); all pre-existing IDs and issue owners preserved. T15/T16 remain proposals."
     },
     "evolutionView": {
       "reviewedAt": "2026-11-09",
-      "status": "proposed",
+      "status": "proposed_with_T14_planned",
       "principle": "One stable tree contains present implementation and future plans. Future nodes are visible placeholders, never inferred as deployed.",
       "nodePhases": [
         "idea",
@@ -6842,12 +6916,6 @@
         "detail": "Show planets/moons and future milestones with evidence and temporal history"
       },
       "futureStarCandidates": [
-        {
-          "id": "T14",
-          "title": "Governance operativa e approvazioni",
-          "region": "tronco",
-          "decision": "strong"
-        },
         {
           "id": "T15",
           "title": "Integrazioni e connettori esterni",
@@ -6880,6 +6948,11 @@
         {
           "id": "F2",
           "title": "F2 · Agenti operativi sui dispositivi",
+          "status": "planned"
+        },
+        {
+          "id": "T14",
+          "title": "T14 · Approvazioni ed effetti autorizzati",
           "status": "planned"
         }
       ],
