@@ -199,3 +199,51 @@ SUITES = {'automation_draft_regression': {'title': 'Automazioni: bozze, validazi
                                    'nodes': ['R2.1.p3.m1'],
                                    'scope': 'Immutabilità baseline e collocazione migrazioni; applicazione '
                                             'reale su PostgreSQL esclusa.'}}
+
+
+# T11 owns the inventory itself: this suite proves that every repository unittest
+# module is visible once and that new live E2E checks stay inside the owner-
+# selected problems.xlsx scope. It does not execute the entire repository suite.
+SUITES["test_inventory_regression"] = {
+    "title": "T11: inventario completo test e perimetro nuovi E2E",
+    "component": "cora",
+    "tests": ("tests.test_test_inventory.TestInventoryTests",),
+    "nodes": [
+        "T11.p1", "T11.p1.m1", "T11.p1.m2",
+        "T11.p2", "T11.p2.m1", "T11.p2.m2",
+    ],
+    "scope": (
+        "Inventario statico di tutti i moduli unittest della repository, collegamenti "
+        "al runner esistente e guardrail sui nuovi E2E; non esegue tutti i test e "
+        "non certifica servizi reali."
+    ),
+}
+
+
+# Final T11 refinement: prove that health evidence keeps its release identity and
+# cannot turn stale/synthetic/interrupted observations into a live green state.
+# All checks below already existed; this only wires selected deterministic tests
+# into the canonical one-shot runner.
+SUITES["evidence_provenance_regression"] = {
+    "title": "T11: provenienza rilascio, persistenza e affidabilità evidenze",
+    "component": "cora",
+    "tests": (
+        "tests.test_archive_release_identity.ArchiveRevisionTests.test_valid_archive_is_used_when_build_marker_is_empty",
+        "tests.test_archive_release_identity.ArchiveRevisionTests.test_checkout_placeholder_cannot_certify_a_version",
+        "tests.test_archive_release_identity.ArchiveRevisionTests.test_build_marker_remains_authoritative",
+        "tests.test_verification_usage.UsageEvidenceTests.test_catalog_checks_have_runners_and_explicit_scope",
+        "tests.test_verification_usage.UsageEvidenceTests.test_synthetic_runs_cannot_publish_live_evidence_or_read_google",
+        "tests.test_verification_usage.UsageEvidenceTests.test_runtime_evidence_survives_missing_fixture_without_forging_freshness",
+        "tests.test_node_verification_api.NodeVerificationAPITests.test_reload_recovers_progress_without_starting_another_suite",
+        "tests.test_node_verification_api.NodeVerificationAPITests.test_results_and_progress_are_recorded_after_every_check",
+    ),
+    "nodes": [
+        "T11.p3", "T11.p3.m1", "T11.p3.m2",
+        "T11.p4",
+    ],
+    "scope": (
+        "Test già presenti e isolati: identità del commit installato, separazione "
+        "tra evidenza sintetica e uso reale, persistenza del progresso e recupero "
+        "dopo interruzione. Non esegue deploy, servizi esterni o nuovi E2E reali."
+    ),
+}

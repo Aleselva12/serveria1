@@ -2853,7 +2853,7 @@
     {
       "id": "T11",
       "title": "T11 · Registro unico test e salute",
-      "note": "Catalogo salute, cicli periodici e check orchestrator_v1_contract presenti; non tutto E2E collaudato",
+      "note": "Catalogo salute + inventario repository + provenienza evidenze collegati. Nuovi E2E reali limitati ai punti prioritari del foglio problemi.xlsx.",
       "priority": "unknown",
       "parent": "tronco",
       "earlierNote": "Proposta V2 parziale. Responsabilità, evidenze e collegamenti da confermare.",
@@ -2864,16 +2864,30 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Catalogo salute, cicli periodici e check orchestrator_v1_contract presenti; non tutto E2E collaudato",
+          "statement": "T11 ha catalogo unico, inventario completo dei test di repository, runner canonico e regressioni per commit/ambiente/persistenza delle evidenze; esecuzione sul Debian ancora da confermare.",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
         "future": [
-          "Collegare CI/updater a commit installato e collaudi E2E reali senza doppioni"
+          "Eseguire sul Debian test_inventory_regression ed evidence_provenance_regression e registrare commit/ambiente",
+          "Usare T11 come registro dei nuovi E2E mirati di M2 (R4.1)",
+          "Creare nuovi E2E reali solo per i punti prioritari selezionati in problemi.xlsx"
         ]
       },
       "roadmapRefs": [
         "AUTO-QUALITY"
+      ],
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-10",
+          "text": "T11 espone ora un inventario di tutti i moduli test_*.py, distingue quelli collegati al runner da quelli solo presenti in repository e applica un guardrail: nuovi check live E2E possono essere aggiunti solo ai nodi prioritari del foglio problemi.xlsx. Nessun nuovo E2E reale è stato dichiarato passato."
+        },
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-10",
+          "text": "Rifinitura finale T11: test già esistenti su identità del rilascio, separazione sintetico/reale, persistenza del progresso e recupero dopo interruzione sono ora collegati al runner come evidence_provenance_regression. Nessun nuovo E2E reale introdotto."
+        }
       ]
     },
     {
@@ -5739,10 +5753,81 @@
       "status": "partial",
       "note": "",
       "parent": "G1.p4"
+    },
+    {
+      "id": "T14",
+      "title": "T14 · Approvazioni ed effetti autorizzati",
+      "parent": "tronco",
+      "classification": "star",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Responsabilità futura trasversale per richieste di approvazione, decisioni esplicite e applicazione degli effetti; non certifica un approval engine operativo.",
+      "timeline": {
+        "past": [],
+        "present": {
+          "statement": "Responsabilità proposta, da integrare con permessi, capability e runtime; nessuna approvazione end-to-end certificata.",
+          "source": "architecture-v3",
+          "runtimeVerified": false
+        },
+        "future": [
+          "Flusso comune richiesta → approvazione → esecuzione autorizzata",
+          "Tracciamento, scadenza e revoca delle approvazioni"
+        ]
+      }
+    },
+    {
+      "id": "T14.p1",
+      "title": "Ciclo di approvazione",
+      "parent": "T14",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Richieste, decisioni e scadenze condivise"
+    },
+    {
+      "id": "T14.p1.m1",
+      "title": "Richiesta e consenso esplicito",
+      "parent": "T14.p1",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown"
+    },
+    {
+      "id": "T14.p1.m2",
+      "title": "Scadenza e revoca",
+      "parent": "T14.p1",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown"
+    },
+    {
+      "id": "T14.p2",
+      "title": "Applicazione della decisione",
+      "parent": "T14",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Collegamento tra permessi, capability ed effetti"
+    },
+    {
+      "id": "T14.p2.m1",
+      "title": "Controllo prima dell'effetto",
+      "parent": "T14.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown"
+    },
+    {
+      "id": "T14.p2.m2",
+      "title": "Audit della decisione",
+      "parent": "T14.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown"
     }
   ],
   "revision_note": "V2 completa, 45 stelle con pianeti e lune; colori dichiarati e non dedotti dal codice, test o priorità. Conservate identità del piano iniziale e contributi docs/MEMORIA_CORA.md. | ServerIA autorevole; qwe legacy. Criticità localizzate sui nodi operativi e relazioni semantiche esplicite (proposte, non prove runtime).",
-  "revision": "CORA-V2-2026-11-09-CODE-EVIDENCE",
+  "revision": "CORA-V3-2026-11-10-T11-STRUCTURAL-COMPLETE",
   "legend": {
     "unknown": "Da valutare",
     "ok": "Tutto ok",
@@ -6176,6 +6261,30 @@
       "note": "Idempotenza degli eventi e sincronizzazione Google/Cora richiedono verifiche separate",
       "status": "proposed",
       "provenance": "code-review-2026-11-09"
+    },
+    {
+      "from": "T14",
+      "to": "R6.2",
+      "kind": "depends_on",
+      "note": "Le approvazioni richiedono policy e autorizzazioni, ma non ne duplicano la proprietà",
+      "status": "proposed",
+      "provenance": "architecture-v3"
+    },
+    {
+      "from": "T14",
+      "to": "T2",
+      "kind": "uses",
+      "note": "Il ciclo di approvazione deve applicarsi a capability dichiarate e contratti verificabili",
+      "status": "proposed",
+      "provenance": "architecture-v3"
+    },
+    {
+      "from": "T14",
+      "to": "T4",
+      "kind": "uses",
+      "note": "Le decisioni approvate devono essere collegate agli effetti e agli stati dei run",
+      "status": "proposed",
+      "provenance": "architecture-v3"
     }
   ],
   "visibility": {
@@ -6191,5 +6300,715 @@
     "idea": "Possibilità da discutere",
     "unverified": "Da verificare"
   },
-  "provenancePolicy": "Timeline past remains empty until real decisions/commits with sources are linked. A user report is kept separate from backend/CI evidence. No automatic severity propagation."
+  "provenancePolicy": "Timeline past remains empty until real decisions/commits with sources are linked. A user report is kept separate from backend/CI evidence. No automatic severity propagation.",
+  "v3": {
+    "schemaVersion": 3,
+    "nodeResponsibilities": {
+      "R1.1": "infrastructure",
+      "R1.2": "infrastructure",
+      "R1.3": "infrastructure",
+      "R1.4": "infrastructure",
+      "R2.1": "infrastructure",
+      "R2.2": "infrastructure",
+      "R3.1": "infrastructure",
+      "R3.2": "infrastructure",
+      "R4.1": "infrastructure",
+      "R4.2": "infrastructure",
+      "R5.1": "infrastructure",
+      "R5.2": "infrastructure",
+      "R6.1": "infrastructure",
+      "R6.2": "governance",
+      "T1": "user_capability",
+      "T2": "governance",
+      "T3": "governance",
+      "T4": "governance",
+      "T5": "governance",
+      "T6": "governance",
+      "T7": "governance",
+      "T8": "governance",
+      "T9": "governance",
+      "T10": "governance",
+      "T11": "governance",
+      "T12": "user_capability",
+      "T13": "governance",
+      "A1": "user_capability",
+      "A2": "user_capability",
+      "B1": "user_capability",
+      "B2": "user_capability",
+      "B3": "user_capability",
+      "C1": "user_capability",
+      "C2": "user_capability",
+      "C3": "user_capability",
+      "immich": "internal_service",
+      "nextcloud": "internal_service",
+      "magazzino": "internal_service",
+      "D4": "internal_service",
+      "D5": "internal_service",
+      "E1": "internal_service",
+      "E2": "user_capability",
+      "worker": "internal_service",
+      "F2": "user_capability",
+      "G1": "user_capability",
+      "T14": "governance"
+    },
+    "issues": [
+      {
+        "id": "legacy:R1.3.p1.m1:1",
+        "ownerNodeId": "R1.3.p1.m1",
+        "title": "Inferenza GPU riferita riuscita, ma modello effettivo e routing da certificare",
+        "kind": "missing_verification",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:R2.1.p2.m2:1",
+        "ownerNodeId": "R2.1.p2.m2",
+        "title": "Collocazione database sul NAS non decisa; non creare duplicazioni anagrafiche",
+        "kind": "architecture",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:R5.1.p2:1",
+        "ownerNodeId": "R5.1.p2",
+        "title": "Non risulta un restore complessivo collaudato sul Debian",
+        "kind": "missing_verification",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:R5.2.p3.m1:1",
+        "ownerNodeId": "R5.2.p3.m1",
+        "title": "L'updater host non gestisce ancora Immich/Nextcloud",
+        "kind": "incomplete",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:T1.p1.m1:1",
+        "ownerNodeId": "T1.p1.m1",
+        "title": "Run diretto qwen3:1.7b completato ma lento (127,89 s), contro 54,46 s per prompt diverso in Ollama CLI; causa non isolata e confronti non omogenei.",
+        "kind": "improvement",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:T7:1",
+        "ownerNodeId": "T7",
+        "title": "Memoria non ancora collaudata completamente nell'uso reale dopo i cambiamenti",
+        "kind": "missing_verification",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:T9.p2:1",
+        "ownerNodeId": "T9.p2",
+        "title": "Code persistenti e scheduling multi-worker general-purpose non implementati",
+        "kind": "incomplete",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:T11.p2.m2:1",
+        "ownerNodeId": "T11.p2.m2",
+        "title": "Test tecnici non equivalgono a E2E, import CI/updater nel registro non completo",
+        "kind": "incomplete",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:A1:1",
+        "ownerNodeId": "A1",
+        "title": "Regressioni possibili Chat → supervisor → agente → risposta",
+        "kind": "missing_verification",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:B3.p1.m2:1",
+        "ownerNodeId": "B3.p1.m2",
+        "title": "Scrittura Word su documento di prova autentico ancora da collaudare",
+        "kind": "missing_verification",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:C1b.m2:1",
+        "ownerNodeId": "C1b.m2",
+        "title": "Rischio duplicazione appuntamenti da sync/audio e retry",
+        "kind": "missing_verification",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:C2.p1:1",
+        "ownerNodeId": "C2.p1",
+        "title": "Gmail: esistono tool ma integrazione account e flussi non collaudati",
+        "kind": "missing_verification",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:C3.p4.m1:1",
+        "ownerNodeId": "C3.p4.m1",
+        "title": "Pubblicazione Word approvata non ancora collaudata end-to-end",
+        "kind": "missing_verification",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:immich.p2.m1:1",
+        "ownerNodeId": "immich.p2.m1",
+        "title": "Mancano connettore Cora e updater host dedicato",
+        "kind": "incomplete",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:nextcloud.p2.m2:1",
+        "ownerNodeId": "nextcloud.p2.m2",
+        "title": "Mancano integrazioni complete e updater host dedicato",
+        "kind": "incomplete",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:D5.p2.m1:1",
+        "ownerNodeId": "D5.p2.m1",
+        "title": "Direzione Cora ancora prevalentemente vista testuale; mappa 2D e provenienza per stella da integrare",
+        "kind": "incomplete",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:E1.p2.m2:1",
+        "ownerNodeId": "E1.p2.m2",
+        "title": "Database SQL aziendale non censito come fonte autorevole, rischio duplicati",
+        "kind": "architecture",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:F2.p4.m2:1",
+        "ownerNodeId": "F2.p4.m2",
+        "title": "Un agente operativo non deve avere controllo generale del laptop",
+        "kind": "architecture",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      },
+      {
+        "id": "legacy:G1.p3:1",
+        "ownerNodeId": "G1.p3",
+        "title": "Verifica su modello potente e tool reali rinviata alla ripresa W3",
+        "kind": "missing_verification",
+        "state": "open",
+        "severity": "unknown",
+        "source": "legacy"
+      }
+    ],
+    "evidence": [],
+    "migration": {
+      "source": "knownIssues",
+      "policy": "v3.issues is the canonical issue register; knownIssues is a temporary V2 compatibility projection and must not be counted independently",
+      "nodeHierarchy": "unchanged",
+      "relations": "top-level relations remains canonical; v3 does not duplicate them",
+      "verification": "No runtime state inferred from code structure",
+      "classification": "Initial triage from documented issue wording; not proof of failure, severity or runtime status. Review each classification as new evidence arrives."
+    },
+    "responsibilityReview": {
+      "reviewedAt": "2026-11-09",
+      "status": "proposed_with_T14_planned",
+      "scope": "45 stars; classification describes architectural ownership, not implementation state",
+      "decisions": [
+        {
+          "nodes": [
+            "T2",
+            "R6.2"
+          ],
+          "decision": "keep_separate",
+          "reason": "T2 declares capabilities and tool contracts; R6.2 authorizes actions and scope. Shared checks are not shared ownership.",
+          "codeEvidence": [
+            "core/governance.py",
+            "core/permissions.py"
+          ]
+        },
+        {
+          "nodes": [
+            "T9",
+            "T4",
+            "worker"
+          ],
+          "decision": "keep_separate",
+          "reason": "T9 defines plans; T4 tracks run lifecycle and effects; F1 schedules execution across machines. Planning artifacts are not proof of scheduler integration.",
+          "codeEvidence": [
+            "core/plans.py",
+            "core/runtime.py",
+            "core/run_states.py"
+          ]
+        },
+        {
+          "nodes": [
+            "B1",
+            "B2",
+            "B3",
+            "nextcloud"
+          ],
+          "decision": "keep_separate_review_shared_tools",
+          "reason": "File operations, AI knowledge library, document formats and Nextcloud sync have different ownership; shared DOCX/file tools must be linked rather than duplicated.",
+          "codeEvidence": [
+            "core/library_tools.py",
+            "core/library_preflight.py"
+          ]
+        },
+        {
+          "nodes": [
+            "T10",
+            "T11",
+            "D5"
+          ],
+          "decision": "keep_separate",
+          "reason": "Tracing failures, verifying system health and visualizing architecture/evidence are different responsibilities; shared evidence must not certify independent tests.",
+          "codeEvidence": [
+            "core/health_catalog.py",
+            "deploy/verify_nodes.py",
+            "frontend/src/tree/roadmapEvidence.ts"
+          ]
+        },
+        {
+          "nodes": [
+            "R1.2",
+            "R1.3",
+            "worker",
+            "F2"
+          ],
+          "decision": "keep_separate",
+          "reason": "Physical devices, inference worker coordination and agents deployed on devices have distinct ownership."
+        },
+        {
+          "nodes": [
+            "R5.2",
+            "immich",
+            "nextcloud"
+          ],
+          "decision": "review_shared_capability",
+          "reason": "Host update mechanism is shared; service-specific integration belongs to the corresponding application. Avoid duplicate issue ownership."
+        },
+        {
+          "nodes": [
+            "D5",
+            "T12"
+          ],
+          "decision": "review_boundary",
+          "reason": "D5 owns Atlas model and evidence; T12 owns shared Cora UI navigation and shell, not the Atlas semantic model."
+        }
+      ],
+      "deferred": [
+        "No star moves or merges until individual planet/moon ownership is reviewed",
+        "Do not infer runtime success from Graphify code links",
+        "UI colors and layout unchanged"
+      ]
+    },
+    "trunkClassReview": {
+      "reviewedAt": "2026-11-09",
+      "status": "proposal_only",
+      "existingTrunkStars": 14,
+      "principle": "A trunk star owns a shared cross-program contract and lifecycle; no star for a UI page, incidental helper or merely planned feature.",
+      "candidates": [
+        {
+          "proposedId": "T14",
+          "title": "Governance operativa e approvazioni",
+          "recommendation": "promoted_as_planned",
+          "scope": [
+            "Approval lifecycle and explicit human consent",
+            "Policy enforcement at capability execution boundary",
+            "Auditability of authorized side effects"
+          ],
+          "existingOwners": [
+            "R6.2",
+            "T2",
+            "T4"
+          ],
+          "boundary": "R6.2 remains permission policy and identity; T2 remains capability contract; T4 remains run lifecycle. T14 would own approval decisions and enforcement coordination, not duplicate those modules.",
+          "codeEvidence": [
+            "core/governance.py",
+            "core/permissions.py",
+            "core/approvals.py"
+          ],
+          "verification": "Review actual approval enforcement paths before moving nodes."
+        },
+        {
+          "proposedId": "T15",
+          "title": "Integrazioni e connettori esterni",
+          "recommendation": "conditional",
+          "scope": [
+            "Common provider connection state and credential lifecycle",
+            "Provider health and reconnect handling",
+            "Shared connector contracts"
+          ],
+          "existingOwners": [
+            "C1",
+            "C2",
+            "immich",
+            "nextcloud"
+          ],
+          "boundary": "Calendar/Gmail/Immich/Nextcloud retain their domain actions. No centralized connector framework was proven; do not mark it implemented.",
+          "codeEvidence": [
+            "email_agent/email_connector.py",
+            "core/calendar_api.py"
+          ],
+          "verification": "First inventory actual provider adapters and secret storage; avoid duplicating service-specific integrations."
+        },
+        {
+          "proposedId": "T16",
+          "title": "Gestione risorse e assegnazione esecuzioni",
+          "recommendation": "conditional",
+          "scope": [
+            "Resource quotas, concurrency and model execution capacity",
+            "Machine availability and job assignment policy",
+            "Worker admission and controlled failover"
+          ],
+          "existingOwners": [
+            "T9",
+            "T4",
+            "worker",
+            "R3.2"
+          ],
+          "boundary": "T9 plans logical tasks; T4 records lifecycle; F1 operates workers. A separate scheduler star is justified only if shared beyond worker inference.",
+          "codeEvidence": [
+            "core/models.py",
+            "core/protocol.py"
+          ],
+          "verification": "Inventory worker scheduler and queue implementations before extracting responsibility."
+        }
+      ],
+      "notRecommended": [
+        {
+          "name": "Nuova stella per il modello IA",
+          "reason": "Already divided between model catalog R3.2, agent configuration T8 and worker F1; first document dependencies."
+        },
+        {
+          "name": "Nuova stella per i test E2E",
+          "reason": "T11 already owns verification; duplication would create false independent evidence."
+        },
+        {
+          "name": "Nuova stella per ogni provider",
+          "reason": "Provider-specific responsibilities already belong to the corresponding program/agent."
+        }
+      ],
+      "migrationRule": "No physical node creation, renaming or reparenting in this proposal. First decide exact planet/moon ownership and stable IDs; preserve existing links and issue ownership.",
+      "migrationNote": "T14 is now a canonical planned star with two planned planets and four planned moons; no existing implementation was moved or claimed."
+    },
+    "atAGlanceReview": {
+      "reviewedAt": "2026-11-09",
+      "status": "proposed",
+      "intent": "A glance view is a projection of the canonical tree, not a replacement hierarchy or runtime health certificate.",
+      "levels": [
+        {
+          "name": "panorama",
+          "show": "three regions plus seven functional branches; collapsed counts and attention summaries",
+          "hide": "planets, moons, full relations and long issue descriptions"
+        },
+        {
+          "name": "responsibilities",
+          "show": "stars in selected branch, grouped into conceptual families; concise status, verification and open issue counts",
+          "hide": "unselected branches and unrelated cross-links"
+        },
+        {
+          "name": "operations",
+          "show": "selected star planets/moons, owner issues, evidence provenance, dependencies and next work",
+          "hide": "global unrelated details"
+        }
+      ],
+      "regionGroups": [
+        {
+          "region": "radici",
+          "label": "Fondamenta",
+          "groups": [
+            {
+              "label": "Macchine e capacità",
+              "starIds": [
+                "R1.1",
+                "R1.2",
+                "R1.3",
+                "R1.4",
+                "R3.1",
+                "R3.2"
+              ]
+            },
+            {
+              "label": "Dati e ambiente",
+              "starIds": [
+                "R2.1",
+                "R2.2",
+                "R4.1",
+                "R4.2"
+              ]
+            },
+            {
+              "label": "Affidabilità e sicurezza",
+              "starIds": [
+                "R5.1",
+                "R5.2",
+                "R6.1",
+                "R6.2"
+              ]
+            }
+          ]
+        },
+        {
+          "region": "tronco",
+          "label": "Servizi comuni",
+          "groups": [
+            {
+              "label": "Decisione e pianificazione",
+              "starIds": [
+                "T1",
+                "T3",
+                "T9",
+                "T13"
+              ]
+            },
+            {
+              "label": "Esecuzione e contratti",
+              "starIds": [
+                "T2",
+                "T4",
+                "T5",
+                "T8",
+                "T14"
+              ]
+            },
+            {
+              "label": "Contesto e conoscenza",
+              "starIds": [
+                "T6",
+                "T7"
+              ]
+            },
+            {
+              "label": "Controllo e interfaccia",
+              "starIds": [
+                "T10",
+                "T11",
+                "T12"
+              ]
+            }
+          ]
+        },
+        {
+          "region": "rami",
+          "label": "Utilità e programmi",
+          "groups": [
+            {
+              "label": "Interazione",
+              "starIds": [
+                "A1",
+                "A2"
+              ]
+            },
+            {
+              "label": "File e documenti",
+              "starIds": [
+                "B1",
+                "B2",
+                "B3"
+              ]
+            },
+            {
+              "label": "Organizzazione e comunicazione",
+              "starIds": [
+                "C1",
+                "C2",
+                "C3"
+              ]
+            },
+            {
+              "label": "Applicazioni",
+              "starIds": [
+                "immich",
+                "nextcloud",
+                "magazzino",
+                "D4",
+                "D5"
+              ]
+            },
+            {
+              "label": "Lavoro commerciale",
+              "starIds": [
+                "E1",
+                "E2"
+              ]
+            },
+            {
+              "label": "Distribuzione del lavoro",
+              "starIds": [
+                "worker",
+                "F2"
+              ]
+            },
+            {
+              "label": "Programmazione",
+              "starIds": [
+                "G1"
+              ]
+            }
+          ]
+        }
+      ],
+      "attentionRules": [
+        "Show a parent as affected with scoped counts, not as globally broken because one descendant has an issue",
+        "Keep implementation, runtime verification and issue count independent",
+        "Distinguish proposed architecture from deployed behavior",
+        "Cross-links appear on selection, not as permanent full-screen lines",
+        "No inferred green from code existence or synthetic test success"
+      ],
+      "reviewFlags": [
+        {
+          "nodes": [
+            "T12",
+            "D5"
+          ],
+          "issue": "Atlas ownership vs generic UI shell",
+          "action": "Keep separate and label their distinct responsibilities"
+        },
+        {
+          "nodes": [
+            "T9",
+            "worker",
+            "T4"
+          ],
+          "issue": "Planner, scheduler and worker overlap",
+          "action": "Keep execution scheduler boundary explicit; candidate T16 remains conditional"
+        },
+        {
+          "nodes": [
+            "R6.2",
+            "T2"
+          ],
+          "issue": "Permissions and tool contracts overlap",
+          "action": "Keep policy and capability declarations separate; evaluate T14 approval lifecycle"
+        },
+        {
+          "nodes": [
+            "R5.2",
+            "immich",
+            "nextcloud"
+          ],
+          "issue": "Updater responsibility is repeated",
+          "action": "Keep common updater under R5.2 and service-specific upgrade checks under apps"
+        },
+        {
+          "nodes": [
+            "B1",
+            "B2",
+            "B3"
+          ],
+          "issue": "File storage, knowledge and document editing share operations",
+          "action": "Do not merge; label data ownership and document formats explicitly"
+        },
+        {
+          "nodes": [
+            "C1",
+            "C2",
+            "immich",
+            "nextcloud"
+          ],
+          "issue": "Provider integrations may justify common connector",
+          "action": "T15 remains proposal until actual connector ownership is inventoried"
+        }
+      ],
+      "migration": "T14 added as planned star (7 nodes); all pre-existing IDs and issue owners preserved. T15/T16 remain proposals."
+    },
+    "evolutionView": {
+      "reviewedAt": "2026-11-09",
+      "status": "proposed_with_T14_planned",
+      "principle": "One stable tree contains present implementation and future plans. Future nodes are visible placeholders, never inferred as deployed.",
+      "nodePhases": [
+        "idea",
+        "planned",
+        "partial",
+        "present"
+      ],
+      "verificationDimension": "Independent of node phase; code evidence is not runtime verification.",
+      "defaultVisibility": {
+        "panorama": "Show current and future branches/stars; distinguish future placeholders with neutral gray; do not hide them",
+        "responsibilities": "Show existing and planned stars, concise counts of planned descendants and unresolved verification",
+        "detail": "Show planets/moons and future milestones with evidence and temporal history"
+      },
+      "futureStarCandidates": [
+        {
+          "id": "T15",
+          "title": "Integrazioni e connettori esterni",
+          "region": "tronco",
+          "decision": "conditional"
+        },
+        {
+          "id": "T16",
+          "title": "Gestione risorse e assegnazione esecuzioni",
+          "region": "tronco",
+          "decision": "conditional"
+        }
+      ],
+      "existingPlannedStars": [
+        {
+          "id": "R1.4",
+          "title": "R1.4 · NAS dedicato",
+          "status": "planned"
+        },
+        {
+          "id": "E1",
+          "title": "E1 · Anagrafica clienti e CRM",
+          "status": "planned"
+        },
+        {
+          "id": "E2",
+          "title": "E2 · Assistente commerciale",
+          "status": "planned"
+        },
+        {
+          "id": "F2",
+          "title": "F2 · Agenti operativi sui dispositivi",
+          "status": "planned"
+        },
+        {
+          "id": "T14",
+          "title": "T14 · Approvazioni ed effetti autorizzati",
+          "status": "planned"
+        }
+      ],
+      "transitionRules": [
+        "Promote proposed candidate to canonical node only after responsibility and parent are approved",
+        "Never reuse or change canonical IDs during promotion",
+        "A planned node can contain implemented subcapabilities and vice versa; aggregate state is descriptive, not a test verdict",
+        "Do not create duplicate future nodes when a planned capability belongs under an existing star",
+        "Retain history and provenance across changes; future milestones are not bugs",
+        "Separate status of feature, verification and issue severity"
+      ],
+      "visualContract": {
+        "future": "Neutral gray, dotted outline or ghost star",
+        "partial": "Existing star with separate completion/verification markers",
+        "present": "Normal star, green only with scoped verified evidence",
+        "attention": "Small issue count or marker, not global red by inheritance",
+        "connections": "Future dependencies visible only on focus, with proposed provenance"
+      }
+    }
+  }
 }

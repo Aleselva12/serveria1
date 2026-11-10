@@ -35,7 +35,11 @@ class NodeVerificationAPITests(unittest.TestCase):
             ids = [row["id"] for row in response.json()["availableChecks"]]
             self.assertEqual(len(ids), len(set(ids)))
             self.assertEqual(set(ids), set(service.CATALOG))
-            self.assertTrue({"word_document_regression", "capability_permissions_regression", "file_preview_regression"} <= set(ids))
+            self.assertTrue({"word_document_regression", "capability_permissions_regression", "file_preview_regression", "test_inventory_regression", "evidence_provenance_regression"} <= set(ids))
+            inventory = response.json()["testInventory"]
+            self.assertEqual(inventory["total"], inventory["runnerLinked"] + inventory["repositoryOnly"])
+            self.assertGreater(inventory["total"], 90)
+            self.assertTrue(any(row["module"] == "test_test_inventory" for row in inventory["tests"]))
             worker.assert_not_called()
 
     def test_duplicate_click_is_rejected_across_workers_and_cli(self):
