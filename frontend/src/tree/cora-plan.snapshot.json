@@ -957,7 +957,7 @@
       "id": "R4.1",
       "title": "R4.1 · Sistema operativo e servizi host",
       "priority": "unknown",
-      "note": "Debian processi servizi amministrativi e systemd",
+      "note": "M2 avviata: tre E2E host mirati collegati via updater per Debian/permessi, systemd/updater e SSH/configurazione. Nessun restart o aggiornamento viene eseguito.",
       "status": "present",
       "classification": "star",
       "code": "R4.1",
@@ -966,13 +966,25 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Debian processi servizi amministrativi e systemd",
+          "statement": "Il server Debian e i servizi host sono presenti; M2 aggiunge diagnostica host autenticata in sola lettura e tre check E2E, ancora da eseguire sul Debian installato.",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
-        "future": []
+        "future": [
+          "Installare/aggiornare il software cora-updater host con l'endpoint /host/diagnostics",
+          "Eseguire debian_host_e2e, systemd_host_e2e e host_admin_e2e sul rilascio installato",
+          "Valutare separatamente eventuali aggiornamenti OS pendenti: il test non li installa",
+          "Solo dopo evidenza Debian collegata al commit aggiornare lo stato dei nodi coperti"
+        ]
       },
-      "roadmapRefs": []
+      "roadmapRefs": [],
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-10",
+          "text": "M2: aggiunti check live E2E R4.1. Il bridge host espone soltanto dati allowlisted: /etc/os-release, coerenza UID/GID updater, permessi file privati, dpkg --audit, apt-get -s upgrade e systemctl show per cora-updater.service/ssh.service. Nessun comando mutativo o contenuto dei log/credenziali."
+        }
+      ]
     },
     {
       "id": "R4.1.p1",
@@ -980,7 +992,7 @@
       "priority": "unknown",
       "classification": "planet",
       "status": "present",
-      "note": "",
+      "note": "M2: check host live collegato; esecuzione Debian ancora da confermare.",
       "parent": "R4.1"
     },
     {
@@ -1007,7 +1019,7 @@
       "priority": "unknown",
       "classification": "planet",
       "status": "present",
-      "note": "",
+      "note": "M2: check host live collegato; esecuzione Debian ancora da confermare.",
       "parent": "R4.1"
     },
     {
@@ -1034,7 +1046,7 @@
       "priority": "unknown",
       "classification": "planet",
       "status": "present",
-      "note": "",
+      "note": "M2: check host live collegato; esecuzione Debian ancora da confermare.",
       "parent": "R4.1"
     },
     {
@@ -5827,7 +5839,7 @@
     }
   ],
   "revision_note": "V2 completa, 45 stelle con pianeti e lune; colori dichiarati e non dedotti dal codice, test o priorità. Conservate identità del piano iniziale e contributi docs/MEMORIA_CORA.md. | ServerIA autorevole; qwe legacy. Criticità localizzate sui nodi operativi e relazioni semantiche esplicite (proposte, non prove runtime).",
-  "revision": "CORA-V3-2026-11-10-T11-STRUCTURAL-COMPLETE",
+  "revision": "CORA-V3-2026-11-10-M2-R4-HOST-E2E",
   "legend": {
     "unknown": "Da valutare",
     "ok": "Tutto ok",
