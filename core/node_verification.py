@@ -104,9 +104,12 @@ def status():
                 finally:
                     _release(conn)
         available = verify_nodes.available_checks()
+        from core.test_inventory import inventory
+        test_inventory = inventory()
         return {"run": job,
                 "availableChecks": [{"id": key, "title": CATALOG[key]["title"]} for key in available],
-                "unavailableChecks": [{"id": key, "title": item["title"]} for key, item in CATALOG.items() if key not in available]}
+                "unavailableChecks": [{"id": key, "title": item["title"]} for key, item in CATALOG.items() if key not in available],
+                "testInventory": test_inventory}
     except Exception:
         raise HTTPException(503, "Collaudi non disponibili: verifica il database e l'aggiornamento del server.") from None
 
