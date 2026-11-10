@@ -231,6 +231,22 @@ class UpdaterTests(unittest.TestCase):
                 self.assertEqual(response.json()['active_commit'],self.base_commit)
         finally:server.shutdown();server.server_close();thread.join()
 
+    def test_private_service_exposes_only_fixed_host_diagnostics(self):
+        server=ThreadingHTTPServer(('127.0.0.1',0),handler(self.engine,'private-token'))
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        snapshot={"schema":1,"os":{"ID":"debian"},"identity":{"uidMatchesConfigured":True},
+                  "packages":{},"systemd":{},"scope":"read-only"}
+        try:
+            with patch("updater.service.host_diagnostics", return_value=snapshot) as diagnostic, \
+                 httpx.Client(base_url='http://127.0.0.1:'+str(server.server_port),trust_env=False) as client:
+                self.assertEqual(client.get('/host/diagnostics').status_code,401)
+                response=client.get('/host/diagnostics',headers={'Authorization':'Bearer private-token'})
+                self.assertEqual(response.status_code,200)
+                self.assertEqual(response.json(),snapshot)
+                diagnostic.assert_called_once_with(self.engine.root,self.engine.config)
+                self.assertEqual(client.get('/host/arbitrary',headers={'Authorization':'Bearer private-token'}).status_code,404)
+        finally:server.shutdown();server.server_close();thread.join()
+
     def test_restore_validates_archive_before_destructive_commands(self):
         import tarfile,io
         from updater.engine import file_digest
