@@ -2853,7 +2853,7 @@
     {
       "id": "T11",
       "title": "T11 · Registro unico test e salute",
-      "note": "Catalogo salute, cicli periodici e check orchestrator_v1_contract presenti; non tutto E2E collaudato",
+      "note": "Catalogo salute + inventario repository collegati; regressione di completezza aggiunta. E2E reali restano separati e limitati ai punti prioritari.",
       "priority": "unknown",
       "parent": "tronco",
       "earlierNote": "Proposta V2 parziale. Responsabilità, evidenze e collegamenti da confermare.",
@@ -2864,16 +2864,25 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Catalogo salute, cicli periodici e check orchestrator_v1_contract presenti; non tutto E2E collaudato",
+          "statement": "Catalogo salute e runner esistenti presenti; inventario completo dei test di repository collegato a T11, senza trasformare test unitari in prove runtime.",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
         "future": [
-          "Collegare CI/updater a commit installato e collaudi E2E reali senza doppioni"
+          "Eseguire e storicizzare la regressione di inventario sul rilascio Debian",
+          "Creare nuovi E2E reali solo per i punti prioritari selezionati in problemi.xlsx",
+          "Ridurre progressivamente i test repository-only collegandoli a suite con scope esplicito quando utile"
         ]
       },
       "roadmapRefs": [
         "AUTO-QUALITY"
+      ],
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-10",
+          "text": "T11 espone ora un inventario di tutti i moduli test_*.py, distingue quelli collegati al runner da quelli solo presenti in repository e applica un guardrail: nuovi check live E2E possono essere aggiunti solo ai nodi prioritari del foglio problemi.xlsx. Nessun nuovo E2E reale è stato dichiarato passato."
+        }
       ]
     },
     {
@@ -5813,7 +5822,7 @@
     }
   ],
   "revision_note": "V2 completa, 45 stelle con pianeti e lune; colori dichiarati e non dedotti dal codice, test o priorità. Conservate identità del piano iniziale e contributi docs/MEMORIA_CORA.md. | ServerIA autorevole; qwe legacy. Criticità localizzate sui nodi operativi e relazioni semantiche esplicite (proposte, non prove runtime).",
-  "revision": "CORA-V3-2026-11-09-PHASE2-T14",
+  "revision": "CORA-V3-2026-11-10-T11-INVENTORY",
   "legend": {
     "unknown": "Da valutare",
     "ok": "Tutto ok",
