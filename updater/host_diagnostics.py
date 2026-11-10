@@ -17,7 +17,7 @@ from typing import Any
 SERVICES = ("cora-updater.service", "ssh.service")
 SYSTEMD_PROPERTIES = (
     "LoadState", "ActiveState", "SubState", "UnitFileState",
-    "ExecMainStatus", "NRestarts", "FragmentPath",
+    "ExecMainStatus", "NRestarts", "FragmentPath", "StandardOutput", "StandardError",
 )
 
 
@@ -49,6 +49,8 @@ def _systemd_unit(name: str) -> dict[str, Any]:
         "execMainStatus": values.get("ExecMainStatus", ""),
         "restarts": values.get("NRestarts", ""),
         "fragmentPresent": bool(values.get("FragmentPath")),
+        "standardOutput": values.get("StandardOutput", ""),
+        "standardError": values.get("StandardError", ""),
     }
 
 
