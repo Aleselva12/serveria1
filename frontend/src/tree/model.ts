@@ -16,6 +16,10 @@ export function severity(n:Node,nodes:Node[],failures:Set<string>):string {
 }
 /** References only the pre-existing shared health catalog; never runs checks from the map. */
 export const checks:Record<string,string[]>={
+  "R4.1":["debian_host_e2e","systemd_host_e2e","host_admin_e2e"],
+  "R4.1.p1":["debian_host_e2e"],"R4.1.p1.m1":["debian_host_e2e"],"R4.1.p1.m2":["debian_host_e2e"],
+  "R4.1.p2":["systemd_host_e2e"],"R4.1.p2.m1":["systemd_host_e2e"],"R4.1.p2.m2":["systemd_host_e2e"],
+  "R4.1.p3":["host_admin_e2e"],"R4.1.p3.m1":["host_admin_e2e"],"R4.1.p3.m2":["host_admin_e2e"],
   "T11.p4":["evidence_provenance_regression"],
   "T11.p3.m2":["evidence_provenance_regression"],
   "T11.p3.m1":["evidence_provenance_regression"],
