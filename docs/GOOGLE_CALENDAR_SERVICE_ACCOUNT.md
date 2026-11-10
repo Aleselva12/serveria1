@@ -38,3 +38,37 @@ Da Google Calendar → Impostazioni → seleziona il calendario condiviso → **
 
 ## Ripristinare OAuth
 Rimuovi l'override Compose dal set di file di deploy e ricrea **solo** il container API; il token OAuth precedentemente salvato rimane disponibile. Prima di farlo, verifica il sistema di aggiornamento del server.
+
+
+## Updater persistente (server Debian gia installato)
+
+L'updater usa `/srv/cora-tools/updater/compose.json` come **snapshot host**; gli aggiornamenti e i rollback ordinari conservano questo snapshot, i bind e le variabili Calendar. Il file `deploy.env` non viene letto a ogni rilascio. Non modificare lo snapshot a mano.
+
+Per riconciliare in modo ripetibile uno snapshot esistente con la configurazione Calendar, usare **sull'host**, da una checkout aggiornata della repository:
+
+```bash
+cd /srv/cora-server-test
+python3 -m deploy.calendar_service_account_updater \
+  --updater-root /srv/cora-tools/updater \
+  --deploy-env /srv/cora-server-test/deploy.env \
+  --key /srv/cora-secrets/cora-calendar.json
+```
+
+Il comando precedente verifica soltanto, senza scrivere. Controllare che `CORA_GOOGLE_CALENDAR_ID` sia l'**ID calendario** (per un calendario personale, spesso l'email proprietaria), **non** un URL `calendar.google.com/calendar/embed`. Non condividere mai il JSON del Service Account.
+
+Per applicare **solo quando occorre installare o riconciliare lo snapshot**:
+
+1. Accertarsi che non ci siano job in esecuzione o in recupero, e che l'API corrente sia stabile.
+2. `sudo systemctl stop cora-updater.service`
+3. Ripetere il comando di verifica con `--apply`: valida la configurazione Docker, salva un backup `compose.before-calendar-*.json`, cambia solo `services.api.environment` e il mount della chiave read-only. Non ricrea alcun container.
+4. `sudo systemctl start cora-updater.service` anche se l'operazione ha fallito; verificare `systemctl is-active cora-updater.service`.
+5. Se lo snapshot e cambiato, verificare `docker compose -p cora -f /srv/cora-tools/updater/compose.json -f /srv/cora-tools/updater/images.json config --quiet`, quindi ricreare **solo** l'API con `up -d --no-deps --no-build api`. Conservare `images.json` (contiene l'immagine registrata dall'updater).
+6. Verificare `docker exec cora-api-1 python -c 'from core import google_calendar; print(google_calendar.status())'`, poi lettura eventi e scrittura di un appuntamento di prova con autorizzazione utente.
+
+La funzione e idempotente; se lo snapshot e gia corretto non lo riscrive. Il backup dello snapshot potrebbe contenere segreti del deploy: resta sul server con permessi 600 e non deve entrare in GitHub. Il comando non legge la chiave dentro la repository e non crea copie delle credenziali.
+
+**Reinstallazione dell'updater**: durante `python -m updater.setup`, includere anche `--compose-file compose.calendar-service-account.yml` e le eventuali altre sovrascritture Compose gia usate sul server (es. mount NAS e terminale). L'override Calendar va passato **alla creazione** dello snapshot; aggiungerlo alla repository non modifica una installazione esistente. Non reinizializzare l'updater attivo soltanto per Calendar.
+
+**Rollback**: i normali rollback dell'updater usano il medesimo snapshot persistente. Se serve annullare specificamente questa configurazione host, farlo durante una finestra di manutenzione ripristinando il backup con updater fermo, poi ricreare la sola API. Non annullare modifiche host piu recenti sovrascrivendo uno snapshot successivo.
+
+> In caso di modifica del codice di autenticazione, effettuare una verifica compatibilita prima di aggiornare: il snapshot puo essere persistente ma una versione API precedente potrebbe non riconoscere queste variabili.

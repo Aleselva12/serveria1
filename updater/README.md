@@ -174,3 +174,8 @@ nuovo endpoint host: prima del collaudo M2 bisogna aggiornare in modo esplicito
 `/srv/cora-updater/installed` e riavviare il solo servizio updater secondo la
 procedura amministrativa approvata. Finché l'endpoint non è disponibile i check
 ritornano `unknown`, mai `pass`.
+
+
+## Google Calendar Service Account (snapshot host)
+
+Il collegamento Calendar tramite Service Account puo essere mantenuto in un override Compose al setup o riconciliato nello snapshot host dell'updater esistente. Gli aggiornamenti e i rollback ordinari riutilizzano `compose.json`, senza rileggere il `deploy.env` della checkout. **Non sovrascrivere manualmente lo snapshot ne includere la chiave JSON nella repository.** La procedura host, le verifiche, le condizioni di sicurezza e il ripristino sono descritti in [Google Calendar Service Account](../docs/GOOGLE_CALENDAR_SERVICE_ACCOUNT.md#updater-persistente-server-debian-gia-installato).
