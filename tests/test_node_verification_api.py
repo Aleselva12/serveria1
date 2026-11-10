@@ -88,8 +88,8 @@ class NodeVerificationAPITests(unittest.TestCase):
                 on_result({"id": key, "status": status, "detail": "Test", "environment": "debian-verifier", "commit": "a"*40, "durationMs": 1, "at": "2026-11-05T12:00:00+00:00"})
         with patch.object(service.verify_nodes, "execute", side_effect=execute), patch.object(service, "_save", side_effect=lambda c,j:writes.append(deepcopy(j))), patch.object(service, "_release") as release:
             service._run(conn, job, {})
-        self.assertEqual([j["completed"] for j in writes], [1, 2, 2])
-        self.assertEqual(writes[0]["currentCheck"], "two")
+        self.assertEqual([j["completed"] for j in writes], [0, 0, 1, 2, 2])
+        self.assertEqual(writes[2]["currentCheck"], "two")
         self.assertEqual(writes[-1]["status"], "failed")
         self.assertEqual(conn.execute.call_count, 2)
         release.assert_called_once_with(conn)
