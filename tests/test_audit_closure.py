@@ -116,7 +116,9 @@ class AuditClosureTests(unittest.TestCase):
         from http.server import ThreadingHTTPServer
         from updater.service import handler
         import httpx
+        temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)
         engine=MagicMock()
+        engine.root=Path(temporary.name)
         engine.check_workspace.return_value={'passed':True,'environment':'docker-host'}
         server=ThreadingHTTPServer(('127.0.0.1',0),handler(engine,'private-token'))
         thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
@@ -132,5 +134,8 @@ class AuditClosureTests(unittest.TestCase):
                 self.assertEqual(response.status_code,200)
                 self.assertTrue(response.json()['passed'])
                 engine.check_workspace.assert_called_once_with('id','python_tests','a'*64)
+                (engine.root/'maintenance.request').write_text('{}')
+                self.assertEqual(client.post('/workspaces/id/check',json=data).status_code,409)
+                self.assertEqual(engine.check_workspace.call_count,1)
         finally:
             server.shutdown();server.server_close();thread.join()

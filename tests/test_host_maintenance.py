@@ -53,6 +53,7 @@ class PrerequisiteTests(unittest.TestCase):
             self.assertEqual(call.call_count,1)
 
 class CandidateTests(unittest.TestCase):
+    @unittest.skipUnless(__import__('shutil').which('git'), 'Host Git required; exercised by the host CI job')
     def test_exact_git_bytes_and_busy_jobs(self):
         from types import SimpleNamespace
         from threading import RLock, Lock
