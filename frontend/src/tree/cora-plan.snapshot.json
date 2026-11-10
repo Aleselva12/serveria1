@@ -2853,7 +2853,7 @@
     {
       "id": "T11",
       "title": "T11 · Registro unico test e salute",
-      "note": "Catalogo salute + inventario repository collegati; regressione di completezza aggiunta. E2E reali restano separati e limitati ai punti prioritari.",
+      "note": "Catalogo salute + inventario repository + provenienza evidenze collegati. Nuovi E2E reali limitati ai punti prioritari del foglio problemi.xlsx.",
       "priority": "unknown",
       "parent": "tronco",
       "earlierNote": "Proposta V2 parziale. Responsabilità, evidenze e collegamenti da confermare.",
@@ -2864,14 +2864,14 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Catalogo salute e runner esistenti presenti; inventario completo dei test di repository collegato a T11, senza trasformare test unitari in prove runtime.",
+          "statement": "T11 ha catalogo unico, inventario completo dei test di repository, runner canonico e regressioni per commit/ambiente/persistenza delle evidenze; esecuzione sul Debian ancora da confermare.",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
         "future": [
-          "Eseguire e storicizzare la regressione di inventario sul rilascio Debian",
-          "Creare nuovi E2E reali solo per i punti prioritari selezionati in problemi.xlsx",
-          "Ridurre progressivamente i test repository-only collegandoli a suite con scope esplicito quando utile"
+          "Eseguire sul Debian test_inventory_regression ed evidence_provenance_regression e registrare commit/ambiente",
+          "Usare T11 come registro dei nuovi E2E mirati di M2 (R4.1)",
+          "Creare nuovi E2E reali solo per i punti prioritari selezionati in problemi.xlsx"
         ]
       },
       "roadmapRefs": [
@@ -2882,6 +2882,11 @@
           "type": "code_review",
           "observedAt": "2026-11-10",
           "text": "T11 espone ora un inventario di tutti i moduli test_*.py, distingue quelli collegati al runner da quelli solo presenti in repository e applica un guardrail: nuovi check live E2E possono essere aggiunti solo ai nodi prioritari del foglio problemi.xlsx. Nessun nuovo E2E reale è stato dichiarato passato."
+        },
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-10",
+          "text": "Rifinitura finale T11: test già esistenti su identità del rilascio, separazione sintetico/reale, persistenza del progresso e recupero dopo interruzione sono ora collegati al runner come evidence_provenance_regression. Nessun nuovo E2E reale introdotto."
         }
       ]
     },
@@ -5822,7 +5827,7 @@
     }
   ],
   "revision_note": "V2 completa, 45 stelle con pianeti e lune; colori dichiarati e non dedotti dal codice, test o priorità. Conservate identità del piano iniziale e contributi docs/MEMORIA_CORA.md. | ServerIA autorevole; qwe legacy. Criticità localizzate sui nodi operativi e relazioni semantiche esplicite (proposte, non prove runtime).",
-  "revision": "CORA-V3-2026-11-10-T11-INVENTORY",
+  "revision": "CORA-V3-2026-11-10-T11-STRUCTURAL-COMPLETE",
   "legend": {
     "unknown": "Da valutare",
     "ok": "Tutto ok",
