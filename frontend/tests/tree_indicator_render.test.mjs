@@ -9,8 +9,9 @@ import {create,act} from 'react-test-renderer';
 const require=createRequire(import.meta.url);
 const url=code=>'data:text/javascript;base64,'+Buffer.from(code).toString('base64');
 const compile=path=>ts.transpileModule(readFileSync(new URL(path,import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX}}).outputText.replace(/from "(react(?:\/jsx-runtime)?)"/g,(_,name)=>'from '+JSON.stringify(pathToFileURL(require.resolve(name)).href));
+const plan=JSON.parse(readFileSync(new URL('../src/tree/cora-plan.snapshot.json',import.meta.url),'utf8'));
 const evidence=url(compile('../src/tree/roadmapEvidence.ts'));
-const {default:Constellation}=await import(url(compile('../src/tree/Constellation.tsx').replace(/from "\.\/roadmapEvidence"/g,'from '+JSON.stringify(evidence))));
+const {default:Constellation}=await import(url(compile('../src/tree/Constellation.tsx').replace(/from "\.\/roadmapEvidence"/g,'from '+JSON.stringify(evidence)).replace(/import planSource from "\.\/cora-plan.snapshot.json";/,'const planSource='+JSON.stringify(plan)+';')));
 const {developmentIndicator,verificationIndicator}=await import(evidence);
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 test('focused SVG gives each star, planet and moon two accessible scoped indicators',async()=>{

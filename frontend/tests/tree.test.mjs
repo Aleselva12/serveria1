@@ -175,7 +175,7 @@ test('V3 ownership review classifies all 46 stars with T14 as planned',()=>{
  assert.equal(stars.length,46);
  assert.deepEqual(new Set(Object.keys(map)),new Set(stars.map(n=>n.id)));
  assert.ok(Object.values(map).every(value=>allowed.has(value)));
- assert.equal(snapshot.v3.responsibilityReview.status,'proposed');
+ assert.equal(snapshot.v3.responsibilityReview.status,'proposed_with_T14_planned');
  const ids=new Set(nodes.map(n=>n.id));
  for(const item of snapshot.v3.responsibilityReview.decisions)
   for(const id of item.nodes)assert.ok(ids.has(id),'Unknown boundary review node '+id);
@@ -197,7 +197,7 @@ test('V3 glance projection covers each canonical star exactly once without rewri
 
 test('V3 evolution keeps planned stars visible without promoting proposed trunk candidates',()=>{
  const view=snapshot.v3.evolutionView;
- assert.equal(view.status,'proposed');
+ assert.equal(view.status,'proposed_with_T14_planned');
  assert.equal(view.existingPlannedStars.length,5);
  for(const entry of view.existingPlannedStars)
   assert.equal(nodes.find(n=>n.id===entry.id)?.status,entry.status);
