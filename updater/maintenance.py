@@ -45,6 +45,8 @@ def submit(engine, apps, commit, expected):
     if not re.fullmatch('[0-9a-f]{40}', commit) or not re.fullmatch('[0-9a-f]{64}', expected):
         raise ValueError('Versione non valida')
     with engine.lock, idle_apps(apps):
+        if getattr(apps,'nextcloud',None) is not None and apps.nextcloud.job['status'] in {'running','recovery_required'}:
+            raise ValueError('Completare o recuperare prima la manutenzione Nextcloud')
         if not (root/'maintenance.enabled').is_file():
             raise ValueError('Installare prima il servizio host-maintenance')
         if (root/'maintenance.request').exists():
