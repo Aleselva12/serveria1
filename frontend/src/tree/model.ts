@@ -16,6 +16,10 @@ export function severity(n:Node,nodes:Node[],failures:Set<string>):string {
 }
 /** References only the pre-existing shared health catalog; never runs checks from the map. */
 export const checks:Record<string,string[]>={
+  "T11.p4":["evidence_provenance_regression"],
+  "T11.p3.m2":["evidence_provenance_regression"],
+  "T11.p3.m1":["evidence_provenance_regression"],
+  "T11.p3":["evidence_provenance_regression"],
   "assegnare.m2":["worker_e2e"],
   "C1.p6.m1":["calendar_e2e"],
   "C3.p4.m1":["word_document_regression"],
