@@ -82,6 +82,52 @@ class VerificationTests(unittest.TestCase):
                     chat.return_value = deepcopy(bad)
                     self.assertEqual(verifier._action("worker_e2e", run_id)["status"], "fail")
 
+    def test_targeted_host_e2e_uses_authenticated_updater_snapshot(self):
+        snapshot = {
+            "os": {"ID": "debian", "VERSION_ID": "13"},
+            "identity": {"uidMatchesConfigured": True, "privateUpdaterFiles": True},
+            "packages": {
+                "dpkg": {"available": True, "auditClean": True},
+                "upgrades": {"available": True, "simulationOk": True, "pending": 0},
+            },
+            "systemd": {
+                "cora-updater.service": {
+                    "available": True, "loadState": "loaded", "activeState": "active",
+                    "subState": "running", "execMainStatus": "0", "fragmentPresent": True,
+                    "standardOutput": "journal", "standardError": "inherit",
+                },
+                "ssh.service": {
+                    "available": True, "loadState": "loaded", "activeState": "active",
+                    "subState": "running", "execMainStatus": "0", "fragmentPresent": True,
+                    "standardOutput": "journal", "standardError": "inherit",
+                },
+            },
+        }
+        with patch("programmer_agent.releases.request", return_value=snapshot) as request:
+            for check in ("debian_host_e2e", "systemd_host_e2e", "host_admin_e2e"):
+                with self.subTest(check=check):
+                    self.assertEqual(verifier._action(check, "a"*32)["status"], "pass")
+        self.assertEqual(request.call_count, 3)
+        self.assertTrue(all(call.args[:2] == ("GET", "/host/diagnostics") for call in request.call_args_list))
+
+    def test_host_e2e_never_claims_green_when_updates_or_bridge_are_unknown(self):
+        pending = {
+            "os": {"ID": "debian"},
+            "identity": {"uidMatchesConfigured": True, "privateUpdaterFiles": True},
+            "packages": {
+                "dpkg": {"available": True, "auditClean": True},
+                "upgrades": {"available": True, "simulationOk": True, "pending": 2},
+            },
+            "systemd": {},
+        }
+        with patch("programmer_agent.releases.request", return_value=pending):
+            result = verifier._action("debian_host_e2e", "a"*32)
+        self.assertEqual(result["status"], "unknown")
+        self.assertIn("2 aggiornamenti", result["detail"])
+        with patch("programmer_agent.releases.request", side_effect=ValueError("offline")):
+            result = verifier._action("systemd_host_e2e", "a"*32)
+        self.assertEqual(result["status"], "unknown")
+
     def test_baked_revision_wins_and_malformed_identity_is_never_truncated(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(release_identity, "ROOT", Path(folder)), patch.dict(
             os.environ, {"CORA_GIT_COMMIT": "b"*40}
