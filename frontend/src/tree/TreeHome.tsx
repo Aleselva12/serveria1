@@ -1,3 +1,5 @@
+import NodeIndicators, {IndicatorLegend} from "./NodeIndicators";
+import {developmentIndicator,verificationIndicator} from "./roadmapEvidence";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, ChevronRight,
@@ -26,6 +28,8 @@ const byId=new Map(nodes.map(n=>[n.id,n]));
 const childIndex=new Map<string,Node[]>();
 for (const n of nodes) if(n.parent) childIndex.set(n.parent,[...(childIndex.get(n.parent)||[]),n]);
 const children=(id:string)=>childIndex.get(id)||[];
+const descendants=(id:string):Node[]=>children(id).flatMap(n=>[n,...descendants(n.id)]);
+const scopedIssues=(id:string)=>[byId.get(id),...descendants(id)].filter((n):n is Node=>Boolean(n)).flatMap(n=>(n.knownIssues||[]).map(text=>({node:n,text})));
 const stars=nodes.filter(n=>n.classification==="star");
 const rootFor=(n:Node):Node=>{
   let current=n;
@@ -42,23 +46,10 @@ const tones:Record<string,string>={
   unknown:"Da valutare",ok:"Funzione collaudata",plan:"Lavoro previsto",
   minor:"Attenzione",problem:"Test fallito",
 };
-// Indicatori aggiuntivi: non modificano la logica storica di starTone.
-const developmentIndicator=(n:Node)=>{
-  if(n.status==="planned"||n.status==="idea") return {label:"Non implementato",color:"#8994a5"};
-  if(n.status==="partial") return {label:"Sviluppo parziale",color:"#60a5fa"};
-  if(n.status==="present") return {label:"Implementato (dichiarato)",color:"#34d399"};
-  return {label:"Sviluppo da valutare",color:"#8994a5"};
-};
-const verificationIndicator=(tone:string)=>{
-  if(tone==="ok") return {label:"Collaudo superato",color:"#34d399"};
-  if(tone==="problem") return {label:"Collaudo fallito",color:"#f87171"};
-  if(tone==="minor") return {label:"Verifiche con criticità",color:"#fb923c"};
-  if(tone==="plan") return {label:"Verifica parziale o prevista",color:"#facc15"};
-  return {label:"Verifica non disponibile",color:"#8994a5"};
-};
 const relNames:Record<string,string>={
   uses:"Utilizza",depends_on:"Dipende da",
   communicates_with:"Comunica con",produces_for:"Produce dati per",
+  verified_by:"Verificato da",shares_evidence_with:"Condivide evidenza con",
 };
 const formatDate=(s?:string|null)=>{
   if(!s||Number.isNaN(Date.parse(s)))return "Data non disponibile";
@@ -116,6 +107,7 @@ export default function TreeHome(){
     : activeCommit; // Legacy health responses stay unverified by their individual missing test SHA.
   const tone=(n:Node)=>starTone(n,health,verifiedCommit,checks,nodes);
   const selectedTone=tone(root);
+  const indicators=(n:Node)=>({development:developmentIndicator(n),verification:verificationIndicator(n,health,verifiedCommit,checks)});
   const summary=(n:Node)=>verificationSummary(n,health,verifiedCommit,checks,nodes);
   const counts=Object.fromEntries(Object.keys(toneLabels).map(key=>[key,stars.filter(n=>tone(n)===key).length]));
   const relationRows=source.relations.filter(r=>r.from===root.id||r.to===root.id);
@@ -130,7 +122,7 @@ export default function TreeHome(){
   const matching=useMemo(()=>{
     const q=query.trim().toLocaleLowerCase("it");
     const descendants=(n:Node):string=>{
-      const values=[n.id,n.title,n.note||"",...(n.knownIssues||[]),...(n.timeline?.future||[])];
+      const values=[n.id,n.title,n.note||"",...scopedIssues(n.id).map(i=>i.text),...(n.timeline?.future||[])];
       const walk=(id:string):void=>{for(const c of children(id)){values.push(c.title,c.note||"");walk(c.id);}};
       walk(n.id);return values.join(" ").toLocaleLowerCase("it");
     };
@@ -138,7 +130,7 @@ export default function TreeHome(){
       (healthFilter==="all"||tone(n)===healthFilter)&&
       (group==="all"||group==="T"&&n.parent==="tronco"||group!=="T"&&hasAncestor(n,group))&&
       (!q||descendants(n).includes(q))&&
-      (mode==="all"||mode==="issues"&&(n.knownIssues?.length||["problem","minor"].includes(tone(n)))||
+      (mode==="all"||mode==="issues"&&(scopedIssues(n.id).length||["problem","minor"].includes(tone(n)))||
        mode==="future"&&(n.status==="planned"||n.status==="idea"||Boolean(n.timeline?.future?.length)))
     );
   // Health changes are reflected when the response refreshes; no separate test execution.
@@ -178,7 +170,7 @@ export default function TreeHome(){
     URL.revokeObjectURL(url);
   };
   const copyOutline=async()=>{
-    const lines=stars.map(s=>`${s.code||s.id} — ${s.title} · ${summary(s)}\n${(s.knownIssues||[]).map(v=>"  Problema: "+v).join("\n")}\n${(s.timeline?.future||[]).map(v=>"  Obiettivo: "+v).join("\n")}`);
+    const lines=stars.map(s=>`${s.code||s.id} — ${s.title} · ${summary(s)}\n${scopedIssues(s.id).map(v=>"  Problema ["+v.node.id+"]: "+v.text).join("\n")}\n${(s.timeline?.future||[]).map(v=>"  Obiettivo: "+v).join("\n")}`);
     try{await navigator.clipboard.writeText(lines.join("\n\n"));setCopied(true);}catch{setCopied(false);}
   };
   const links=codeLinks[root.id]||[];
@@ -189,7 +181,7 @@ export default function TreeHome(){
   const workItems=[...homeRoadmap.nextWork].sort((a,b)=>a.order-b.order);
   const currentWork=workItems.find(w=>/PROSSIMO LAVORO/i.test(w.status))||
     workItems.find(w=>!/COMPLETATO/i.test(w.status));
-  const issues=root.knownIssues||[];
+  const issues=scopedIssues(root.id);
   const otherIssues=mappedChecks.filter(id=>{
     const def=healthCatalog.find(c=>c.id===id);
     return checkState(def,health?.latest[id],verifiedCommit)==="fail";
@@ -261,7 +253,7 @@ export default function TreeHome(){
         </div>
       </aside>
       <div className="rm2-center">
-        {view==="map"?<Constellation nodes={nodes} selected={selected.id} focusId={focusId} onFocusChange={id=>id===null?showAll():setFocusId(id)} onSelect={choose} priority={tone} visible={visible} related={source.relations.filter(r=>r.from===root.id||r.to===root.id)}/>:
+        {view==="map"?<Constellation nodes={nodes} selected={selected.id} focusId={focusId} onFocusChange={id=>id===null?showAll():setFocusId(id)} onSelect={choose} priority={tone} indicators={indicators} visible={visible} related={source.relations.filter(r=>r.from===root.id||r.to===root.id)}/>:
           <div className="rm2-list"><h2>Componenti e responsabilità</h2><p>Vista alternativa della stessa mappa: non una seconda roadmap.</p>
             {["radici","tronco","rami"].map(level=><section key={level}><h3>{level.toUpperCase()}</h3><div>{matching.filter(n=>level==="tronco"?n.parent==="tronco":level==="radici"?hasAncestor(n,"radici"):!hasAncestor(n,"radici")&&n.parent!=="tronco").map(n=><button type="button" key={n.id} onClick={()=>choose(n.id)}><i title={toneLabels[tone(n)]} aria-label={toneLabels[tone(n)]} className={"rm2-dot tone-"+tone(n)}/><span>{n.code} · {n.title.replace(/^[A-Z][\d.]* · /,"")}</span><ArrowRight size={14}/></button>)}</div></section>)}
           </div>}
@@ -272,8 +264,7 @@ export default function TreeHome(){
         <h2>{root.title.replace(/^[A-Z][\d.]* · /,"")}</h2>
         {focusId&&<button type="button" className="rm2-overview-link" onClick={showAll}>← Torna alla panoramica delle stelle</button>}
         <div className="rm2-badges">
-          <span style={{display:"inline-flex",alignItems:"center",gap:6}} title={"Sviluppo: "+developmentIndicator(selected).label}><i aria-hidden="true" style={{width:11,height:11,borderRadius:"50%",background:developmentIndicator(selected).color,display:"inline-block"}}/>Sviluppo · {developmentIndicator(selected).label}</span>
-          <span style={{display:"inline-flex",alignItems:"center",gap:6}} title={"Collaudi: "+verificationIndicator(tone(selected)).label}><i aria-hidden="true" style={{width:11,height:11,borderRadius:"50%",background:verificationIndicator(tone(selected)).color,display:"inline-block"}}/>Collaudi · {verificationIndicator(tone(selected)).label}</span>
+          <NodeIndicators {...indicators(root)}/>
           <span className="rm2-impl">{selectedTone==="ok"?"Collaudo reale superato":selectedTone==="problem"?"Collaudo fallito":selectedTone==="unverified"?"Non collaudato":selectedTone==="plan"?"Presente parzialmente":selectedTone==="unknown"?"Non presente":"Richiede attenzione"}</span>
           <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{toneLabels[selectedTone]||tones[selectedTone]||"Da valutare"}</span>
         </div>
@@ -296,6 +287,8 @@ export default function TreeHome(){
           <small>Ambiente Debian e versione corrispondente; la struttura della mappa non viene modificata.</small>
         </div></div>}
         <p className="rm2-caveat">Verde = collaudo reale sul commit attivo oppure verifica manuale datata e circoscritta, esplicitamente indicata nella scheda. Grigio = verifica mancante, non guasto. Giallo = rifinitura/upgrade. Rosso = fallimento di un controllo reale sulla versione attiva. Un test manuale non certifica l’intera stella o l’hardware fisico.</p>
+        <IndicatorLegend/>
+        {selected.id!==root.id&&<div className="rm2-selected-indicators"><b>{selected.title}</b><NodeIndicators {...indicators(selected)}/></div>}
         <div className="rm2-tabs" role="tablist" aria-label="Tempo e problemi">
           {([
             ["present","Presente"],["issues","Problemi"],["future","Futuro"],["past","Storia"],
@@ -308,12 +301,12 @@ export default function TreeHome(){
             {root.observations?.map((o,i)=><div className="rm2-observation" key={i}><CheckCircle2 size={15}/><div>{o.text}<small>Confermato dall'utente; non prova il commit installato.</small></div></div>)}
             <div className="rm2-section-head"><Orbit size={14}/> PIANETI <span>{children(root.id).length}</span></div>
             <div className="rm2-planets">{children(root.id).map(pl=><div key={pl.id} className="rm2-planet">
-              <button type="button" aria-expanded={openPlanet===pl.id} onClick={()=>setOpenPlanet(openPlanet===pl.id?null:pl.id)}><i title={toneLabels[tone(pl)]} className={"rm2-dot tone-"+tone(pl)}/><span>{pl.title}<small>{summary(pl)}</small></span>{openPlanet===pl.id?<ChevronDown size={14}/>:<ChevronRight size={14}/>}</button>
-              {openPlanet===pl.id&&<div className="rm2-moonlist">{children(pl.id).map(m=><p key={m.id}><i title={toneLabels[tone(m)]} className={"rm2-dot tone-"+tone(m)}/>{m.title}<small>{summary(m)}</small></p>)}{!children(pl.id).length&&<p>Nessuna luna per questo pianeta.</p>}</div>}
+              <button type="button" aria-expanded={openPlanet===pl.id} onClick={()=>setOpenPlanet(openPlanet===pl.id?null:pl.id)}><i title={toneLabels[tone(pl)]} className={"rm2-dot tone-"+tone(pl)}/><span>{pl.title}<small>{summary(pl)}</small><NodeIndicators {...indicators(pl)}/></span>{openPlanet===pl.id?<ChevronDown size={14}/>:<ChevronRight size={14}/>}</button>
+              {openPlanet===pl.id&&<div className="rm2-moonlist">{children(pl.id).map(m=><p key={m.id}><i title={toneLabels[tone(m)]} className={"rm2-dot tone-"+tone(m)}/>{m.title}<small>{summary(m)}</small><NodeIndicators {...indicators(m)}/></p>)}{!children(pl.id).length&&<p>Nessuna luna per questo pianeta.</p>}</div>}
             </div>)}</div>
           </>}
           {tab==="issues"&&<>
-            {issues.length?<ul className="rm2-item-list">{issues.map(issue=><li key={issue}><AlertCircle size={15}/>{issue}</li>)}</ul>:<p>Nessun problema documentato. Non significa che tutti i test siano superati.</p>}
+            {issues.length?<ul className="rm2-item-list">{issues.map(issue=><li key={issue.node.id+issue.text}><AlertCircle size={15}/><span><strong>{issue.node.id===root.id?"Stella":issue.node.title}</strong> · {issue.text}</span></li>)}</ul>:<p>Nessun problema documentato. Non significa che tutti i test siano superati.</p>}
             {otherIssues.length>0&&<p className="rm2-test-fail">{otherIssues.length} test collegati segnalano un errore nel registro condiviso.</p>}
           </>}
           {tab==="future"&&<>

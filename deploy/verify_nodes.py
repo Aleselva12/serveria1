@@ -25,7 +25,7 @@ REGRESSIONS = {
     "files_regression": ("tests.test_library_writes", "tests.test_file_editor"),
 }
 REGRESSIONS.update(EXTRA_REGRESSIONS)
-CHECKS = ("memory_e2e", "calendar_e2e", "desktop_e2e", "laptop_e2e", "worker_e2e", *REGRESSIONS, *DIRECT)
+CHECKS = ("memory_e2e", "calendar_e2e", "desktop_e2e", "laptop_e2e", "worker_e2e", "debian_host_e2e", "systemd_host_e2e", "host_admin_e2e", *REGRESSIONS, *DIRECT)
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -64,6 +64,60 @@ def _action(action, run_id):
     if action in DIRECT:
         state, detail = DIRECT[action]()
         return {"status": state, "detail": detail}
+    if action in {"debian_host_e2e", "systemd_host_e2e", "host_admin_e2e"}:
+        from programmer_agent import releases
+        try:
+            snapshot = releases.request("GET", "/host/diagnostics", timeout=20)
+        except ValueError:
+            return {"status": "unknown", "detail": "Diagnostica host non disponibile: aggiornare/avviare il bridge updater sul Debian"}
+        if action == "debian_host_e2e":
+            os_info = snapshot.get("os") or {}
+            identity = snapshot.get("identity") or {}
+            packages = snapshot.get("packages") or {}
+            dpkg = packages.get("dpkg") or {}
+            upgrades = packages.get("upgrades") or {}
+            if os_info.get("ID") != "debian":
+                return {"status": "fail", "detail": "Host updater non identificato come Debian"}
+            if not identity.get("uidMatchesConfigured") or not identity.get("privateUpdaterFiles"):
+                return {"status": "fail", "detail": "UID/GID updater o permessi dei file privati host non coerenti"}
+            if not dpkg.get("available") or not dpkg.get("auditClean"):
+                return {"status": "fail", "detail": "Database pacchetti Debian non integro o non verificabile"}
+            if not upgrades.get("available") or upgrades.get("simulationOk") is not True:
+                return {"status": "unknown", "detail": "Simulazione aggiornamenti APT non disponibile; nessun pacchetto modificato"}
+            pending = upgrades.get("pending")
+            if pending:
+                return {"status": "unknown", "detail": f"Debian coerente; {pending} aggiornamenti risultano pendenti dalla cache APT"}
+            return {"status": "pass", "detail": "Debian reale verificato: identità host, UID/GID updater, file privati, dpkg e APT senza aggiornamenti pendenti"}
+        units = snapshot.get("systemd") or {}
+        if action == "systemd_host_e2e":
+            unit = units.get("cora-updater.service") or {}
+            ok = (
+                unit.get("available") and unit.get("loadState") == "loaded" and
+                unit.get("activeState") == "active" and unit.get("subState") == "running" and
+                str(unit.get("execMainStatus", "")) == "0" and unit.get("fragmentPresent") and
+                bool(unit.get("standardOutput")) and bool(unit.get("standardError"))
+            )
+            return {
+                "status": "pass" if ok else "fail",
+                "detail": (
+                    "cora-updater.service caricato e attivo; stato processo e sink output systemd leggibili. Nessun restart eseguito"
+                    if ok else "cora-updater.service non risulta pienamente attivo/coerente sul Debian"
+                ),
+            }
+        ssh = units.get("ssh.service") or {}
+        updater = units.get("cora-updater.service") or {}
+        ok = (
+            ssh.get("available") and ssh.get("loadState") == "loaded" and
+            ssh.get("activeState") == "active" and ssh.get("fragmentPresent") and
+            updater.get("fragmentPresent")
+        )
+        return {
+            "status": "pass" if ok else "fail",
+            "detail": (
+                "ssh.service reale attivo e unità SSH/updater presenti; nessuna connessione SSH o lettura credenziali eseguita"
+                if ok else "SSH o configurazione delle unità host non risultano disponibili/attivi"
+            ),
+        }
     if action == "worker_e2e":
         from core.agent_models import binding, chat_on_worker
         selected = binding("supervisor")

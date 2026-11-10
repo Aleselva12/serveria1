@@ -108,6 +108,8 @@ configurato continua a dichiararne l'indisponibilità.
 
 ## Collaudo della macchina reale
 
+Dalla Roadmap, avvia i collaudi una tantum disponibili per il nodo e leggi l'ambito della suite accanto all'esito. Per l'attribuzione al deployment serve la revisione dell'API in esecuzione e la sua corrispondenza con la release attiva. Le suite isolate verificano il comportamento coperto dai test. Per attestare accesso o funzionamento sul Debian servono le prove E2E pertinenti.
+
 Sul PC Windows si può mantenere l'avvio nativo, senza migrare il database al
 nuovo Compose. Chiudere Cora e usare `AVVIO.cmd -ConAudio` per installare la sola
 trascrizione (la diarizzazione ha l'opzione distinta `-ConDiarizzazione`). Per

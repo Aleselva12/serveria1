@@ -14,14 +14,15 @@ const last=source.indexOf('type Props=');
 assert.ok(first>=0&&last>first);
 const {layout,trunkLayout,trunkFlows}=await import(mod(source.slice(first,last)));
 
-test('all canonical 45 stars, 151 planets and 304 moons survive in ServerIA',()=>{
+test('all original 515 nodes survive alongside seven planned T14 nodes',()=>{
  const ids=new Set(nodes.map(n=>n.id));
  assert.equal(ids.size,nodes.length);
- assert.equal(nodes.length,515);
- assert.equal(nodes.filter(n=>n.classification==='star').length,45);
- assert.equal(nodes.filter(n=>n.classification==='planet').length,151);
- assert.equal(nodes.filter(n=>n.classification==='moon').length,304);
- assert.equal(relations.length,37);
+ assert.equal(nodes.length,522);
+ assert.equal(nodes.filter(n=>n.classification==='star').length,46);
+ assert.equal(nodes.filter(n=>n.classification==='planet').length,153);
+ assert.equal(nodes.filter(n=>n.classification==='moon').length,308);
+ assert.ok(relations.length>=37,'Baseline conceptual relations must survive');
+ assert.equal(new Set(relations.map(r=>[r.from,r.to,r.kind].join('|'))).size,relations.length,'Duplicate semantic relations');
  for(const id of [...Object.keys(checks),...nodes.map(n=>n.parent).filter(Boolean),...relations.flatMap(r=>[r.from,r.to])])
    assert.ok(ids.has(id),'Missing id '+id);
  for(const id of ['immich','nextcloud','magazzino','worker','installare','assegnare','C1a','C1b','C1c','C1d','C1e'])
@@ -29,7 +30,7 @@ test('all canonical 45 stars, 151 planets and 304 moons survive in ServerIA',()=
 });
 test('V2 notes preserve actual issues, future ideas and provenance without inventing green health',()=>{
  const byId=new Map(nodes.map(n=>[n.id,n]));
- assert.ok(byId.get('T1').knownIssues.length>0);
+ assert.ok(byId.get('T1.p1.m1').knownIssues.some(t=>t.includes('qwen3')));
  assert.ok(byId.get('F2').timeline.future.some(t=>t.includes('SQL')));
  assert.equal(byId.get('C1d').status,'idea');
  assert.equal(byId.get('C1e').status,'idea');
@@ -37,7 +38,7 @@ test('V2 notes preserve actual issues, future ideas and provenance without inven
    assert.equal(n.priority,'unknown');
    assert.equal(n.timeline.present.runtimeVerified,false);
    assert.ok(Array.isArray(n.timeline.past));
-   assert.ok(Array.isArray(n.knownIssues));
+   assert.ok(n.knownIssues===undefined||Array.isArray(n.knownIssues));
  }
 });
 test('old severity helper does not propagate problems across unrelated branches',()=>{
@@ -48,10 +49,10 @@ test('old severity helper does not propagate problems across unrelated branches'
 });
 test('constellation keeps free trunk stars rather than connecting them in a fake chain',()=>{
  const {points,edges}=layout(nodes);
- assert.equal(points.length,58); // 45 stars, 6 roots, 7 branches
- assert.equal(points.filter(p=>p.kind==='star').length,45);
+ assert.equal(points.length,59); // 46 stars, 6 roots, 7 branches
+ assert.equal(points.filter(p=>p.kind==='star').length,46);
  const trunks=points.filter(p=>p.node.parent==='tronco');
- assert.equal(trunks.length,13);
+ assert.equal(trunks.length,14);
  assert.ok(new Set(trunks.map(p=>p.x)).size>=7);
  assert.ok(new Set(trunks.map(p=>p.y)).size>=7);
  assert.ok(trunks.every(p=>p.y>350&&p.y<900));
@@ -85,4 +86,148 @@ test('roadmap references current Home goals and shares orchestrator structural e
  assert.equal(projectStatus.nextWork.find(w=>w.id==='W2').status,'PROSSIMO LAVORO');
  for(const id of ['T1','T2','T3','T4','T5','T6','T10','T11'])
    assert.ok(checks[id]?.includes('orchestrator_v1_contract'),'Missing W1 structural evidence on '+id);
+});
+
+test('documented issues have one owner and star-level views can find descendant issues',()=>{
+ const byId=new Map(nodes.map(n=>[n.id,n]));
+ const issues=nodes.flatMap(n=>(n.knownIssues||[]).map(text=>({id:n.id,text})));
+ assert.equal(issues.length,19,'Do not lose or duplicate the original 19 documented issues');
+ assert.equal(new Set(issues.map(x=>x.text)).size,issues.length);
+ assert.equal(nodes.filter(n=>n.classification==='star'&&n.knownIssues?.length).length,2);
+ for(const [id,owner] of [['C1b.m2','C1'],['R5.2.p3.m1','R5.2'],['B3.p1.m2','B3']]){
+  assert.ok(byId.get(id)?.knownIssues?.length,'Missing scoped issue '+id);
+  let current=byId.get(id);
+  while(current&&current.id!==owner)current=byId.get(current.parent);
+  assert.equal(current?.id,owner,'Issue no longer belongs to original star');
+ }
+ const ui=readFileSync(new URL('../src/tree/TreeHome.tsx',import.meta.url),'utf8');
+ assert.ok(ui.includes('scopedIssues(n.id).length'),'Issue filter must include descendant problems');
+ assert.ok(ui.includes('const issues=scopedIssues(root.id)'),'Inspector must include scoped problems');
+});
+
+test('semantic cross-node relations retain identity and do not imply independent test success',()=>{
+ const allowed=new Set(['uses','depends_on','communicates_with','produces_for','verified_by','shares_evidence_with']);
+ const ids=new Set(nodes.map(n=>n.id));
+ for(const relation of relations){
+  assert.ok(allowed.has(relation.kind),'Unexpected relation type '+relation.kind);
+  assert.ok(ids.has(relation.from)&&ids.has(relation.to));
+  assert.notEqual(relation.from,relation.to);
+  assert.ok(relation.note);
+ }
+ assert.ok(relations.some(r=>r.kind==='shares_evidence_with'));
+ assert.ok(relations.some(r=>r.kind==='verified_by'));
+});
+
+test('planner code review updates only the documented plan schema, not scheduling or runtime certification',()=>{
+ const byId=new Map(nodes.map(n=>[n.id,n]));
+ for(const id of ['T9','T9.p1','T9.p1.m1']){
+  const n=byId.get(id);
+  assert.equal(n.status,'partial',id+' must reflect the existing plan schema');
+  assert.ok(n.observations?.some(o=>o.type==='code_review'&&o.text.includes('core/plans.py')));
+ }
+ for(const id of ['T9.p1.m2','T9.p2','T9.p3'])assert.equal(byId.get(id).status,'planned',id+' must not claim implemented scheduling');
+ assert.equal(byId.get('T9').timeline.present.runtimeVerified,false);
+});
+
+test('V3 schema preserves 515 canonical nodes and 19 uniquely owned legacy issues',async()=>{
+ const {legacyIssues,validateAtlasOverlay}=await import(mod(model));
+ const issues=legacyIssues(nodes);
+ assert.equal(snapshot.v3.schemaVersion,3);
+ assert.equal(nodes.length,522);
+ assert.equal(issues.length,19);
+ assert.deepEqual(snapshot.v3.issues.map(({id,ownerNodeId,title,source})=>({id,ownerNodeId,title,source})),issues.map(({id,ownerNodeId,title,source})=>({id,ownerNodeId,title,source})));
+ assert.equal(new Set(issues.map(i=>i.id)).size,19);
+ assert.ok(snapshot.v3.issues.every(i=>i.state==='open'&&i.source==='legacy'));
+ assert.equal(snapshot.v3.migration.nodeHierarchy,'unchanged');
+ assert.equal(snapshot.v3.migration.relations.startsWith('top-level'),true);
+ const overlay={...snapshot.v3,relations};
+ assert.deepEqual(validateAtlasOverlay(overlay,nodes),[]);
+});
+
+test('V3 issue ownership and evidence validation rejects unknown references and duplicates',async()=>{
+ const {validateAtlasOverlay}=await import(mod(model));
+ const overlay={schemaVersion:3,nodeResponsibilities:{},issues:[
+  {id:'i',ownerNodeId:'not-a-node',title:'Example',kind:'bug',state:'open',affectedNodeIds:['also-unknown'],evidenceIds:['missing']},
+  {id:'i',ownerNodeId:'A1',title:'Example again',kind:'bug',state:'open'}
+ ],evidence:[],relations:[]};
+ const errors=validateAtlasOverlay(overlay,nodes).join(' | ');
+ for(const phrase of ['Duplicate issue','Unknown issue owner','Unknown affected node','Unknown evidence'])
+  assert.ok(errors.includes(phrase),phrase);
+});
+
+test('V3 issue triage has supported categories, preserves original wording and has no invented bug verdicts',()=>{
+ const allowed=new Set(['bug','integration','incomplete','missing_verification','improvement','architecture','unclassified']);
+ const canonical=snapshot.v3.issues;
+ assert.equal(canonical.length,19);
+ assert.ok(canonical.every(i=>allowed.has(i.kind)&&i.severity==='unknown'));
+ assert.ok(canonical.every(i=>i.state==='open'));
+ assert.equal(canonical.filter(i=>i.kind==='bug').length,0,'No bug has been established from the legacy notes alone');
+ const byId=new Map(nodes.map(n=>[n.id,n]));
+ for(const i of canonical){
+  assert.ok(byId.get(i.ownerNodeId)?.knownIssues?.includes(i.title),'V2 projection diverges: '+i.id);
+ }
+});
+
+test('V3 ownership review classifies all 46 stars with T14 as planned',()=>{
+ const stars=nodes.filter(n=>n.classification==='star');
+ const map=snapshot.v3.nodeResponsibilities;
+ const allowed=new Set(['user_capability','internal_service','infrastructure','governance','unclassified']);
+ assert.equal(stars.length,46);
+ assert.deepEqual(new Set(Object.keys(map)),new Set(stars.map(n=>n.id)));
+ assert.ok(Object.values(map).every(value=>allowed.has(value)));
+ assert.equal(snapshot.v3.responsibilityReview.status,'proposed_with_T14_planned');
+ const ids=new Set(nodes.map(n=>n.id));
+ for(const item of snapshot.v3.responsibilityReview.decisions)
+  for(const id of item.nodes)assert.ok(ids.has(id),'Unknown boundary review node '+id);
+ assert.equal(nodes.length,522);
+});
+
+test('V3 glance projection covers each canonical star exactly once without rewriting the tree',()=>{
+ const groups=snapshot.v3.atAGlanceReview.regionGroups;
+ const grouped=groups.flatMap(region=>region.groups.flatMap(group=>group.starIds));
+ const canonical=nodes.filter(n=>n.classification==='star').map(n=>n.id);
+ assert.equal(groups.length,3);
+ assert.equal(grouped.length,46);
+ assert.equal(new Set(grouped).size,46,'Duplicated star in glance grouping');
+ assert.deepEqual(new Set(grouped),new Set(canonical),'Missing or extra star in glance grouping');
+ assert.equal(snapshot.v3.atAGlanceReview.status,'proposed');
+ for(const flag of snapshot.v3.atAGlanceReview.reviewFlags)
+  for(const id of flag.nodes)assert.ok(nodes.some(n=>n.id===id),'Unknown review node '+id);
+});
+
+test('V3 evolution keeps planned stars visible without promoting proposed trunk candidates',()=>{
+ const view=snapshot.v3.evolutionView;
+ assert.equal(view.status,'proposed_with_T14_planned');
+ assert.equal(view.existingPlannedStars.length,5);
+ for(const entry of view.existingPlannedStars)
+  assert.equal(nodes.find(n=>n.id===entry.id)?.status,entry.status);
+ assert.deepEqual(view.futureStarCandidates.map(x=>x.id),['T15','T16']);
+ assert.ok(view.futureStarCandidates.every(x=>!nodes.some(n=>n.id===x.id)),'Proposed candidate prematurely promoted');
+ assert.equal(nodes.find(n=>n.id==='T14')?.status,'planned');
+ assert.ok(view.transitionRules.some(x=>x.includes('history')));
+ assert.equal(nodes.length,522);
+});
+
+test('T14 is a planned common approval responsibility without duplicated existing nodes',()=>{
+ const t14=nodes.find(n=>n.id==='T14');
+ assert.equal(t14?.parent,'tronco');
+ assert.equal(t14?.status,'planned');
+ const descendants=nodes.filter(n=>n.id.startsWith('T14.'));
+ assert.equal(descendants.length,6);
+ assert.ok(descendants.every(n=>n.status==='planned'));
+ assert.ok(!t14.timeline.present.runtimeVerified);
+ for(const id of ['R6.2','T2','T4'])
+  assert.ok(nodes.some(n=>n.id===id),'Existing owner lost: '+id);
+});
+
+test('V3 compact overview exposes all regions, progressive detail and the original tree',()=>{
+ const ui=readFileSync(new URL('../src/tree/Constellation.tsx',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../src/tree/tree.css',import.meta.url),'utf8');
+ for(const expected of ['overviewMode','rm3-regions','expandedGroup','rm3-future','focusLayout(nodes,focusId)','Sintesi','Albero'])
+  assert.ok(ui.includes(expected),'Missing overview feature: '+expected);
+ assert.ok(css.includes('@media(max-width:650px)')&&css.includes('.rm3-summary'),'Responsive overview missing');
+ const regions=snapshot.v3.atAGlanceReview.regionGroups;
+ assert.deepEqual(regions.map(x=>x.region),['radici','tronco','rami']);
+ const ids=regions.flatMap(r=>r.groups.flatMap(g=>g.starIds));
+ assert.deepEqual(new Set(ids),new Set(nodes.filter(n=>n.classification==='star').map(n=>n.id)));
 });

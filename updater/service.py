@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from updater.engine import Engine
 from updater.managed_apps import AppManager
+from updater.host_diagnostics import inspect as host_diagnostics
 
 
 def handler(engine, token, apps=None):
@@ -21,6 +22,7 @@ def handler(engine, token, apps=None):
                 parts=self.path.strip('/').split('/')
                 if self.command=='GET':
                     if parts==['status']: return self.reply(200,{'available':True,'active_commit':engine.current()['commit'],'jobs':engine.list_jobs()})
+                    if parts==['host','diagnostics']: return self.reply(200,host_diagnostics(engine.root,engine.config))
                     if parts==['managed-apps'] and apps is not None: return self.reply(200,apps.status())
                     if len(parts)==2 and parts[0]=='jobs': return self.reply(200,engine.public(engine.load(parts[1])))
                 elif self.command=='POST':

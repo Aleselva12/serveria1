@@ -17,14 +17,14 @@ const greenIds=["T1.p1.m1","T8.p2.m1","T8.p3.m1","T8.p3.m2",
 const yellowIds=["worker.p4.m2","T8.p2.m2","R3.2.p2.m1","T1.p1.m2","T6.p2.m1"];
 
 test("every 8-Nov owner observation has a date, exact known node and an explicit narrow scope",()=>{
- assert.equal(nodes.length,515);
+ assert.equal(new Set(nodes.map(n=>n.id)).size,nodes.length);
  for(const id of greenIds){
   assert.ok(byId.has(id));
   const record=manualEvidence(byId.get(id));
   assert.equal(record?.kind,"ok",id);
   assert.equal(record?.date,"2026-11-08",id);
   assert.ok(record.text.length>35,id);
-  assert.equal(starTone(byId.get(id),null,null,{},nodes),"ok",id);
+  assert.equal(starTone(byId.get(id),null,null,{},nodes),id==="T1.p1.m1"?"minor":"ok",id);
  }
  for(const id of yellowIds){
   const record=manualEvidence(byId.get(id));
@@ -40,9 +40,10 @@ test("manual evidence does not falsely promote an entire partial star",()=>{
   assert.notEqual(starTone(star,null,null,{},nodes),"ok",id);
   assert.equal(star.timeline?.present?.runtimeVerified,false);
  }
- assert.ok(byId.get("T1").knownIssues.some(x=>x.includes("lento")));
- assert.equal(byId.get("worker").knownIssues.length,0);
- assert.equal(byId.get("T8").knownIssues.length,0);
+ assert.ok(byId.get("T1.p1.m1").knownIssues.some(x=>x.includes("lento")));
+ assert.equal(byId.get("T1").knownIssues?.length||0,0,"Latency belongs to its exact owner, not a duplicate star issue");
+ assert.equal((byId.get("worker").knownIssues||[]).length,0);
+ assert.equal((byId.get("T8").knownIssues||[]).length,0);
 });
 test("manual check does not override an actual failing check attributed to installed Debian commit",()=>{
  const n=byId.get("T8.p3.m1");
@@ -67,6 +68,8 @@ test("untested is neutral gray, not red; manual success has a clear limited labe
  assert.match(css,/\.tone-unverified,.rm2-point.tone-unverified\{--rm2-tone:var\(--rm2-unknown\)\}/);
  assert.match(ui,/Verde · verificato manualmente/);
  assert.match(ui,/Non sostituisce i test del catalogo/);
- assert.match(verificationSummary(byId.get("T1.p1.m1"),null,null,{},nodes),/manuale circoscritta/);
+ assert.match(verificationSummary(byId.get("T8.p3.m1"),null,null,{},nodes),/manuale circoscritta/);
+ assert.equal(manualEvidence(byId.get("T1.p1.m1")).kind,"ok","Historical success stays recorded");
+ assert.match(verificationSummary(byId.get("T1.p1.m1"),null,null,{},nodes),/Attenzione/,"Open latency issue must remain visible despite historical success");
  assert.match(verificationSummary(byId.get("worker.p4.m2"),null,null,{},nodes),/Rifinitura da eseguire/);
 });

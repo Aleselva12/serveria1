@@ -91,6 +91,10 @@ python3 -m updater.recover --root /srv/cora-updater --job UUID_DEL_JOB
 
 Il lock impedisce di recuperare mentre il servizio è ancora attivo. Riavviare poi il servizio. Non modificare a mano job/manifest per aggirare una verifica. Conservare spazio per backup, estrazione e immagini; non viene fatta pulizia automatica di Git, job o backup.
 
+## Identità della release in esecuzione
+
+L'API ricava il commit da `.cora-revision` o dalla configurazione di build. Per gli updater precedenti che preparano i sorgenti con `git archive`, può recuperarlo da `.cora-archive-revision`, valorizzato da Git durante l'esportazione. In un checkout di sviluppo usa `HEAD` soltanto se i file tracciati sono puliti. Quando manca una revisione verificabile, i collaudi non possono essere attribuiti alla release attiva.
+
 ## Confini del rilascio
 
 La configurazione host/Compose e il software updater installato restano fidati e separati. Una modifica a compose.yml viene rifiutata durante la preparazione: nuovi mount, porte, altri servizi o modifiche al controllore richiedono una revisione/installazione host distinta. Il normale rilascio può modificare l'intero codice applicativo, comprese architettura agentica e capacità del programmatore, ma non amministra altri servizi NAS né il sistema operativo.
@@ -148,3 +152,25 @@ Il backup arresta API/web e include dump, state e file privati configurati, conf
 `unpack` decifra/verifica in una directory nuova, non ripristina automaticamente dati live. `updater/ci_verify.py` prevede anche cifratura/decifratura e restore DB isolato. Non è attestato un backup periodico attivo o un restore riuscito sul server personale. La configurazione installata del servizio host può differire da questo checkout; aggiornarla richiede l’operatore e una revisione separata.
 
 Audit 25 ottobre: setup/engine/service/check_runner/data_backups e chiamanti API/UI confrontati; nessun job reale inviato. [Prove e residui](../docs/README_AUDIT_20261025.md). Il bridge per applicazioni gestite è documentato in [MANAGED_APPS](../docs/MANAGED_APPS.md): la repository esterna e i suoi dati non rientrano in questo audit.
+
+
+## Diagnostica host M2 / R4.1
+
+Il bridge privato espone anche `GET /host/diagnostics`, accessibile soltanto con
+lo stesso token interno dell'updater. L'endpoint è intenzionalmente read-only e
+con allowlist fissa: identifica Debian, controlla coerenza UID/GID dell'updater e
+permessi dei suoi file privati, esegue `dpkg --audit`, una simulazione
+`apt-get -s upgrade` e `systemctl show` esclusivamente per
+`cora-updater.service` e `ssh.service`.
+
+Non esegue `apt update`, installazioni, restart/stop/start, login SSH, shell
+arbitraria o lettura dei contenuti del journal. I tre check T11
+`debian_host_e2e`, `systemd_host_e2e` e `host_admin_e2e` consumano questa
+istantanea e registrano commit/ambiente tramite il normale runner di verifica.
+
+Poiché il software updater installato è separato dalla release API/web, una
+release Cora che contiene questi check non rende automaticamente disponibile il
+nuovo endpoint host: prima del collaudo M2 bisogna aggiornare in modo esplicito
+`/srv/cora-updater/installed` e riavviare il solo servizio updater secondo la
+procedura amministrativa approvata. Finché l'endpoint non è disponibile i check
+ritornano `unknown`, mai `pass`.
