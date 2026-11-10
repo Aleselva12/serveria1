@@ -16,11 +16,15 @@ CATALOG = {
 BUSY = {"running"}
 
 class AppManager:
-    def __init__(self, config):
+    def __init__(self, config, state_root=None):
         self.root = Path(config.get("managed_apps_root", "/srv/apps")).resolve()
         self.lock = threading.Lock()
         self.jobs = {}
         self.enabled = config.get("managed_apps_enabled") is True
+        self.nextcloud = None
+        if config.get("nextcloud_aio_enabled") is True and state_root is not None:
+            from updater.nextcloud_aio import NextcloudAIO
+            self.nextcloud = NextcloudAIO(Path(state_root)/"managed-app-jobs")
 
     def path(self, key):
         if key not in CATALOG:
@@ -68,13 +72,39 @@ class AppManager:
 
     def status(self):
         return {"available": self.enabled,
-                "apps": [self._status_one(key, item) for key, item in CATALOG.items()]}
+                "apps": [self._status_one(key, item) for key, item in CATALOG.items()] + ([self.nextcloud.status()] if self.nextcloud else [])}
 
     def submit(self, key, action):
         if not self.enabled:
             raise ValueError("Gestione applicazioni non abilitata sul servizio host")
-        if action not in {"install", "update"}:
+        if action not in {"install", "update", "acknowledge"}:
             raise ValueError("Azione non autorizzata")
+        if key == 'nextcloud-aio' and action == 'acknowledge' and self.nextcloud:
+            if not self.lock.acquire(blocking=False):raise ValueError('Operazione in corso')
+            try:
+                if self.nextcloud.job['status'] != 'recovery_required':raise ValueError('Nessun recupero da confermare')
+                self.nextcloud.preflight()
+                return self.nextcloud.save(status='acknowledged',phase='operator_verified',message='Recupero confermato dal proprietario; nessuna operazione ripetuta')
+            finally:self.lock.release()
+        if action == 'acknowledge':raise ValueError('Azione non autorizzata')
+        if self.nextcloud and self.nextcloud.job['status'] in {'running','recovery_required'}:
+            raise ValueError('Operazione Nextcloud attiva o da recuperare dal pannello AIO')
+        if key == 'nextcloud-aio':
+            if action != 'update' or self.nextcloud is None:
+                raise ValueError('Nextcloud AIO non abilitato o azione non autorizzata')
+            if not self.lock.acquire(blocking=False):
+                raise ValueError('Un’operazione è già in corso')
+            try:
+                self.nextcloud.preflight()
+                self.nextcloud.save(status='running',phase='queued',action='update',message='Backup e aggiornamento in coda')
+                def work():
+                    try:self.nextcloud.execute()
+                    finally:self.lock.release()
+                threading.Thread(target=work,daemon=True).start()
+                return dict(self.nextcloud.job)
+            except BaseException:
+                self.lock.release()
+                raise
         self.path(key)
         if not self.lock.acquire(blocking=False):
             raise ValueError("Un'operazione è già in corso")
