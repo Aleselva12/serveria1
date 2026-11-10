@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -31,16 +32,28 @@ CREDENTIALS_PATH = Path(os.getenv(
 )).expanduser()
 
 
+SERVICE_ACCOUNT_PATH = Path(os.environ["CORA_GOOGLE_CALENDAR_SERVICE_ACCOUNT_PATH"]).expanduser() if os.getenv("CORA_GOOGLE_CALENDAR_SERVICE_ACCOUNT_PATH", "").strip() else None
+
+
+def calendar_id() -> str:
+    value = os.getenv("CORA_GOOGLE_CALENDAR_ID", "").strip()
+    if SERVICE_ACCOUNT_PATH and (not value or value == "primary"):
+        raise GoogleCalendarNotConnected("Configura l'ID del calendario condiviso (non primary).")
+    return value or "primary"
+
+
 class GoogleCalendarNotConnected(RuntimeError):
     pass
 
 
 def token_exists() -> bool:
-    return TOKEN_PATH.is_file()
+    return bool(SERVICE_ACCOUNT_PATH) or TOKEN_PATH.is_file()
 
 
 def connection_fingerprint() -> str:
     """Pin an approval to one OAuth account without persisting its token."""
+    if SERVICE_ACCOUNT_PATH:
+        return hashlib.sha256(('service-account:' + _service_identity() + ':' + calendar_id()).encode()).hexdigest()
     credentials = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
     if not credentials.refresh_token:
         raise GoogleCalendarNotConnected("Token Google senza refresh token: ricollega l'account.")
@@ -61,7 +74,28 @@ def save_credentials(credentials):
             os.unlink(name)
 
 
-def _credentials() -> Credentials:
+def _service_identity() -> str:
+    import json
+    if not SERVICE_ACCOUNT_PATH or not SERVICE_ACCOUNT_PATH.is_file():
+        raise GoogleCalendarNotConnected("File Service Account non trovato nel container.")
+    try:
+        with SERVICE_ACCOUNT_PATH.open(encoding="utf-8") as stream:
+            data = json.load(stream)
+        if data.get("type") != "service_account" or not data.get("client_email"):
+            raise ValueError("Invalid service account")
+        return str(data["client_email"])
+    except (OSError, ValueError) as error:
+        raise GoogleCalendarNotConnected("File Service Account non valido.") from error
+
+
+def _credentials():
+    if SERVICE_ACCOUNT_PATH:
+        calendar_id()
+        _service_identity()
+        try:
+            return service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_PATH), scopes=SCOPES)
+        except (OSError, ValueError) as error:
+            raise GoogleCalendarNotConnected("Credenziali Service Account non valide.") from error
     if not TOKEN_PATH.is_file():
         raise GoogleCalendarNotConnected("Google Calendar non collegato.")
     creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
@@ -82,11 +116,11 @@ def status() -> dict:
         return {
             "connected": False,
             "provider": "local",
-            "credentialsAvailable": CREDENTIALS_PATH.is_file(),
+            "credentialsAvailable": (SERVICE_ACCOUNT_PATH.is_file() if SERVICE_ACCOUNT_PATH else CREDENTIALS_PATH.is_file()),
         }
     try:
         result = service().events().list(
-            calendarId="primary",
+            calendarId=calendar_id(),
             timeMin=datetime.now(timezone.utc).isoformat(),
             maxResults=1,
             singleEvents=True,
@@ -95,7 +129,7 @@ def status() -> dict:
         return {
             "connected": True,
             "provider": "google",
-            "credentialsAvailable": CREDENTIALS_PATH.is_file(),
+            "credentialsAvailable": (SERVICE_ACCOUNT_PATH.is_file() if SERVICE_ACCOUNT_PATH else CREDENTIALS_PATH.is_file()),
             "reachable": True,
             "nextSyncTokenAvailable": bool(result.get("nextSyncToken")),
         }
@@ -103,9 +137,9 @@ def status() -> dict:
         retryable = bool(getattr(error, "retryable", False))
         return {
             "connected": True, "provider": "google", "reachable": False,
-            "credentialsAvailable": CREDENTIALS_PATH.is_file(), "reauthorizationRequired": not retryable,
+            "credentialsAvailable": (SERVICE_ACCOUNT_PATH.is_file() if SERVICE_ACCOUNT_PATH else CREDENTIALS_PATH.is_file()), "reauthorizationRequired": not retryable and not bool(SERVICE_ACCOUNT_PATH),
             "error": ("Google Calendar temporaneamente non disponibile. Riprova." if retryable else
-                      "L'autorizzazione Google è scaduta o non è valida. Ricollega Google Calendar."),
+                      "Credenziali Google Calendar non valide: verifica la configurazione sul server."),
         }
     except Exception:
         # Provider exceptions may contain OAuth secrets, URLs or local paths.
@@ -113,7 +147,7 @@ def status() -> dict:
         return {
             "connected": True,
             "provider": "google",
-            "credentialsAvailable": CREDENTIALS_PATH.is_file(),
+            "credentialsAvailable": (SERVICE_ACCOUNT_PATH.is_file() if SERVICE_ACCOUNT_PATH else CREDENTIALS_PATH.is_file()),
             "reachable": False,
             "error": "Google Calendar non disponibile. Verifica il collegamento e riprova.",
         }
@@ -202,7 +236,7 @@ def list_events(start: datetime, end: datetime) -> list[dict]:
     items: list[dict] = []
     page_token = None
     while True:
-        params = dict(calendarId="primary",
+        params = dict(calendarId=calendar_id(),
                       timeMin=start.astimezone(timezone.utc).isoformat(),
                       timeMax=end.astimezone(timezone.utc).isoformat(),
                       singleEvents=True, orderBy="startTime", maxResults=2500)
@@ -217,7 +251,7 @@ def list_events(start: datetime, end: datetime) -> list[dict]:
 
 
 def get_event(event_id: str) -> dict:
-    return normalize(service().events().get(calendarId="primary", eventId=event_id).execute())
+    return normalize(service().events().get(calendarId=calendar_id(), eventId=event_id).execute())
 
 
 def create_event(data: dict, *, request_id: str | None = None) -> dict:
@@ -229,7 +263,7 @@ def create_event(data: dict, *, request_id: str | None = None) -> dict:
         body["id"] = event_id
     try:
         event = calendar_service.events().insert(
-            calendarId="primary", body=body, sendUpdates="none",
+            calendarId=calendar_id(), body=body, sendUpdates="none",
         ).execute()
         normalized = normalize(event)
         from core.verification_usage import calendar_write
@@ -242,7 +276,7 @@ def create_event(data: dict, *, request_id: str | None = None) -> dict:
         # already have created this exact ID.
         try:
             existing = calendar_service.events().get(
-                calendarId="primary", eventId=event_id
+                calendarId=calendar_id(), eventId=event_id
             ).execute()
         except Exception:
             raise  # Original request outcome stays unconfirmed to the caller.
@@ -273,7 +307,7 @@ def _managed_local_event_ids(calendar_service=None) -> set[str]:
     page_token = None
     while True:
         params = {
-            "calendarId": "primary",
+            "calendarId": calendar_id(),
             "privateExtendedProperty": "coraManaged=true",
             "maxResults": 2500,
             "singleEvents": True,
@@ -328,7 +362,7 @@ def publish_local_events(events: list[dict]) -> dict:
             payload = {**local, "local_event_id": local_id}
             body = {**_google_body(payload), "id": event_id}
             created = calendar_service.events().insert(
-                calendarId="primary", body=body, sendUpdates="none",
+                calendarId=calendar_id(), body=body, sendUpdates="none",
             ).execute()
             sent.append({"localEventId": local_id,
                          "googleEventId": created.get("id") or event_id,
@@ -341,7 +375,7 @@ def publish_local_events(events: list[dict]) -> dict:
             # to unrelated appointments). Never perform a second insert here.
             try:
                 remote = calendar_service.events().get(
-                    calendarId="primary", eventId=event_id
+                    calendarId=calendar_id(), eventId=event_id
                 ).execute()
                 if _matches_local_identity(remote, local_id):
                     existing.add(local_id)
@@ -366,11 +400,11 @@ def _conditional_event_request(event_id: str, expected_version: int, *, data: di
     calendar_service = service()
     if data is None:
         request = calendar_service.events().delete(
-            calendarId="primary", eventId=event_id, sendUpdates="none",
+            calendarId=calendar_id(), eventId=event_id, sendUpdates="none",
         )
     else:
         request = calendar_service.events().patch(
-            calendarId="primary", eventId=event_id, body=_google_body(data), sendUpdates="none",
+            calendarId=calendar_id(), eventId=event_id, body=_google_body(data), sendUpdates="none",
         )
     request.headers["If-Match"] = etag
     try:
@@ -399,7 +433,7 @@ def delete_event(event_id: str, *, expected_version: int) -> dict:
 
 def verify_access() -> bool:
     service().events().list(
-        calendarId="primary",
+        calendarId=calendar_id(),
         timeMin=datetime.now(timezone.utc).isoformat(),
         maxResults=1,
         singleEvents=True,
