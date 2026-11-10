@@ -264,6 +264,7 @@ class Engine:
 
     def submit(self, kind, key='', commit='', release_id=''):
         with self.lock:
+            if (self.root/'maintenance.request').exists(): raise ValueError('Manutenzione updater in corso')
             if self.closed.is_set():raise ValueError('Servizio in arresto: controllare il servizio host.')
             if any(j['status'] in BUSY | {'recovery_required'} for j in self.list_jobs()): raise ValueError('Un job di aggiornamento è già in corso.')
             if kind=='prepare':
@@ -529,7 +530,7 @@ class Engine:
             while not self.closed.is_set():
                 with self.lock:
                     queued=next((self.load(r['id']) for r in reversed(self.list_jobs()) if r['status']=='queued'),None)
-                    if not queued and not any(r['status'] in BUSY | {'recovery_required'} for r in self.list_jobs()):
+                    if not queued and not (self.root/'maintenance.request').exists() and not any(r['status'] in BUSY | {'recovery_required'} for r in self.list_jobs()):
                         from updater.data_backups import tick
                         tick(self)
                 if queued: self.execute(queued)

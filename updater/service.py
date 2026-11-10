@@ -16,20 +16,31 @@ def handler(engine, token, apps=None):
             data=json.dumps(value,ensure_ascii=False).encode()
             self.send_response(code);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
         def dispatch(self):
+            with engine.lock:
+                return self.dispatch_locked()
+        def dispatch_locked(self):
             if not hmac.compare_digest(self.headers.get('Authorization',''),'Bearer '+token):
                 return self.reply(401,{'detail':'Accesso non autorizzato.'})
             try:
                 parts=self.path.strip('/').split('/')
                 if self.command=='GET':
                     if parts==['status']: return self.reply(200,{'available':True,'active_commit':engine.current()['commit'],'jobs':engine.list_jobs()})
+                    if parts==['host','maintenance']:
+                        from updater.maintenance import status
+                        return self.reply(200,status(engine.root))
                     if parts==['host','diagnostics']: return self.reply(200,host_diagnostics(engine.root,engine.config))
                     if parts==['managed-apps'] and apps is not None: return self.reply(200,apps.status())
                     if len(parts)==2 and parts[0]=='jobs': return self.reply(200,engine.public(engine.load(parts[1])))
                 elif self.command=='POST':
+                    if (engine.root/'maintenance.request').exists():
+                        return self.reply(409,{'detail':'Manutenzione updater in corso; attendi la conclusione.'})
                     length=int(self.headers.get('Content-Length','0'))
                     if not 0<length<=20000: raise ValueError('Richiesta troppo grande o vuota.')
                     data=json.loads(self.rfile.read(length))
                     if not isinstance(data,dict): raise ValueError('Richiesta non valida.')
+                    if parts==['host','maintenance'] and set(data)=={'commit','digest'} and apps is not None:
+                        from updater.maintenance import submit
+                        return self.reply(202,submit(engine,apps,data['commit'],data['digest']))
                     if len(parts)==3 and parts[0]=='managed-apps' and parts[2] in {'install','update'} and not data and apps is not None:
                         return self.reply(202,apps.submit(parts[1],parts[2]))
                     if len(parts)==3 and parts[0]=='workspaces' and parts[2]=='check' and set(data)=={'profile','workspace_digest'}:

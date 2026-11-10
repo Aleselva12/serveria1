@@ -57,6 +57,11 @@ def _release(conn):
 def _run(conn, job, settings):
     """Own the session lock until the last check and its evidence are stored."""
     try:
+        from core.host_maintenance import ensure
+        job["detail"] = "Verifica e allineamento prerequisiti updater host."
+        _save(conn, job)
+        job["hostMaintenance"] = ensure()
+        _save(conn, job)
         def record(row):
             # Update the map and progress in one transaction after each check.
             next_job = {**job, "results": [*job["results"], row],
@@ -76,6 +81,8 @@ def _run(conn, job, settings):
     except Exception:
         job["status"] = "interrupted"
         job["detail"] = "Esecuzione interrotta. Gli esiti giÃ  registrati restano disponibili; puoi riprovare."
+        if "hostMaintenance" not in job:
+            job["detail"] = "Prerequisito updater non pronto: controlla installazione e stato host-maintenance. Nessun collaudo eseguito."
     finally:
         job["currentCheck"] = None
         job["updatedAt"] = _now()
