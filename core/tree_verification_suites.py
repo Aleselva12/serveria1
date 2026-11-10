@@ -218,3 +218,32 @@ SUITES["test_inventory_regression"] = {
         "non certifica servizi reali."
     ),
 }
+
+
+# Final T11 refinement: prove that health evidence keeps its release identity and
+# cannot turn stale/synthetic/interrupted observations into a live green state.
+# All checks below already existed; this only wires selected deterministic tests
+# into the canonical one-shot runner.
+SUITES["evidence_provenance_regression"] = {
+    "title": "T11: provenienza rilascio, persistenza e affidabilità evidenze",
+    "component": "cora",
+    "tests": (
+        "tests.test_archive_release_identity.ArchiveRevisionTests.test_valid_archive_is_used_when_build_marker_is_empty",
+        "tests.test_archive_release_identity.ArchiveRevisionTests.test_checkout_placeholder_cannot_certify_a_version",
+        "tests.test_archive_release_identity.ArchiveRevisionTests.test_build_marker_remains_authoritative",
+        "tests.test_verification_usage.UsageEvidenceTests.test_catalog_checks_have_runners_and_explicit_scope",
+        "tests.test_verification_usage.UsageEvidenceTests.test_synthetic_runs_cannot_publish_live_evidence_or_read_google",
+        "tests.test_verification_usage.UsageEvidenceTests.test_runtime_evidence_survives_missing_fixture_without_forging_freshness",
+        "tests.test_node_verification_api.NodeVerificationAPITests.test_reload_recovers_progress_without_starting_another_suite",
+        "tests.test_node_verification_api.NodeVerificationAPITests.test_results_and_progress_are_recorded_after_every_check",
+    ),
+    "nodes": [
+        "T11.p3", "T11.p3.m1", "T11.p3.m2",
+        "T11.p4",
+    ],
+    "scope": (
+        "Test già presenti e isolati: identità del commit installato, separazione "
+        "tra evidenza sintetica e uso reale, persistenza del progresso e recupero "
+        "dopo interruzione. Non esegue deploy, servizi esterni o nuovi E2E reali."
+    ),
+}
