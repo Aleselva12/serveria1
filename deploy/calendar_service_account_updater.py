@@ -9,7 +9,6 @@ import copy
 import json
 import os
 from pathlib import Path
-import re
 import secrets
 import subprocess
 import tempfile
@@ -30,7 +29,7 @@ def read_calendar_id(env_file: Path) -> str:
             values.append(line.split("=", 1)[1].strip().strip("\\\"'"))
     if len(values) != 1 or not values[0] or values[0] == "primary":
         raise ValueError("Inserisci un solo ID calendario condiviso in deploy.env (non 'primary')")
-    if any(c.isspace() for c in values[0]) or len(values[0]) > 512:
+    if (any(c.isspace() for c in values[0]) or len(values[0]) > 512\n            or "://" in values[0] or "/" in values[0] or "?" in values[0]):
         raise ValueError("ID calendario non valido")
     return values[0]
 
@@ -123,7 +122,7 @@ def main():
     args = parser.parse_args()
     calendar_id = read_calendar_id(args.deploy_env)
     check_key(args.key)
-    snapshot = args.updater_root / "compose.json"
+    snapshot = args.updater_root / "compose.json"\n    if snapshot.is_symlink() or not snapshot.is_file():\n        raise SystemExit("Snapshot updater mancante o link simbolico")
     candidate = configure(json.loads(snapshot.read_text()), source=str(args.key.absolute()),
                           calendar_id=calendar_id)
     current = json.loads(snapshot.read_text())
