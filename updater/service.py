@@ -34,6 +34,8 @@ def handler(engine, token, apps=None):
                 elif self.command=='POST':
                     if (engine.root/'maintenance.request').exists():
                         return self.reply(409,{'detail':'Manutenzione updater in corso; attendi la conclusione.'})
+                    if apps is not None and getattr(apps,'nextcloud',None) is not None and apps.nextcloud.job['status'] in {'running','recovery_required'} and parts!=['managed-apps','nextcloud-aio','acknowledge']:
+                        return self.reply(409,{'detail':'Nextcloud richiede completamento o recupero prima di altre modifiche.'})
                     length=int(self.headers.get('Content-Length','0'))
                     if not 0<length<=20000: raise ValueError('Richiesta troppo grande o vuota.')
                     data=json.loads(self.rfile.read(length))
@@ -41,7 +43,7 @@ def handler(engine, token, apps=None):
                     if parts==['host','maintenance'] and set(data)=={'commit','digest'} and apps is not None:
                         from updater.maintenance import submit
                         return self.reply(202,submit(engine,apps,data['commit'],data['digest']))
-                    if len(parts)==3 and parts[0]=='managed-apps' and parts[2] in {'install','update'} and not data and apps is not None:
+                    if len(parts)==3 and parts[0]=='managed-apps' and parts[2] in {'install','update','acknowledge'} and not data and apps is not None:
                         return self.reply(202,apps.submit(parts[1],parts[2]))
                     if len(parts)==3 and parts[0]=='workspaces' and parts[2]=='check' and set(data)=={'profile','workspace_digest'}:
                         return self.reply(200,engine.check_workspace(parts[1],data['profile'],data['workspace_digest']))
@@ -66,7 +68,7 @@ def main():
     with (root/'service.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         engine=Engine(root);engine.start()
-        server=ThreadingHTTPServer((engine.config['listen'],engine.config['port']),handler(engine,(root/'bridge.token').read_text().strip(),AppManager(engine.config)))
+        server=ThreadingHTTPServer((engine.config['listen'],engine.config['port']),handler(engine,(root/'bridge.token').read_text().strip(),AppManager(engine.config,engine.root)))
         import threading
         serving=threading.Thread(target=server.serve_forever,daemon=True);serving.start()
         try:

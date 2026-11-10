@@ -13,7 +13,7 @@ def status():
 
 @router.post("/{app_id}/{action}",status_code=202)
 def action_request(app_id:str,action:str):
-    if app_id!="magazzino-tele" or action not in {"install","update"}:
+    if (app_id,action) not in {("magazzino-tele","install"),("magazzino-tele","update"),("nextcloud-aio","update"),("nextcloud-aio","acknowledge")}:
         raise HTTPException(404,"Applicazione o azione non autorizzata")
     try:
         return releases.request("POST",f"/managed-apps/{app_id}/{action}",{},timeout=30)
