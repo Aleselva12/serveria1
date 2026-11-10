@@ -199,3 +199,22 @@ SUITES = {'automation_draft_regression': {'title': 'Automazioni: bozze, validazi
                                    'nodes': ['R2.1.p3.m1'],
                                    'scope': 'Immutabilità baseline e collocazione migrazioni; applicazione '
                                             'reale su PostgreSQL esclusa.'}}
+
+
+# T11 owns the inventory itself: this suite proves that every repository unittest
+# module is visible once and that new live E2E checks stay inside the owner-
+# selected problems.xlsx scope. It does not execute the entire repository suite.
+SUITES["test_inventory_regression"] = {
+    "title": "T11: inventario completo test e perimetro nuovi E2E",
+    "component": "cora",
+    "tests": ("tests.test_test_inventory.TestInventoryTests",),
+    "nodes": [
+        "T11.p1", "T11.p1.m1", "T11.p1.m2",
+        "T11.p2", "T11.p2.m1", "T11.p2.m2",
+    ],
+    "scope": (
+        "Inventario statico di tutti i moduli unittest della repository, collegamenti "
+        "al runner esistente e guardrail sui nuovi E2E; non esegue tutti i test e "
+        "non certifica servizi reali."
+    ),
+}
