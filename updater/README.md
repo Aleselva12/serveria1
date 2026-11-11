@@ -101,7 +101,7 @@ La configurazione host/Compose e il software updater installato restano fidati e
 
 Le migrazioni già applicate restano immutabili: aggiungerne nuove secondo database/migrations/README.md. Il backup riguarda il database dedicato Cora e state, non mount NAS esterni o modelli Ollama. Non eseguire altri processi che scrivano questi dati durante lo snapshot.
 
-Le verifiche di codice e migrazioni non certificano la qualità del modello, la correttezza funzionale di ogni richiesta o l'assenza di errori semantici. Nel workspace di sviluppo Git/HTTP vengono provati realmente; i test unitari delle operazioni Docker/deployment usano simulazioni. È inoltre presente `updater/ci_verify.py`, richiamato dalla fixture deployment CI, che prevede release, prova migrazioni su copia, applicazione e rollback Docker reali su installazione sacrificabile; la presenza di questa prova non ne certifica l’esito sul commit attuale. Il ciclo reale va collaudato su un'installazione sacrificabile prima del server personale.
+Le verifiche di codice e migrazioni non certificano la qualità del modello, la correttezza funzionale di ogni richiesta o l'assenza di errori semantici. Nel workspace di sviluppo Git/HTTP vengono provati realmente; i test unitari delle operazioni Docker/deployment usano simulazioni. È inoltre presente `updater/ci_release_rollback.py`, richiamato dalla fixture deployment CI, che prevede release, prova migrazioni su copia, applicazione e rollback Docker reali su installazione sacrificabile; la presenza di questa prova non ne certifica l’esito sul commit attuale. Il ciclo reale va collaudato su un'installazione sacrificabile prima del server personale.
 
 ## Verifiche del workspace dal backend Docker
 
@@ -149,7 +149,7 @@ anche la configurazione host congelata prima dei rilasci successivi.
 
 Il backup arresta API/web e include dump, state e file privati configurati, configura manifest/checksum e produce `data.tar.age` più indicatore di completamento. La retention viene applicata dopo successo e riavvio sano e non elimina i backup di release/rollback. I file temporanei decifrati e i backup pre-rilascio restano dati privati: cifrare un archivio non rende pubblicabili gli altri.
 
-`unpack` decifra/verifica in una directory nuova, non ripristina automaticamente dati live. `updater/ci_verify.py` prevede anche cifratura/decifratura e restore DB isolato. Non è attestato un backup periodico attivo o un restore riuscito sul server personale. La configurazione installata del servizio host può differire da questo checkout; aggiornarla richiede l’operatore e una revisione separata.
+`unpack` decifra/verifica in una directory nuova, non ripristina automaticamente dati live. `updater/ci_release_rollback.py` prevede anche cifratura/decifratura e restore DB isolato. Non è attestato un backup periodico attivo o un restore riuscito sul server personale. La configurazione installata del servizio host può differire da questo checkout; aggiornarla richiede l’operatore e una revisione separata.
 
 Audit 25 ottobre: setup/engine/service/check_runner/data_backups e chiamanti API/UI confrontati; nessun job reale inviato. [Prove e residui](../docs/README_AUDIT_20261025.md). Il bridge per applicazioni gestite è documentato in [MANAGED_APPS](../docs/MANAGED_APPS.md): la repository esterna e i suoi dati non rientrano in questo audit.
 

@@ -390,7 +390,7 @@ Il [worker](../worker/UPDATE.md) appartiene a un deployment distinto. Il [termin
 
 Google Calendar ha token separato da Gmail: configurare `CORA_GOOGLE_CALENDAR_CREDENTIALS_PATH` e `CORA_GOOGLE_CALENDAR_TOKEN_PATH` secondo i percorsi nel container. `python3 deploy/manage.py google-calendar-auth` usa il helper OAuth con listener loopback e tunnel SSH dal computer; nessun token viene creato dalla sola build. Richiede interazione con il vero account e verifica dedicata.
 
-`deploy/ci_verify.py` è esclusivamente una fixture sacrificabile: ferma servizi ed elimina volumi/state del proprio ambiente. Non eseguirla su un server con dati. Prevede build, login, evento SSE persistito, restore, inferenza audio su silenzio per il target CPU e prova updater; non prova la qualità di una chat reale o di una trascrizione. Nessuna di queste procedure è stata eseguita sul Debian reale durante questo audit. [Inventario, prove e residui](../docs/README_AUDIT_20261025.md).
+`deploy/ci_disposable_deployment.py` è esclusivamente una fixture sacrificabile: ferma servizi ed elimina volumi/state del proprio ambiente. Non eseguirla su un server con dati. Prevede build, login, evento SSE persistito, restore, inferenza audio su silenzio per il target CPU e prova updater; non prova la qualità di una chat reale o di una trascrizione. Nessuna di queste procedure è stata eseguita sul Debian reale durante questo audit. [Inventario, prove e residui](../docs/README_AUDIT_20261025.md).
 
 
 ## Google Calendar: rinnovo e ricollegamento dal sito

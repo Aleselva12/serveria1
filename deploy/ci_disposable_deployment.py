@@ -98,7 +98,7 @@ assert library_workspace_status()['available']
         restored=manage.compose('exec','-T','api','cat','/state/files/proof.txt',capture_output=True,text=True).stdout.strip()
         assert restored==run_id
         with request('/backend/api/v1/runtime/runs/'+run_id, cookie=cookie) as response:assert json.load(response)['status']=='completed'
-        from updater.ci_verify import verify as verify_updater
+        from updater.ci_release_rollback import verify as verify_updater
         verify_updater(ROOT)
         print('DEPLOYMENT BUILD, LOGIN, SSE, BACKUP AND RESTORE: OK')
     finally:
