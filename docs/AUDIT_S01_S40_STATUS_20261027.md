@@ -29,7 +29,7 @@ Legenda: **Fix + test** = modifica proposta nella PR e regressione scritta, non 
 | S21 | Escluso / pulizia | Ulteriori import senza uso diretto, non bug | core/chat_store.py, programmer_agent/checks.py ecc. | Pulizia differita |
 | S22 | Fix + test | Programmer OSError -> 503 sanitizzato, ValueError -> 422 | tests/test_audit_easy_fixes.py | CI sull'HEAD |
 | S23 | Non bug / qualità | No lint F401 obbligatorio in CI; suite di verifica già presente | .github/workflows/verify.yml | Valutazione lint graduale |
-| S24 | Escluso | app.py Streamlit legacy opzionale | app.py | Nessuna cancellazione |
+| S24 | Escluso, poi revocato il 2026-11-11 | app.py Streamlit legacy opzionale | app.py | Esclusione revocata dal proprietario: vedi l'aggiornamento 2026-11-11 |
 | S25 | Escluso | Catch generici intenzionali fail-closed | core/auth.py, core/project_checks.py | Nessuna modifica |
 | S26 | Fix + test | Eventi critici separati da API diagnostica opzionale | frontend/tests/runtimePanel.test.mjs | CI sull'HEAD |
 | S27 | Fix + test | Polling indipendente per tutti endpoint | frontend/tests/runtimePanel.test.mjs | CI sull'HEAD |
@@ -54,6 +54,7 @@ Legenda: **Fix + test** = modifica proposta nella PR e regressione scritta, non 
 - **S03 e S10 — aggiornamento 2026-11-03:** arresto coordinato implementato: blocco nuove ammissioni, cancellazione cooperativa, attesa delle finalizzazioni dei run, drain dei lavori postprocess accettati, quindi chiusura del pool. Le regressioni riproducono la chiusura prematura senza le correzioni. Il test PostgreSQL richiede `CORA_RUNTIME_TEST_DATABASE_URL` e il database usa-e-getta della CI; gli altri test usano barriere e connessioni simulate. Nessun timeout arbitrario: un'operazione che non ritorna mantiene l'arresto in attesa. Un kill forzato del processo resta fuori dalla garanzia di drain. Verifica sul server e deploy non eseguiti.
 - Restano non verificati su **Debian reale** S36 e S40: verificare con operazioni read-only e senza esporre segreti, poi confermare gli eventuali scostamenti. S07 rimane una lacuna opzionale di granularità diagnostica (health false corretto, causa non dettagliata).
 - **Nessuna correzione funzionale da apportare** ai rilievi esclusi: mantenerli nel registro evita il ritorno di falsi positivi.
+- **S24 — aggiornamento 2026-11-11:** il proprietario ha **revocato** l'esclusione e ha chiesto la rimozione. `app.py` era l'unica interfaccia Streamlit e nessun lanciatore la avviava: né `Dockerfile`, né `AVVIO.ps1`, né la CI, né i README. È stata rimossa insieme alle voci `streamlit` e `rich` di `requirements-core.txt`; `rich` non aveva più import diretti dopo la rimozione di `search_agent/search_render.py` nella PR #149. `requirements-deploy.lock` **non** è stato rigenerato nella stessa modifica: va rifatto con il comando in `deploy/README.md`, altrimenti l'immagine continua a installare entrambi i pacchetti senza che nessuno li usi. La riga resta a registro come decisione storica, non come vincolo attivo.
 
 ### Verifica locale delle correzioni di arresto — 2026-11-03
 
