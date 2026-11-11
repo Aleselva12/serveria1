@@ -109,7 +109,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_parallel_workers_do_not_replay_a_recent_periodic_cycle(self):
         from contextlib import contextmanager
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         class Query:
             def __init__(self, statement): self.statement=statement

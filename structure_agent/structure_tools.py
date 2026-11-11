@@ -6,7 +6,8 @@ from core.governance import agent_tool
 from core.logging import tail_events
 from core.memory import memory_stats
 from core.orchestration import resolve_plan_owner
-from core.permissions import check_permission, permission_manifest, require_permission
+from core.permissions import check_permission as check_permission
+from core.permissions import permission_manifest, require_permission
 from core.plans import (
     create_evaluation_record,
     create_management_record,

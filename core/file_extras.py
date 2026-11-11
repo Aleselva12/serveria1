@@ -8,7 +8,6 @@ import secrets
 import shutil
 import time
 import uuid
-from pathlib import Path
 
 from fastapi import File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse

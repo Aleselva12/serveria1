@@ -5,7 +5,7 @@ import os
 import secrets
 import threading
 import time
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from getpass import getpass
 from uuid import uuid4
 

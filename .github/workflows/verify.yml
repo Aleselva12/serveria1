@@ -130,13 +130,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      # Required here, unlike in verify: deploy/ci_verify.py ends by calling
-      # updater.ci_verify.verify, which runs age-keygen with check=True and no
+      # Required here, unlike in verify: deploy/ci_disposable_deployment.py ends by calling
+      # updater.ci_release_rollback.verify, which runs age-keygen with check=True and no
       # skip guard. Non-blocking, a mirror outage would surface as FileNotFoundError
       # inside the script, after the images are built and the services are up.
-      - name: Install age (required by updater/ci_verify.py)
+      - name: Install age (required by updater/ci_release_rollback.py)
         run: sudo apt-get update -qq && sudo apt-get install -y age
-      - run: python deploy/ci_verify.py
+      - run: python deploy/ci_disposable_deployment.py
   windows-audio:
     runs-on: windows-latest
     steps:

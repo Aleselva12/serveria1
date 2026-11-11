@@ -17,7 +17,7 @@ The Markdown files are derived copies: PostgreSQL remains the authoritative sour
 
 1. Copy `.env.example` to `.env` and change database credentials.
 2. Start PostgreSQL:
-   `docker compose -f docker-compose.database.yml up -d`
+   `docker compose -f compose.database.yml up -d`
 3. Ensure the local embedding model configured by `CORA_EMBEDDING_MODEL` is installed in Ollama.
 4. Start Cora normally.
 

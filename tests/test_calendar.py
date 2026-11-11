@@ -1,7 +1,7 @@
 import os
 import unittest
 from contextlib import contextmanager
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4

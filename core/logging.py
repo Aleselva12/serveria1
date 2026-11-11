@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import json
 import os
 import threading
 import time
 import uuid
-from collections import deque
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 

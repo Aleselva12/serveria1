@@ -134,7 +134,7 @@ Percorso rapido Windows:
 
 1. copiare `.env.example` in `.env` e configurare database, root autorizzati e Ollama;
 2. avviare PostgreSQL + pgvector:
-   `docker compose -f docker-compose.database.yml up -d`;
+   `docker compose -f compose.database.yml up -d`;
 3. avviare `AVVIO.cmd`.
 
 In alternativa:

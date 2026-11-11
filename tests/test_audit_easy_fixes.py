@@ -13,7 +13,6 @@ from programmer_agent import api as programmer_api
 class AuditEasyFixesTests(unittest.TestCase):
     def test_lifespan_cleans_up_after_worker_start_failure(self):
         import asyncio
-        from unittest.mock import call
 
         order = []
         def mark(name, fails=False):

@@ -32,7 +32,7 @@ class ServiceAccountTests(unittest.TestCase):
                 provider._credentials()
 
     def test_read_and_write_target_shared_calendar(self):
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
         from unittest.mock import MagicMock
         service = MagicMock()
         service.events.return_value.list.return_value.execute.return_value = {"items": []}

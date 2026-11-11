@@ -2,7 +2,7 @@
 import json
 import subprocess
 import time
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from updater.engine import atomic

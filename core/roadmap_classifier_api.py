@@ -12,7 +12,7 @@ import os
 import re
 import threading
 import time
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit

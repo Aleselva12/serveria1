@@ -1,8 +1,7 @@
 import os
 import unittest
-from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 from core import consultations

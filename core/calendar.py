@@ -1,7 +1,7 @@
 """Authoritative calendar store. All writes and their history share one transaction."""
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from psycopg.types.json import Jsonb

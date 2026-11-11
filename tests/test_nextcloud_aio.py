@@ -1,9 +1,8 @@
 import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import Mock
 
-from updater.nextcloud_aio import BACKUP, MASTER, NextcloudAIO
+from updater.nextcloud_aio import MASTER, NextcloudAIO
 
 
 class NextcloudTests(unittest.TestCase):

@@ -1,5 +1,5 @@
 """Owner-only one-shot verification. GET never launches checks or model calls."""
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from threading import Thread
 from types import SimpleNamespace
 from uuid import UUID, uuid4

@@ -11,7 +11,7 @@ import os
 import subprocess
 import sys
 from contextlib import contextmanager
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from time import monotonic
 from uuid import UUID, uuid4

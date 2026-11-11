@@ -1,7 +1,7 @@
 import base64
 import os
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime
 

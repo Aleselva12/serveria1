@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
-from dataclasses import asdict
 from pathlib import Path
 
 from core.capabilities import Capability, ComponentDefinition

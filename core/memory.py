@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import json
 import os
 import uuid
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pgvector import Vector

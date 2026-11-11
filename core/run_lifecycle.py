@@ -112,7 +112,7 @@ def list_runs(limit=100, status=''):
 
 
 def persisted_snapshot(row):
-    from datetime import datetime, timezone
+    from datetime import datetime
     metadata = row['metadata']
     return {'id':str(row['id']), 'thread_id':row['thread_id'], 'status':row['status'],
             'error_type':row['error_type'], 'result':row['result'], 'agents':{},

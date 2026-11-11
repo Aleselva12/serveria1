@@ -30,10 +30,12 @@ from core.chat_store import (
     get_messages,
     list_conversations,
     move_conversation,
-    recent_context,
     refresh_transcript,
     rename_conversation,
     save_message,
+)
+from core.chat_store import (
+    recent_context as recent_context,
 )
 from core.context_budget import prepare_context, schedule_summary
 from core.conversation_projects import (
@@ -61,9 +63,11 @@ from core.memory import (
 from core.models import (
     RuntimeSettingsError,
     get_default_model_name,
-    get_model_name,
     list_ollama_models,
     save_runtime_model,
+)
+from core.models import (
+    get_model_name as get_model_name,
 )
 from core.monitoring import router as monitoring_router
 from core.node_verification import router as node_verification_router
@@ -76,7 +80,8 @@ from core.postprocessing import Postprocessing
 from core.project_checks import router as project_checks_router
 from core.registry import get_agents, get_registry
 from core.roadmap_classifier_api import router as roadmap_classifier_router
-from core.runtime import RunStopped, checkpoint, publish_text, runtime
+from core.runtime import RunStopped as RunStopped
+from core.runtime import checkpoint, publish_text, runtime
 from core.runtime_api import router as runtime_router
 from core.runtime_profile import runtime_mode, validate_runtime_profile
 from core.server_files import router as files_router

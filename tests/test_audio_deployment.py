@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from audio_agent.audio_tools import _load_whisper_model, transcribe_audio_file
+from audio_agent.audio_tools import _load_whisper_model
 from audio_agent.model_setup import digest, prepare, verify
 from deploy.doctor import inspect, model_available
 

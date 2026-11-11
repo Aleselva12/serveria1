@@ -1,4 +1,3 @@
-import json
 import tempfile
 import unittest
 import uuid
@@ -6,9 +5,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
-
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 from core import audio_api
 
