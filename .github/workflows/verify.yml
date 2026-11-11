@@ -125,8 +125,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install age (optional)
-        continue-on-error: true
+      # Required here, unlike in verify: deploy/ci_verify.py ends by calling
+      # updater.ci_verify.verify, which runs age-keygen with check=True and no
+      # skip guard. Non-blocking, a mirror outage would surface as FileNotFoundError
+      # inside the script, after the images are built and the services are up.
+      - name: Install age (required by updater/ci_verify.py)
         run: sudo apt-get update -qq && sudo apt-get install -y age
       - run: python deploy/ci_verify.py
   windows-audio:
