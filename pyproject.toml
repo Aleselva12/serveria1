@@ -6,8 +6,11 @@ target-version = "py312"
 select = ["E", "F", "I", "UP", "B"]
 # Measured on main with ruff 0.16.9: the full selection reported 3650 findings.
 # 422 of them (I001, UP017, UP035) were fixed in one mechanical pass and those rules
-# are active. Of the rest, the ignores below cover deliberate style, a documented
-# design choice and a pending triage; the remaining 34 findings are worth reading.
+# are active. F401 is active too: unused stdlib, third-party and function-local
+# imports were removed; first-party names imported at module level stay, marked as
+# explicit re-exports with `import name as name`, because rows S11, S17 and S21 of
+# docs/AUDIT_S01_S40_STATUS_20261027.md forbid removing compatibility re-exports. The ignores below cover deliberate style and a documented
+# design choice; the remaining findings are worth reading.
 # Every entry below says why.
 ignore = [
     # 1595 + 819 + 692 = 3106. Deliberate style: compact lines and several
@@ -18,11 +21,6 @@ ignore = [
     # 18. Direct consequence of the deferred imports inside functions (302 of them),
     # which keep the module graph acyclic on purpose.
     "E402",  # module-import-not-at-top-of-file
-    # 62 across 45 files. Rows S11, S17 and S21 of
-    # docs/AUDIT_S01_S40_STATUS_20261027.md declare unused-looking imports not to be
-    # bugs and forbid removing compatibility re-exports. Re-enable once those 62 have
-    # been triaged one by one; until then the rule only buries the other findings.
-    "F401",  # unused-import
 ]
 
 [tool.ruff.lint.flake8-bugbear]

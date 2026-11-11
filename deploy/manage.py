@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]

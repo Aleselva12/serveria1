@@ -1,6 +1,5 @@
 """Source provenance for legacy updater archives, without using updater pointers."""
 import io
-import os
 import shutil
 import subprocess
 import tarfile

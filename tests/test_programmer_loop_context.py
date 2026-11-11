@@ -12,7 +12,7 @@ from core.context_budget import ContextOverflow, _valid_exchange, message_cost
 from core.observability import metadata_event
 from programmer_agent import programmer_graph as pg
 from programmer_agent import workspace as ws
-from programmer_agent.loop_context import fit_programmer_messages, without_thinking
+from programmer_agent.loop_context import fit_programmer_messages
 
 
 def call(identity='write', **args):

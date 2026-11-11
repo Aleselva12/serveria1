@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 import subprocess
@@ -250,7 +249,6 @@ class UpdaterTests(unittest.TestCase):
         finally:server.shutdown();server.server_close();thread.join()
 
     def test_restore_validates_archive_before_destructive_commands(self):
-        import io
         import tarfile
 
         from updater.engine import file_digest

@@ -19,7 +19,7 @@ def enabled():
 def record(check_id, status, detail):
     """Best effort: evidence storage must not turn a successful operation into an error."""
     try:
-        from core.database import DATABASE_URL, db_connection
+        from core.database import db_connection
         from core.project_checks import _environment, _release
         if not enabled():
             return False

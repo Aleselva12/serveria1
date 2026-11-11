@@ -11,7 +11,7 @@ import tempfile
 import threading
 import uuid
 from contextlib import contextmanager
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -19,7 +19,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from core.access import is_loopback, require_owner
+from core.access import is_loopback as is_loopback
+from core.access import require_owner
 from core.confined_paths import confined_path
 from core.file_paths import ORIGINALS_ID, original_resource
 

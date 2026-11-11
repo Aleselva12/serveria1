@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from core import library_monitor as monitor
-from search_agent import search_tools
+from search_agent import search_tools  # noqa: F401 - importing it registers the research tools
 
 
 class LibraryMonitorTests(unittest.TestCase):
@@ -36,7 +36,6 @@ class LibraryMonitorTests(unittest.TestCase):
         return target
 
     def test_background_error_is_visible_without_user_path(self):
-        import datetime
         from unittest.mock import Mock
         fake_stop = Mock()
         fake_stop.wait.side_effect = [False, True]

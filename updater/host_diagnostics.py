@@ -5,7 +5,6 @@ content, environment value, credential or journal line is returned.
 """
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import stat

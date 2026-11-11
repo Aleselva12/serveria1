@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from core import library_tools as lib
 from core.governance import approved_action, executables, execute_capability
-from search_agent import search_tools as research
+from search_agent import search_tools as research  # noqa: F401 - importing it registers the research tools
 
 
 class LibraryWriteTests(unittest.TestCase):

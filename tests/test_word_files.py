@@ -14,7 +14,7 @@ from lxml import etree
 
 from core.ia_library import router as library_router
 from core.server_files import router
-from core.word_files import NS, W
+from core.word_files import NS
 
 
 class WordFilesTests(unittest.TestCase):

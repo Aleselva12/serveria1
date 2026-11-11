@@ -1,6 +1,5 @@
 import tempfile
 import unittest
-from pathlib import Path
 
 from updater.managed_apps import AppManager
 

@@ -5,7 +5,7 @@ import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from core.event_bus import bus
@@ -292,7 +292,7 @@ def checkpoint():
 
 
 def recover_interrupted():
-    from core.database import database_configured, db_connection
+    from core.database import database_configured
     if database_configured():
         from core.run_lifecycle import recover
         recover()

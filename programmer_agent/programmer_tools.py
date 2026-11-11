@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 from core.governance import agent_tool, capability_registry
 from core.runtime import checkpoint
 from programmer_agent import knowledge

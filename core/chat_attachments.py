@@ -1,6 +1,5 @@
 """Immutable, conversation-scoped uploads. Extracted content remains untrusted user data."""
 import hashlib
-import json
 import os
 import uuid
 import zipfile

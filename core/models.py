@@ -8,7 +8,8 @@ from pathlib import Path
 from langchain_ollama import ChatOllama
 
 from core.generation_policy import model_timeout, output_tokens, run_timeout
-from core.ollama_transport import DEFAULT_BASE_URL, get_ollama_base_url, urlopen
+from core.ollama_transport import DEFAULT_BASE_URL as DEFAULT_BASE_URL
+from core.ollama_transport import get_ollama_base_url, urlopen
 
 
 def preserve_tool_argument_types(response):
@@ -251,7 +252,6 @@ def get_chat_model(
     **kwargs,
 ) -> ChatOllama:
     """Create the local chat model assigned to a Cora role."""
-    from core.context_budget import limit_tokens
     resolved = resolve_model(role)
     model = resolved['model']
     remote_id = resolved['machine_id'] if resolved['machine_id'] != 'local' else None

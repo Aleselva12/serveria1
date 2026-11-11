@@ -1,10 +1,9 @@
 """Owner-facing push subscriptions and calendar reminder worker."""
 from __future__ import annotations
 
-import json
 import threading
-from datetime import UTC, datetime, timedelta, timezone
-from uuid import UUID, uuid4
+from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request

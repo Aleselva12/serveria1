@@ -2,7 +2,6 @@ import json
 import os
 import tempfile
 import threading
-import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -16,7 +15,7 @@ from core.context_budget import fit_messages
 from core.event_bus import EventBus
 from core.governance import agent_tool, approved_action
 from core.permissions import require_permission
-from core.runtime import Run, RunStopped, Runtime, checkpoint, current_run
+from core.runtime import Run, RunStopped, Runtime, checkpoint
 
 
 class RuntimeTests(unittest.TestCase):

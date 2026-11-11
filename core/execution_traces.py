@@ -5,8 +5,7 @@ import os
 import threading
 import time
 import uuid
-from datetime import UTC, datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 
 from langchain_core.callbacks import BaseCallbackHandler
 

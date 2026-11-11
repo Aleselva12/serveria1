@@ -1,7 +1,7 @@
 """Standard contracts for progressive, permission-bound context retrieval."""
 from __future__ import annotations
 
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field

@@ -6,7 +6,7 @@ import json
 import os
 import stat
 import tempfile
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 from zipfile import BadZipFile

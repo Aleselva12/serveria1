@@ -8,7 +8,7 @@ from __future__ import annotations
 import hashlib
 import os
 import tempfile
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 

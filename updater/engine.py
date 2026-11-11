@@ -11,7 +11,7 @@ import stat
 import subprocess
 import tarfile
 import threading
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 

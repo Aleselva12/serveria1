@@ -5,7 +5,7 @@ import difflib
 import io
 import json
 import zipfile
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from programmer_agent import workspace as ws
