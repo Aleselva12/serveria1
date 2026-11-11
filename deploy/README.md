@@ -217,6 +217,20 @@ uv pip compile requirements-core.txt --python-version 3.12 \
   --no-annotate --no-header -o requirements-deploy.lock
 ```
 
+La CI installa invece `requirements-dev.lock`, compilato da `requirements-test.txt`
+(cioè `requirements-core.txt` più le sole dipendenze di test) per Linux e Windows,
+partendo dalle versioni del lock di deploy, così i test girano sulle stesse versioni
+della produzione:
+
+```sh
+cp requirements-deploy.lock requirements-dev.lock
+uv pip compile requirements-test.txt --universal --python-version 3.12 \
+  --generate-hashes --no-annotate --no-header -o requirements-dev.lock
+```
+
+Rigenerare sempre entrambi i lock insieme: `tests/test_requirement_locks.py` fallisce
+se un pacchetto manca, avanza o ha versioni diverse fra i due.
+
 Lo schema è versionato con checksum; leggere `database/migrations/README.md`
 prima di modificarlo. Il workflow CI prevede verifiche per entrambi i target, un ciclo di build, avvio,
 login, streaming e backup/ripristino su un'installazione sacrificabile. Il target
