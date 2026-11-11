@@ -91,9 +91,12 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: python -m pip install -r requirements-test.txt
+      # age serves only the backup test, which skips itself when the binary is missing.
+      # A mirror outage must show up as a warning, not as a red suite that never ran.
+      - name: Install age (optional)
+        continue-on-error: true
+        run: sudo apt-get update -qq && sudo apt-get install -y age
       - run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y age
           python -c "from core.database import db_connection; c = db_connection(); c.__enter__(); c.__exit__(None, None, None)"
           python -m unittest discover -s tests -v
           python smoke_check.py
@@ -122,7 +125,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: sudo apt-get update -qq && sudo apt-get install -y age
+      - name: Install age (optional)
+        continue-on-error: true
+        run: sudo apt-get update -qq && sudo apt-get install -y age
       - run: python deploy/ci_verify.py
   windows-audio:
     runs-on: windows-latest
