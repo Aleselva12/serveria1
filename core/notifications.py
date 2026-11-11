@@ -3,17 +3,17 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field, field_validator
 from psycopg import OperationalError
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from core import google_calendar, webpush
 from core.access import require_owner
 from core.database import db_connection
-from core import webpush, google_calendar
 
 
 def owner(request: Request):
@@ -221,7 +221,7 @@ def _record_delivery(subscription_id, event):
 
 def _calendar_payload(event) -> dict:
     local = event["start_at"].astimezone(ZoneInfo("Europe/Rome"))
-    remaining = max(1, round((event["start_at"] - datetime.now(timezone.utc)).total_seconds() / 60))
+    remaining = max(1, round((event["start_at"] - datetime.now(UTC)).total_seconds() / 60))
     when = local.strftime("%H:%M")
     lead = f"Tra {remaining} minuti" if remaining < 60 else (
         "Tra 1 ora" if remaining < 90 else
@@ -284,7 +284,7 @@ class NotificationWorker:
 
     def _run(self):
         while not self._stop.wait(20):
-            self.last_attempt_at = datetime.now(timezone.utc).isoformat()
+            self.last_attempt_at = datetime.now(UTC).isoformat()
             try:
                 deliver_calendar_reminders()
                 self.last_success_at = self.last_attempt_at

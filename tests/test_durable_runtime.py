@@ -1,19 +1,22 @@
 """Fault injection and disposable PostgreSQL tests for durable execution."""
 import os
-import threading
 import tempfile
-from pathlib import Path
+import threading
 import unittest
-from uuid import uuid4
+from pathlib import Path
 from unittest.mock import patch
+from uuid import uuid4
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from core.runtime import Runtime, Run, current_run
-from core.run_states import DurabilityLost
-from core.governance import agent_tool, execute_capability, executables
+
 from core.database import db_connection
-from core.run_lifecycle import create_run, transition_run, get_run, recover, request_cancel, RunConflict
-from core.operation_journal import get_operation, list_operations, review, begin
+from core.governance import agent_tool, executables, execute_capability
+from core.operation_journal import begin, get_operation, list_operations, review
+from core.run_lifecycle import RunConflict, create_run, get_run, recover, request_cancel, transition_run
+from core.run_states import DurabilityLost
+from core.runtime import Run, Runtime, current_run
+
 
 class DurabilityUnitTests(unittest.TestCase):
     def test_failed_admission_never_registers_or_starts_work(self):
@@ -210,9 +213,10 @@ class DurablePostgresTests(unittest.TestCase):
         self.assertEqual(operation['result']['approval_id'],row['approval_ids'][0])
 
     def test_delegated_proposal_persists_child_result_and_awaiting_approval(self):
+        from langchain_core.messages import AIMessage
+
         from core.calendar_tools import calendar_tools_for
         from tools import _delegate_agent
-        from langchain_core.messages import AIMessage
         tool=next(t for t in calendar_tools_for('email_quotes_agent') if t.name=='calendar_create_event')
         class Graph:
             def stream(self,state,**kwargs):
@@ -253,8 +257,8 @@ class DurablePostgresTests(unittest.TestCase):
         self.assertEqual(effects,[]);self.assertEqual(list_operations(run_id=id),[])
 
     def test_owner_review_api_is_strict_and_cannot_change_the_recorded_actor(self):
-        from core.runtime_api import router
         from core.auth import AuthMiddleware
+        from core.runtime_api import router
         @agent_tool('supervisor',actions=('remember_memory',),effect='write',retry='never')
         def review_api_write()->str:
             """An uncertain effect requires owner evidence."""

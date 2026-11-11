@@ -2,8 +2,11 @@
 import os
 import unittest
 from unittest.mock import patch
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
-from core.context_budget import fit_messages, _valid_exchange, message_cost
+
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+
+from core.context_budget import _valid_exchange, fit_messages, message_cost
+
 
 class AdaptiveContextTests(unittest.TestCase):
     def test_large_library_read_keeps_customer_near_end_and_complete_tool_exchange(self):
@@ -31,8 +34,9 @@ class AdaptiveContextTests(unittest.TestCase):
 
 
     def test_graph_completes_after_large_read_without_replaying_the_tool(self):
-        import graph as supervisor
         from langchain_core.tools import tool
+
+        import graph as supervisor
         reads = []
         @tool
         def library_read(relative_path: str) -> str:

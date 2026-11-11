@@ -1,6 +1,7 @@
 """Regression checks for audit findings that do not need a live Debian host."""
 import unittest
 from unittest.mock import Mock, patch
+
 from fastapi import HTTPException
 
 import api

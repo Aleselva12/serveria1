@@ -3,9 +3,12 @@ import contextvars
 import hashlib
 import json
 from uuid import UUID, uuid4
+
 from psycopg.types.json import Jsonb
+
 from core.database import database_configured, db_connection
 from core.run_states import DurabilityLost
+
 
 class OperationConflict(RuntimeError):
     pass

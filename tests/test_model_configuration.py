@@ -1,15 +1,17 @@
 import importlib
 import json
 import os
-from pathlib import Path
 import tempfile
 import threading
-from types import SimpleNamespace
 import unittest
-from unittest.mock import patch, Mock
 from contextlib import ExitStack
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+
 from langchain_core.messages import HumanMessage
-from core import models, agent_models, model_evidence
+
+from core import agent_models, model_evidence, models
 
 
 class ConfigurationTests(unittest.TestCase):
@@ -103,9 +105,10 @@ class ConfigurationTests(unittest.TestCase):
             self.assertIsNone(unconfirmed['reported_model'])
 
     def test_whisper_configuration_and_reload_are_separate_from_llm(self):
+        from fastapi import HTTPException
+
         from audio_agent import audio_tools
         from core.audio_api import reload_transcription_engine
-        from fastapi import HTTPException
         audio_tools._load_whisper_model.cache_clear()
         factory = Mock()
         try:
@@ -128,10 +131,12 @@ class ConfigurationTests(unittest.TestCase):
         finally: audio_tools._load_whisper_model.cache_clear()
 
     def test_chat_message_uses_observed_reply_not_current_supervisor_setting(self):
-        import api
         from contextlib import nullcontext
-        from langchain_core.messages import AIMessage
         from uuid import uuid4
+
+        from langchain_core.messages import AIMessage
+
+        import api
         for observed in [[], [{'role': 'research', 'reported_model': 'document-model', 'machine_id': 'pc'}]]:
             with self.subTest(observed=bool(observed)):
                 run = SimpleNamespace(thread_id=str(uuid4()), id=str(uuid4()), timings={'inference_observations': observed}, graph_version='v1')

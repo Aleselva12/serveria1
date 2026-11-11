@@ -1,14 +1,16 @@
+import os
 import tempfile
 import unittest
 import uuid
-import os
 from pathlib import Path
 from unittest.mock import patch
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from langchain_core.runnables import RunnableLambda
+
 from core import execution_traces as traces
-from core.architecture_api import router, architecture_graph
+from core.architecture_api import architecture_graph, router
 
 
 class RuntimeTests(unittest.TestCase):

@@ -4,10 +4,11 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-# Measured on main with ruff 0.16.9: the full selection reports 3650 findings, of
-# which 3614 are either this codebase's deliberate style, a consequence of a
-# documented design choice, a framework idiom, or a bulk mechanical pass. Silencing
-# those leaves 36 findings that are worth reading. Every entry below says why.
+# Measured on main with ruff 0.16.9: the full selection reported 3650 findings.
+# 422 of them (I001, UP017, UP035) were fixed in one mechanical pass and those rules
+# are active. Of the rest, the ignores below cover deliberate style, a documented
+# design choice and a pending triage; the remaining 34 findings are worth reading.
+# Every entry below says why.
 ignore = [
     # 1595 + 819 + 692 = 3106. Deliberate style: compact lines and several
     # statements per line, systematic across 1511 occurrences. Not defects.
@@ -22,13 +23,6 @@ ignore = [
     # bugs and forbid removing compatibility re-exports. Re-enable once those 62 have
     # been triaged one by one; until then the rule only buries the other findings.
     "F401",  # unused-import
-    # 360 + 56 + 6 = 422, all auto-fixable in a single pass:
-    #   ruff check --select I001,UP017,UP035 --fix .
-    # They belong in one dedicated commit, not in a signal read on every push.
-    # Re-enable right after that commit lands.
-    "I001",   # unsorted-imports
-    "UP017",  # datetime-timezone-utc
-    "UP035",  # deprecated-import
 ]
 
 [tool.ruff.lint.flake8-bugbear]

@@ -8,10 +8,10 @@ import argparse
 import copy
 import json
 import os
-from pathlib import Path
 import secrets
 import subprocess
 import tempfile
+from pathlib import Path
 
 TARGET = "/run/cora-secrets/cora-calendar.json"
 PATH_VARIABLE = "CORA_GOOGLE_CALENDAR_SERVICE_ACCOUNT_PATH"

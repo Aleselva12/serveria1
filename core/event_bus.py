@@ -2,7 +2,9 @@
 from collections import deque
 from threading import Condition
 from uuid import uuid4
+
 from core.protocol import ComponentEvent
+
 
 class EventBus:
     def __init__(self, capacity=512):

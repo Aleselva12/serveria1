@@ -1,23 +1,25 @@
 import asyncio
 import json
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, Request, Query
+
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict
 from starlette.responses import StreamingResponse
-from core.runtime import runtime, TERMINAL
-from core.run_states import DurabilityLost
-from core.event_bus import bus
-from core.database import pool_stats
-from core.governance import list_approvals, resolve, capability_registry, approval_history
-from core.permissions import set_policy
+
 from core import calendar
+from core.database import pool_stats
+from core.event_bus import bus
+from core.governance import approval_history, capability_registry, list_approvals, resolve
+from core.permissions import set_policy
+from core.run_states import DurabilityLost
+from core.runtime import TERMINAL, runtime
 
 router = APIRouter(prefix="/api/v1", tags=["Runtime"])
 
 @router.get('/chat/model-profile')
 def chat_model_profile():
-    from core.models import resolve_model
     from core.model_profiles import profile_for
+    from core.models import resolve_model
     return profile_for(resolve_model('supervisor'))
 
 @router.get('/chat/consultations/{conversation_id}')
@@ -61,14 +63,13 @@ def policy(data: Policy):
 def snapshot(run_id: str):
     live = runtime.get(run_id)
     if live: return live.snapshot()
-    from core.run_lifecycle import get_run
-    from core.run_lifecycle import persisted_snapshot
+    from core.run_lifecycle import get_run, persisted_snapshot
     try: return persisted_snapshot(get_run(run_id))
     except (KeyError,ValueError) as error: raise HTTPException(404,"Run non trovato.") from error
 
 @router.post("/runtime/runs/{run_id}/cancel")
 def cancel(run_id: str):
-    from core.run_lifecycle import request_cancel, RunConflict, persisted_snapshot
+    from core.run_lifecycle import RunConflict, persisted_snapshot, request_cancel
     try:
         row = request_cancel(run_id)
         live = runtime.get(run_id)
@@ -132,9 +133,9 @@ def domain_events(after: int = Query(0,ge=0),limit: int = Query(100,ge=1,le=500)
 
 @router.get('/runtime/diagnostics')
 def diagnostics(run_id: UUID | None = None,limit: int = Query(200,ge=1,le=500),before: UUID | None = None):
-    from core.observability import read
-    from core.domain_events import root_for
     from core.database import db_connection
+    from core.domain_events import root_for
+    from core.observability import read
     root = str(run_id) if run_id else None
     if root:
         with db_connection() as conn: root = root_for(conn,root)
@@ -176,8 +177,7 @@ def calendar_decision(approval_id: UUID, data: Decision):
 
 @router.get("/runtime/runs")
 def persisted_runs(limit: int = 100, status: str = ""):
-    from core.run_lifecycle import list_runs
-    from core.run_lifecycle import persisted_snapshot
+    from core.run_lifecycle import list_runs, persisted_snapshot
     try: return [persisted_snapshot(r) for r in list_runs(limit,status)]
     except ValueError as error: raise HTTPException(422,str(error)) from error
 

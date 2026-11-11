@@ -1,10 +1,12 @@
 import json
 import unittest
 from unittest.mock import patch
+
 from core.capability_contracts import CapabilityResult
-from core.governance import agent_tool, execute_capability, executables, CapabilityExecutionError
+from core.governance import CapabilityExecutionError, agent_tool, executables, execute_capability
 from core.permissions import require_permission
 from core.run_states import EffectUncertain
+
 
 class ContractTests(unittest.TestCase):
     def setUp(self):

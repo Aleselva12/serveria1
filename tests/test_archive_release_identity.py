@@ -1,14 +1,16 @@
 """Source provenance for legacy updater archives, without using updater pointers."""
 import io
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tarfile
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
+
 from core import release_identity
+
 
 class ArchiveRevisionTests(unittest.TestCase):
     def test_valid_archive_is_used_when_build_marker_is_empty(self):

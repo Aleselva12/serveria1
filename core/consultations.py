@@ -1,6 +1,7 @@
 """Private chat evidence, separate from diagnostics. Never stores arguments or content."""
 import threading
 from uuid import UUID
+
 from core.database import database_configured, db_connection
 
 _lock = threading.Lock()

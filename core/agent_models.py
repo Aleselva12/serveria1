@@ -4,6 +4,7 @@ import os
 import tempfile
 import threading
 from pathlib import Path
+
 from fastapi import HTTPException
 
 ROLES = {"supervisor": "supervisor", "programmer_agent": "programmer",
@@ -53,7 +54,7 @@ def remote_machine(machine_id, model):
 
 def chat_on_worker(machine_id, model, params):
     from core.machines_api import _worker_call
-    from core.verification_usage import worker_reply, worker_failure
+    from core.verification_usage import worker_failure, worker_reply
     try:
         machine = remote_machine(machine_id, model)
         require_agent_chat(machine)
@@ -76,8 +77,8 @@ def require_agent_chat(machine):
 
 
 def save_binding(agent_id, machine_id, model):
-    from core.models import list_ollama_models
     from core.machines_api import _worker_call
+    from core.models import list_ollama_models
     if agent_id not in ROLES:
         raise HTTPException(404, "Agente non trovato.")
     if machine_id == 'inherit':

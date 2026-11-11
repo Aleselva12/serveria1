@@ -1,19 +1,20 @@
-from io import BytesIO
-from pathlib import Path
+import json
 import os
 import tempfile
 import unittest
-from unittest.mock import patch
 import zipfile
-import json
+from io import BytesIO
+from pathlib import Path
+from unittest.mock import patch
 
 from docx import Document
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from lxml import etree
-from core.server_files import router
+
 from core.ia_library import router as library_router
-from core.word_files import W, NS
+from core.server_files import router
+from core.word_files import NS, W
 
 
 class WordFilesTests(unittest.TestCase):

@@ -7,14 +7,16 @@ import subprocess
 import threading
 import time
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import urlopen
-from core.ollama_transport import get_ollama_base_url, urlopen as ollama_urlopen
 
 import psutil
 from fastapi import APIRouter
+
+from core.ollama_transport import get_ollama_base_url
+from core.ollama_transport import urlopen as ollama_urlopen
 
 router = APIRouter(prefix="/api/v1", tags=["Home"])
 _lock = threading.Lock()
@@ -37,7 +39,7 @@ def service_browser_url(identifier):
 
 
 def now():
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def gpu_metric():

@@ -1,19 +1,20 @@
 """Agent writes restricted to IA working copies, with version-bound approvals."""
 import hashlib
 import io
-from docx import Document
 import json
 import os
-from pathlib import Path
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
+from pathlib import Path
 
-from core.governance import agent_tool
-from core.file_paths import library_workspace_root
-from core.server_files import operation, trash_area
+from docx import Document
+
 from core.confined_paths import confined_path
+from core.file_paths import library_workspace_root
+from core.governance import agent_tool
 from core.runtime_context import ensure_runtime_active
+from core.server_files import operation, trash_area
 
 
 def source_file(relative_path):
@@ -62,7 +63,7 @@ def archive_previous(path, data, *, move=False):
     slot = confined_path(area, area/identifier)
     slot.mkdir()
     metadata = {'id':identifier, 'path':path.relative_to(library_workspace_root()).as_posix(),
-                'deletedAt':datetime.now(timezone.utc).isoformat(), 'reason':'agent-trash' if move else 'before-edit'}
+                'deletedAt':datetime.now(UTC).isoformat(), 'reason':'agent-trash' if move else 'before-edit'}
     (slot/'metadata.json').write_text(json.dumps(metadata), encoding='utf-8')
     if move:
         path.rename(slot/'content')
@@ -105,7 +106,7 @@ def library_copy(relative_path: str, destination: str) -> dict:
 @agent_tool('supervisor', capability='library_replace_text', actions=('library_read', 'library_modify'), effect='write', retry='never')
 def library_replace_text(relative_path: str, expected_sha256: str, old_text: str, new_text: str) -> dict:
     """Propone la sostituzione di un singolo estratto testuale UTF-8. Mostra prima/dopo in Attività; esegue solo dopo conferma sulla stessa versione SHA256."""
-    from search_agent.search_tools import TEXT_EXTENSIONS, MAX_FILE_BYTES
+    from search_agent.search_tools import MAX_FILE_BYTES, TEXT_EXTENSIONS
     with operation():
         ensure_runtime_active()
         path, data = checked_file(relative_path, expected_sha256)
@@ -183,7 +184,7 @@ def _document_bytes(suffix: str, text: str, *, original: bytes | None = None) ->
 def library_create_document(relative_path: str, content: str) -> dict:
     """CREA un nuovo TXT, Markdown o DOCX nella Libreria IA dopo conferma in Attività.
     Non sovrascrive mai file esistenti."""
-    from search_agent.search_tools import _safe_path, MAX_FILE_BYTES
+    from search_agent.search_tools import MAX_FILE_BYTES, _safe_path
     with operation():
         ensure_runtime_active()
         path = _safe_path(relative_path)

@@ -1,8 +1,8 @@
 """Allowlisted host app updater. Runs on the Debian host, not in Cora agents."""
-from pathlib import Path
 import os
 import subprocess
 import threading
+from pathlib import Path
 
 CATALOG = {
     "magazzino-tele": {

@@ -1,13 +1,16 @@
 """Isolated commercial Word workflow tests; no real client documents or DB."""
 import tempfile
 import unittest
-from pathlib import Path
 from io import BytesIO
-from uuid import uuid4
+from pathlib import Path
 from unittest.mock import patch
+from uuid import uuid4
+
 from docx import Document
 
 from core import commercial_notes
+
+
 def sample():
     document = Document()
     for line in ("LIDO TEST UNO", "Mario", "21/10/2026", "Vecchia annotazione",

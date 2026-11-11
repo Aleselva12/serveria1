@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 
 from core.governance import agent_tool
-
 from core.logging import tail_events
 from core.memory import memory_stats
 from core.orchestration import resolve_plan_owner

@@ -2,6 +2,7 @@
 import json
 import tempfile
 import unittest
+from datetime import UTC
 from pathlib import Path
 from unittest.mock import patch
 
@@ -31,12 +32,12 @@ class ServiceAccountTests(unittest.TestCase):
                 provider._credentials()
 
     def test_read_and_write_target_shared_calendar(self):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
         from unittest.mock import MagicMock
         service = MagicMock()
         service.events.return_value.list.return_value.execute.return_value = {"items": []}
         with patch.object(provider, "SERVICE_ACCOUNT_PATH", Path("/not/required.json")), patch.dict("os.environ", {"CORA_GOOGLE_CALENDAR_ID": "shared@example.test"}), patch.object(provider, "service", return_value=service):
-            provider.list_events(datetime.now(timezone.utc), datetime.now(timezone.utc) + timedelta(days=1))
+            provider.list_events(datetime.now(UTC), datetime.now(UTC) + timedelta(days=1))
         self.assertEqual(service.events.return_value.list.call_args.kwargs["calendarId"], "shared@example.test")
 
 

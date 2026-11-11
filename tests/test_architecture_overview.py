@@ -1,7 +1,9 @@
 import unittest
 from unittest.mock import patch
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
 from core.architecture_api import architecture_overview, router
 
 

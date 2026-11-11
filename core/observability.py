@@ -5,8 +5,10 @@ import os
 import threading
 from collections import deque
 from uuid import UUID
+
 from psycopg.types.json import Jsonb
-from core.database import db_connection, database_configured
+
+from core.database import database_configured, db_connection
 
 PAYLOAD_FIELDS = {
     'programmer.context_projection': {'compacted', 'original_tokens', 'projected_tokens'},

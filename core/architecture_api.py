@@ -3,7 +3,9 @@ import hashlib
 import importlib
 import json
 from functools import lru_cache
+
 from fastapi import APIRouter, HTTPException, Query
+
 from core.execution_traces import read_runs
 
 router = APIRouter(prefix="/api/v1", tags=["Architecture"])
@@ -15,6 +17,7 @@ def worker_update():
     import io
     import zipfile
     from pathlib import Path
+
     from fastapi.responses import Response
     root = Path(__file__).resolve().parents[1] / 'worker'
     data = io.BytesIO()
@@ -83,13 +86,13 @@ def run_detail(run_id: str):
 
 def architecture_overview():
     """System-level view: agent delegation, shared support and direct API paths."""
-    from core.registry import get_registry
-    from core.models import get_model_name
-    from tools import supervisor_tools
     from core.calendar_api import router as calendar_router
-    from core.monitoring import router as monitoring_router
-    from core.server_files import router as files_router
     from core.ia_library import router as library_router
+    from core.models import get_model_name
+    from core.monitoring import router as monitoring_router
+    from core.registry import get_registry
+    from core.server_files import router as files_router
+    from tools import supervisor_tools
 
     registry = get_registry()
     roles = {"supervisor": "supervisor", "structure_agent": "structure",
@@ -169,12 +172,12 @@ def shadow_router_status():
 @router.get('/architecture/agents')
 def agents_catalog():
     from core.agent_models import ROLES, bindings
-    from core.registry import get_registry
-    from core.models import resolve_model
-    from core.model_evidence import observations
-    from core.tool_inventory import inventory, SOURCES
-    from core.runtime_status import component_runtime_status
     from core.machines_api import _read
+    from core.model_evidence import observations
+    from core.models import resolve_model
+    from core.registry import get_registry
+    from core.runtime_status import component_runtime_status
+    from core.tool_inventory import SOURCES, inventory
     configured = bindings()
     last_replies = observations()
     machines = {m['id']: m['name'] for m in _read()}
@@ -234,8 +237,8 @@ def model_targets():
 
 @router.get('/architecture/model-targets/{machine_id}')
 def target_models(machine_id: str):
+    from core.machines_api import _find, _settings, _worker_call
     from core.models import list_ollama_models
-    from core.machines_api import _find, _worker_call, _settings
     if machine_id == 'local':
         try:
             return {'models': list_ollama_models(), 'enabled': True, 'active_model': None, 'agent_chat': True}
@@ -268,8 +271,8 @@ def select_agent_model(agent_id: str, selection: AgentModelSelection):
         raise
     except OSError as error:
         raise HTTPException(503, 'Provider non raggiungibile o stato non salvabile. Nessuna conferma di modifica.') from error
-    from core.models import resolve_model
     from core.agent_models import ROLES
+    from core.models import resolve_model
     return {'assignment': saved, 'configuration': resolve_model(ROLES[agent_id]),
             'applies': 'next_model_call', 'requires_restart': False}
 
@@ -288,7 +291,9 @@ def verify_agent_model(agent_id: str):
         require_agent_chat(remote_machine(expected['machine_id'], expected['model']))
     def work(run):
         import time
+
         from langchain_core.messages import HumanMessage
+
         from core.runtime import checkpoint
         checkpoint()
         # Resolve only when this queued job actually starts. Never bind tools.

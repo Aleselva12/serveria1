@@ -1,17 +1,18 @@
 """One local model execution at a time, bounded queue and cooperative cancellation."""
-from core.generation_policy import run_timeout
 import contextvars
+import os
 import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timezone
 from uuid import uuid4
-import os
+
 from core.event_bus import bus
 from core.execution_traces import append_event
-from datetime import datetime, timezone
-
+from core.generation_policy import run_timeout
 from core.run_states import TERMINAL, TRANSITIONS, DurabilityLost, EffectUncertain
+
 current_run = contextvars.ContextVar("cora_run", default=None)
 
 class RunStopped(BaseException):
@@ -66,7 +67,7 @@ class Run:
             bus.publish("run.state", "runtime", run_id=self.id, thread_id=self.thread_id,
                         payload={"status": status})
             append_event(dict(run_id=self.id, thread_id=self.thread_id, graph_version=self.graph_version,
-                timestamp=datetime.now(timezone.utc).isoformat(), kind="run", status=status,
+                timestamp=datetime.now(UTC).isoformat(), kind="run", status=status,
                 span_id=None, parent_id=None, name="Cora runtime", metrics=dict(self.timings) if status in TERMINAL else {}, duration_ms=round((time.monotonic()-self.created)*1000,2), error_type=self.error_type))
 
     def stop(self, reason="cancelled"):
@@ -140,7 +141,7 @@ class Runtime:
                 if old is None: break
                 del self.runs[old]
             bus.publish("run.state", "runtime", run_id=run.id, thread_id=thread_id, payload={"status": "queued"})
-            append_event(dict(run_id=run.id,thread_id=thread_id,graph_version=run.graph_version,timestamp=datetime.now(timezone.utc).isoformat(),kind="run",status="queued",name="Coda",duration_ms=0,span_id=None,parent_id=None,error_type=None))
+            append_event(dict(run_id=run.id,thread_id=thread_id,graph_version=run.graph_version,timestamp=datetime.now(UTC).isoformat(),kind="run",status="queued",name="Coda",duration_ms=0,span_id=None,parent_id=None,error_type=None))
             threading.Thread(target=self._work, args=(run, execute), daemon=True).start()
             threading.Thread(target=self._deadline, args=(run,), daemon=True).start()
             return run
@@ -277,15 +278,15 @@ def publish_text(run, role, span, text):
 def checkpoint():
     run = current_run.get()
     if run:
-        from core.runtime_context import _run_id, _deadline
         from core.run_lifecycle import cancel_requested
+        from core.runtime_context import _deadline, _run_id
         child_id, child_deadline = _run_id.get(), _deadline.get()
         if cancel_requested(run.id) or (child_id and cancel_requested(child_id)): run.stop("cancelled")
         if child_deadline is not None and time.monotonic() >= child_deadline: run.stop("timed_out")
         run.check()
     else:
-        from core.runtime_context import _run_id, _deadline
         from core.run_lifecycle import cancel_requested
+        from core.runtime_context import _deadline, _run_id
         if _run_id.get() and cancel_requested(_run_id.get()): raise RunStopped('cancelled')
         if _deadline.get() is not None and time.monotonic() >= _deadline.get(): raise RunStopped('timed_out')
 

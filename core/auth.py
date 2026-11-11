@@ -5,13 +5,15 @@ import os
 import secrets
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from getpass import getpass
 from uuid import uuid4
+
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+
 from core.database import db_connection
 
 COOKIE = "cora_session"
@@ -97,8 +99,9 @@ def auth_mode():
 
 def request_user(request):
     if auth_mode() == "desktop":
-        from core.access import is_loopback
         from urllib.parse import urlsplit
+
+        from core.access import is_loopback
         host = request.client.host if request.client else ""
         authority = urlsplit("//" + request.headers.get("host", ""))
         if not is_loopback(host) or authority.hostname not in {"localhost", "127.0.0.1", "::1"}:
@@ -224,7 +227,7 @@ def login(data: Login, request: Request, response: Response):
         if not row or not valid:
             raise HTTPException(401, "Credenziali non valide.")
         token = secrets.token_urlsafe(32)
-        expires = datetime.now(timezone.utc) + timedelta(days=7)
+        expires = datetime.now(UTC) + timedelta(days=7)
         conn.execute("DELETE FROM app_sessions WHERE expires_at<=NOW()")
         conn.execute("INSERT INTO app_sessions (token_hash,user_id,expires_at) VALUES (%s,%s,%s)",
                      (hashlib.sha256(token.encode()).hexdigest(), row["id"], expires))

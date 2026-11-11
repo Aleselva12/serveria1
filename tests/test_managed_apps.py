@@ -1,7 +1,9 @@
 import tempfile
 import unittest
 from pathlib import Path
+
 from updater.managed_apps import AppManager
+
 
 class ManagedAppsTests(unittest.TestCase):
     def test_disabled_by_default_and_allowlist(self):

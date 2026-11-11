@@ -1,9 +1,9 @@
 """One-time root provisioning for ServerAle; never called by the HTTP API."""
 import os
-from pathlib import Path
 import pwd
 import shutil
 import subprocess
+from pathlib import Path
 
 ROOT=Path('/srv/cora-tools/updater')
 USER='ale'

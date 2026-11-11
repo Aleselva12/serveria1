@@ -5,10 +5,9 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
+
 from core.governance import agent_tool
-
 from core.permissions import require_permission
-
 
 load_dotenv()
 
@@ -422,5 +421,6 @@ AUDIO_TOOLS = [
 
 
 from core.calendar_tools import calendar_tools_for
+
 AUDIO_TOOLS += calendar_tools_for("audio_agent")
 

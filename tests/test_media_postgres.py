@@ -5,11 +5,14 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
-from uuid import UUID,uuid4
+from uuid import UUID, uuid4
+
 from fastapi.testclient import TestClient
-from core.database import db_connection,close_pool
+
 from core.auth import provision
+from core.database import close_pool, db_connection
 from core.runtime import Runtime
+
 
 @unittest.skipUnless(os.getenv('CORA_RUNTIME_TEST_DATABASE_URL'), 'Requires disposable PostgreSQL+pgvector')
 class MediaPostgresTests(unittest.TestCase):

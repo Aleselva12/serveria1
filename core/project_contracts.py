@@ -1,6 +1,7 @@
 """Non-destructive boundary checks: pinpoint the broken hop, NOT end-to-end proof."""
 from __future__ import annotations
 
+
 def _routes(router):
     return {(r.path, method) for r in router.routes for method in (getattr(r, "methods", None) or ())}
 
@@ -38,7 +39,7 @@ def audio_word_contract():
         ("/api/v1/audio/{ident}/commercial/proposals/{proposal_id}/resolve", "POST"),
     ], "Audio → approvazione")
     if problem: return problem
-    from core import commercial_word, commercial_notes
+    from core import commercial_notes, commercial_word
     if not all(callable(getattr(commercial_word, n, None)) for n in ("parse","propose_append")):
         return "fail", "Collegamento assente: Audio → motore Word"
     if not callable(getattr(commercial_notes, "resolve_proposal", None)):
@@ -113,7 +114,7 @@ def orchestrator_v1_contract():
     if not required_states <= known_states:
         return "fail", "State Machine incompleta per la base orchestrazione"
 
-    from core.context_contracts import ContextRequest, ContextPacket
+    from core.context_contracts import ContextPacket, ContextRequest
     if ContextRequest.model_json_schema().get("title") != "ContextRequest":
         return "fail", "Contratto ContextRequest non disponibile"
     if ContextPacket.model_json_schema().get("title") != "ContextPacket":

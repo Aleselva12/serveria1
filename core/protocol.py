@@ -1,14 +1,16 @@
 """Versioned component events. Transport is deliberately independent of LangGraph."""
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, Literal
 from uuid import uuid4
-from pydantic import BaseModel, Field, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class ComponentEvent(BaseModel):
     model_config = ConfigDict(extra="forbid")
     version: Literal[1] = 1
     id: str = Field(default_factory=lambda: str(uuid4()))
-    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     type: str
     source: str
     run_id: str | None = None
@@ -41,7 +43,7 @@ class TaskEnvelope(ComponentRequest):
     task_id: str = Field(default_factory=lambda: str(uuid4()))
     context_refs: list[str] = Field(default_factory=list)
     priority: int = Field(default=50, ge=0, le=100)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

@@ -6,7 +6,7 @@ import os
 import tempfile
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 LOCK = threading.RLock()
@@ -153,7 +153,7 @@ def save_draft(data, ident=None, expected_version=None, root=None, tool_ids=None
             version = previous["version"] + 1
         else:
             ident = str(uuid.uuid4())
-        record.update(id=ident, version=version, updated_at=datetime.now(timezone.utc).isoformat(), status="draft")
+        record.update(id=ident, version=version, updated_at=datetime.now(UTC).isoformat(), status="draft")
         root.mkdir(parents=True, exist_ok=True)
         path = _path(ident, root)
         fd, temp = tempfile.mkstemp(prefix=".draft-", dir=root)

@@ -1,11 +1,13 @@
 """Versioned component records and immutable review handoffs; never activation."""
 from __future__ import annotations
+
 import difflib
 import io
 import json
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from uuid import UUID, uuid4
+
 from programmer_agent import workspace as ws
 
 KINDS = {'tool', 'automation', 'frontend', 'other'}
@@ -14,7 +16,7 @@ REQUIRED = {'tool': ['syntax', 'contracts', 'python_tests'], 'automation': ['syn
 
 
 def now():
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def workspace_digest(identifier):

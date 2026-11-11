@@ -5,17 +5,17 @@ reauthorized without touching mail access. Client credentials may be shared.
 """
 from __future__ import annotations
 
-import os
 import hashlib
+import os
 import tempfile
-from google.auth.exceptions import RefreshError
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
 from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -121,7 +121,7 @@ def status() -> dict:
     try:
         result = service().events().list(
             calendarId=calendar_id(),
-            timeMin=datetime.now(timezone.utc).isoformat(),
+            timeMin=datetime.now(UTC).isoformat(),
             maxResults=1,
             singleEvents=True,
             orderBy="startTime",
@@ -172,7 +172,7 @@ def _reminder_minutes(event: dict) -> int | None:
 
 def normalize(event: dict) -> dict:
     start, end, all_day = _event_times(event)
-    created = event.get("created") or event.get("updated") or datetime.now(timezone.utc).isoformat()
+    created = event.get("created") or event.get("updated") or datetime.now(UTC).isoformat()
     updated = event.get("updated") or created
     # Google sequence may stay unchanged after an ordinary edit; its ETag is the revision.
     etag = event.get("etag")
@@ -237,8 +237,8 @@ def list_events(start: datetime, end: datetime) -> list[dict]:
     page_token = None
     while True:
         params = dict(calendarId=calendar_id(),
-                      timeMin=start.astimezone(timezone.utc).isoformat(),
-                      timeMax=end.astimezone(timezone.utc).isoformat(),
+                      timeMin=start.astimezone(UTC).isoformat(),
+                      timeMax=end.astimezone(UTC).isoformat(),
                       singleEvents=True, orderBy="startTime", maxResults=2500)
         if page_token:
             params["pageToken"] = page_token
@@ -418,7 +418,7 @@ def _conditional_event_request(event_id: str, expected_version: int, *, data: di
         normalized = normalize(result)
         calendar_write("update", normalized)
         return normalized
-    normalized = {**previous, "deleted_at": datetime.now(timezone.utc).isoformat()}
+    normalized = {**previous, "deleted_at": datetime.now(UTC).isoformat()}
     calendar_write("delete", normalized)
     return normalized
 
@@ -434,7 +434,7 @@ def delete_event(event_id: str, *, expected_version: int) -> dict:
 def verify_access() -> bool:
     service().events().list(
         calendarId=calendar_id(),
-        timeMin=datetime.now(timezone.utc).isoformat(),
+        timeMin=datetime.now(UTC).isoformat(),
         maxResults=1,
         singleEvents=True,
     ).execute()

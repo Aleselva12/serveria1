@@ -1,6 +1,6 @@
 import unittest
 
-from core.context_contracts import ContextRequest, ContextPacket, ContextItem, ContextConflict
+from core.context_contracts import ContextConflict, ContextItem, ContextPacket, ContextRequest
 
 
 class ContextContractTests(unittest.TestCase):

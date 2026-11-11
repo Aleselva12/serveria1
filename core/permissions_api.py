@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from core.permissions import permission_manifest,validate_permission_configuration
+
+from core.permissions import permission_manifest, validate_permission_configuration
 
 router = APIRouter(prefix="/api/v1",tags=["Permissions"])
 

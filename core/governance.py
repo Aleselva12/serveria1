@@ -1,19 +1,21 @@
 """Actor-bound tool execution, approvals and executable capability registry."""
 import contextvars
 import functools
-import inspect
 import hashlib
 import importlib
+import inspect
 import json
 import time
-from datetime import datetime, timezone
-from uuid import uuid4, UUID
+from datetime import UTC, datetime, timezone
 from pathlib import Path
+from uuid import UUID, uuid4
+
 from langchain_core.tools import tool as langchain_tool
 from psycopg.types.json import Jsonb
+
 from core.database import db_connection
-from core.runtime import current_run, checkpoint
 from core.event_bus import bus
+from core.runtime import checkpoint, current_run
 
 invocation = contextvars.ContextVar("tool_invocation", default=None)
 approved_action = contextvars.ContextVar("approved_action", default=None)
@@ -27,8 +29,10 @@ class ApprovalRequired(BaseException):
 def agent_tool(actor, *, capability=None, actions, effect, retry, conditional_actions=(), version=1, approval="generic", response_mode="data"):
     """Register an explicit contract; the LangChain tool is only an adapter."""
     def decorate(fn):
+        from typing import Any, get_type_hints
+
         from pydantic import ConfigDict, TypeAdapter, create_model
-        from typing import get_type_hints, Any
+
         from core.capability_contracts import CapabilityContract, CapabilityResult
         identifier = fn.__module__ + ":" + fn.__name__ + ":" + actor
         capability_id = actor + "." + (capability or fn.__name__)
@@ -102,8 +106,9 @@ def bind_capabilities(actor, tools):
 
 
 def execute_capability(identifier, payload):
-    from core.capability_contracts import CapabilityResult, CapabilityError
     from fastapi.encoders import jsonable_encoder
+
+    from core.capability_contracts import CapabilityError, CapabilityResult
     tool_id, entry = find_capability(identifier)
     contract = entry["contract"]
     result = CapabilityResult(capability_id=contract.id, contract_version=contract.version, status="ok")
@@ -116,7 +121,7 @@ def execute_capability(identifier, payload):
         checkpoint()
         payload = entry["input_model"].model_validate(payload).model_dump()
         token = invocation.set({"actor":contract.actor,"tool_id":tool_id,"payload":payload,"actions":entry["actions"]})
-        from core.permissions import require_permission, get_permission_rule
+        from core.permissions import get_permission_rule, require_permission
         for action in contract.required_actions:
             rule = get_permission_rule(contract.actor, action)
             if not rule or rule.policy.value == "blocked": require_permission(contract.actor, action)
@@ -231,7 +236,7 @@ def resolve(identifier, approve, username):
         row = conn.execute("SELECT * FROM action_approvals WHERE id=%s FOR UPDATE", (UUID(identifier),)).fetchone()
         if not row: raise KeyError(identifier)
         if row["status"] != "pending": raise ValueError("Richiesta già gestita.")
-        if row["expires_at"] <= datetime.now(timezone.utc): raise ValueError("Richiesta scaduta.")
+        if row["expires_at"] <= datetime.now(UTC): raise ValueError("Richiesta scaduta.")
         conn.execute("UPDATE action_approvals SET status=%s,resolved_at=NOW(),resolved_by=%s WHERE id=%s",
             ("executing" if approve else "rejected",username,row["id"]))
     if not approve: return {"status": "rejected"}

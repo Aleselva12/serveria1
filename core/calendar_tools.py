@@ -1,8 +1,9 @@
 """Actor-bound calendar tools: identity and approval cannot be supplied by the LLM."""
 from datetime import datetime
-from core.governance import agent_tool
+
 from core import calendar as store
 from core import google_calendar
+from core.governance import agent_tool
 from core.permissions import require_permission
 
 CALENDAR_INSTRUCTIONS = """
@@ -32,7 +33,7 @@ def _reject_provider_switch():
 
 def _require_google_approval(actor: str, action: str):
     """Google writes always need a pinned owner approval, even with an AUTO override."""
-    from core.governance import approved_action, invocation, ApprovalRequired
+    from core.governance import ApprovalRequired, approved_action, invocation
     require_permission(actor, action)
     call, grant = invocation.get(), approved_action.get()
     if not (call and grant and grant[0] == actor and action in grant[1] and

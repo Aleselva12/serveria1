@@ -1,9 +1,9 @@
 """Bounded previews/search, private expiring links and resumable owner uploads."""
 import hashlib
 import json
+import math
 import os
 import re
-import math
 import secrets
 import shutil
 import time
@@ -13,6 +13,7 @@ from pathlib import Path
 from fastapi import File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
+
 from core.confined_paths import confined_path
 
 # Imported only when make_router finishes defining its basic routes.
@@ -46,7 +47,17 @@ def fingerprint(path):
 
 
 def register_extras(router, root_provider, *, allow_upload):
-    from core.server_files import operation, root_for, resolve, exists, vacant, parts, node, RESERVED, upload_to
+    from core.server_files import (
+        RESERVED,
+        exists,
+        node,
+        operation,
+        parts,
+        resolve,
+        root_for,
+        upload_to,
+        vacant,
+    )
     def select(root_id, write=False):
         return root_for(root_id, write, root_provider)
 

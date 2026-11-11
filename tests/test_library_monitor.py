@@ -36,8 +36,8 @@ class LibraryMonitorTests(unittest.TestCase):
         return target
 
     def test_background_error_is_visible_without_user_path(self):
-        from unittest.mock import Mock
         import datetime
+        from unittest.mock import Mock
         fake_stop = Mock()
         fake_stop.wait.side_effect = [False, True]
         with patch.object(monitor, '_STOP', fake_stop), patch.object(

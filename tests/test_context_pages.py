@@ -1,6 +1,6 @@
 import unittest
 
-from core.context_pages import resolve_context_pages, selected_tool_names, preload_context, routing_text
+from core.context_pages import preload_context, resolve_context_pages, routing_text, selected_tool_names
 
 
 class ContextPageTests(unittest.TestCase):

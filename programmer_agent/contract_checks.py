@@ -1,14 +1,15 @@
 """Static inspection of generated adapters; no import of generated Python."""
 import ast
 import json
-from programmer_agent import workspace as ws
+
 from core.runtime import checkpoint
+from programmer_agent import workspace as ws
 
 
 def contracts(identifier):
-    from programmer_agent.components import _load
     from core.automation_drafts import validate_graph
     from core.tool_inventory import inventory
+    from programmer_agent.components import _load
     rows = _load(identifier)
     targets = {p for row in rows for p in row['files'] if row['kind'] == 'tool' and p.endswith('.py') or row['kind'] == 'automation' and p.endswith('.json')}
     targets.update(p for p in ws.list_files(identifier) if p.startswith(('generated_tools/', 'generated_automations/')))

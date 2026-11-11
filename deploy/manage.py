@@ -3,13 +3,13 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import secrets
 import shutil
 import subprocess
 import sys
 import tarfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV = ROOT / 'deploy.env'
@@ -117,7 +117,7 @@ def backup(path):
         shutil.copyfile(ENV,path/'deploy.env');(path/'deploy.env').chmod(0o600)
         revision=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True)
         images=compose('images','--format','json',capture_output=True,text=True).stdout
-        manifest={'version':1,'created_at':datetime.now(timezone.utc).isoformat(),
+        manifest={'version':1,'created_at':datetime.now(UTC).isoformat(),
                   'revision':revision.stdout.strip(),'images':images,
                   'sha256':{name:digest(path/name) for name in ('database.dump','state.tar.gz','deploy.env')}}
         (path/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')

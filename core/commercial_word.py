@@ -3,11 +3,13 @@
 Never changes a source file. Publication needs separate user approval.
 """
 from __future__ import annotations
+
+import re
+import unicodedata
 from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
-import re
-import unicodedata
+
 from docx import Document
 from lxml import etree
 

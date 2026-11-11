@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from deploy.calendar_service_account_updater import configure, apply, read_calendar_id
+from deploy.calendar_service_account_updater import apply, configure, read_calendar_id
 
 
 class CalendarUpdaterTests(unittest.TestCase):

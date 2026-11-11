@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 from pgvector import Vector
@@ -11,7 +11,6 @@ from pgvector import Vector
 from core.database import database_status, db_connection
 from core.embeddings import EMBEDDING_MODEL, embed_text
 from core.logging import log_event
-
 
 ALLOWED_MEMORY_TYPES = {
     "fact",
@@ -25,7 +24,7 @@ ALLOWED_MEMORY_TYPES = {
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _public_memory(row: dict[str, Any]) -> dict[str, Any]:
@@ -44,7 +43,7 @@ ASSERTIONS = {"user_statement", "observation", "inference", "unclassified"}
 
 
 def _owner_update_approved(action="remember_memory"):
-    from core.governance import invocation, approved_action
+    from core.governance import approved_action, invocation
     call, grant = invocation.get(), approved_action.get()
     return bool(call and grant and grant[0] == call["actor"]
                 and action in grant[1] and grant[2:] == (call["tool_id"], call["payload"]))

@@ -5,11 +5,13 @@ import argparse
 import json
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from langchain_core.messages import HumanMessage, AIMessage
-from programmer_agent.request_router import classify
-from programmer_agent.context_manager import semantic_tools, metrics
+from langchain_core.messages import AIMessage, HumanMessage
+
+from programmer_agent.context_manager import metrics, semantic_tools
 from programmer_agent.programmer_tools import PROGRAMMER_TOOLS
+from programmer_agent.request_router import classify
 
 CASES = [
     ('language_preference', ['Preferisci scrivere in italiano o inglese?'], 'current', set()),

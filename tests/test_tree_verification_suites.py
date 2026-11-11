@@ -2,9 +2,11 @@ import json
 import re
 import unittest
 from pathlib import Path
-from core.tree_verification_suites import SUITES
-from core.health_catalog import CATALOG
+
 from core.additional_verifications import REGRESSIONS
+from core.health_catalog import CATALOG
+from core.tree_verification_suites import SUITES
+
 
 class TreeVerificationSuiteTests(unittest.TestCase):
     def test_catalog_runner_mapping_and_scope_agree(self):

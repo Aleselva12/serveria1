@@ -57,9 +57,10 @@ class AuditClosureTests(unittest.TestCase):
             self.assertEqual(ollama_transport.get_ollama_base_url(), 'http://ollama:11434')
 
     def test_model_selection_distinguishes_disk_failure_and_uses_single_probe(self):
+        from fastapi import HTTPException
+
         import api
         from core.models import RuntimeSettingsError
-        from fastapi import HTTPException
         models = [{'name':'new'}]
         with patch.object(api,'list_ollama_models',return_value=models) as listing, patch.object(api,'save_runtime_model',side_effect=RuntimeSettingsError('Impossibile salvare il modello.')):
             with self.assertRaises(HTTPException) as error: api.select_runtime_model(api.ModelSelectionRequest(model='new'))
@@ -105,8 +106,9 @@ class AuditClosureTests(unittest.TestCase):
             request.assert_called_once_with('POST','/workspaces/workspace-id/check',{'profile':'python_tests','workspace_digest':'a'*64},timeout=180)
 
     def test_windows_long_path_has_client_error(self):
-        from core.server_files import guard
         from fastapi import HTTPException
+
+        from core.server_files import guard
         error = OSError(22, 'invalid path'); error.winerror = 206
         with self.assertRaises(HTTPException) as caught:
             with guard(): raise error
@@ -114,8 +116,10 @@ class AuditClosureTests(unittest.TestCase):
 
     def test_host_http_check_requires_token_and_exact_payload(self):
         from http.server import ThreadingHTTPServer
-        from updater.service import handler
+
         import httpx
+
+        from updater.service import handler
         temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)
         engine=MagicMock()
         engine.root=Path(temporary.name)

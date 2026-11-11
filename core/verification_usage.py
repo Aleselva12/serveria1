@@ -20,7 +20,7 @@ def record(check_id, status, detail):
     """Best effort: evidence storage must not turn a successful operation into an error."""
     try:
         from core.database import DATABASE_URL, db_connection
-        from core.project_checks import _release, _environment
+        from core.project_checks import _environment, _release
         if not enabled():
             return False
         commit = _release()
@@ -89,8 +89,9 @@ def calendar_write(action, result):
     if not enabled():
         return
     try:
-        from core import google_calendar as calendar
         from googleapiclient.errors import HttpError
+
+        from core import google_calendar as calendar
         if action == "delete":
             try:
                 current = calendar.service().events().get(calendarId="primary", eventId=result["id"]).execute()

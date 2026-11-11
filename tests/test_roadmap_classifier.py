@@ -132,8 +132,7 @@ class ClassifierTests(unittest.TestCase):
         self.assertIn(str(classifier.TIMEOUT_SECONDS), err.exception.detail)
 
     def test_activity_records_success_and_failure(self):
-        from core import run_lifecycle
-        from core import priority_evaluations
+        from core import priority_evaluations, run_lifecycle
         request = classifier.PreviewRequest(objectives=[goal()])
         evaluation = {"model": classifier.MODEL, "reported_model": classifier.MODEL, "objective_count": 1}
         for failure in [False, True]:

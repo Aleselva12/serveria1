@@ -1,10 +1,10 @@
 """Protect diagnostic confidentiality and prevent false certification."""
 import importlib.util
 import json
-from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('priority_checks', Path(__file__).resolve().parents[1]/'deploy/priority_checks.py')

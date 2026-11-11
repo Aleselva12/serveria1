@@ -1,9 +1,9 @@
 import unittest
 from unittest.mock import patch
 
+from core.component_bus import component_bus
 from core.governance import agent_tool, executables
 from core.operational_capabilities import operational_registry
-from core.component_bus import component_bus
 
 
 class OperationalCapabilitiesTests(unittest.TestCase):

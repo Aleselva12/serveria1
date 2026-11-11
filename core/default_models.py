@@ -5,8 +5,8 @@ import json
 import threading
 from urllib.request import Request
 
-from core.ollama_transport import get_ollama_base_url, urlopen
 from core.models import list_ollama_models
+from core.ollama_transport import get_ollama_base_url, urlopen
 
 MODEL_PACKS = {
     "base": (

@@ -6,7 +6,6 @@ from pathlib import Path
 import psutil
 from langchain_core.tools import tool
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent
 
 BLOCKED_PARTS = {

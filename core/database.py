@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-import os
 import hashlib
+import os
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 import psycopg
-from psycopg_pool import ConnectionPool
 from dotenv import load_dotenv
 from pgvector.psycopg import register_vector
 from psycopg.rows import dict_row
-
+from psycopg_pool import ConnectionPool
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")

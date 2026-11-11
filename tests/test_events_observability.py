@@ -5,18 +5,21 @@ import tempfile
 import threading
 import time
 import unittest
-from datetime import datetime,timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from uuid import uuid4
 from unittest.mock import patch
+from uuid import uuid4
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from core.protocol import ComponentEvent
-from core.observability import DiagnosticArchive,metadata_event,prune,read as read_diagnostics
-from core.event_bus import EventBus
+
 from core.database import db_connection
-from core.run_lifecycle import create_run,transition_run,get_run,recover
 from core.domain_events import read as read_critical
+from core.event_bus import EventBus
+from core.observability import DiagnosticArchive, metadata_event, prune
+from core.observability import read as read_diagnostics
+from core.protocol import ComponentEvent
+from core.run_lifecycle import create_run, get_run, recover, transition_run
 
 
 class DiagnosticUnitTests(unittest.TestCase):
@@ -70,10 +73,11 @@ class DiagnosticUnitTests(unittest.TestCase):
                 with logged_operation('failed_sink',component='test'):raise ValueError('original')
 
     def test_model_first_token_is_per_invocation_and_errors_leave_no_busy_agent(self):
-        from core.runtime import Run,current_run
-        from core.execution_traces import ExecutionTrace
-        from langchain_core.outputs import LLMResult,ChatGeneration
         from langchain_core.messages import AIMessage
+        from langchain_core.outputs import ChatGeneration, LLMResult
+
+        from core.execution_traces import ExecutionTrace
+        from core.runtime import Run, current_run
         run=Run('thread');token=current_run.set(run)
         try:
             trace=ExecutionTrace('thread','v1');span=uuid4()
@@ -89,7 +93,7 @@ class DiagnosticUnitTests(unittest.TestCase):
         finally:current_run.reset(token)
 
     def test_stream_resets_invalid_future_or_foreign_process_cursor_once(self):
-        from core.runtime import Runtime,publish_text
+        from core.runtime import Runtime, publish_text
         from core.runtime_api import router
         runtime=Runtime(persistent=False)
         run=runtime.submit('stream',lambda run:{'response':'canonical'})
@@ -178,8 +182,8 @@ class EventPostgresTests(unittest.TestCase):
         self.assertEqual(first['events']+remaining['events'],events)
 
     def test_operation_journal_commits_only_metadata_and_review_is_a_fact_not_replay(self):
-        from core.governance import agent_tool,execute_capability
-        from core.operation_journal import review,get_operation
+        from core.governance import agent_tool, execute_capability
+        from core.operation_journal import get_operation, review
         @agent_tool('supervisor',actions=('calculate',),effect='write',retry='never')
         def event_test_write(secret:str)->str:
             """A failed external write has an uncertain result."""
@@ -207,7 +211,7 @@ class EventPostgresTests(unittest.TestCase):
 
     def test_timestamp_ties_paginate_without_skipping_and_expired_cursor_is_explicit(self):
         recorder=DiagnosticArchive();root=create_run(thread_id='paging');id=str(root['id'])
-        timestamp=datetime.now(timezone.utc).isoformat()
+        timestamp=datetime.now(UTC).isoformat()
         for i in range(5):recorder.record(ComponentEvent(type='run.state',source='test',run_id=id,timestamp=timestamp,payload={'status':'running'}).model_dump())
         self.assertTrue(recorder.flush())
         first=read_diagnostics(run_id=id,limit=2);second=read_diagnostics(run_id=id,limit=2,before=first['next_before']);third=read_diagnostics(run_id=id,limit=2,before=second['next_before'])

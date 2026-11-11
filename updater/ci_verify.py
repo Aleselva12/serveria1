@@ -1,6 +1,7 @@
 """Real Docker release/rollback check on the existing disposable deployment CI."""
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
 from updater.engine import Engine
 from updater.setup import initialize
 
@@ -35,11 +36,12 @@ def verify(project_root):
 
 def verify_private_backup(engine, temporary):
     """Real encrypted backup and isolated PostgreSQL restore, only on disposable CI."""
-    import subprocess
     import shutil
+    import subprocess
     import tarfile
     from uuid import uuid4
-    from updater.data_backups import audit,create,unpack
+
+    from updater.data_backups import audit, create, unpack
     identity=temporary/'identity.age'
     subprocess.run(['age-keygen','-o',str(identity)],check=True)
     recipient=subprocess.check_output(['age-keygen','-y',str(identity)],text=True).strip()

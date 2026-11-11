@@ -2,16 +2,18 @@
 import io
 import json
 import os
-from pathlib import Path, PurePosixPath
 import re
 import shutil
 import subprocess
 import sys
 import threading
-from urllib.request import Request, urlopen
 import zipfile
+from pathlib import Path, PurePosixPath
+from urllib.request import Request, urlopen
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+
 from core.auth import auth_mode
 
 ROOT = Path(__file__).resolve().parents[1]

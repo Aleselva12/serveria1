@@ -11,9 +11,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from core.permissions import validate_permission_configuration
 from core.ollama_transport import get_ollama_base_url
-
+from core.permissions import validate_permission_configuration
 
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")

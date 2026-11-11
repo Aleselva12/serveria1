@@ -2,15 +2,18 @@
 import json
 import os
 import unittest
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import patch
 from uuid import uuid4
-from datetime import datetime, timezone, timedelta
+
 from fastapi.testclient import TestClient
-from core.database import db_connection
+
 from core.auth import provision
+from core.database import db_connection
 from core.governance import agent_tool, resolve
 from core.permissions import require_permission, set_policy
 from core.runtime import Runtime
+
 
 @unittest.skipUnless(os.getenv('CORA_RUNTIME_TEST_DATABASE_URL'), 'Requires disposable PostgreSQL+pgvector')
 class RuntimePostgresTests(unittest.TestCase):
@@ -131,8 +134,9 @@ class RuntimePostgresTests(unittest.TestCase):
         self.assertEqual(resolve(b,False,'Ale')['status'],'rejected');self.assertEqual(effects,[])
 
     def test_chat_stream_persists_and_returns_the_canonical_result(self):
-        import api
         from langchain_core.messages import AIMessage
+
+        import api
         class FakeGraph:
             def stream(self,*args,**kwargs):
                 yield 'messages',(AIMessage(content='Ciao'),{'langgraph_node':'agent','langgraph_step':1})
@@ -154,13 +158,14 @@ class RuntimePostgresTests(unittest.TestCase):
         self.assertTrue(all(r['embedding'] is None and r['embedding_model'] is None for r in rows))
 
     def test_summary_cache_covers_old_history_and_is_not_semantic_memory(self):
-        from core.context_budget import prepare_context
         from langchain_core.messages import AIMessage
+
+        from core.context_budget import prepare_context
         cid=uuid4()
         with db_connection() as c:
             c.execute('INSERT INTO conversations (id) VALUES (%s)',(cid,))
             for i in range(12):
-                c.execute('INSERT INTO messages (id,conversation_id,role,content,created_at) VALUES (%s,%s,%s,%s,%s)',(uuid4(),cid,'user',str(i)+'x'*4000,datetime.now(timezone.utc)+timedelta(seconds=i)))
+                c.execute('INSERT INTO messages (id,conversation_id,role,content,created_at) VALUES (%s,%s,%s,%s,%s)',(uuid4(),cid,'user',str(i)+'x'*4000,datetime.now(UTC)+timedelta(seconds=i)))
             count=c.execute('SELECT count(*) AS n FROM memories').fetchone()['n']
         class Summarizer:
             def invoke(self,*args,**kwargs):return AIMessage(content='Derived summary')
@@ -203,13 +208,14 @@ class RuntimePostgresTests(unittest.TestCase):
             self.assertEqual(len(search_memories('Meeting')),1)
 
     def test_background_summary_yields_and_resumes_from_persisted_boundary(self):
-        from core.context_budget import prepare_context,ContextDeferred
         from langchain_core.messages import AIMessage
+
+        from core.context_budget import ContextDeferred, prepare_context
         cid=uuid4()
         with db_connection() as c:
             c.execute('INSERT INTO conversations (id) VALUES (%s)',(cid,))
             for i in range(12):
-                c.execute('INSERT INTO messages (id,conversation_id,role,content,created_at) VALUES (%s,%s,%s,%s,%s)',(uuid4(),cid,'user',str(i)+'x'*4000,datetime.now(timezone.utc)+timedelta(seconds=i)))
+                c.execute('INSERT INTO messages (id,conversation_id,role,content,created_at) VALUES (%s,%s,%s,%s,%s)',(uuid4(),cid,'user',str(i)+'x'*4000,datetime.now(UTC)+timedelta(seconds=i)))
         seen=[]
         class Model:
             def invoke(self,messages,**kwargs):
@@ -226,8 +232,9 @@ class RuntimePostgresTests(unittest.TestCase):
         self.assertEqual(context[-1]['content'],'11'+'x'*4000)
 
     def test_specialist_stream_resets_same_step_and_returns_canonical_answer(self):
-        import api
         from langchain_core.messages import AIMessage
+
+        import api
         class Graph:
             def stream(self,*args,**kwargs):
                 yield 'messages',(AIMessage(content='Delegate',id='supervisor'),{'langgraph_node':'agent','langgraph_step':1,'cora_role':'supervisor'})
@@ -240,10 +247,14 @@ class RuntimePostgresTests(unittest.TestCase):
         self.assertEqual(run.result['response'],'Canonical result');self.assertIn('first_token_ms',run.timings)
 
     def test_real_graph_delegation_streams_specialist_tokens_and_persists_child(self):
+        from langchain_core.language_models.fake_chat_models import (
+            FakeListChatModel,
+            FakeMessagesListChatModel,
+        )
+        from langchain_core.messages import AIMessage
+
         import graph as supervisor
         import search_agent.search_graph as specialist
-        from langchain_core.language_models.fake_chat_models import FakeListChatModel,FakeMessagesListChatModel
-        from langchain_core.messages import AIMessage
         from core.event_bus import bus
         root=FakeMessagesListChatModel(responses=[AIMessage(content='',tool_calls=[{'name':'search_agent_tool','args':{'query':'read'},'id':'delegation','type':'tool_call'}])]).with_config(metadata={'cora_role':'supervisor'})
         child=FakeListChatModel(responses=['Risposta progressiva']).with_config(metadata={'cora_role':'research'})

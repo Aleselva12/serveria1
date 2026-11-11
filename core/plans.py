@@ -4,7 +4,7 @@ import json
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 
 from core.orchestration import DEFAULT_PLAN_OWNER, resolve_plan_owner
 from core.permissions import check_permission, require_permission
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
@@ -33,7 +32,7 @@ ALLOWED_ARTIFACT_TYPES = {
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _safe_slug(value: str, fallback: str) -> str:

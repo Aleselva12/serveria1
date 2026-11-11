@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import json
+
 from core.governance import agent_tool, capability_registry
 from core.runtime import checkpoint
-from programmer_agent import workspace as ws
 from programmer_agent import knowledge
+from programmer_agent import workspace as ws
 from programmer_agent.checks import run_check
 
 ACTOR = "programmer_agent"

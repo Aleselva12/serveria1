@@ -7,12 +7,12 @@ import argparse
 import ipaddress
 import json
 import os
-from pathlib import Path
 import re
 import secrets
 import shlex
 import subprocess
 import tempfile
+from pathlib import Path
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]

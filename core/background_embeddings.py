@@ -2,9 +2,11 @@
 import os
 import threading
 import time
+
 from pgvector import Vector
+
 from core.database import db_connection
-from core.embeddings import embed_batch, EMBEDDING_MODEL
+from core.embeddings import EMBEDDING_MODEL, embed_batch
 from core.runtime import runtime
 
 _stop = threading.Event()
@@ -17,7 +19,7 @@ def index_pending_once():
     with runtime.lock:
         if runtime.closed or runtime.snapshot() or time.monotonic()-runtime.last_foreground < float(os.getenv("CORA_BACKGROUND_IDLE_SECONDS", "15")) or not runtime.slot.acquire(blocking=False): return False
     try:
-        from core.context_budget import prepare_context, ContextDeferred
+        from core.context_budget import ContextDeferred, prepare_context
         with db_connection() as conn:
             job = conn.execute("SELECT * FROM context_jobs ORDER BY updated_at LIMIT 1").fetchone()
         if job:

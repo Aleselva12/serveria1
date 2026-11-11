@@ -1,65 +1,91 @@
-import os
-import uuid
-import time
 import asyncio
+import os
+import time
+import uuid
+from contextlib import ExitStack, asynccontextmanager
+from typing import Literal
 from urllib.error import URLError
-from core.ollama_transport import urlopen, get_ollama_base_url
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
-from contextlib import asynccontextmanager, ExitStack
-from core.auth import AuthMiddleware, router as auth_router
-from core.desktop_updates import router as update_router
-from core.managed_apps_api import router as managed_apps_router
-from core.machines_api import router as machines_router
-from core.database import close_pool
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from psycopg.errors import ForeignKeyViolation
 from pydantic import BaseModel, Field
-from typing import Literal
 
-from core.chat_store import (
-    conversation_stats, ensure_conversation, get_messages, list_conversations,
-    recent_context, save_message, refresh_transcript, rename_conversation,
-    archive_conversation, move_conversation, delete_conversation,
-)
-from core.conversation_projects import (
-    list_projects, create_project, update_project, delete_project,
-)
-from core.database import database_status
-from core.episodes import create_episode, list_episodes
-from core.logging import logged_operation
-from core.memory import delete_memory, memory_stats, save_memory, search_memories, memory_history, MemoryConflict
-from core.system_context import get_system_context, update_system_context
-from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
-from core.calendar_api import router as calendar_router
-from core.notifications import router as notifications_router, worker as notification_worker
-from core.models import get_default_model_name, get_model_name, list_ollama_models, save_runtime_model, RuntimeSettingsError
-from core.runtime_profile import validate_runtime_profile, runtime_mode
-from core.monitoring import router as monitoring_router
-from core.project_checks import router as project_checks_router
-from core.node_verification import router as node_verification_router
-from core.roadmap_classifier_api import router as roadmap_classifier_router
-from core.server_files import router as files_router
-from core.ia_library import router as library_router
-from core.chat_attachments import router as attachments_router, attachment_rows, request_content, public as attachment_public
+from core.architecture_api import architecture_graph
+from core.architecture_api import router as architecture_router
 from core.audio_api import router as audio_router
-from core.registry import get_agents, get_registry
-from graph import graph
-from core.tool_inventory import inventory
-from core.tool_definitions import definition
+from core.auth import AuthMiddleware
+from core.auth import router as auth_router
 from core.automation_api import router as automation_router
-from core.architecture_api import router as architecture_router, architecture_graph
-from core.execution_traces import ExecutionTrace
+from core.calendar_api import router as calendar_router
+from core.chat_attachments import attachment_rows, request_content
+from core.chat_attachments import public as attachment_public
+from core.chat_attachments import router as attachments_router
+from core.chat_store import (
+    archive_conversation,
+    conversation_stats,
+    delete_conversation,
+    ensure_conversation,
+    get_messages,
+    list_conversations,
+    move_conversation,
+    recent_context,
+    refresh_transcript,
+    rename_conversation,
+    save_message,
+)
 from core.context_budget import prepare_context, schedule_summary
-from core.runtime import runtime, RunStopped, checkpoint, publish_text
-from core.runtime_api import router as runtime_router
+from core.conversation_projects import (
+    create_project,
+    delete_project,
+    list_projects,
+    update_project,
+)
+from core.database import close_pool, database_status
+from core.desktop_updates import router as update_router
+from core.episodes import create_episode, list_episodes
+from core.execution_traces import ExecutionTrace
+from core.ia_library import router as library_router
+from core.logging import logged_operation
+from core.machines_api import router as machines_router
+from core.managed_apps_api import router as managed_apps_router
+from core.memory import (
+    MemoryConflict,
+    delete_memory,
+    memory_history,
+    memory_stats,
+    save_memory,
+    search_memories,
+)
+from core.models import (
+    RuntimeSettingsError,
+    get_default_model_name,
+    get_model_name,
+    list_ollama_models,
+    save_runtime_model,
+)
+from core.monitoring import router as monitoring_router
+from core.node_verification import router as node_verification_router
+from core.notifications import router as notifications_router
+from core.notifications import worker as notification_worker
+from core.ollama_transport import get_ollama_base_url, urlopen
 from core.orchestration_api import router as orchestration_router
 from core.permissions_api import router as permissions_router
-from programmer_agent.api import router as programmer_router
 from core.postprocessing import Postprocessing
-from fastapi import HTTPException, Request
-from psycopg.errors import ForeignKeyViolation
-
+from core.project_checks import router as project_checks_router
+from core.registry import get_agents, get_registry
+from core.roadmap_classifier_api import router as roadmap_classifier_router
+from core.runtime import RunStopped, checkpoint, publish_text, runtime
+from core.runtime_api import router as runtime_router
+from core.runtime_profile import runtime_mode, validate_runtime_profile
+from core.server_files import router as files_router
+from core.system_context import get_system_context, update_system_context
+from core.tool_definitions import definition
+from core.tool_inventory import inventory
+from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
+from graph import graph
+from programmer_agent.api import router as programmer_router
 
 load_dotenv()
 
@@ -72,8 +98,8 @@ async def lifespan(app):
     from core import background_embeddings
     from core.runtime import recover_interrupted
     recover_interrupted()
-    from core.observability import archive
     from core import library_monitor, project_checks
+    from core.observability import archive
     # Cleanup is registered before each start to cover partial initialization.
     # ExitStack continues all remaining stops even if a stop itself fails.
     with ExitStack() as cleanup:
@@ -219,8 +245,8 @@ def _ollama_online() -> bool:
 def health():
     from core.file_paths import library_workspace_status
     database = database_status()
-    from core.models import resolve_model
     from core.machines_api import _find
+    from core.models import resolve_model
     selected = resolve_model('supervisor')
     try:
         machine_name = 'Ollama di Cora' if selected['machine_id'] == 'local' else _find(selected['machine_id'])['name']

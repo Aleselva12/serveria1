@@ -1,5 +1,5 @@
 """Owner-only one-shot verification. GET never launches checks or model calls."""
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from threading import Thread
 from types import SimpleNamespace
 from uuid import UUID, uuid4
@@ -23,12 +23,13 @@ class Launch(BaseModel):
 
 
 def _now():
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _connection():
     import psycopg
     from psycopg.rows import dict_row
+
     from core.database import DATABASE_URL
     if not DATABASE_URL:
         raise RuntimeError("Database non configurato")

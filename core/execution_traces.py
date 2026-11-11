@@ -1,16 +1,17 @@
 """Persistent technical traces, with no prompts, tool arguments or model output."""
 import json
 import math
+import os
 import threading
 import time
 import uuid
-import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 from langchain_core.callbacks import BaseCallbackHandler
-from core.logging import LOG_ROOT
+
 from core.database import database_configured
+from core.logging import LOG_ROOT
 from core.provider_errors import provider_detail, safe_detail
 
 TRACE_FILE = LOG_ROOT / "executions.jsonl"
@@ -70,7 +71,7 @@ class ExecutionTrace(BaseCallbackHandler):
     def event(self, kind, status, span_id=None, parent_id=None, name="", duration_ms=None, error_type=None, error_detail=None):
         append_event(dict(run_id=self.id, thread_id=self.thread_id,
                           graph_version=self.graph_version,
-                          timestamp=datetime.now(timezone.utc).isoformat(),
+                          timestamp=datetime.now(UTC).isoformat(),
                           kind=kind, status=status, span_id=str(span_id) if span_id else None,
                           parent_id=str(parent_id) if parent_id else None,
                           name=name, duration_ms=duration_ms, error_type=error_type, error_detail=error_detail))
@@ -167,9 +168,9 @@ class ExecutionTrace(BaseCallbackHandler):
 def read_runs(limit=50, run_id=None,include_events=True):
     """Canonical lifecycle plus explicitly bounded diagnostic samples."""
     if database_configured() or os.getenv('CORA_DIAGNOSTIC_JSONL_EXPORT','').lower() != 'true':
-        from core.run_lifecycle import get_run,persisted_snapshot
         from core.database import db_connection
         from core.observability import read
+        from core.run_lifecycle import get_run, persisted_snapshot
         if run_id: rows = [get_run(run_id)]
         else:
             with db_connection() as conn:

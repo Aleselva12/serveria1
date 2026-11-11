@@ -2,15 +2,17 @@
 import json
 import uuid
 from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
-from pydantic import BaseModel, Field
 from psycopg.types.json import Jsonb
-from core.database import db_connection
-from core.server_files import operation, upload_to, resolve, exists
-from core.runtime import runtime, checkpoint
+from pydantic import BaseModel, Field
 
 from core.access import owner_dependency
+from core.database import db_connection
+from core.runtime import checkpoint, runtime
+from core.server_files import exists, operation, resolve, upload_to
+
 router = APIRouter(prefix='/api/v1/audio', tags=['Audio'], dependencies=[Depends(owner_dependency('files'))])
 
 
@@ -188,6 +190,7 @@ def export(ident: uuid.UUID):
 @router.post('/{ident}/library', status_code=201)
 def copy_to_library(ident: uuid.UUID):
     from io import BytesIO
+
     from core.ia_library import upload_copy
     row = get_record(ident)
     if row['transcript'] is None: raise HTTPException(409, 'Trascrizione non ancora disponibile.')

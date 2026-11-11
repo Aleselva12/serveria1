@@ -11,7 +11,6 @@ from core.database import db_connection
 from core.embeddings import embed_text
 from core.transcripts import write_transcript
 
-
 CHAT_CONTEXT_MESSAGES = max(2, int(os.getenv("CORA_CHAT_CONTEXT_MESSAGES", "40")))
 
 

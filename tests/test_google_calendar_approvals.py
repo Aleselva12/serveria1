@@ -6,9 +6,8 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
-from core import google_calendar
-from core import calendar_api
 from core import calendar as local
+from core import calendar_api, google_calendar
 from core.calendar_tools import calendar_tools_for
 
 DATA = {
@@ -58,8 +57,8 @@ class GoogleCalendarApprovalTests(unittest.TestCase):
         self.assertEqual(result["id"], current["id"])
 
     def test_google_update_rejects_etag_changed_during_request(self):
-        from httplib2 import Response
         from googleapiclient.errors import HttpError
+        from httplib2 import Response
         current = {"id": "non-uuid-id", "etag": '"old"', "version": 42}
         request = Mock()
         request.headers = {}
@@ -104,7 +103,7 @@ class GoogleCalendarApprovalTests(unittest.TestCase):
 class GoogleApprovalPostgresTests(unittest.TestCase):
     def test_durable_owner_approval_once_and_oauth_switch_blocks_execution(self):
         from core import governance, permissions
-        from core.database import db_connection, close_pool
+        from core.database import close_pool, db_connection
         governance.load_capabilities()
         tool = next(t for t in calendar_tools_for('supervisor') if t.name == 'calendar_create_event')
         identifiers = []

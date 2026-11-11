@@ -9,9 +9,18 @@ from fastapi import File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from core.confined_paths import confined_path
-from core.file_paths import ORIGINALS_ID, library_workspace_root, LibraryAccessError
-from core.server_files import (exists, make_router, node, operation, parts,
-                               resolve, root_for, upload_to, vacant)
+from core.file_paths import ORIGINALS_ID, LibraryAccessError, library_workspace_root
+from core.server_files import (
+    exists,
+    make_router,
+    node,
+    operation,
+    parts,
+    resolve,
+    root_for,
+    upload_to,
+    vacant,
+)
 
 LIBRARY_ID = 'library'
 

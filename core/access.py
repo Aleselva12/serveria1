@@ -7,7 +7,6 @@ from collections.abc import Callable
 
 from fastapi import HTTPException, Request
 
-
 LEGACY_TOKEN_ENV = {
     "files": "CORA_FILES_TOKEN",
     "calendar": "CORA_CALENDAR_TOKEN",

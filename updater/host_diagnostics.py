@@ -7,12 +7,11 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import shutil
 import stat
 import subprocess
+from pathlib import Path
 from typing import Any
-
 
 SERVICES = ("cora-updater.service", "ssh.service")
 SYSTEMD_PROPERTIES = (

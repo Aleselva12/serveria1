@@ -1,5 +1,6 @@
 """Static checks never execute generated source; test execution is Docker-only."""
 from __future__ import annotations
+
 import ast
 import json
 import os
@@ -10,7 +11,8 @@ import tempfile
 import time
 from pathlib import Path
 from uuid import uuid4
-from core.runtime import checkpoint, RunStopped
+
+from core.runtime import RunStopped, checkpoint
 from programmer_agent import workspace as ws
 
 
@@ -39,15 +41,16 @@ def static_check(identifier: str) -> dict:
 
 
 # Shared runner retains the same isolation policy in local development and on host.
-from updater.check_runner import _docker, run as run_docker
+from updater.check_runner import _docker
+from updater.check_runner import run as run_docker
 
 
 def docker_check(identifier: str, profile: str = "python_tests") -> dict:
     if profile not in {"python_tests", "typescript", "frontend_build"}:
         raise ValueError("Profilo Docker non consentito.")
     if os.getenv("CORA_UPDATER_URL"):
-        from programmer_agent.releases import request
         from programmer_agent.components import workspace_digest
+        from programmer_agent.releases import request
         checkpoint()
         result = request("POST", "/workspaces/" + identifier + "/check",
                          {"profile": profile, "workspace_digest": workspace_digest(identifier)}, timeout=180)
@@ -81,7 +84,7 @@ def _run_check(identifier: str, profile: str = "syntax") -> dict:
 
 
 def _record_check(identifier: str, result: dict) -> dict:
-    from programmer_agent.components import check_history, workspace_digest, now
+    from programmer_agent.components import check_history, now, workspace_digest
     result.update(workspace_digest=workspace_digest(identifier), checked_at=now())
     history = check_history(identifier)
     history.append(result)

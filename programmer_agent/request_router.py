@@ -4,16 +4,19 @@ One classification per graph invocation, not per tool iteration. The operator's
 existing programmer model is reused; no downloads, training or cloud service.
 """
 from __future__ import annotations
+
 import json
 import os
 import time
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field
+
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from pydantic import BaseModel, ConfigDict, Field
+
 from core.context_budget import fit_messages
 from core.models import get_chat_model
-from core.runtime_context import ensure_runtime_active, RunTimedOut
 from core.run_lifecycle import RunCancelled
+from core.runtime_context import RunTimedOut, ensure_runtime_active
 
 
 class Route(BaseModel):

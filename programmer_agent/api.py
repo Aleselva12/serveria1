@@ -1,13 +1,16 @@
 """Owner-only programmer endpoints; global AuthMiddleware protects this router."""
 from __future__ import annotations
+
 import json
 import shutil
 from uuid import UUID
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
-from core.runtime import runtime, checkpoint, publish_text
-from programmer_agent import workspace as ws
+
+from core.runtime import checkpoint, publish_text, runtime
 from programmer_agent import knowledge
+from programmer_agent import workspace as ws
 
 router = APIRouter(prefix="/api/v1/programmer", tags=["Programmer"])
 

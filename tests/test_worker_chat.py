@@ -2,9 +2,10 @@ import json
 import threading
 import unittest
 from http.server import ThreadingHTTPServer
-from urllib.request import Request, build_opener, ProxyHandler
-from urllib.error import HTTPError
 from unittest.mock import patch
+from urllib.error import HTTPError
+from urllib.request import ProxyHandler, Request, build_opener
+
 from worker import worker
 
 

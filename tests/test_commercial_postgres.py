@@ -4,14 +4,15 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
-from uuid import UUID, uuid4
 from unittest.mock import patch
+from uuid import UUID, uuid4
 
 import psycopg
-from psycopg import sql
-from psycopg.rows import dict_row
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from psycopg import sql
+from psycopg.rows import dict_row
+
 from core import commercial_notes, database
 from core.audio_api import router
 from tests.test_commercial_notes import sample

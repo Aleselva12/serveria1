@@ -4,8 +4,10 @@ These tests fail with the broken hop instead of merely asserting HTTP 200.
 They run in CI and complement the production 5-minute structural checks.
 """
 import unittest
+from datetime import UTC
 from unittest.mock import patch
-from core import project_contracts, project_checks
+
+from core import project_checks, project_contracts
 from core.health_catalog import CATALOG, COMPONENTS
 
 
@@ -54,9 +56,10 @@ class CatalogTests(unittest.TestCase):
 
     def test_chat_to_specialist_graph_exchange_with_mocked_agent(self):
         """Exercise the compiled supervisor graph and ToolNode, without Ollama."""
-        import graph as supervisor
         from langchain_core.messages import AIMessage, HumanMessage
         from langchain_core.tools import tool
+
+        import graph as supervisor
         invoked = []
 
         @tool
@@ -112,7 +115,7 @@ class CatalogTests(unittest.TestCase):
             def __init__(self, statement): self.statement=statement
             def fetchone(self):
                 if "pg_try_advisory_lock" in self.statement: return (True,)
-                if "MAX(observed_at)" in self.statement: return (datetime.now(timezone.utc),)
+                if "MAX(observed_at)" in self.statement: return (datetime.now(UTC),)
                 return (True,)
 
         class Database:

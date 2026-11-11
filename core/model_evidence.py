@@ -1,10 +1,10 @@
 """Metadata-only evidence of provider replies; never stores prompts or output text."""
 import json
 import os
-from pathlib import Path
 import tempfile
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
+from pathlib import Path
 
 _lock = threading.RLock()
 
@@ -41,7 +41,7 @@ def observe(role, requested_model, machine_id, configuration_id, response):
     reported = reported if isinstance(reported, str) and reported else None
     row = dict(role=role, requested_model=requested_model, reported_model=reported,
                machine_id=machine_id, configuration_id=configuration_id,
-               observed_at=datetime.now(timezone.utc).isoformat(),
+               observed_at=datetime.now(UTC).isoformat(),
                matches_requested=matches_requested(requested_model, reported))
     try:
         from core.runtime import current_run

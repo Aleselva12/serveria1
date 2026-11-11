@@ -9,7 +9,7 @@ import os
 import tempfile
 import threading
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path, PurePosixPath
 from uuid import UUID, uuid4
 
@@ -124,7 +124,7 @@ def create(title: str, project: Path = PROJECT) -> dict:
         if len(files) > MAX_FILES or sum(len(c.encode("utf-8")) for _, c in files) > MAX_TOTAL:
             raise ValueError("Snapshot oltre il limite: riduci il progetto prima di creare il workspace.")
         target.mkdir(parents=True)
-        manifest = {"id": identifier, "title": title, "created_at": datetime.now(timezone.utc).isoformat(),
+        manifest = {"id": identifier, "title": title, "created_at": datetime.now(UTC).isoformat(),
                     "source_digest": digest(json.dumps([(p, digest(c)) for p, c in files])), "file_count": len(files),
                     "baseline": {p: digest(c) for p, c in files}, "status": "draft"}
         for relative, content in files:

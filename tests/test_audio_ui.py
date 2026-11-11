@@ -5,10 +5,13 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock,patch
+from unittest.mock import MagicMock, patch
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
 from core import audio_api
+
 
 class AudioUITests(unittest.TestCase):
     def test_worker_uses_shared_engine_and_saves_transcript_with_compare_and_swap(self):

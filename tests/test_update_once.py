@@ -1,12 +1,11 @@
 """Regression tests for the owner-requested, single-command updater flow."""
 import json
+import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import unittest
 from unittest.mock import patch
 
 from deploy import update_once
-
 
 COMMIT = "a" * 40
 ACTIVE = "b" * 40
