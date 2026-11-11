@@ -39,4 +39,4 @@ allora questa pagina e il documento d'origine nella stessa modifica.
 
 | Decisione | Origine |
 | --- | --- |
-| `age` è **opzionale** nel job `verify` (il test dei backup ha `skipUnless` e salta da solo) e **obbligatorio** nel job `deployment`, dove `deploy/ci_verify.py` chiama `updater.ci_verify.verify`, che esegue `age-keygen` con `check=True`. Non invertire l'asimmetria. | PR #151, `.github/workflows/verify.yml`, `deploy/ci_verify.py` e `updater/ci_verify.py` |
+| `age` è **opzionale** nel job `verify` (il test dei backup ha `skipUnless` e salta da solo) e **obbligatorio** nel job `deployment`, dove `deploy/ci_disposable_deployment.py` chiama `updater.ci_release_rollback.verify`, che esegue `age-keygen` con `check=True`. Non invertire l'asimmetria. | PR #151, `.github/workflows/verify.yml`, `deploy/ci_disposable_deployment.py` e `updater/ci_release_rollback.py` |
