@@ -29,7 +29,12 @@ jobs:
       - run: python -m pip install ruff==0.16.9
       - name: Ruff (report only)
         continue-on-error: true
-        run: ruff check --output-format=github .
+        # GitHub keeps only about ten annotations per step, so --output-format=github
+        # alone hides the real total. Print the per-rule counts first: that line is
+        # the one to watch, and it stays readable however many findings there are.
+        run: |
+          ruff check --statistics . || true
+          ruff check --output-format=github .
   personal-terminal:
     runs-on: ubuntu-latest
     timeout-minutes: 10

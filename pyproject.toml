@@ -4,3 +4,34 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+# Measured on main with ruff 0.16.9: the full selection reports 3650 findings, of
+# which 3614 are either this codebase's deliberate style, a consequence of a
+# documented design choice, a framework idiom, or a bulk mechanical pass. Silencing
+# those leaves 36 findings that are worth reading. Every entry below says why.
+ignore = [
+    # 1595 + 819 + 692 = 3106. Deliberate style: compact lines and several
+    # statements per line, systematic across 1511 occurrences. Not defects.
+    "E501",  # line-too-long
+    "E701",  # multiple-statements-on-one-line-colon
+    "E702",  # multiple-statements-on-one-line-semicolon
+    # 18. Direct consequence of the deferred imports inside functions (302 of them),
+    # which keep the module graph acyclic on purpose.
+    "E402",  # module-import-not-at-top-of-file
+    # 62 across 45 files. Rows S11, S17 and S21 of
+    # docs/AUDIT_S01_S40_STATUS_20261027.md declare unused-looking imports not to be
+    # bugs and forbid removing compatibility re-exports. Re-enable once those 62 have
+    # been triaged one by one; until then the rule only buries the other findings.
+    "F401",  # unused-import
+    # 360 + 56 + 6 = 422, all auto-fixable in a single pass:
+    #   ruff check --select I001,UP017,UP035 --fix .
+    # They belong in one dedicated commit, not in a signal read on every push.
+    # Re-enable right after that commit lands.
+    "I001",   # unsorted-imports
+    "UP017",  # datetime-timezone-utc
+    "UP035",  # deprecated-import
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# 6 B008 findings, all false positives: File() and Form() in argument defaults are
+# FastAPI's documented idiom, not mutable-default foot-guns.
+extend-immutable-calls = ["fastapi.File", "fastapi.Form"]
