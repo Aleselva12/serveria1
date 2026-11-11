@@ -16,6 +16,20 @@ jobs:
           python-version: '3.12'
       - name: Compile every tracked Python source
         run: git ls-files -z '*.py' | xargs -0 python -m py_compile
+  lint:
+    # Report-only for now: findings appear as annotations without blocking the PR.
+    # Turn off continue-on-error once the backlog has been worked through.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install ruff==0.16.9
+      - name: Ruff (report only)
+        continue-on-error: true
+        run: ruff check --output-format=github .
   personal-terminal:
     runs-on: ubuntu-latest
     timeout-minutes: 10
