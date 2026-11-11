@@ -11,6 +11,23 @@ deployment distinti.
 > Per agenti e operatori: usa [docs/AGENT_CONTEXT.md](docs/AGENT_CONTEXT.md) per
 > scegliere il README specialistico corretto senza caricare documentazione inutile.
 
+## Open source e contributi
+
+**Cora Lab è un progetto open source, distribuito con licenza [MIT](LICENSE).**
+Il codice è pubblico per essere studiato, utilizzato, modificato e distribuito, anche
+in progetti derivati, nel rispetto dei termini della licenza.
+
+L'obiettivo è costruire una piattaforma **self-hosted e private-first** per
+orchestrare assistenti e strumenti locali: gestione di file e memoria, agenti
+specializzati, modelli Ollama e integrazioni esplicitamente configurate dal
+proprietario. Il progetto è in sviluppo attivo e **non** è una piattaforma
+pronta per l'esposizione pubblica o l'uso multiutente.
+
+Sono benvenuti segnalazioni di bug, miglioramenti alla documentazione, test,
+proposte e pull request. Prima di contribuire, leggere
+[CONTRIBUTING.md](CONTRIBUTING.md). Segnalare eventuali vulnerabilità in modo
+riservato al maintainer anziché pubblicare dettagli o credenziali in un issue.
+
 ## Funzioni disponibili nel codice
 
 Per identificare la versione in servizio sul Debian, confronta il commit dell'API in esecuzione con la release attiva nell'updater. Le integrazioni dipendono dalla configurazione dell'installazione.
