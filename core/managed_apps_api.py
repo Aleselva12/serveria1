@@ -1,5 +1,6 @@
 """Owner-authenticated API bridge for fixed host-managed applications."""
 from fastapi import APIRouter, HTTPException
+
 from programmer_agent import releases
 
 router=APIRouter(prefix="/api/v1/system/apps",tags=["Applicazioni server"])

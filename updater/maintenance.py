@@ -1,9 +1,10 @@
 """Fixed updater lifecycle protocol; candidate sources come only from active host Git."""
-from contextlib import contextmanager
 import hashlib
 import json
 import re
+from contextlib import contextmanager
 from pathlib import Path
+
 from updater.engine import atomic
 
 

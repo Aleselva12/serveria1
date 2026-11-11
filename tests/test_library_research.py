@@ -4,8 +4,9 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from search_agent import search_tools as st
+
 from core.governance import executables
+from search_agent import search_tools as st
 
 
 def native(name, **kwargs):
@@ -75,8 +76,9 @@ class LibraryResearchTests(unittest.TestCase):
 
     def test_runtime_activity_does_not_enter_diagnostics(self):
         from types import SimpleNamespace
-        from core.runtime import current_run
+
         from core.observability import metadata_event
+        from core.runtime import current_run
         token = current_run.set(SimpleNamespace(id='run', thread_id='thread'))
         try:
             with patch('core.event_bus.bus.publish') as publish:

@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-from datetime import datetime, timezone
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from datetime import UTC, datetime, timezone
+from pathlib import Path
 from uuid import UUID
 
 
@@ -285,7 +285,7 @@ def main(argv=None):
         except ValueError: parser.error("trace richiede --run-id con UUID valido")
     root = args.root.resolve()
     overrides = [(path if path.is_absolute() else root / path).resolve() for path in args.compose_file]
-    report = {"version": 1, "mode": args.mode, "sampled_at": datetime.now(timezone.utc).isoformat()}
+    report = {"version": 1, "mode": args.mode, "sampled_at": datetime.now(UTC).isoformat()}
     try:
         inventory, api_id = inspect_host(root, overrides, args.updater_root.resolve())
         report["inventory"] = inventory

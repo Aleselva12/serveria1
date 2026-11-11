@@ -2,14 +2,15 @@
 import os
 import time
 from pathlib import Path
+
 from updater.maintenance import digest
 
 
 def ensure():
     if not os.getenv('CORA_UPDATER_URL'):
         return {'status':'not_configured'}
-    from programmer_agent.releases import request
     from core.release_identity import revision
+    from programmer_agent.releases import request
     expected = digest(Path(__file__).resolve().parents[1]/'updater')
     state = request('GET','/host/maintenance',timeout=5)
     if state.get('digest') == expected and not state.get('pending'):

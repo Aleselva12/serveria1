@@ -1,19 +1,22 @@
 """Native LangGraph coding loop; shares Cora's queue, contracts and context budget."""
 from __future__ import annotations
+
 import json
 import time
+
 from langchain_core.messages import SystemMessage, ToolMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
+
 from core.governance import bind_capabilities
 from core.models import get_chat_model
 from core.prompt_context import with_permanent_context
 from core.runtime_context import ensure_runtime_active
-from programmer_agent import workspace as ws
 from programmer_agent import context_manager, request_router
+from programmer_agent import workspace as ws
 from programmer_agent.knowledge import SKILLS
-from programmer_agent.programmer_tools import PROGRAMMER_TOOLS
 from programmer_agent.loop_context import fit_programmer_messages
+from programmer_agent.programmer_tools import PROGRAMMER_TOOLS
 
 PROMPT = """Sei il Programmatore di Cora. Lavori su richiesta dell'utente, principalmente per creare tool e automazioni.
 Hai una copia del codice in un workspace separato; un workspace Git permette di preparare rilasci su richiesta. Tutto ciò che scrivi è una bozza: non è installato o attivo.
@@ -64,8 +67,8 @@ def prepare_prompt(state: AgentState):
 
 
 def record_metric(kind, payload):
-    from core.runtime import current_run
     from core.event_bus import bus
+    from core.runtime import current_run
     run = current_run.get()
     if run:
         samples = run.timings.setdefault("programmer_context", [])

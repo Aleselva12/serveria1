@@ -5,6 +5,7 @@ supervisor tools still enforce the same permissions and filesystem boundaries.
 """
 import json
 import re
+
 from core.runtime_context import ensure_runtime_active
 
 
@@ -28,8 +29,8 @@ def _invoke(tool, parameters, *, reading=False, action=None, for_model=True):
     try: value=tool.invoke(parameters)
     except CapabilityExecutionError as error:
         # Legacy stop errors may have crossed a capability adapter as categories.
-        from core.runtime_context import RunTimedOut
         from core.run_lifecycle import RunCancelled
+        from core.runtime_context import RunTimedOut
         if error.code=='RunCancelled': raise RunCancelled('Run cancellato.') from error
         if error.code=='RunTimedOut': raise RunTimedOut('Tempo del run scaduto.') from error
         return failure(error.code)
@@ -71,7 +72,7 @@ def preload(text: str, tool_names: list[str]) -> str:
     if not query:
         return ''
     ensure_runtime_active()
-    from tools import library_search, library_read
+    from tools import library_read, library_search
     # Invoke governed tools: permissions are not bypassed.
     search,error = _invoke(library_search,{'query': query, 'max_results': 8})
     if error:return error

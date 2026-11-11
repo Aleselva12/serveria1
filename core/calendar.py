@@ -1,11 +1,11 @@
 """Authoritative calendar store. All writes and their history share one transaction."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
 from psycopg.types.json import Jsonb
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from core.database import db_connection
 from core.permissions import check_permission, require_permission
@@ -118,7 +118,7 @@ def _write(conn, action: str, *, actor: str, event_id=None, version=None, data=N
                 WHERE id=%s RETURNING *""",
                 (data.title, data.start, data.end, data.all_day, data.notes, data.reminder_minutes, actor, row["id"])).fetchone()
         else:
-            deleted_at = datetime.now(timezone.utc) if action == "delete" else None
+            deleted_at = datetime.now(UTC) if action == "delete" else None
             row = conn.execute("""UPDATE calendar_events SET deleted_at=%s,updated_by=%s,
                 updated_at=NOW(),version=version+1 WHERE id=%s RETURNING *""",
                 (deleted_at, actor, row["id"])).fetchone()

@@ -1,13 +1,16 @@
 import io
 import os
-from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
 import zipfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
-from core import auth, desktop_updates as updates
+
+from core import auth
+from core import desktop_updates as updates
 
 
 class DesktopAuthTests(unittest.TestCase):

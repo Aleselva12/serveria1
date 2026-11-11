@@ -1,9 +1,11 @@
 """Explicit operator command: install/load Qwen3 8B before selecting it globally."""
 import json
 from urllib.request import Request
+
 import psutil
+
+from core.models import model_options, save_runtime_model
 from core.ollama_transport import get_ollama_base_url, urlopen
-from core.models import save_runtime_model, model_options
 
 MODEL = 'qwen3:8b'
 

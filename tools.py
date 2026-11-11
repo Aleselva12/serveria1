@@ -3,24 +3,30 @@ import uuid
 from collections.abc import Callable
 
 from langchain_core.messages import HumanMessage
-from core.governance import agent_tool
 
 from core.component_bus import component_bus
+from core.governance import agent_tool
 from core.logging import logged_operation, tail_events
 from core.memory import delete_memory, save_memory, search_memories
-from core.system_context import get_system_context
 from core.permissions import require_permission
 from core.protocol import TaskEnvelope
 from core.registry import registry_json
 from core.run_lifecycle import RunCancelled, create_run, transition_run
-from core.runtime_context import RunTimedOut, bind_runtime, current_runtime
-from core.runtime import RunStopped, checkpoint, publish_text
 from core.run_states import DurabilityLost
+from core.runtime import RunStopped, checkpoint, publish_text
+from core.runtime_context import RunTimedOut, bind_runtime, current_runtime
+from core.system_context import get_system_context
 from core.working_memory import set_working_memory
 from local_tools import (
     calculator_tool as _calculator_tool,
+)
+from local_tools import (
     list_project_files as _list_project_files,
+)
+from local_tools import (
     read_project_file as _read_project_file,
+)
+from local_tools import (
     system_status_tool as _system_status_tool,
 )
 
@@ -401,6 +407,7 @@ supervisor_tools = [
 
 
 from core.calendar_tools import calendar_tools_for
+
 supervisor_tools += calendar_tools_for("supervisor")
 
 
@@ -428,4 +435,5 @@ def library_read(relative_path: str) -> str:
 supervisor_tools += [library_list, library_search, library_read]
 
 from core.library_tools import LIBRARY_WRITE_TOOLS
+
 supervisor_tools += LIBRARY_WRITE_TOOLS

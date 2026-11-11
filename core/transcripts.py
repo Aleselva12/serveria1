@@ -3,10 +3,9 @@ from __future__ import annotations
 import os
 import re
 import tempfile
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TRANSCRIPT_ROOT = Path(

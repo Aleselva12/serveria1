@@ -5,7 +5,7 @@ runtime state explicit and exposes one diagnostic snapshot over existing cores.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True)
@@ -110,12 +110,12 @@ def validate_ownership() -> dict:
 
 def snapshot() -> dict:
     """Aggregate existing state without introducing a second source of truth."""
-    from core.runtime import runtime
-    from core.event_bus import bus
-    from core.database import pool_stats
-    from core.execution_traces import trace_status
     from core.component_bus import component_bus
+    from core.database import pool_stats
+    from core.event_bus import bus
+    from core.execution_traces import trace_status
     from core.permissions import permission_manifest, validate_permission_configuration
+    from core.runtime import runtime
 
     rules = permission_manifest()
     policies = {}

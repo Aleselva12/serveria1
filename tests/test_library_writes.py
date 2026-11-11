@@ -5,8 +5,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
+
 from core import library_tools as lib
-from core.governance import execute_capability, executables, approved_action
+from core.governance import approved_action, executables, execute_capability
 from search_agent import search_tools as research
 
 

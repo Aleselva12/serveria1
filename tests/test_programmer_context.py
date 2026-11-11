@@ -2,7 +2,9 @@
 import os
 import unittest
 from unittest.mock import patch
+
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
 from core.context_budget import ContextOverflow, _valid_exchange
 from programmer_agent import context_manager as cm
 from programmer_agent import programmer_graph as pg
@@ -96,8 +98,8 @@ class ContextTests(unittest.TestCase):
 
     def test_cancellation_and_uncertain_effect_are_not_recoverable(self):
         from core.run_lifecycle import RunCancelled
-        from core.runtime_context import RunTimedOut
         from core.run_states import EffectUncertain
+        from core.runtime_context import RunTimedOut
         for error in (RunCancelled('stop'), RunTimedOut('timeout')):
             with self.assertRaises(type(error)): pg.tool_error(error)
         response = AIMessage('', tool_calls=[call('programmer_write_file', workspace_id='test', path='a.py', content='x=1')])
@@ -116,7 +118,7 @@ class ContextTests(unittest.TestCase):
 
     def test_real_tool_node_reports_invalid_arguments_without_running_tool(self):
         response = AIMessage('', tool_calls=[call('programmer_write_file')])
-        from langgraph.graph import StateGraph, MessagesState, START, END
+        from langgraph.graph import END, START, MessagesState, StateGraph
         flow = StateGraph(MessagesState)
         flow.add_node('tools', pg.execute_tools)
         flow.add_edge(START, 'tools')
@@ -126,8 +128,9 @@ class ContextTests(unittest.TestCase):
         self.assertTrue(_valid_exchange(result['messages']))
 
     def test_post_model_cancellation_prevents_tool_execution(self):
-        from core.run_lifecycle import RunCancelled
         from unittest.mock import MagicMock
+
+        from core.run_lifecycle import RunCancelled
         model = MagicMock()
         model.bind_tools.return_value = model
         model.invoke.return_value = AIMessage('', tool_calls=[call('programmer_write_file')])

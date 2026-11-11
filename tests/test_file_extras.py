@@ -5,10 +5,13 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from core.server_files import router
+
 from core.ia_library import router as library_router
+from core.server_files import router
+
 
 class FileExtrasTests(unittest.TestCase):
     def symlink_fixture(self, link, target):

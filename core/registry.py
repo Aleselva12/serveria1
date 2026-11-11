@@ -1,5 +1,4 @@
 from __future__ import annotations
-from core.ollama_transport import get_ollama_base_url
 
 import importlib.util
 import json
@@ -8,7 +7,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from core.capabilities import Capability, ComponentDefinition
-
+from core.ollama_transport import get_ollama_base_url
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 

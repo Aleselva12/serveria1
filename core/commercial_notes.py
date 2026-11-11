@@ -1,22 +1,26 @@
 """Commercial audio -> Word append-only proposals; IA Library working copies only."""
 from __future__ import annotations
+
 import hashlib
 import json
 import os
 import stat
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
 from zipfile import BadZipFile
-from lxml.etree import XMLSyntaxError
+
 from fastapi import HTTPException
-from core.database import db_connection
-from core.commercial_word import parse, search as search_blocks, propose_append
-from core.file_paths import library_workspace_root
+from lxml.etree import XMLSyntaxError
+
+from core.commercial_word import parse, propose_append
+from core.commercial_word import search as search_blocks
 from core.confined_paths import confined_path
-from core.server_files import operation
+from core.database import db_connection
+from core.file_paths import library_workspace_root
 from core.runtime import checkpoint
+from core.server_files import operation
 
 MAX_WORD_BYTES = 5_000_000
 SKIP_DIRS = {".cora-staging", ".cora-trash", ".cora-commercial-backups", ".git", ".venv", "node_modules"}
@@ -72,6 +76,7 @@ def analyze(transcript: str) -> dict:
     if not transcript or not transcript.strip() or len(transcript) > 25000:
         raise ValueError("Trascrizione assente o troppo lunga per l'analisi.")
     from langchain_core.messages import HumanMessage, SystemMessage
+
     from core.models import get_chat_model
     checkpoint()
     response = get_chat_model("research", temperature=0).invoke([
@@ -156,7 +161,7 @@ def proposals(audio_id: UUID) -> list[dict]:
     with db_connection() as conn:
         rows = conn.execute("""SELECT * FROM commercial_note_proposals
           WHERE audio_id=%s ORDER BY created_at DESC LIMIT 100""", (audio_id,)).fetchall()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     visible = []
     for row in rows:
         if row["status"] == "pending" and row["expires_at"] <= now:
@@ -229,7 +234,7 @@ def resolve_proposal(proposal_id: UUID, approve: bool) -> dict:
             raise KeyError("Proposta non trovata.")
         if row["status"] != "pending":
             raise ValueError("Proposta già gestita.")
-        if row["expires_at"] <= datetime.now(timezone.utc):
+        if row["expires_at"] <= datetime.now(UTC):
             conn.execute("""UPDATE commercial_note_proposals SET status='expired',
                 resolved_at=NOW() WHERE id=%s""", (proposal_id,))
             return {"status": "expired"}

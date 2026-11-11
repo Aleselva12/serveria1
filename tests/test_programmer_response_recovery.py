@@ -1,8 +1,10 @@
 import unittest
 from unittest.mock import MagicMock, patch
+
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-from programmer_agent import programmer_graph as pg
+
 from core.observability import metadata_event
+from programmer_agent import programmer_graph as pg
 
 
 class RecoveryTests(unittest.TestCase):

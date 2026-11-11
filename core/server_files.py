@@ -4,14 +4,14 @@ from __future__ import annotations
 import errno
 import json
 import mimetypes
-import re
 import os
+import re
 import shutil
 import tempfile
 import threading
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -19,8 +19,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from core.confined_paths import confined_path
 from core.access import is_loopback, require_owner
+from core.confined_paths import confined_path
 from core.file_paths import ORIGINALS_ID, original_resource
 
 BASE = Path(__file__).resolve().parent.parent
@@ -126,7 +126,7 @@ def operation():
 
 
 def iso(timestamp: float):
-    return datetime.fromtimestamp(timestamp, timezone.utc).isoformat()
+    return datetime.fromtimestamp(timestamp, UTC).isoformat()
 
 
 def node(base: Path, target: Path, writable: bool):
@@ -341,7 +341,7 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
             area = trash_area(base)
             slot = confined_path(area, area / item_id)
             slot.mkdir()
-            metadata = {"id": item_id, "path": body.path, "deletedAt": datetime.now(timezone.utc).isoformat()}
+            metadata = {"id": item_id, "path": body.path, "deletedAt": datetime.now(UTC).isoformat()}
             try:
                 (slot / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
                 src.rename(slot / "content")

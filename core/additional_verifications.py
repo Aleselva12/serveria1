@@ -1,15 +1,16 @@
 """Bounded checks with explicit scope. Synthetic checks never certify external apps."""
 import base64
-from io import BytesIO
 import json
 import os
-from pathlib import Path
 import tempfile
+from io import BytesIO
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 
 def gmail_contract():
-    from email_agent import email_connector as connector, email_tools
+    from email_agent import email_connector as connector
+    from email_agent import email_tools
     required = ("get_gmail_service", "search_messages", "get_message", "save_as_draft")
     if not all(callable(getattr(connector, key, None)) for key in required):
         return "fail", "Collegamento Gmail mancante"
@@ -21,6 +22,7 @@ def gmail_contract():
 
 def gmail_sample():
     from email import message_from_bytes
+
     from email_agent import email_connector as connector
     service = MagicMock()
     service.users.return_value.drafts.return_value.create.return_value.execute.return_value = {"id": "synthetic"}
@@ -37,6 +39,7 @@ def gmail_sample():
 def files_sample():
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from core.server_files import make_router
     token = "cora-synthetic-verification"
     with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"CORA_OWNER_TOKEN": token}):
@@ -54,8 +57,9 @@ def files_sample():
 
 
 def quote_sample():
-    from email_agent import email_tools
     from pypdf import PdfReader
+
+    from email_agent import email_tools
     with tempfile.TemporaryDirectory() as folder, patch.object(email_tools, "QUOTE_ROOT", Path(folder)), patch.object(email_tools, "_require_permission"):
         # The undecorated function only touches our generated temporary PDF.
         function = email_tools.generate_quote_pdf.func.__wrapped__
@@ -70,7 +74,7 @@ def quote_sample():
 
 
 def service_http(identifier):
-    from urllib.request import Request, build_opener, HTTPRedirectHandler
+    from urllib.request import HTTPRedirectHandler, Request, build_opener
     class NoRedirect(HTTPRedirectHandler):
         def redirect_request(self, *args, **kwargs):
             return None
@@ -108,4 +112,5 @@ REGRESSIONS = {
 REGRESSIONS.update({'files_browse_regression': ('tests.test_server_files.ServerFilesTests.test_listing_filter_pagination_and_directories',), 'files_lifecycle_regression': ('tests.test_server_files.ServerFilesTests.test_create_move_copy_and_conflicts', 'tests.test_server_files.ServerFilesTests.test_trash_restore_and_conflicting_original', 'tests.test_file_editor.FileEditorTests.test_edit_backup_conflict_and_mode'), 'files_access_regression': ('tests.test_server_files.ServerFilesTests.test_access_requires_owner_token', 'tests.test_server_files.ServerFilesTests.test_readonly_rejects_all_mutations', 'tests.test_server_files.ServerFilesTests.test_same_prefix_sibling_and_all_public_path_inputs_are_confined'), 'word_document_regression': ('tests.test_word_files.WordFilesTests', 'tests.test_commercial_word.CommercialWordTests')})
 
 from core.tree_verification_suites import SUITES as TREE_SUITES
+
 REGRESSIONS.update({key: item["tests"] for key, item in TREE_SUITES.items()})

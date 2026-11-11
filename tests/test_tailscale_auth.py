@@ -2,10 +2,12 @@ import os
 import unittest
 from contextlib import contextmanager
 from unittest.mock import patch
+
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+
 from core import auth
-from deploy.tailscale_login import validate, update_env
+from deploy.tailscale_login import update_env, validate
 
 
 class TailscaleAuthTests(unittest.TestCase):
@@ -109,6 +111,7 @@ class SetupTests(unittest.TestCase):
         import json
         import tempfile
         from pathlib import Path
+
         from deploy import tailscale_login as setup
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

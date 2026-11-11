@@ -1,14 +1,17 @@
 import asyncio
 import json
 import os
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
+
 from fastapi import HTTPException
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
-from core import agent_models as assignments, models
+
+from core import agent_models as assignments
+from core import models
 
 
 class AssignmentTests(unittest.TestCase):
@@ -71,6 +74,7 @@ class AssignmentTests(unittest.TestCase):
     def test_saved_desktop_binding_survives_worker_upgrade_and_routes_new_chat(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
         from core.architecture_api import router
         app = FastAPI(); app.include_router(router); client = TestClient(app)
         row = {'id': 'pc', 'name': 'Desktop', 'enabled': True, 'selected_model': 'qwen3:8b'}

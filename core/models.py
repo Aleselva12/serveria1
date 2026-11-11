@@ -1,13 +1,14 @@
 from __future__ import annotations
-from core.generation_policy import output_tokens, model_timeout, run_timeout
 
-import os
 import json
+import os
 import tempfile
 from pathlib import Path
-from core.ollama_transport import DEFAULT_BASE_URL, get_ollama_base_url, urlopen
 
 from langchain_ollama import ChatOllama
+
+from core.generation_policy import model_timeout, output_tokens, run_timeout
+from core.ollama_transport import DEFAULT_BASE_URL, get_ollama_base_url, urlopen
 
 
 def preserve_tool_argument_types(response):
@@ -69,6 +70,7 @@ class ConfiguredChatOllama(ChatOllama):
     async def _acreate_chat_stream(self, messages, stop=None, **kwargs):
         if self.remote_machine_id:
             import asyncio
+
             from core.agent_models import chat_on_worker
             response = await asyncio.to_thread(chat_on_worker, self.remote_machine_id, self.model, self._chat_params(messages, stop=stop, **kwargs))
             self._observe_reply(response)
@@ -203,6 +205,7 @@ def get_model_name(role: str = "default") -> str:
 def resolve_model(role: str = "default") -> dict:
     """One snapshot for both provider and model; no mixed reads during a save."""
     import hashlib
+
     from core.agent_models import binding
     selected = binding(role)
     if selected:

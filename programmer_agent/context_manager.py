@@ -4,11 +4,14 @@ No new execution path: further retrieval uses existing governed tools. Unknown
 requests and catalog discovery expand to the full registry, never a hard denylist.
 """
 from __future__ import annotations
+
 import json
 import os
 import re
+
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.utils.function_calling import convert_to_openai_tool
+
 from core.context_budget import estimate, message_cost
 from programmer_agent.loop_context import fit_programmer_messages
 

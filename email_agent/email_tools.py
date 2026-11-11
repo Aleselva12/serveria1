@@ -4,9 +4,6 @@ from datetime import date
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from core.governance import agent_tool
-
-from core.permissions import require_permission
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import A4
@@ -20,13 +17,14 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from core.governance import agent_tool
+from core.permissions import require_permission
 from email_agent.email_connector import (
     get_message,
     messages_for_day,
     save_as_draft,
     search_messages,
 )
-
 
 QUOTE_ROOT = Path(
     os.getenv(
@@ -300,4 +298,5 @@ EMAIL_TOOLS = [
 
 
 from core.calendar_tools import calendar_tools_for
+
 EMAIL_TOOLS += calendar_tools_for("email_quotes_agent")

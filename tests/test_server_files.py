@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
 from core.server_files import router
 
 
@@ -208,8 +209,9 @@ class ServerFilesTests(unittest.TestCase):
         self.assertEqual(self.get('/trash').json()['items'],[])
 
     def test_confined_path_rejects_sibling_prefix_and_internal_links(self):
-        from core.confined_paths import confined_path
         from fastapi import HTTPException
+
+        from core.confined_paths import confined_path
         sibling=self.base/'files-private';sibling.mkdir()
         with self.assertRaises(HTTPException):confined_path(self.data,sibling/'secret')
         (self.data/'folder').mkdir();self.make_symlink(self.data / 'alias', self.data / 'folder', target_is_directory=True)

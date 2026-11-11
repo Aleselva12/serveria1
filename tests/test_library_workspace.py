@@ -4,7 +4,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 from core import file_paths
 from core.governance import CapabilityExecutionError
@@ -24,8 +24,8 @@ class LibraryWorkspaceTests(unittest.TestCase):
             setting.start();self.addCleanup(setting.stop)
 
     def test_first_agent_access_initializes_same_default_as_ui_without_opening_files(self):
-        from core.ia_library import library_base
         import tools
+        from core.ia_library import library_base
         self.assertFalse((self.base/'knowledge').exists())
         data=json.loads(tools.library_list.invoke({}))
         self.assertEqual(data['documents'],[])
@@ -34,8 +34,8 @@ class LibraryWorkspaceTests(unittest.TestCase):
         self.assertIn('workspace note',tools.library_read.invoke({'relative_path':'note.txt'}))
 
     def test_agents_and_ui_follow_current_configuration_not_an_import_time_path(self):
-        from core.ia_library import library_base
         import tools
+        from core.ia_library import library_base
         for folder in ('first','second'):
             root=self.base/folder;root.mkdir();(root/'note.txt').write_text(folder,encoding='utf-8')
             with patch.dict(os.environ,{'CORA_KNOWLEDGE_ROOT':str(root)}):
@@ -43,8 +43,8 @@ class LibraryWorkspaceTests(unittest.TestCase):
                 self.assertIn(folder,tools.library_read.invoke({'relative_path':'note.txt'}))
 
     def test_missing_configured_mount_is_not_created_or_replaced_with_default(self):
-        from core.ia_library import library_roots
         import tools
+        from core.ia_library import library_roots
         missing=self.base/'not-mounted'
         with patch.dict(os.environ,{'CORA_KNOWLEDGE_ROOT':str(missing)}):
             self.assertEqual(Path(library_roots()[0]['path']),missing)
@@ -92,8 +92,9 @@ class LibraryWorkspaceTests(unittest.TestCase):
                 self.assertNotIn('private detail',json.dumps(result))
 
     def test_full_chat_graph_survives_real_missing_root_and_lists_without_a_model(self):
+        from langchain_core.messages import AIMessage, HumanMessage
+
         import graph
-        from langchain_core.messages import AIMessage,HumanMessage
         model=Mock();model.invoke.return_value=AIMessage('La Libreria IA non è disponibile; non ho letto il file.')
         with patch.dict(os.environ,{'CORA_KNOWLEDGE_ROOT':str(self.base/'missing')}),patch.object(graph,'model_with_tools',model):
             request='Leggi il file "note" nella Libreria IA'
@@ -137,9 +138,9 @@ class PreflightFailureTests(unittest.TestCase):
 
     @patch('tools.library_search')
     def test_cancellation_timeout_and_uncertain_effects_are_never_converted_into_warnings(self,search):
-        from core.runtime_context import RunTimedOut
         from core.run_lifecycle import RunCancelled
-        from core.run_states import EffectUncertain,DurabilityLost
+        from core.run_states import DurabilityLost, EffectUncertain
+        from core.runtime_context import RunTimedOut
         for stop in (RunTimedOut('stop'),RunCancelled('stop'),EffectUncertain(),DurabilityLost()):
             search.invoke.side_effect=stop
             with self.assertRaises(type(stop)):preload('/libreria/note',['library_search','library_read'])

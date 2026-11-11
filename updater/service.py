@@ -4,9 +4,10 @@ import hmac
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+
 from updater.engine import Engine
-from updater.managed_apps import AppManager
 from updater.host_diagnostics import inspect as host_diagnostics
+from updater.managed_apps import AppManager
 
 
 def handler(engine, token, apps=None):

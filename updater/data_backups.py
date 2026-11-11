@@ -3,13 +3,13 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tarfile
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
+from pathlib import Path
 
 from updater.engine import atomic, file_digest
 
@@ -78,7 +78,7 @@ def create(engine, settings):
     recipient=settings['age_recipient']
     if not recipient.startswith('age1') or len(recipient)>150: raise ValueError('Destinatario age pubblico richiesto.')
     if not shutil.which('age'): raise ValueError('Installare age sul server prima di abilitare i backup.')
-    folder=root/('cora-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')+'-'+os.urandom(4).hex())
+    folder=root/('cora-'+datetime.now(UTC).strftime('%Y%m%dT%H%M%S')+'-'+os.urandom(4).hex())
     folder.mkdir(mode=0o700)
     images=engine.images()
     # Persist the exact restart images before stopping anything. On crash tick recovers only services.
@@ -104,7 +104,7 @@ def create(engine, settings):
                     if not path.is_absolute() or path.is_symlink() or not path.is_file():
                         raise ValueError('File privato aggiuntivo non regolare.')
                     extra.add(path,arcname=str(index)+'-'+path.name,recursive=False)
-            manifest={'version':2,'created_at':datetime.now(timezone.utc).isoformat(),'images':images,
+            manifest={'version':2,'created_at':datetime.now(UTC).isoformat(),'images':images,
                       'audit':evidence,'sha256':{p.name:file_digest(p) for p in stage.iterdir()}}
             atomic(stage/'manifest.json',manifest)
             with tempfile.TemporaryFile(dir=root) as archive:

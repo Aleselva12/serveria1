@@ -1,11 +1,12 @@
-from copy import deepcopy
 import os
 import unittest
+from copy import deepcopy
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
 from core import node_verification as service
 
 

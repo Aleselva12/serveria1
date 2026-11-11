@@ -1,8 +1,8 @@
 import os
-from pathlib import Path
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from core import consultations
@@ -24,7 +24,8 @@ class ConsultationTests(unittest.TestCase):
 
     def test_roadmap_render_is_current_and_decisions_remain_explicit(self):
         import json
-        from deploy.render_roadmap import ROOT,render
+
+        from deploy.render_roadmap import ROOT, render
         rows=json.loads((ROOT/'docs/roadmap.json').read_text(encoding='utf-8'))
         current=json.loads((ROOT/'docs/project-status.json').read_text(encoding='utf-8'))
         self.assertEqual((ROOT/'frontend/src/project-status.generated.json').read_text(encoding='utf-8'),

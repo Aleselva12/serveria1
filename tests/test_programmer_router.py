@@ -2,8 +2,12 @@
 import os
 import unittest
 from unittest.mock import MagicMock, patch
+
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-from programmer_agent import request_router as router, context_manager as cm, programmer_graph as pg
+
+from programmer_agent import context_manager as cm
+from programmer_agent import programmer_graph as pg
+from programmer_agent import request_router as router
 from programmer_agent.programmer_tools import PROGRAMMER_TOOLS
 
 

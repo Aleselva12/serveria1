@@ -2,14 +2,16 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from uuid import uuid4
 from unittest.mock import patch
+from uuid import uuid4
+
 import httpx
 from ollama import ResponseError
-from core.provider_errors import provider_detail, MESSAGES
+
 from core import execution_traces as traces
-from core.observability import DiagnosticArchive, metadata_event
 from core.event_bus import EventBus
+from core.observability import DiagnosticArchive, metadata_event
+from core.provider_errors import MESSAGES, provider_detail
 
 
 class ProviderErrorTests(unittest.TestCase):
@@ -55,6 +57,7 @@ class ProviderErrorTests(unittest.TestCase):
 
     def test_safe_detail_is_in_sql_insert_payload(self):
         from unittest.mock import MagicMock
+
         from core.protocol import ComponentEvent
         archive=DiagnosticArchive()
         event=ComponentEvent(type='trace.span',source='tracing',payload={'kind':'model','error_detail':MESSAGES['timeout'],'prompt':'secret'})

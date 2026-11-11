@@ -1,7 +1,8 @@
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
-from core.chat_tools import validate_selection, validate_manual_calls
+
+from core.chat_tools import validate_manual_calls, validate_selection
 
 
 class ChatToolTests(unittest.TestCase):
@@ -24,8 +25,9 @@ class ChatToolTests(unittest.TestCase):
             for selection in (['calculator_tool'], []):
                 _, _, _, names = graph._runtime_system_prompt([], 'Prepara un preventivo', selection)
                 self.assertEqual(names, selection)
-        from api import ChatRequest, submit_chat
         from fastapi import HTTPException
+
+        from api import ChatRequest, submit_chat
         with patch('api.runtime.submit') as submit:
             with self.assertRaises(HTTPException) as error:
                 submit_chat(ChatRequest(message='test', manual_tools=['POST /auth/login']))

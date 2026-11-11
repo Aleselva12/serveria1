@@ -1,9 +1,10 @@
 """Fixed operations for an existing Nextcloud AIO installation. No image downgrade."""
 import json
-from pathlib import Path
 import subprocess
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
+from pathlib import Path
+
 from updater.engine import atomic
 
 MASTER='nextcloud-aio-mastercontainer'
@@ -28,7 +29,7 @@ class NextcloudAIO:
             self.save(status='recovery_required',message=RECOVERY)
 
     def save(self, **fields):
-        self.job={**self.job,**fields,'updatedAt':datetime.now(timezone.utc).isoformat()}
+        self.job={**self.job,**fields,'updatedAt':datetime.now(UTC).isoformat()}
         self.root.mkdir(parents=True,exist_ok=True)
         atomic(self.file,self.job)
         return dict(self.job)

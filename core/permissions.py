@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from collections import Counter
-from dataclasses import asdict, dataclass
-from enum import Enum, IntEnum
-from dataclasses import replace
-import time
 import threading
+import time
+from collections import Counter
+from dataclasses import asdict, dataclass, replace
+from enum import Enum, IntEnum
 
 
 class PermissionLevel(IntEnum):
@@ -357,7 +356,7 @@ def require_permission(
     user_approved: bool = False,
 ) -> PermissionDecision:
     """Return the decision or raise PermissionError when the action cannot run."""
-    from core.governance import invocation, approved_action, ApprovalRequired
+    from core.governance import ApprovalRequired, approved_action, invocation
     from core.runtime import checkpoint
     checkpoint()
     call, grant = invocation.get(), approved_action.get()

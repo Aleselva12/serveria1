@@ -3,10 +3,10 @@ import argparse
 import fcntl
 import json
 import os
-from pathlib import Path
 import subprocess
 import time
-from urllib.request import Request, build_opener, ProxyHandler
+from pathlib import Path
+from urllib.request import ProxyHandler, Request, build_opener
 
 
 def write(path, value):

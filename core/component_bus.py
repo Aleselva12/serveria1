@@ -7,7 +7,6 @@ from typing import Any
 
 from core.protocol import ComponentResult, TaskEnvelope
 
-
 Handler = Callable[[TaskEnvelope], ComponentResult | str | dict[str, Any]]
 
 
@@ -96,11 +95,12 @@ class ComponentBus:
     def dispatch_capability(self, capability_id: str, payload: dict[str, Any], *, source: str | None = None) -> ComponentResult:
         """Execute one registered capability through the typed Component Bus."""
         from uuid import uuid4
+
+        from core.error_decisions import decide, explanation
+        from core.governance import execute_capability, find_capability
+        from core.operational_capabilities import ACTOR_COMPONENT
         from core.runtime import current_run
         from core.runtime_context import current_runtime
-        from core.governance import find_capability, execute_capability
-        from core.error_decisions import decide, explanation
-        from core.operational_capabilities import ACTOR_COMPONENT
 
         _, entry = find_capability(capability_id)
         contract = entry["contract"]

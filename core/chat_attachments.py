@@ -8,11 +8,12 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
-from core.database import db_connection
-from core.chat_store import ensure_conversation
-from core.server_files import upload_to, resolve, operation, exists
 
 from core.access import owner_dependency
+from core.chat_store import ensure_conversation
+from core.database import db_connection
+from core.server_files import exists, operation, resolve, upload_to
+
 router = APIRouter(prefix='/api/v1/chat/attachments', tags=['Allegati chat'], dependencies=[Depends(owner_dependency('files'))])
 TEXT = {'.txt', '.md', '.csv', '.tsv', '.json', '.py', '.ts', '.tsx', '.js', '.css', '.yaml', '.yml', '.toml', '.log'}
 MAX_ATTACHMENTS = 6
@@ -126,6 +127,7 @@ def download(attachment_id: uuid.UUID):
 
 from pydantic import BaseModel, Field
 
+
 class LibraryAttachmentSelection(BaseModel):
     conversation_id: uuid.UUID
     relative_path: str = Field(min_length=1, max_length=1024)
@@ -139,6 +141,7 @@ def attach_from_library(body: LibraryAttachmentSelection):
     content already included in a conversation or bypass extraction limits.
     """
     from io import BytesIO
+
     from core.ia_library import library_base
     from search_agent.search_tools import _safe_path
 

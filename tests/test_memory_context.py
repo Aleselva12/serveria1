@@ -1,13 +1,15 @@
 """Memory edits and context selection must not silently discard owner intent."""
-import os
 import json
+import os
 import unittest
-from uuid import uuid4
 from unittest.mock import patch
+from uuid import uuid4
+
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
-from core.context_budget import fit_messages, ContextOverflow, prepare_context, ContextDeferred
+
+from core.context_budget import ContextDeferred, ContextOverflow, fit_messages, prepare_context
 from core.database import db_connection
-from core.memory import save_memory, search_memories, memory_history, MemoryConflict
+from core.memory import MemoryConflict, memory_history, save_memory, search_memories
 
 
 class ContextContractTests(unittest.TestCase):
@@ -41,7 +43,7 @@ class ContextContractTests(unittest.TestCase):
         self.assertNotIn('PERMANENT USER-CONFIGURED CONTEXT', rendered)
 
     def test_owner_context_is_loaded_only_when_selected(self):
-        from core.context_pages import resolve_context_pages, preload_context
+        from core.context_pages import preload_context, resolve_context_pages
         selected = resolve_context_pages('Cosa sai di me?')
         self.assertIn('owner_context',[page.id for page in selected])
         with patch('core.system_context.get_system_context', return_value={'version':3,'content':'owner one','updated_at':None}) as get:
@@ -73,9 +75,9 @@ class MemoryPostgresTests(unittest.TestCase):
         self.assertEqual(second['version'],2)
 
     def test_owner_update_requires_exact_version_approval_even_with_auto_policy(self):
-        from tools import remember_tool
-        from core.permissions import set_policy
         from core.governance import resolve
+        from core.permissions import set_policy
+        from tools import remember_tool
         first=save_memory(memory_type='fact',key='owner',content='Original')
         set_policy('supervisor','remember_memory','auto')
         args={'memory_type':'fact','key':'owner','content':'Hypothesis','expected_version':1,'expected_memory_id':str(first['id']),'assertion':'inference','confidence':0.6}
@@ -89,9 +91,9 @@ class MemoryPostgresTests(unittest.TestCase):
         self.assertEqual(history[0]['snapshot']['assertion'],'inference')
 
     def test_changed_owner_version_invalidates_approved_correction(self):
-        from tools import remember_tool
-        from core.permissions import set_policy
         from core.governance import resolve
+        from core.permissions import set_policy
+        from tools import remember_tool
         first=save_memory(memory_type='fact',key='owner',content='Original')
         set_policy('supervisor','remember_memory','auto')
         proposal=json.loads(remember_tool.invoke({'memory_type':'fact','key':'owner','content':'Outdated proposal','expected_version':1,'expected_memory_id':str(first['id'])}))
@@ -100,8 +102,8 @@ class MemoryPostgresTests(unittest.TestCase):
         self.assertEqual(memory_history(str(first['id']))[0]['snapshot']['content'],'New user edit')
 
     def test_agent_cannot_delete_owner_memory_to_bypass_correction_approval(self):
-        from tools import forget_memory_tool
         from core.permissions import set_policy
+        from tools import forget_memory_tool
         first=save_memory(memory_type='note',key='owner',content='Keep')
         set_policy('supervisor','forget_memory','auto')
         outcome=json.loads(forget_memory_tool.invoke({'memory_id':str(first['id']),'expected_version':1}))
@@ -109,8 +111,8 @@ class MemoryPostgresTests(unittest.TestCase):
         self.assertEqual(len(memory_history(str(first['id']))),1)
 
     def test_inference_expiry_and_model_provenance(self):
-        from tools import remember_tool
         from core.permissions import set_policy
+        from tools import remember_tool
         set_policy('supervisor','remember_memory','auto')
         outcome=json.loads(remember_tool.invoke({'memory_type':'note','key':'guess','content':'Possible preference','confidence':0.4}))
         self.assertEqual(outcome['assertion'],'inference');self.assertEqual(outcome['owner_kind'],'agent')
@@ -137,7 +139,7 @@ class MemoryPostgresTests(unittest.TestCase):
         self.assertEqual(context[-1]['content'],'recent')
 
     def test_background_embedding_cannot_attach_to_a_changed_memory_version(self):
-        from core.background_embeddings import index_pending_once,runtime
+        from core.background_embeddings import index_pending_once, runtime
         first=save_memory(memory_type='note',key='embedding',content='Old')
         def changed(_):
             save_memory(memory_type='note',key='embedding',content='New',expected_version=1,expected_memory_id=str(first['id']))
@@ -163,8 +165,9 @@ class MemoryPostgresTests(unittest.TestCase):
 
     def test_owner_api_rejects_stale_edits_and_preserves_actor_provenance(self):
         from fastapi.testclient import TestClient
-        from core.auth import provision
+
         import api
+        from core.auth import provision
         with db_connection() as c:c.execute('TRUNCATE app_sessions,app_users CASCADE')
         provision('Ale','a-long-local-password')
         with TestClient(api.app,headers={'X-Cora-Client':'ui'}) as client:
@@ -187,10 +190,10 @@ class MemoryPostgresTests(unittest.TestCase):
             self.assertEqual(client.put('/memory/context',json={'content':'Stale','expected_version':context['version']}).status_code,409)
 
     def test_delete_and_recreate_same_key_cannot_retarget_a_previous_proposal(self):
-        from tools import remember_tool
-        from core.permissions import set_policy
         from core.governance import resolve
         from core.memory import delete_memory
+        from core.permissions import set_policy
+        from tools import remember_tool
         first=save_memory(memory_type='note',key='recreated',content='Original')
         set_policy('supervisor','remember_memory','auto')
         proposal=json.loads(remember_tool.invoke({'memory_type':'note','key':'recreated','content':'Old correction','expected_version':1,'expected_memory_id':str(first['id'])}))

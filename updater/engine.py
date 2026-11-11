@@ -1,9 +1,9 @@
 """Host-side Git and release engine. Installed separately from mutable Cora code."""
 from __future__ import annotations
+
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import secrets
 import shutil
@@ -11,14 +11,15 @@ import stat
 import subprocess
 import tarfile
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
+from pathlib import Path
 from uuid import UUID, uuid4
 
 BUSY = {'queued', 'running'}
 MAX_FILE, MAX_TOTAL = 1_000_000, 40_000_000
 
 
-def now(): return datetime.now(timezone.utc).isoformat()
+def now(): return datetime.now(UTC).isoformat()
 def sha(value): return hashlib.sha256(value).hexdigest()
 
 
@@ -215,9 +216,10 @@ class Engine:
 
     def check_workspace(self, key, profile, expected_digest):
         """Run a fixed profile against a private immutable copy, never caller paths."""
-        from updater.check_runner import run
-        import tempfile
         import stat
+        import tempfile
+
+        from updater.check_runner import run
         if profile not in {"python_tests", "typescript", "frontend_build"}:
             raise ValueError('Profilo non consentito.')
         if not isinstance(expected_digest, str) or not re.fullmatch(r'[a-f0-9]{64}', expected_digest):

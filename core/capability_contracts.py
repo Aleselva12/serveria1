@@ -1,6 +1,8 @@
 """Versioned executable contracts, independent from LangChain or frontend diagrams."""
 from typing import Any, Literal
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, JsonValue, model_validator
+
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, PrivateAttr, model_validator
+
 
 class CapabilityContract(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True)

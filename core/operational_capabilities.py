@@ -18,10 +18,10 @@ def _required_fields(schema: dict) -> list[str]:
     return [str(x) for x in schema.get("required", []) if isinstance(x, str)]
 
 def operational_registry() -> dict:
-    from core.governance import load_capabilities, executables
-    from core.runtime_status import component_runtime_status
-    from core.permissions import get_permission_rule
+    from core.governance import executables, load_capabilities
     from core.models import resolve_model
+    from core.permissions import get_permission_rule
+    from core.runtime_status import component_runtime_status
 
     load_capabilities()
     runtime = component_runtime_status()["components"]

@@ -1,12 +1,12 @@
 import os
-from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
-from deploy import verify_nodes as verifier
 from core import release_identity
+from deploy import verify_nodes as verifier
 
 
 class VerificationTests(unittest.TestCase):

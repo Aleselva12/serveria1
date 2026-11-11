@@ -1,12 +1,12 @@
 from __future__ import annotations
-from core.generation_policy import run_timeout
 
 import os
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Iterator
 
+from core.generation_policy import run_timeout
 from core.run_lifecycle import RunCancelled, cancel_requested
 
 

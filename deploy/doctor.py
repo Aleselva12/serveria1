@@ -3,7 +3,8 @@ import importlib.util
 import json
 import os
 from pathlib import Path
-from core.ollama_transport import urlopen, get_ollama_base_url
+
+from core.ollama_transport import get_ollama_base_url, urlopen
 
 
 def model_available(name,names):
@@ -23,7 +24,7 @@ def inspect():
         checks['database']={'ok':bool(row['vector'] and migrations),'migrations':migrations}
     except Exception as error:checks['database']={'ok':False,'error_type':type(error).__name__}
     try:
-        from core.models import get_model_name, ROLE_MODEL_ENV
+        from core.models import ROLE_MODEL_ENV, get_model_name
         endpoint=get_ollama_base_url()
         with urlopen(endpoint+'/api/tags',timeout=5) as response:data=json.load(response)
         names={model['name'] for model in data.get('models',[])}

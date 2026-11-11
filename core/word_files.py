@@ -1,9 +1,9 @@
 """Owner Word notes editor: patch document.xml, preserve all other package parts."""
+import re
+import zipfile
 from copy import deepcopy
 from difflib import SequenceMatcher
 from io import BytesIO
-import re
-import zipfile
 
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
@@ -232,7 +232,7 @@ def patch_document(content, body):
 
 
 def register_word_editor(router, root_provider):
-    from core.server_files import operation, root_for, resolve, exists
+    from core.server_files import exists, operation, resolve, root_for
 
     @router.get('/word')
     def open_word(root_id: str, path: str):

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 from core.database import db_connection
-
 
 DEFAULT_TTL_MINUTES = 120
 
@@ -17,7 +16,7 @@ def set_working_memory(
     state: dict[str, Any],
     ttl_minutes: int = DEFAULT_TTL_MINUTES,
 ) -> dict[str, Any]:
-    expires_at = datetime.now(timezone.utc) + timedelta(
+    expires_at = datetime.now(UTC) + timedelta(
         minutes=max(1, int(ttl_minutes))
     )
     with db_connection() as connection:

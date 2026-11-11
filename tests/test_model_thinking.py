@@ -3,13 +3,16 @@ import unittest
 from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import patch
+
 from langchain_core.messages import AIMessageChunk
 from langchain_core.outputs import ChatGenerationChunk
-from core.models import get_chat_model, model_options
-from core.runtime import Run, current_run, publish_thinking
+
 from core.execution_traces import ExecutionTrace
+from core.models import get_chat_model, model_options
 from core.observability import metadata_event
+from core.runtime import Run, current_run, publish_thinking
 from deploy import prepare_qwen3
+
 
 class ModelThinkingTests(unittest.TestCase):
     def test_qwen_profile_overrides_legacy_zero_without_changing_other_families(self):
@@ -48,8 +51,9 @@ class ModelThinkingTests(unittest.TestCase):
         self.assertIsNone(metadata_event({'type':'thinking.delta','payload':{'text':'private'}}))
 
     def test_native_ollama_stream_routes_thinking_through_callback(self):
-        from core.models import ConfiguredChatOllama
         from langchain_core.messages import HumanMessage
+
+        from core.models import ConfiguredChatOllama
         run=Run('stream-test')
         binding=current_run.set(run)
         try:

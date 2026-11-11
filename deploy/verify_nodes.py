@@ -6,17 +6,18 @@ Only generated fixtures are written. No user service is restarted.
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta, timezone
+from pathlib import Path
 from time import monotonic
-from uuid import uuid4, UUID
+from uuid import UUID, uuid4
 
-from core.additional_verifications import DIRECT, REGRESSIONS as EXTRA_REGRESSIONS
+from core.additional_verifications import DIRECT
+from core.additional_verifications import REGRESSIONS as EXTRA_REGRESSIONS
 
 REGRESSIONS = {
     "memory_regression": ("tests.test_memory_context.ContextContractTests", "tests.test_context_contracts"),
@@ -172,7 +173,7 @@ def _action(action, run_id):
                 if error.resp.status not in (404, 410):
                     raise
             return {"status": "pass"}
-        start = datetime.now(timezone.utc) + timedelta(days=1)
+        start = datetime.now(UTC) + timedelta(days=1)
         data = dict(title=key, start=start.isoformat(), end=(start+timedelta(minutes=5)).isoformat(),
                     all_day=False, notes="Collaudo automatico Cora", reminder_minutes=None)
         first = calendar.create_event(data, request_id=key)
@@ -315,7 +316,7 @@ def execute(args, on_result=None):
         start = monotonic()
         result = run(check_id, getattr(args, "settings", None))
         row = {"id": check_id, **result, "commit": commit or None, "environment": environment,
-               "source": "manual", "at": datetime.now(timezone.utc).isoformat(),
+               "source": "manual", "at": datetime.now(UTC).isoformat(),
                "durationMs": int((monotonic()-start)*1000)}
         rows.append(row)
         if on_result:

@@ -1,7 +1,8 @@
 """Real native CPU decoder smoke; no model download or personal recording."""
-from pathlib import Path
 import tempfile
 import wave
+from pathlib import Path
+
 from faster_whisper.audio import decode_audio
 
 with tempfile.TemporaryDirectory() as directory:

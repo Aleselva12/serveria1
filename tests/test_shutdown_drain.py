@@ -1,9 +1,9 @@
 """Event-gated regressions for shutdown with work still using the database."""
 import asyncio
 import os
-from contextlib import ExitStack, contextmanager
 import threading
 import unittest
+from contextlib import ExitStack, contextmanager
 from unittest.mock import patch
 
 import api

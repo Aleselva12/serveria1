@@ -1,10 +1,11 @@
 import unittest
-from urllib.error import HTTPError
 from types import SimpleNamespace as NS
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
 from core import monitoring as m
 
 

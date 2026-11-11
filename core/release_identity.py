@@ -1,8 +1,8 @@
 """Revision of the tested code, never borrowed from the updater's current pointer."""
 import os
-from pathlib import Path
 import re
 import subprocess
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 

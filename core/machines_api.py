@@ -10,16 +10,15 @@ import os
 import re
 import tempfile
 import threading
-from urllib.request import build_opener, ProxyHandler, HTTPRedirectHandler
 from pathlib import Path
+from typing import Literal
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener, urlopen
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
-from typing import Literal
 
 router = APIRouter(prefix="/api/v1/machines", tags=["Macchine"])
 _registry_lock = threading.RLock()
@@ -312,7 +311,7 @@ def save_settings(machine_id: str, body: WorkerSettings):
                 # ON means manually allowed; no model is executed until the
                 # owner also chooses an installed model and makes a request.
                 _write(machines)
-                from core.verification_usage import worker_ids, record
+                from core.verification_usage import record, worker_ids
                 if before != _settings(item):
                     for check_id in ["worker_e2e", *worker_ids(machine_id)]:
                         record(check_id, "unknown", "Configurazione worker cambiata: serve una nuova inferenza")

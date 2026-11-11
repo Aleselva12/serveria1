@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+
 from core.tool_backlog import FILE_TOOL_BACKLOG, api_integration
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,7 +80,7 @@ def flatten_routes(routes):
 
 
 def executable_entries():
-    from core.governance import load_capabilities, executables, capability_manifest
+    from core.governance import capability_manifest, executables, load_capabilities
     load_capabilities()
     owners = {source[:-3].replace("/","."):(owner,group) for source,_,_,owner,group in SOURCES}
     actor_owners = {e["actor"]:owners.get(e["fn"].__module__,("", ""))[0] for e in executables.values() if e["fn"].__module__ in owners}

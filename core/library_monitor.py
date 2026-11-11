@@ -3,10 +3,11 @@ import json
 import os
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
+
 from core.file_paths import knowledge_root, originals_root
-from search_agent.search_tools import _safe_path, BLOCKED_PARTS, BLOCKED_NAMES
+from search_agent.search_tools import BLOCKED_NAMES, BLOCKED_PARTS, _safe_path
 
 _LOCK = threading.RLock()
 _STOP = threading.Event()
@@ -110,7 +111,7 @@ def scan_once():
             if path not in snapshot and any(path.startswith(folder + '/') for folder in monitored):
                 changes.append({'type':'removed_or_unwatched','path':path})
         # A file disappearing during scan may mean deletion or access failure; do not claim deletion.
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         if data['last_scan'] is not None:
             data['events'] = (data['events'] + [{'at':now, **item} for item in changes])[-100:]
         data['snapshot'] = snapshot
@@ -128,7 +129,7 @@ def _loop():
             # Do not include folder names, exceptions or document contents in health.
             error_type = type(error).__name__
         with _LOCK:
-            _LAST_ATTEMPT = datetime.now(timezone.utc).isoformat()
+            _LAST_ATTEMPT = datetime.now(UTC).isoformat()
             _LAST_ERROR_TYPE = error_type
 
 def start():

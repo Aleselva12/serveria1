@@ -1,12 +1,12 @@
 import io
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tarfile
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from updater import data_backups as backup

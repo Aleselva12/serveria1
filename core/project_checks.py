@@ -9,11 +9,12 @@ from __future__ import annotations
 import os
 import sys
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from fastapi import APIRouter
-from core.health_catalog import CATALOG
+
 from core import project_contracts
+from core.health_catalog import CATALOG
 
 router = APIRouter(prefix="/api/v1", tags=["Project checks"])
 _LOCK = threading.RLock()
@@ -25,7 +26,7 @@ _LAST: dict | None = None
 CHECKS = {key: item["title"] for key,item in CATALOG.items() if item["automated"]}
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _database() -> tuple[str, str]:
@@ -70,7 +71,9 @@ def _ollama() -> tuple[str, str]:
 def _word_sample() -> tuple[str, str]:
     """Run a REAL append-only Word transformation on in-memory synthetic data."""
     from io import BytesIO
+
     from docx import Document
+
     from core.commercial_word import parse, propose_append
 
     document = Document()
@@ -183,7 +186,7 @@ def _scheduled_cycle():
                       AND source='periodic'""").fetchone()
                     if row and row[0]:
                         from datetime import timedelta
-                        if datetime.now(timezone.utc) - row[0] < timedelta(seconds=_INTERVAL):
+                        if datetime.now(UTC) - row[0] < timedelta(seconds=_INTERVAL):
                             return None
                 except Exception:
                     # New schema might not be migrated yet. Try the ordinary
@@ -260,7 +263,7 @@ def health_dashboard():
                     AND (status IN ('pass','fail') OR detail LIKE 'Uso reale:%%')
                   ORDER BY check_id,observed_at DESC,id DESC""", (pending,)).fetchall()
             for row in previous:
-                age = (datetime.now(timezone.utc) - row["observed_at"]).total_seconds()
+                age = (datetime.now(UTC) - row["observed_at"]).total_seconds()
                 if (row["status"] in {"pass", "fail"} and row["detail"].startswith("Uso reale:") and row["commit_sha"] == _release()
                     and row["environment"] == _environment()
                     and 0 <= age <= CATALOG[row["check_id"]].get("maxAgeSeconds", 86400)):

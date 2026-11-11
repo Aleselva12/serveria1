@@ -1,8 +1,10 @@
 """Transactional critical facts. Notifications are not commands or effect replay."""
 from uuid import UUID
+
 from psycopg.types.json import Jsonb
-from core.protocol import ComponentEvent
+
 from core.database import db_connection
+from core.protocol import ComponentEvent
 
 
 def root_for(connection, run_id):

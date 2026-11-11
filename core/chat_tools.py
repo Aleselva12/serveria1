@@ -16,8 +16,8 @@ def validate_manual_calls(names, calls):
 
 
 def chat_tool_options():
+    from core.governance import capability_manifest, executables, tool_contract
     from tools import supervisor_tools
-    from core.governance import tool_contract, capability_manifest, executables
     result = []
     for tool in supervisor_tools:
         contract = tool_contract(tool)

@@ -1,9 +1,11 @@
 import json
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
+
 from updater.host_maintenance import execute, write
 from updater.maintenance import digest
+
 
 class LifecycleTests(unittest.TestCase):
     def setUp(self):
@@ -41,12 +43,14 @@ class LifecycleTests(unittest.TestCase):
 class PrerequisiteTests(unittest.TestCase):
     def test_compatible_does_not_post(self):
         from unittest.mock import patch
+
         from core.host_maintenance import ensure
         with patch.dict('os.environ',{'CORA_UPDATER_URL':'http://host'}), patch('core.host_maintenance.digest',return_value='b'*64), patch('programmer_agent.releases.request',return_value={'digest':'b'*64,'pending':False}) as call:
             self.assertEqual(ensure()['status'],'compatible')
             call.assert_called_once_with('GET','/host/maintenance',timeout=5)
     def test_missing_bootstrap_never_updates(self):
         from unittest.mock import patch
+
         from core.host_maintenance import ensure
         with patch.dict('os.environ',{'CORA_UPDATER_URL':'http://host'}), patch('programmer_agent.releases.request',return_value={'available':False}) as call:
             with self.assertRaises(ValueError): ensure()
@@ -55,9 +59,10 @@ class PrerequisiteTests(unittest.TestCase):
 class CandidateTests(unittest.TestCase):
     @unittest.skipUnless(__import__('shutil').which('git'), 'Host Git required; exercised by the host CI job')
     def test_exact_git_bytes_and_busy_jobs(self):
-        from types import SimpleNamespace
-        from threading import RLock, Lock
         import subprocess
+        from threading import Lock, RLock
+        from types import SimpleNamespace
+
         from updater.maintenance import submit
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary);repo=root/'source';repo.mkdir();(repo/'updater').mkdir()
@@ -79,10 +84,11 @@ class CandidateTests(unittest.TestCase):
 
 class BootstrapTests(unittest.TestCase):
     def test_failed_health_restores_original_and_removes_new_units(self):
-        from unittest.mock import patch
+        import os
         from contextlib import ExitStack
         from types import SimpleNamespace
-        import os
+        from unittest.mock import patch
+
         from updater import install_maintenance as installer
         with tempfile.TemporaryDirectory() as temporary, ExitStack() as stack:
             base=Path(temporary); root=base/'root';root.mkdir();(root/'jobs').mkdir()

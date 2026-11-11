@@ -1,7 +1,9 @@
 """Canonical PostgreSQL lifecycle shared by root runs and delegations."""
 import json
 import threading
+from datetime import UTC
 from uuid import UUID, uuid4
+
 from core.database import db_connection
 from core.run_states import TERMINAL, TRANSITIONS
 
@@ -115,7 +117,7 @@ def persisted_snapshot(row):
     return {'id':str(row['id']), 'thread_id':row['thread_id'], 'status':row['status'],
             'error_type':row['error_type'], 'result':row['result'], 'agents':{},
             'timings':metadata.get('metrics',{}), 'output':'', 'approval_ids':row['approval_ids'],
-            'elapsed_ms':round(((row['finished_at'] or datetime.now(timezone.utc))-row['created_at']).total_seconds()*1000,2),
+            'elapsed_ms':round(((row['finished_at'] or datetime.now(UTC))-row['created_at']).total_seconds()*1000,2),
             'created_at':row['created_at'], 'finished_at':row['finished_at'],
             'kind':row['kind'], 'target':row['target'], 'parent_run_id':str(row['parent_run_id']) if row['parent_run_id'] else None,
             'cancel_requested':row['cancel_requested'], 'stop_reason':row['stop_reason'], 'revision':row['revision']}
@@ -129,7 +131,7 @@ def recover():
             ([s for s in STATUSES if s not in TERMINAL],)).fetchall()
         operations = conn.execute('''UPDATE capability_operations SET status=CASE WHEN effect IN ('write','delegate') THEN 'uncertain' ELSE 'failed' END,
             finished_at=NOW(),error_type='ProcessInterrupted' WHERE status='started' RETURNING *''').fetchall()
-        from core.domain_events import run_state, operation_state
+        from core.domain_events import operation_state, run_state
         for row in runs: run_state(conn,row)
         for row in operations: operation_state(conn,row,2)
         conn.execute("UPDATE action_approvals SET status='uncertain',error_type='ProcessInterrupted' WHERE status='executing'")

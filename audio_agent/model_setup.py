@@ -3,10 +3,10 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import shutil
 import tempfile
+from pathlib import Path
 
 
 def digest(path):
@@ -30,7 +30,7 @@ def verify(path):
 
 
 def prepare(model,destination,revision=None):
-    from faster_whisper.utils import available_models,download_model,_MODELS
+    from faster_whisper.utils import _MODELS, available_models, download_model
     from huggingface_hub import HfApi
     if model not in available_models():raise ValueError('Unknown public Whisper model')
     if destination.exists():raise ValueError('Model destination already exists; prepare a new directory instead')

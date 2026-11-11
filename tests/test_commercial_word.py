@@ -2,8 +2,10 @@
 import unittest
 from hashlib import sha256
 from io import BytesIO
+
 from docx import Document
-from core.commercial_word import parse, search, propose_append
+
+from core.commercial_word import parse, propose_append, search
 
 
 def sample():

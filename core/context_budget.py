@@ -1,12 +1,14 @@
 """Bounded prompt assembly. Summaries are derived chat data, never semantic memories."""
-from core.generation_policy import output_tokens as generation_output_tokens
 import json
 import os
-import uuid
 import re
 import unicodedata
-from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage, AIMessage
+import uuid
+
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+
 from core.database import db_connection
+from core.generation_policy import output_tokens as generation_output_tokens
 from core.runtime import checkpoint
 
 

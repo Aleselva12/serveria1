@@ -6,18 +6,18 @@ may later be called by the orchestrator through an approved read/compute tool.
 """
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import re
 import threading
 import time
-from uuid import uuid4
-import ipaddress
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Literal
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -229,7 +229,7 @@ def _evaluate(payload: PreviewRequest) -> dict:
         "reported_model": reported,
         "model_verified": bool(reported and reply.get("done") is True),
         "provider": "Ollama",
-        "evaluated_at": datetime.now(timezone.utc).isoformat(),
+        "evaluated_at": datetime.now(UTC).isoformat(),
         "objective_count": len(payload.objectives),
         "weights": WEIGHTS,
         "scoring_version": "weighted-v1",
@@ -266,7 +266,7 @@ async def classifier_preview(payload: PreviewRequest):
         started = time.perf_counter()
         def trace(status, error=None):
             append_event({"run_id": run_id, "thread_id": "roadmap-priorities",
-                "timestamp": datetime.now(timezone.utc).isoformat(), "span_id": span_id,
+                "timestamp": datetime.now(UTC).isoformat(), "span_id": span_id,
                 "kind": "model", "name": "roadmap_classifier", "status": status,
                 "duration_ms": round((time.perf_counter() - started) * 1000, 2),
                 "error_type": type(error).__name__ if error else None,

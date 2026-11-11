@@ -1,8 +1,9 @@
 """Standard contracts for progressive, permission-bound context retrieval."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -49,7 +50,7 @@ class ContextPacket(BaseModel):
     version: Literal[1] = 1
     packet_id: str
     task_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     literal_items: list[ContextItem] = Field(default_factory=list)
     summarized_items: list[ContextItem] = Field(default_factory=list)
     source_refs: list[str] = Field(default_factory=list)

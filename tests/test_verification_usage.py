@@ -1,11 +1,12 @@
-from datetime import datetime, timedelta, timezone
 import os
 import unittest
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
-from core import verification_usage as usage
+
 from core import project_checks
+from core import verification_usage as usage
 
 
 class UsageEvidenceTests(unittest.TestCase):
@@ -67,7 +68,7 @@ class UsageEvidenceTests(unittest.TestCase):
             self.assertEqual(db.return_value.__enter__.return_value.execute.call_count, 3)
 
     def test_runtime_evidence_survives_missing_fixture_without_forging_freshness(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         def row(status, detail, at):
             return dict(check_id="calendar_e2e", status=status,detail=detail,source="manual",environment="debian-api",commit_sha="a"*40,duration_ms=1,observed_at=at)
         for age, expected, proof_status in ((60,"pass","pass"),(2*86400,"unknown","pass"),(60,"unknown","unknown")):

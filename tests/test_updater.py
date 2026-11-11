@@ -1,15 +1,17 @@
 import json
 import os
-from pathlib import Path
-import subprocess
 import shutil
+import subprocess
 import tempfile
 import threading
 import unittest
-from unittest.mock import patch
 from http.server import ThreadingHTTPServer
+from pathlib import Path
+from unittest.mock import patch
+
 import httpx
-from updater.engine import Engine, atomic, CommandFailure, safe_diagnostic
+
+from updater.engine import CommandFailure, Engine, atomic, safe_diagnostic
 from updater.service import handler
 
 
@@ -248,7 +250,9 @@ class UpdaterTests(unittest.TestCase):
         finally:server.shutdown();server.server_close();thread.join()
 
     def test_restore_validates_archive_before_destructive_commands(self):
-        import tarfile,io
+        import io
+        import tarfile
+
         from updater.engine import file_digest
         ready=self.ready();job=self.engine.submit('apply',commit=ready['commit'],release_id=ready['id']);row=self.engine.load(job['id'])
         backup=self.engine.path(row['id'])/'backup';backup.mkdir();(backup/'database.dump').write_bytes(b'fake dump')

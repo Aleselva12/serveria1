@@ -4,9 +4,12 @@ import unittest
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock,patch
+from unittest.mock import MagicMock, patch
+
 from fastapi import HTTPException
+
 from core import chat_attachments as attachments
+
 
 class AttachmentTests(unittest.TestCase):
     def test_extract_is_bounded_and_marks_unread_content(self):

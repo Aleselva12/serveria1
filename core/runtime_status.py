@@ -4,11 +4,11 @@ import importlib.util
 import os
 from pathlib import Path
 from urllib.error import URLError
-from core.ollama_transport import urlopen, get_ollama_base_url
 
 from core.component_bus import component_bus
 from core.database import database_status
 from core.models import get_model_name, get_ollama_base_url
+from core.ollama_transport import get_ollama_base_url, urlopen
 
 
 def _ollama_online() -> bool:
@@ -72,8 +72,9 @@ def component_runtime_status() -> dict:
             "checks": database,
         },
     }
-    from core.agent_models import ROLES, binding, remote_ready
     from concurrent.futures import ThreadPoolExecutor
+
+    from core.agent_models import ROLES, binding, remote_ready
     assignments = {identifier: binding(role) for identifier, role in ROLES.items()}
     keys = {(s['machine_id'], s['model']) for s in assignments.values() if s and s['machine_id'] != 'local'}
     remote_checks = {}

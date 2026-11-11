@@ -6,13 +6,13 @@ import threading
 import time
 import uuid
 from collections import deque
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from dotenv import load_dotenv
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
@@ -23,7 +23,7 @@ _LOCK = threading.Lock()
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def log_event(
@@ -37,9 +37,9 @@ def log_event(
 ) -> dict[str, Any]:
     """Compatibility adapter to the single metadata-only diagnostic event path."""
     from core.event_bus import bus
+    from core.observability import metadata_event
     from core.runtime import current_run
     from core.runtime_context import current_runtime
-    from core.observability import metadata_event
     run = current_run.get()
     component_run, active_thread = current_runtime()
     event_id, timestamp = str(uuid.uuid4()), _utc_now()

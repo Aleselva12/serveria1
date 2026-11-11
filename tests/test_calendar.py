@@ -1,15 +1,15 @@
 import os
 import unittest
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
 import psycopg
-from psycopg.rows import dict_row
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from psycopg.rows import dict_row
 
 from core import calendar as store
 from core import notifications
@@ -149,7 +149,7 @@ class CalendarPostgresTests(unittest.TestCase):
 
 
     def test_calendar_reminder_delivers_once_for_same_schedule(self):
-        now=datetime.now(timezone.utc)
+        now=datetime.now(UTC)
         event=store.write_event("create",data={
             "title":"Promemoria push",
             "start":now+timedelta(minutes=10),

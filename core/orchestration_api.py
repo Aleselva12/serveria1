@@ -22,7 +22,7 @@ def coordinator_snapshot():
 
 @router.get("/runtime/context-contracts")
 def context_contracts():
-    from core.context_contracts import ContextRequest, ContextPacket
+    from core.context_contracts import ContextPacket, ContextRequest
     return {
         "version": 1,
         "request": ContextRequest.model_json_schema(),
