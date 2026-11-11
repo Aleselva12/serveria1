@@ -1,12 +1,19 @@
 # Cora Lab
 
-Cora è un sistema locale/private-first per usare un server personale come piattaforma
-di lavoro: frontend React/Vite, backend FastAPI, agenti LangGraph, modelli Ollama,
-PostgreSQL/pgvector e servizi esterni collegati tramite rete privata/Tailscale.
+**Cora Lab** is an open-source, self-hosted, privacy-first platform for
+running and coordinating local AI assistants and personal productivity tools.
+It brings together a React/Vite interface, a FastAPI backend, LangGraph agents,
+Ollama models, PostgreSQL/pgvector, and explicitly configured integrations
+over a private network such as Tailscale.
 
-Questa repository contiene **Cora**. Immich, Nextcloud, Ollama esterno, worker desktop,
-terminale personale e applicazioni gestite possono essere collegati ma restano
-deployment distinti.
+This repository contains the **Cora** application. Immich, Nextcloud, external
+Ollama instances, desktop workers, personal terminals, and managed applications
+are separate services that may be integrated but are not bundled deployments.
+Cora is under active development, designed for a single owner, and is **not
+hardened for public Internet exposure or general multi-user deployment**.
+
+Licensed under [MIT](LICENSE). Bug reports, documentation improvements, tests,
+and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 > Per agenti e operatori: usa [docs/AGENT_CONTEXT.md](docs/AGENT_CONTEXT.md) per
 > scegliere il README specialistico corretto senza caricare documentazione inutile.
