@@ -123,7 +123,9 @@ def main():
     args = parser.parse_args()
     calendar_id = read_calendar_id(args.deploy_env)
     check_key(args.key)
-    snapshot = args.updater_root / "compose.json"\n    if snapshot.is_symlink() or not snapshot.is_file():\n        raise SystemExit("Snapshot updater mancante o link simbolico")
+    snapshot = args.updater_root / "compose.json"
+    if snapshot.is_symlink() or not snapshot.is_file():
+        raise SystemExit("Snapshot updater mancante o link simbolico")
     candidate = configure(json.loads(snapshot.read_text()), source=str(args.key.absolute()),
                           calendar_id=calendar_id)
     current = json.loads(snapshot.read_text())
