@@ -19,7 +19,8 @@ export function checkState(
   if (!result || !Number.isFinite(Date.parse(result.at))) return "unknown";
   if (Date.parse(result.at) > Date.now() + 60_000) return "unknown";
   const maxAge = definition.maxAgeSeconds ?? (definition.automated ? 600 : 86400);
-  if (Date.now() - Date.parse(result.at) > maxAge * 1000) return "stale";
+  // Release-scoped checks run after each install: the commit match below bounds them.
+  if (!definition.releaseScoped && Date.now() - Date.parse(result.at) > maxAge * 1000) return "stale";
   if (result.status !== "pass" && result.status !== "warn" && result.status !== "fail") return "unknown";
   const release = activeCommit?.trim().toLowerCase() || "";
   const tested = result.commit?.trim().toLowerCase() || "";

@@ -11,7 +11,9 @@ def entry(id, title, component, kind, stage, frequency, *, depends=(), descripti
     return {"id": id, "title": title, "component": component, "kind": kind,
             "stage": stage, "frequency": frequency, "dependsOn": list(depends),
             "description": description, "automated": frequency == "5m",
-            "maxAgeSeconds": 600 if frequency == "5m" else 86400}
+            "maxAgeSeconds": 600 if frequency == "5m" else 86400,
+            # Run once per installed release: valid until the commit changes, not for 24h only.
+            "releaseScoped": frequency in ("on_release", "on_change")}
 
 _CATALOG = [
     entry("database", "PostgreSQL leggibile", "cora", "preflight", "API → DB", "5m"),
@@ -49,6 +51,9 @@ _CATALOG = [
     entry("nextcloud_e2e", "Nextcloud: raggiungibilità HTTP", "nextcloud", "preflight", "API → endpoint configurato; file reali esclusi", "daily"),
     entry("magazzino_e2e", "Magazzino: installazione e allowlist isolate", "magazzino_tele", "synthetic", "Manager applicazioni simulato; import escluso", "on_release"),
     entry("preventivi_e2e", "Preventivi: generazione e rilettura PDF sintetico", "preventivi", "synthetic", "Dati → generatore → PDF", "on_release"),
+    entry("dependency_audit", "Dipendenze Python: vulnerabilità note (OSV)", "cora", "preflight",
+          "API → pacchetti installati → database OSV", "on_release",
+          description="Confronta nomi e versioni dei pacchetti installati nell'API con il database pubblico OSV; nessun altro dato inviato. Gravi: errore; medie/basse: avviso."),
     entry("worker_e2e", "Chat agente su worker e modello effettivo", "worker", "e2e", "Agente → worker assegnato → /chat", "on_change",
           depends=("worker_contract",)),
     entry("debian_host_e2e", "Debian host: identità, permessi e stato pacchetti", "cora", "e2e",

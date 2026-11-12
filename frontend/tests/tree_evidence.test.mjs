@@ -191,3 +191,11 @@ test("a live E2E with an advisory (warn) is yellow, not green or unverified",()=
   assert.equal(starTone(node,dashboard([[d,result("debian_host_e2e",sha,"debian-verifier")]]),sha,m),"ok");
   assert.equal(checkState(d,result("debian_host_e2e",old,"debian-verifier","warn"),sha),"outdated");
 });
+
+test("release-scoped results stay valid until the commit changes, not 24 hours",()=>{
+  const twoDays=new Date(Date.now()-48*3600000).toISOString();
+  const scoped={...definition("suite","synthetic"),releaseScoped:true};
+  assert.equal(checkState(scoped,result("suite",sha,"debian-verifier","pass",twoDays),sha),"pass");
+  assert.equal(checkState(scoped,result("suite",old,"debian-verifier","pass",twoDays),sha),"outdated");
+  assert.equal(checkState(definition("suite","synthetic"),result("suite",sha,"debian-verifier","pass",twoDays),sha),"stale");
+});
