@@ -112,7 +112,7 @@ def status():
                 finally:
                     _release(conn)
         available = verify_nodes.available_checks()
-        from core.test_inventory import inventory
+        from core.verify.test_inventory import inventory
         test_inventory = inventory()
         return {"run": job,
                 "availableChecks": [{"id": key, "title": CATALOG[key]["title"]} for key in available],

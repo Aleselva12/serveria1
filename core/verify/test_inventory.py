@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 TESTS_ROOT = ROOT / "tests"
 
 PREEXISTING_LIVE_E2E_CHECKS = frozenset({

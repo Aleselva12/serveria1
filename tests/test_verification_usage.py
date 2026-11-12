@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 
-from core import project_checks
 from core import verification_usage as usage
+from core.verify import project_checks
 
 
 class UsageEvidenceTests(unittest.TestCase):
@@ -53,7 +53,7 @@ class UsageEvidenceTests(unittest.TestCase):
 
     def test_synthetic_runs_cannot_publish_live_evidence_or_read_google(self):
         from core import google_calendar
-        with patch.dict(os.environ, {"CORA_VERIFICATION_SYNTHETIC":"1"}), patch("core.database.DATABASE_URL", "configured"), patch("core.project_checks._release", return_value="a"*40), patch("core.database.db_connection") as db, patch.object(google_calendar, "get_event") as read:
+        with patch.dict(os.environ, {"CORA_VERIFICATION_SYNTHETIC":"1"}), patch("core.database.DATABASE_URL", "configured"), patch("core.verify.project_checks._release", return_value="a"*40), patch("core.database.db_connection") as db, patch.object(google_calendar, "get_event") as read:
             self.assertFalse(usage.record("worker_e2e", "pass", "fake"))
             usage.calendar_write("create", {"id":"fake"})
             read.assert_not_called()
@@ -62,7 +62,7 @@ class UsageEvidenceTests(unittest.TestCase):
     def test_recovery_is_recorded_immediately_even_inside_throttle_window(self):
         usage._last.clear()
         self.addCleanup(usage._last.clear)
-        with patch.object(usage, "enabled", return_value=True), patch("core.database.db_connection") as db, patch("core.project_checks._release", return_value="a"*40):
+        with patch.object(usage, "enabled", return_value=True), patch("core.database.db_connection") as db, patch("core.verify.project_checks._release", return_value="a"*40):
             for status in ("pass", "fail", "pass", "pass"):
                 usage.record("worker_e2e", status, "same operation")
             self.assertEqual(db.return_value.__enter__.return_value.execute.call_count, 3)

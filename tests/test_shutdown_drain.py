@@ -193,7 +193,7 @@ class ShutdownDrainTests(unittest.TestCase):
                            'core.observability.archive.start', 'core.observability.archive.stop',
                            'core.background_embeddings.start', 'core.background_embeddings.stop',
                            'core.library_monitor.start', 'core.library_monitor.stop',
-                           'core.project_checks.start', 'core.project_checks.stop',
+                           'core.verify.project_checks.start', 'core.verify.project_checks.stop',
                            'api.notification_worker.start', 'api.notification_worker.stop']:
                 mocks.enter_context(patch(target))
             mocks.enter_context(patch.object(api, 'runtime', runtime))

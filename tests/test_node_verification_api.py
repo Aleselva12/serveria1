@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core import node_verification as service
+from core.verify import node_verification as service
 
 
 class NodeVerificationAPITests(unittest.TestCase):
