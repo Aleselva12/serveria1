@@ -77,11 +77,11 @@ class LibraryResearchTests(unittest.TestCase):
     def test_runtime_activity_does_not_enter_diagnostics(self):
         from types import SimpleNamespace
 
-        from core.observability import metadata_event
+        from core.infra.observability import metadata_event
         from core.runtime import current_run
         token = current_run.set(SimpleNamespace(id='run', thread_id='thread'))
         try:
-            with patch('core.event_bus.bus.publish') as publish:
+            with patch('core.infra.event_bus.bus.publish') as publish:
                 st._activity('search', query='Rossi', path='clienti')
                 self.assertEqual(publish.call_args.kwargs['payload'], {'action':'search','query':'Rossi','path':'clienti'})
         finally: current_run.reset(token)

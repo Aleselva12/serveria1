@@ -127,7 +127,7 @@ class CatalogTests(unittest.TestCase):
             yield Database()
 
         with (
-            patch("core.database.DATABASE_URL", "postgresql://test"),
+            patch("core.infra.database.DATABASE_URL", "postgresql://test"),
             patch("psycopg.connect", side_effect=connect),
             patch.object(project_checks, "run_once") as run_once,
         ):
@@ -136,7 +136,7 @@ class CatalogTests(unittest.TestCase):
         run_once.assert_not_called()
 
     def test_registry_is_not_silently_persisted_when_database_unreachable(self):
-        with patch("core.database.db_connection",side_effect=OSError("private database error")):
+        with patch("core.infra.database.db_connection",side_effect=OSError("private database error")):
             result=project_checks.health_dashboard()
         self.assertEqual(result["historyStore"],"unavailable")
         self.assertEqual(set(result["components"]),set(COMPONENTS))

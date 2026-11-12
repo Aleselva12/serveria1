@@ -53,7 +53,7 @@ class UsageEvidenceTests(unittest.TestCase):
 
     def test_synthetic_runs_cannot_publish_live_evidence_or_read_google(self):
         from core.domain import google_calendar
-        with patch.dict(os.environ, {"CORA_VERIFICATION_SYNTHETIC":"1"}), patch("core.database.DATABASE_URL", "configured"), patch("core.verify.project_checks._release", return_value="a"*40), patch("core.database.db_connection") as db, patch.object(google_calendar, "get_event") as read:
+        with patch.dict(os.environ, {"CORA_VERIFICATION_SYNTHETIC":"1"}), patch("core.infra.database.DATABASE_URL", "configured"), patch("core.verify.project_checks._release", return_value="a"*40), patch("core.infra.database.db_connection") as db, patch.object(google_calendar, "get_event") as read:
             self.assertFalse(usage.record("worker_e2e", "pass", "fake"))
             usage.calendar_write("create", {"id":"fake"})
             read.assert_not_called()
@@ -62,7 +62,7 @@ class UsageEvidenceTests(unittest.TestCase):
     def test_recovery_is_recorded_immediately_even_inside_throttle_window(self):
         usage._last.clear()
         self.addCleanup(usage._last.clear)
-        with patch.object(usage, "enabled", return_value=True), patch("core.database.db_connection") as db, patch("core.verify.project_checks._release", return_value="a"*40):
+        with patch.object(usage, "enabled", return_value=True), patch("core.infra.database.db_connection") as db, patch("core.verify.project_checks._release", return_value="a"*40):
             for status in ("pass", "fail", "pass", "pass"):
                 usage.record("worker_e2e", status, "same operation")
             self.assertEqual(db.return_value.__enter__.return_value.execute.call_count, 3)
@@ -76,7 +76,7 @@ class UsageEvidenceTests(unittest.TestCase):
             current = row("unknown", "Account test non configurato", now)
             proof = row(proof_status, "Uso reale: scrittura riletta", now-timedelta(seconds=age))
             conn.execute.side_effect = [MagicMock(fetchall=lambda:[current]), MagicMock(fetchall=lambda:[]), MagicMock(fetchall=lambda:[proof])]
-            with patch("core.database.db_connection") as db, patch.object(project_checks,"_release",return_value="a"*40), patch.object(project_checks,"_environment",return_value="debian-api"):
+            with patch("core.infra.database.db_connection") as db, patch.object(project_checks,"_release",return_value="a"*40), patch.object(project_checks,"_environment",return_value="debian-api"):
                 db.return_value.__enter__.return_value = conn
                 result = project_checks.health_dashboard()["latest"]["calendar_e2e"]
             self.assertEqual(result["status"], expected)

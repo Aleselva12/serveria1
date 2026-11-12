@@ -11,8 +11,8 @@ from psycopg import OperationalError
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from core.access import require_owner
-from core.database import db_connection
 from core.domain import google_calendar, webpush
+from core.infra.database import db_connection
 
 
 def owner(request: Request):

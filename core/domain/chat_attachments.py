@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from core.access import owner_dependency
-from core.database import db_connection
 from core.domain.chat_store import ensure_conversation
 from core.domain.server_files import exists, operation, resolve, upload_to
+from core.infra.database import db_connection
 
 router = APIRouter(prefix='/api/v1/chat/attachments', tags=['Allegati chat'], dependencies=[Depends(owner_dependency('files'))])
 TEXT = {'.txt', '.md', '.csv', '.tsv', '.json', '.py', '.ts', '.tsx', '.js', '.css', '.yaml', '.yml', '.toml', '.log'}

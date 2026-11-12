@@ -8,7 +8,6 @@ from pathlib import Path
 from fastapi import File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
-from core.confined_paths import confined_path
 from core.domain.server_files import (
     exists,
     make_router,
@@ -20,7 +19,8 @@ from core.domain.server_files import (
     upload_to,
     vacant,
 )
-from core.file_paths import ORIGINALS_ID, LibraryAccessError, library_workspace_root
+from core.infra.confined_paths import confined_path
+from core.infra.file_paths import ORIGINALS_ID, LibraryAccessError, library_workspace_root
 
 LIBRARY_ID = 'library'
 

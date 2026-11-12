@@ -107,7 +107,7 @@ def main():
             raise ValueError('Identità proprietario sovrascritta da Compose.')
         # Existing owner is retained; no new account/password is silently created.
         result = run(*base, 'exec', '-T', 'api', 'python', '-c',
-                     'from core.database import db_connection\n'
+                     'from core.infra.database import db_connection\n'
                      'with db_connection() as c:\n'
                      ' print(c.execute("SELECT COUNT(*) AS n FROM app_users").fetchone()["n"])')
         if result.strip() != '1':

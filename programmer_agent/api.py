@@ -143,7 +143,7 @@ def import_draft(workspace_id: UUID, data: DraftImport):
 def execute_programmer(request: ProgrammerRequest, run) -> dict:
     from core.context_budget import prepare_context
     from core.domain.chat_store import ensure_conversation, save_message
-    from core.execution_traces import ExecutionTrace
+    from core.infra.execution_traces import ExecutionTrace
     from core.models import get_model_name
     from core.runtime_context import bind_runtime
     from programmer_agent.programmer_graph import graph

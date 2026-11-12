@@ -8,8 +8,8 @@ from collections import OrderedDict
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
+from core.infra.ollama_transport import urlopen
 from core.models import get_ollama_base_url
-from core.ollama_transport import urlopen
 
 EMBEDDING_MODEL = os.getenv("CORA_EMBEDDING_MODEL", "nomic-embed-text").strip()
 EMBEDDING_TIMEOUT_SECONDS = float(os.getenv("CORA_EMBEDDING_TIMEOUT_SECONDS", "30"))

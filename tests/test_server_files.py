@@ -211,7 +211,7 @@ class ServerFilesTests(unittest.TestCase):
     def test_confined_path_rejects_sibling_prefix_and_internal_links(self):
         from fastapi import HTTPException
 
-        from core.confined_paths import confined_path
+        from core.infra.confined_paths import confined_path
         sibling=self.base/'files-private';sibling.mkdir()
         with self.assertRaises(HTTPException):confined_path(self.data,sibling/'secret')
         (self.data/'folder').mkdir();self.make_symlink(self.data / 'alias', self.data / 'folder', target_is_directory=True)

@@ -17,7 +17,7 @@ class ShutdownDrainTests(unittest.TestCase):
         self.addCleanup(self.stack.close)
         self.stack.enter_context(patch('core.runtime.append_event'))
         self.stack.enter_context(patch('core.models.performance_configuration', return_value={}))
-        self.stack.enter_context(patch('core.database.database_configured', return_value=False))
+        self.stack.enter_context(patch('core.infra.database.database_configured', return_value=False))
 
     def test_shutdown_waits_for_running_and_cancels_queued_work(self):
         runtime = Runtime(persistent=False)
@@ -55,8 +55,8 @@ class ShutdownDrainTests(unittest.TestCase):
             release.wait()
             raise OSError('injected final write failure')
             yield
-        with patch('core.database.database_configured', return_value=True), patch(
-            'core.database.db_connection', connection
+        with patch('core.infra.database.database_configured', return_value=True), patch(
+            'core.infra.database.db_connection', connection
         ):
             run = runtime.submit('terminal', lambda run: {})
             self.assertTrue(writing.wait(2))
@@ -143,9 +143,9 @@ class ShutdownDrainTests(unittest.TestCase):
         self.check_lifespan_drain(use_postgres=True)
 
     def check_lifespan_drain(self, use_postgres=False):
-        from core import database
+        from core.infra import database
         if use_postgres:
-            self.stack.enter_context(patch('core.database.database_configured', return_value=True))
+            self.stack.enter_context(patch('core.infra.database.database_configured', return_value=True))
             with database.db_connection() as conn:
                 conn.execute('SELECT 1')
             pool = database.get_pool()
@@ -190,7 +190,7 @@ class ShutdownDrainTests(unittest.TestCase):
                 errors.append(error)
         with ExitStack() as mocks:
             for target in ['api.validate_runtime_profile', 'core.runtime.recover_interrupted',
-                           'core.observability.archive.start', 'core.observability.archive.stop',
+                           'core.infra.observability.archive.start', 'core.infra.observability.archive.stop',
                            'core.domain.background_embeddings.start', 'core.domain.background_embeddings.stop',
                            'core.domain.library_monitor.start', 'core.domain.library_monitor.stop',
                            'core.verify.project_checks.start', 'core.verify.project_checks.stop',
@@ -212,7 +212,7 @@ class ShutdownDrainTests(unittest.TestCase):
                 run = next(iter(runtime.runs.values()))
                 self.assertEqual(run.status, 'cancelled')
                 if use_postgres:
-                    from core.run_lifecycle import get_run
+                    from core.infra.run_lifecycle import get_run
                     self.assertEqual(get_run(run.id)['status'], 'cancelled')
                 self.assertTrue(draining.wait(2))
                 self.assertFalse(pool_closed.is_set())

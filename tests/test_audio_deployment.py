@@ -68,7 +68,7 @@ class AudioDeploymentTests(unittest.TestCase):
 
     def test_doctor_reports_failed_dependency_without_credentials_or_exception_text(self):
         with tempfile.TemporaryDirectory() as temporary:
-            with patch.dict(os.environ,{'CORA_API_BUILD_TARGET':'api'},clear=True),patch('core.database.db_connection') as db,patch('core.domain.server_files.roots',return_value=[{'id':'test','path':temporary,'writable':True}]),patch('deploy.doctor.urlopen',side_effect=OSError('private password in error')):
+            with patch.dict(os.environ,{'CORA_API_BUILD_TARGET':'api'},clear=True),patch('core.infra.database.db_connection') as db,patch('core.domain.server_files.roots',return_value=[{'id':'test','path':temporary,'writable':True}]),patch('deploy.doctor.urlopen',side_effect=OSError('private password in error')):
                 conn=db.return_value.__enter__.return_value
                 conn.execute.return_value.fetchone.side_effect=[{'vector':True},{'n':1}]
                 result=inspect()

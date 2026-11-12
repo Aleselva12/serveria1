@@ -9,7 +9,7 @@ from updater.maintenance import digest
 def ensure():
     if not os.getenv('CORA_UPDATER_URL'):
         return {'status':'not_configured'}
-    from core.release_identity import revision
+    from core.infra.release_identity import revision
     from programmer_agent.releases import request
     expected = digest(Path(__file__).resolve().parents[1]/'updater')
     state = request('GET','/host/maintenance',timeout=5)

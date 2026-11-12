@@ -9,11 +9,11 @@ from docx import Document
 from dotenv import load_dotenv
 from pypdf import PdfReader
 
-from core.confined_paths import confined_path
-from core.file_paths import LIBRARY_ERRORS, LibraryAccessError, library_workspace_root
 from core.governance import agent_tool
+from core.infra.confined_paths import confined_path
+from core.infra.file_paths import LIBRARY_ERRORS, LibraryAccessError, library_workspace_root
+from core.infra.run_lifecycle import RunCancelled
 from core.permissions import require_permission
-from core.run_lifecycle import RunCancelled
 from core.runtime_context import RunTimedOut, ensure_runtime_active
 
 load_dotenv()
@@ -91,7 +91,7 @@ def _read_error(error, action):
 
 def _activity(action: str, *, path: str = ".", query: str = ""):
     # Content-bearing progress stays in the authenticated live stream, not diagnostics.
-    from core.event_bus import bus
+    from core.infra.event_bus import bus
     from core.runtime import current_run
     run = current_run.get()
     if run:

@@ -7,9 +7,9 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from core.access import owner_dependency
-from core.component_bus import ComponentBus
+from core.infra.component_bus import ComponentBus
+from core.infra.run_lifecycle import TRANSITIONS
 from core.protocol import ComponentResult, TaskEnvelope
-from core.run_lifecycle import TRANSITIONS
 
 
 class ProtocolBusTests(unittest.TestCase):

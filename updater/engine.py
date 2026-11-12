@@ -426,7 +426,7 @@ class Engine:
                       '--tmpfs=/tmp:rw,nosuid,size=128m',
                       '-e','CORA_DATABASE_URL=postgresql://cora:'+password+'@'+container+':5432/cora',
                       '--entrypoint=python',image,'-c',
-                      "from core.database import db_connection; c=db_connection(); conn=c.__enter__();"
+                      "from core.infra.database import db_connection; c=db_connection(); conn=c.__enter__();"
                       "conn.execute('SELECT 1');c.__exit__(None,None,None)"],timeout=300)
 
             row['checks']={**row.get('checks',{}),'migration_copy':True}
@@ -466,7 +466,7 @@ class Engine:
         self.compose('up','-d','--no-build','--pull','never','--wait','--wait-timeout','180','api','web',images=release['images'],timeout=550)
         # Confirm HTTP and a real DB connection in addition to container healthchecks.
         self.compose('exec','-T','api','python','-c',
-                     "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/auth/status',timeout=5)\nfrom core.database import db_connection\nwith db_connection() as conn: conn.execute('SELECT 1')",timeout=30)
+                     "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/auth/status',timeout=5)\nfrom core.infra.database import db_connection\nwith db_connection() as conn: conn.execute('SELECT 1')",timeout=30)
         atomic(self.root/'current.json',{'commit':row['commit'],'images':release['images'],'updated_at':now()})
         release['applied_job']=row['id']; release['status']='applied'; self.save(release)
         row['status']='completed'; self.phase(row,'completed')

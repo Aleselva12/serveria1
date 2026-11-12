@@ -12,8 +12,8 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 from core.auth import AuthMiddleware, password_hash, verify_password
 from core.context_budget import fit_messages
-from core.event_bus import EventBus
 from core.governance import agent_tool, approved_action
+from core.infra.event_bus import EventBus
 from core.permissions import require_permission
 from core.runtime import Run, RunStopped, Runtime, checkpoint
 
@@ -22,10 +22,10 @@ class RuntimeTests(unittest.TestCase):
     def setUp(self):
         self.export = patch.dict(os.environ,{'CORA_DIAGNOSTIC_JSONL_EXPORT':'true'});self.export.start()
         self.temp = tempfile.TemporaryDirectory()
-        self.file = patch('core.execution_traces.TRACE_FILE', Path(self.temp.name)/'traces.jsonl')
+        self.file = patch('core.infra.execution_traces.TRACE_FILE', Path(self.temp.name)/'traces.jsonl')
         self.file.start()
-        self.journal = patch('core.operation_journal.begin',return_value=None);self.journal.start()
-        self.finish = patch('core.operation_journal.finish',return_value=None);self.finish.start()
+        self.journal = patch('core.infra.operation_journal.begin',return_value=None);self.journal.start()
+        self.finish = patch('core.infra.operation_journal.finish',return_value=None);self.finish.start()
         self.runtime = Runtime(persistent=False)
     def tearDown(self):
         self.export.stop()

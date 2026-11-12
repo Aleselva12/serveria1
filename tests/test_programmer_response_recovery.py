@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from core.observability import metadata_event
+from core.infra.observability import metadata_event
 from programmer_agent import programmer_graph as pg
 
 

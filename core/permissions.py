@@ -415,7 +415,7 @@ _policy_lock = threading.Lock()
 
 def policy_overrides():
     global _policy_cache, _policy_time
-    from core.database import database_configured, db_connection
+    from core.infra.database import database_configured, db_connection
     if not database_configured(): return {}
     with _policy_lock:
         if time.monotonic() - _policy_time > 2:
@@ -428,7 +428,7 @@ def policy_overrides():
 
 def set_policy(actor, action, policy):
     global _policy_time
-    from core.database import db_connection
+    from core.infra.database import db_connection
     base = next((r for r in RULES if r.actor == actor and r.action == action), None)
     if not base: raise KeyError("Capability sconosciuta.")
     # No execution path exists for these capabilities. Keep them blocked.

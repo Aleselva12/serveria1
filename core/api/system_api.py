@@ -4,16 +4,16 @@ from urllib.error import URLError
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from core.database import database_status
 from core.domain.chat_store import conversation_stats
 from core.domain.memory import memory_stats
+from core.infra.database import database_status
+from core.infra.ollama_transport import get_ollama_base_url, urlopen
 from core.models import (
     RuntimeSettingsError,
     get_default_model_name,
     list_ollama_models,
     save_runtime_model,
 )
-from core.ollama_transport import get_ollama_base_url, urlopen
 from core.registry import get_agents, get_registry
 from core.runtime_profile import runtime_mode
 from core.tool_definitions import definition
@@ -40,7 +40,7 @@ def _ollama_online() -> bool:
 
 @router.get("/health")
 def health():
-    from core.file_paths import library_workspace_status
+    from core.infra.file_paths import library_workspace_status
     database = database_status()
     from core.api.machines_api import _find
     from core.models import resolve_model

@@ -2,7 +2,7 @@
 
 La Libreria IA è lo spazio documentale principale di Cora. Gli agenti non devono
 indovinare percorsi o cercare nel codice sorgente per trovarla. UI, strumenti e
-diagnostica ora usano `library_workspace_root()` in `core/file_paths.py`.
+diagnostica ora usano `library_workspace_root()` in `core/infra/file_paths.py`.
 
 ## Perché la connessione era fragile
 

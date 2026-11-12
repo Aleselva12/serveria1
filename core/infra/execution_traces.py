@@ -9,9 +9,9 @@ from datetime import UTC, datetime
 
 from langchain_core.callbacks import BaseCallbackHandler
 
-from core.database import database_configured
-from core.logging import LOG_ROOT
-from core.provider_errors import provider_detail, safe_detail
+from core.infra.database import database_configured
+from core.infra.logging import LOG_ROOT
+from core.infra.provider_errors import provider_detail, safe_detail
 
 TRACE_FILE = LOG_ROOT / "executions.jsonl"
 _lock = threading.Lock()
@@ -29,7 +29,7 @@ def append_event(event):
     event = dict(event)
     event["error_detail"] = safe_detail(event.get("error_detail")) if event.get("kind") == "model" else None
     try:
-        from core.event_bus import bus
+        from core.infra.event_bus import bus
         published = bus.publish('trace.span','tracing',run_id=event.get('run_id'),thread_id=event.get('thread_id'),
             span_id=event.get('span_id'),parent_span_id=event.get('parent_id'),
             payload={k:event.get(k) for k in ('kind','status','name','duration_ms','error_type','error_detail','graph_version')})
@@ -48,7 +48,7 @@ def append_event(event):
 
 
 def trace_status():
-    from core.observability import archive
+    from core.infra.observability import archive
     return {"write_error":_write_error,"diagnostics":archive.status()}
 
 
@@ -101,7 +101,7 @@ class ExecutionTrace(BaseCallbackHandler):
         self.model_roles[str(run_id)] = role
         self.model_started[str(run_id)] = time.perf_counter()
         if self.runtime_run:
-            from core.event_bus import bus
+            from core.infra.event_bus import bus
             self.runtime_run.agents[role] = "running"
             bus.publish("agent.state", role, run_id=self.id, thread_id=self.thread_id, payload={"status": "running"})
         self.start("model", role, run_id, parent_run_id)
@@ -127,7 +127,7 @@ class ExecutionTrace(BaseCallbackHandler):
             duration = (time.perf_counter()-started)*1000 if started is not None else None
             self.runtime_run.timings.setdefault("models", []).append({"role": role,"span_id":str(run_id),
                 "duration_ms":duration,"first_token_ms":(first-started)*1000 if first is not None and started is not None else None,**usage})
-            from core.event_bus import bus
+            from core.infra.event_bus import bus
             bus.publish('agent.state',role,run_id=self.id,thread_id=self.thread_id,payload={'status':'idle'})
         self.end(run_id, parent_run_id)
 
@@ -158,7 +158,7 @@ class ExecutionTrace(BaseCallbackHandler):
             self.runtime_run.timings.setdefault('models',[]).append({'role':role,'span_id':str(run_id),'error_type':type(error).__name__,
                 'duration_ms':(time.perf_counter()-started)*1000 if started is not None else None,
                 'first_token_ms':(first-started)*1000 if first is not None and started is not None else None})
-            from core.event_bus import bus
+            from core.infra.event_bus import bus
             bus.publish('agent.state',role,run_id=self.id,thread_id=self.thread_id,payload={'status':'idle'})
         self.end(run_id,parent_run_id,error)
     on_tool_error = on_chain_error
@@ -167,9 +167,9 @@ class ExecutionTrace(BaseCallbackHandler):
 def read_runs(limit=50, run_id=None,include_events=True):
     """Canonical lifecycle plus explicitly bounded diagnostic samples."""
     if database_configured() or os.getenv('CORA_DIAGNOSTIC_JSONL_EXPORT','').lower() != 'true':
-        from core.database import db_connection
-        from core.observability import read
-        from core.run_lifecycle import get_run, persisted_snapshot
+        from core.infra.database import db_connection
+        from core.infra.observability import read
+        from core.infra.run_lifecycle import get_run, persisted_snapshot
         if run_id: rows = [get_run(run_id)]
         else:
             with db_connection() as conn:
@@ -180,7 +180,7 @@ def read_runs(limit=50, run_id=None,include_events=True):
             snapshot = persisted_snapshot(row)
             root = str(row['id'])
             if row['parent_run_id']:
-                from core.domain_events import root_for
+                from core.infra.domain_events import root_for
                 with db_connection() as conn: root = root_for(conn,row['id'])
             page = read(run_id=root,limit=200) if include_events else {'events':[],'truncated':False}
             events = []

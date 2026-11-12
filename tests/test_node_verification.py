@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from core import release_identity
+from core.infra import release_identity
 from deploy import verify_nodes as verifier
 
 

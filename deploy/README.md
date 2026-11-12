@@ -57,7 +57,7 @@ senza avviare una generazione. Il controllo usa lo stesso trasporto senza proxy 
 
 ```sh
 docker compose --env-file deploy.env exec api python -c \
-  'from core.ollama_transport import get_ollama_base_url,urlopen; print(urlopen(get_ollama_base_url()+"/api/tags",timeout=5).status)'
+  'from core.infra.ollama_transport import get_ollama_base_url,urlopen; print(urlopen(get_ollama_base_url()+"/api/tags",timeout=5).status)'
 ```
 
 L'immagine iniziale contiene le dipendenze core. Il profilo audio CPU descritto

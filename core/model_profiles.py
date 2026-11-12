@@ -38,7 +38,7 @@ def parse_profile(info, resolved):
 
 
 def profile_for(resolved, *, refresh=False):
-    from core.ollama_transport import get_ollama_base_url, urlopen
+    from core.infra.ollama_transport import get_ollama_base_url, urlopen
     key = (resolved['machine_id'], resolved['model'], get_ollama_base_url())
     with _lock:
         cached = _cache.get(key)

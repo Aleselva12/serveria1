@@ -12,7 +12,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
 
 LOG_ROOT = Path(os.getenv("CORA_LOG_ROOT", str(PROJECT_ROOT / "logs"))).expanduser().resolve()
@@ -34,8 +34,8 @@ def log_event(
     data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compatibility adapter to the single metadata-only diagnostic event path."""
-    from core.event_bus import bus
-    from core.observability import metadata_event
+    from core.infra.event_bus import bus
+    from core.infra.observability import metadata_event
     from core.runtime import current_run
     from core.runtime_context import current_runtime
     run = current_run.get()
@@ -48,7 +48,7 @@ def log_event(
             component_run_id=component_run or None,thread_id=thread_id or active_thread or None,payload=selected['payload'])
         event_id, timestamp = published.id, published.timestamp
     except Exception as error:
-        from core.observability import archive
+        from core.infra.observability import archive
         with archive.lock:
             archive.dropped += 1
             archive.last_error = type(error).__name__
@@ -106,7 +106,7 @@ def logged_operation(
 
 def tail_events(limit: int = 50, event_type: str = "", component: str = "") -> list[dict[str, Any]]:
     """SQL metadata diagnostics only; legacy full-content logs are not reimported."""
-    from core.database import db_connection
+    from core.infra.database import db_connection
     with db_connection() as connection:
         rows = connection.execute('''SELECT event FROM diagnostic_events WHERE type LIKE 'log.%%'
             AND (%s='' OR type=%s) AND (%s='' OR source=%s) ORDER BY timestamp DESC,id DESC LIMIT %s''',

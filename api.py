@@ -26,7 +26,6 @@ from core.api.system_api import router as system_router
 from core.auth import AuthMiddleware
 from core.auth import router as auth_router
 from core.context_budget import prepare_context, schedule_summary
-from core.database import close_pool
 from core.desktop_updates import router as update_router
 from core.domain.chat_attachments import attachment_rows, request_content
 from core.domain.chat_attachments import public as attachment_public
@@ -45,8 +44,9 @@ from core.domain.notifications import router as notifications_router
 from core.domain.notifications import worker as notification_worker
 from core.domain.server_files import router as files_router
 from core.domain.working_memory import set_working_memory
-from core.execution_traces import ExecutionTrace
-from core.logging import logged_operation
+from core.infra.database import close_pool
+from core.infra.execution_traces import ExecutionTrace
+from core.infra.logging import logged_operation
 from core.models import (
     get_model_name as get_model_name,
 )
@@ -72,7 +72,7 @@ async def lifespan(app):
     from core.runtime import recover_interrupted
     recover_interrupted()
     from core.domain import library_monitor
-    from core.observability import archive
+    from core.infra.observability import archive
     from core.verify import project_checks
     # Cleanup is registered before each start to cover partial initialization.
     # ExitStack continues all remaining stops even if a stop itself fails.
@@ -322,7 +322,7 @@ def _postprocess_turn(thread_id,message,response,user_id,assistant_id,run_id="",
         except Exception as error:
             # Only the stage and exception class enter best-effort technical telemetry.
             try:
-                from core.logging import log_event
+                from core.infra.logging import log_event
                 log_event("postprocess_failed", component="postprocess",
                           status="error", data={"action": action, "error_type": type(error).__name__})
             except Exception:

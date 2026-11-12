@@ -15,8 +15,8 @@ from urllib.request import urlopen
 import psutil
 from fastapi import APIRouter
 
-from core.ollama_transport import get_ollama_base_url
-from core.ollama_transport import urlopen as ollama_urlopen
+from core.infra.ollama_transport import get_ollama_base_url
+from core.infra.ollama_transport import urlopen as ollama_urlopen
 
 router = APIRouter(prefix="/api/v1", tags=["Home"])
 _lock = threading.Lock()

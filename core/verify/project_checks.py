@@ -31,7 +31,7 @@ def _now() -> str:
 
 def _database() -> tuple[str, str]:
     """SELECT 1 without invoking schema setup/migrations."""
-    from core.database import DATABASE_URL
+    from core.infra.database import DATABASE_URL
     if not DATABASE_URL:
         return "unknown", "Connessione database non configurata"
     import psycopg
@@ -42,7 +42,7 @@ def _database() -> tuple[str, str]:
 
 
 def _library() -> tuple[str, str]:
-    from core.file_paths import knowledge_root
+    from core.infra.file_paths import knowledge_root
     root = knowledge_root()
     if not root.exists() or not root.is_dir():
         return "fail", "Percorso Libreria IA non disponibile"
@@ -60,7 +60,7 @@ def _audio() -> tuple[str, str]:
 
 
 def _ollama() -> tuple[str, str]:
-    from core.ollama_transport import get_ollama_base_url, urlopen
+    from core.infra.ollama_transport import get_ollama_base_url, urlopen
     with urlopen(get_ollama_base_url() + "/api/tags", timeout=2) as response:
         if not 200 <= response.status < 300:
             return "fail", "Catalogo Ollama non raggiungibile"
@@ -109,7 +109,7 @@ assert set(_PROBES) == set(CHECKS), "Automatic catalog and probe implementations
 
 
 def _release() -> str:
-    from core.release_identity import revision
+    from core.infra.release_identity import revision
     return revision()
 
 
@@ -121,7 +121,7 @@ def _environment():
 
 def _persist(checks: list[dict]) -> bool:
     """Only the scheduled owner writes; never store user content or stack traces."""
-    from core.database import db_connection
+    from core.infra.database import db_connection
     try:
         with db_connection() as conn:
             for entry in checks:
@@ -168,7 +168,7 @@ def snapshot() -> dict:
 
 def _scheduled_cycle():
     """PostgreSQL session advisory lock avoids duplicate checks across API workers."""
-    from core.database import DATABASE_URL
+    from core.infra.database import DATABASE_URL
     if not DATABASE_URL:
         return run_once()
     try:
@@ -224,7 +224,7 @@ def stop():
 
 def health_dashboard():
     """Single source for every UI: catalog + last evidence + bounded history."""
-    from core.database import db_connection
+    from core.infra.database import db_connection
     records = []
     latest_rows = []
     store = "unavailable"

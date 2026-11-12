@@ -111,7 +111,7 @@ def record_example(*, request_text: str, primary: str, thread_id: str, run_id: s
     except Exception as error:
         error_type = type(error).__name__
     try:
-        from core.database import db_connection
+        from core.infra.database import db_connection
         with db_connection() as conn:
             conn.execute(
                 """INSERT INTO shadow_router_examples
@@ -127,7 +127,7 @@ def record_example(*, request_text: str, primary: str, thread_id: str, run_id: s
 
 def stats() -> dict:
     """Progress metrics; agreement with principal routing is only a provisional proxy."""
-    from core.database import db_connection
+    from core.infra.database import db_connection
     with db_connection() as conn:
         row = conn.execute(
             """SELECT COUNT(*) AS examples,

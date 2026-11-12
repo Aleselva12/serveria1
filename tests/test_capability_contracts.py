@@ -4,15 +4,15 @@ from unittest.mock import patch
 
 from core.capability_contracts import CapabilityResult
 from core.governance import CapabilityExecutionError, agent_tool, executables, execute_capability
+from core.infra.run_states import EffectUncertain
 from core.permissions import require_permission
-from core.run_states import EffectUncertain
 
 
 class ContractTests(unittest.TestCase):
     def setUp(self):
         self.keys=set(executables)
-        self.begin = patch('core.operation_journal.begin',return_value=None);self.begin.start()
-        self.finish = patch('core.operation_journal.finish',return_value=None);self.finish.start()
+        self.begin = patch('core.infra.operation_journal.begin',return_value=None);self.begin.start()
+        self.finish = patch('core.infra.operation_journal.finish',return_value=None);self.finish.start()
     def tearDown(self):
         self.begin.stop(); self.finish.stop()
         for key in set(executables)-self.keys: executables.pop(key)

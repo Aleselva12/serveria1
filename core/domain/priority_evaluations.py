@@ -4,7 +4,7 @@ from uuid import uuid4
 
 def latest():
     try:
-        from core.database import DATABASE_URL, db_connection
+        from core.infra.database import DATABASE_URL, db_connection
         if not DATABASE_URL:
             return {"evaluation": None, "available": False}
         with db_connection(ensure_schema=False) as conn:
@@ -18,7 +18,7 @@ def save(evaluation):
     try:
         from psycopg.types.json import Jsonb
 
-        from core.database import db_connection
+        from core.infra.database import db_connection
         with db_connection(ensure_schema=False) as conn:
             conn.execute("INSERT INTO roadmap_priority_evaluations (id,snapshot) VALUES (%s,%s)",
                          (str(uuid4()), Jsonb(evaluation)))

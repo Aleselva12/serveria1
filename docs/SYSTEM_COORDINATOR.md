@@ -12,7 +12,7 @@ silenziosamente la fonte canonica.
 
 | Stato | Fonte autorevole | Note |
 | --- | --- | --- |
-| lifecycle task/run | `runtime_runs` PostgreSQL / `core.run_lifecycle` | root e child run, revisioni, cancellazione, esito |
+| lifecycle task/run | `runtime_runs` PostgreSQL / `core.infra.run_lifecycle` | root e child run, revisioni, cancellazione, esito |
 | esecuzione live | `core.runtime.Run` | solo stato effimero del processo corrente |
 | comunicazione componenti | `TaskEnvelope` / `ComponentResult` | contratto tipizzato in-process |
 | eventi critici | domain events PostgreSQL | transazionali |

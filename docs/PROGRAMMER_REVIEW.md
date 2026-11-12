@@ -35,7 +35,7 @@ La pagina usa `frontend/src/components/Programmer.tsx`, `WorkspaceEditor.tsx`,
 
 Dipendenze condivise principali: `core/runtime.py` (coda e stato),
 `core/models.py` (modello e limiti), `core/context_budget.py` (contesto),
-`core/domain/chat_store.py` (conversazione), `core/execution_traces.py` (diagnostica),
+`core/domain/chat_store.py` (conversazione), `core/infra/execution_traces.py` (diagnostica),
 `core/governance.py` e `core/permissions.py` (regole degli strumenti).
 
 Il servizio host in `updater/` è separato: il modello non esegue liberamente

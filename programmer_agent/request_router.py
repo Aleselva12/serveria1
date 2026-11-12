@@ -14,8 +14,8 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.context_budget import fit_messages
+from core.infra.run_lifecycle import RunCancelled
 from core.models import get_chat_model
-from core.run_lifecycle import RunCancelled
 from core.runtime_context import RunTimedOut, ensure_runtime_active
 
 

@@ -23,7 +23,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.concurrency import run_in_threadpool
 
-from core.ollama_transport import get_ollama_base_url, urlopen
+from core.infra.ollama_transport import get_ollama_base_url, urlopen
 
 router = APIRouter(prefix="/api/v1/roadmap", tags=["Roadmap - classificatore locale"])
 MODEL = os.getenv("CORA_ROADMAP_CLASSIFIER_MODEL", "qwen3:1.7b").strip()
@@ -248,7 +248,7 @@ async def classifier_preview(payload: PreviewRequest):
     # Never allow concurrent inference requests to saturate the coordinator.
     if not _BUSY.acquire(blocking=False):
         raise HTTPException(429, "Classificatore già occupato: completa la valutazione corrente.")
-    from core.run_lifecycle import create_run, transition_run
+    from core.infra.run_lifecycle import create_run, transition_run
     run_id = None
     try:
         # Register before inference so failures and cold starts are visible in Attività.
@@ -261,7 +261,7 @@ async def classifier_preview(payload: PreviewRequest):
             await run_in_threadpool(transition_run, run_id, "running")
         except Exception as exc:
             raise HTTPException(503, "Registro Attività non disponibile; valutazione non avviata.") from exc
-        from core.execution_traces import append_event
+        from core.infra.execution_traces import append_event
         span_id = str(uuid4())
         started = time.perf_counter()
         def trace(status, error=None):

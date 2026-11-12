@@ -9,8 +9,8 @@ from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
 from core.access import owner_dependency
-from core.database import db_connection
 from core.domain.server_files import exists, operation, resolve, upload_to
+from core.infra.database import db_connection
 from core.runtime import checkpoint, runtime
 
 router = APIRouter(prefix='/api/v1/audio', tags=['Audio'], dependencies=[Depends(owner_dependency('files'))])
@@ -29,7 +29,7 @@ def get_record(ident):
 
 
 def public(row):
-    from core.run_lifecycle import get_run, persisted_snapshot
+    from core.infra.run_lifecycle import get_run, persisted_snapshot
     state = None
     if row['run_id']:
         live = runtime.get(str(row['run_id']))

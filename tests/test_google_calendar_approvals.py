@@ -78,7 +78,7 @@ class GoogleCalendarApprovalTests(unittest.TestCase):
              patch.object(google_calendar, "connection_fingerprint", return_value="fingerprint"), \
              patch.object(google_calendar, "create_event") as create, \
              patch("core.permissions.policy_overrides", return_value={}), \
-             patch("core.operation_journal.begin", return_value=None), \
+             patch("core.infra.operation_journal.begin", return_value=None), \
              patch("core.governance.propose", return_value={"id": uuid4()}) as propose:
             result = tool.invoke(DATA)
         wire = json.loads(result)
@@ -104,7 +104,7 @@ class GoogleCalendarApprovalTests(unittest.TestCase):
 class GoogleApprovalPostgresTests(unittest.TestCase):
     def test_durable_owner_approval_once_and_oauth_switch_blocks_execution(self):
         from core import governance, permissions
-        from core.database import close_pool, db_connection
+        from core.infra.database import close_pool, db_connection
         governance.load_capabilities()
         tool = next(t for t in calendar_tools_for('supervisor') if t.name == 'calendar_create_event')
         identifiers = []

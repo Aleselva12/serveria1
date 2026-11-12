@@ -13,7 +13,7 @@ from fastapi import File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from core.confined_paths import confined_path
+from core.infra.confined_paths import confined_path
 
 # Imported only when make_router finishes defining its basic routes.
 TEXT_SUFFIXES = {'.txt', '.md', '.json', '.csv', '.tsv', '.py', '.ts', '.tsx', '.js', '.css', '.yaml', '.yml', '.toml', '.log', '.xml'}
@@ -125,7 +125,7 @@ def register_extras(router, root_provider, *, allow_upload):
 
     @router.post('/shares', status_code=201)
     def create_share(body: ShareStart):
-        from core.database import db_connection
+        from core.infra.database import db_connection
         with operation():
             _, base = select(body.root_id)
             target = resolve(base, body.path)
@@ -140,7 +140,7 @@ def register_extras(router, root_provider, *, allow_upload):
 
     @router.get('/shares')
     def list_shares(root_id: str):
-        from core.database import db_connection
+        from core.infra.database import db_connection
         select(root_id)
         with db_connection() as conn:
             rows = conn.execute('SELECT id,path,expires_at,revoked FROM file_shares WHERE area=%s AND root_id=%s ORDER BY created_at DESC LIMIT 200', (router.prefix, root_id)).fetchall()
@@ -148,7 +148,7 @@ def register_extras(router, root_provider, *, allow_upload):
 
     @router.delete('/shares/{share_id}')
     def revoke_share(share_id: uuid.UUID):
-        from core.database import db_connection
+        from core.infra.database import db_connection
         with db_connection() as conn:
             row = conn.execute('UPDATE file_shares SET revoked=TRUE WHERE id=%s AND area=%s RETURNING id', (share_id, router.prefix)).fetchone()
         if not row: raise HTTPException(404, 'Condivisione non trovata.')
@@ -156,7 +156,7 @@ def register_extras(router, root_provider, *, allow_upload):
 
     @router.get('/shared/{token}')
     def shared_file(token: str):
-        from core.database import db_connection
+        from core.infra.database import db_connection
         if len(token) > 100: raise HTTPException(404, 'Condivisione non disponibile.')
         with db_connection() as conn:
             row = conn.execute('SELECT * FROM file_shares WHERE token_hash=%s AND area=%s AND revoked=FALSE AND expires_at>NOW()', (hashlib.sha256(token.encode()).hexdigest(), router.prefix)).fetchone()

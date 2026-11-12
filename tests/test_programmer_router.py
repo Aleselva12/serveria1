@@ -94,7 +94,7 @@ class RouterTests(unittest.TestCase):
             factory.assert_not_called()
 
     def test_cancellation_is_not_swallowed(self):
-        from core.run_lifecycle import RunCancelled
+        from core.infra.run_lifecycle import RunCancelled
         from core.runtime_context import RunTimedOut
         for error in [RunCancelled('stop'), RunTimedOut('deadline')]:
             model = self.model()

@@ -6,9 +6,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from core import file_paths
 from core.domain.library_preflight import preload
 from core.governance import CapabilityExecutionError
+from core.infra import file_paths
 from search_agent import search_tools
 
 
@@ -19,8 +19,8 @@ class LibraryWorkspaceTests(unittest.TestCase):
         for setting in (patch.object(file_paths,'BASE',self.base),
                         patch.dict(os.environ,{'CORA_KNOWLEDGE_ROOT':'','CORA_LIBRARY_ORIGINALS_ROOT':''}),
                         patch('core.permissions.policy_overrides',return_value={}),
-                        patch('core.operation_journal.begin',return_value=None),
-                        patch('core.operation_journal.finish',return_value=None)):
+                        patch('core.infra.operation_journal.begin',return_value=None),
+                        patch('core.infra.operation_journal.finish',return_value=None)):
             setting.start();self.addCleanup(setting.stop)
 
     def test_first_agent_access_initializes_same_default_as_ui_without_opening_files(self):
@@ -138,8 +138,8 @@ class PreflightFailureTests(unittest.TestCase):
 
     @patch('tools.library_search')
     def test_cancellation_timeout_and_uncertain_effects_are_never_converted_into_warnings(self,search):
-        from core.run_lifecycle import RunCancelled
-        from core.run_states import DurabilityLost, EffectUncertain
+        from core.infra.run_lifecycle import RunCancelled
+        from core.infra.run_states import DurabilityLost, EffectUncertain
         from core.runtime_context import RunTimedOut
         for stop in (RunTimedOut('stop'),RunCancelled('stop'),EffectUncertain(),DurabilityLost()):
             search.invoke.side_effect=stop

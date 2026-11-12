@@ -28,7 +28,7 @@ class ComponentBus:
             self._state[component] = {**self._state.get(component, {}), **state}
 
     def dispatch(self, envelope: TaskEnvelope, handler: Handler) -> ComponentResult:
-        from core.event_bus import bus
+        from core.infra.event_bus import bus
         from core.runtime import checkpoint, current_run
         parent = current_run.get()
         checkpoint()
