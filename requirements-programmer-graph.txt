@@ -1,2 +1,2 @@
 # Optional, isolated code indexing. No LLM backend needed with --code-only.
-graphifyy==0.9.75
+graphifyy==0.9.104
