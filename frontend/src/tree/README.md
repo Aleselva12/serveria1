@@ -67,17 +67,25 @@ senza avviare test o inferenza; il pannello collaudi aggiorna gli stessi dati ad
 avanzamento. Le descrizioni della verifica usano la stessa funzione dei colori.
 La nota statica è separata sotto “Descrizione di progetto”.
 
-- Grigio: stato `planned`/`idea`, quindi elemento non presente.
-- Giallo: elemento `partial`, senza problemi rilevati né un collaudo E2E associato
-  ancora da provare. Non certifica il funzionamento completo.
-- Rosso “non provato”: elemento presente privo di prove valide, oppure collaudo
-  E2E associato ma mancante/scaduto/non attribuibile alla versione attiva.
-  È distinto dal rosso “collaudo fallito”, che richiede un fallimento reale.
-- Verde: E2E Debian valido sulla versione attiva e controlli associati superati.
-  Figli grigi non presenti e gialli parziali non impediscono questo risultato;
-  nemmeno una voce nella lista degli sviluppi futuri lo invalida.
-- Arancione: problemi documentati, fallimenti parziali o sottoelementi presenti
-  non provati. Le criticità non vengono ignorate perché un nodo è parziale.
+Scala del proprietario (`starTone` in `roadmapEvidence.ts`). Contano solo gli
+esiti ottenuti sul Debian (`environment` che inizia con `debian`) per il commit
+attivo e non scaduti; vale qualunque tipo di controllo (E2E, suite isolate,
+contratti, preflight). Lo stato dichiarato `partial` non decide il colore.
+
+- Verde · funziona: tutti i controlli collegati superati. Senza controlli propri,
+  verde solo se tutti i sottoelementi presenti sono verdi.
+- Giallo · funziona, da migliorare: un controllo in `warn` (es. aggiornamenti APT
+  in attesa), una rifinitura manuale aperta, oppure solo una parte dei controlli
+  ha un esito valido.
+- Arancione · problemi da controllare: un controllo non E2E fallito, criticità
+  documentate (`knownIssues`) o un sottoelemento rosso/arancione.
+- Rosso · non funziona: un collaudo E2E reale fallito sulla versione attiva.
+- Grigio pieno · non verificato: nessun esito valido (assente, scaduto, di un
+  altro commit o fuori dal Debian). Non è un guasto.
+- Grigio tratteggiato · non ancora presente: stato `planned`/`idea`.
+
+Sottoelementi gialli o grigi non tolgono il verde a un nodo i cui controlli
+passano; rami e aree sono verdi solo se tutte le loro stelle presenti lo sono.
 
 Rami e aree delle radici aggregano i figli: verde se tutti i figli attivi sono
 verdi/gialli, arancione per criticità miste, rosso se tutti quelli attivi sono

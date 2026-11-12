@@ -72,14 +72,14 @@ test("refresh updates the rendered verification text and colors from the shared 
  try{
   globalThis.__treeHealth={...original,latest:{...original.latest,good:{...original.latest.good,status:"fail"}}};
   await act(async()=>{r=create(React.createElement(TreeHome));});
-  assert.match(text(r.root.findByProps({className:"rm2-badges"})),/Collaudo fallito/);
+  assert.match(text(r.root.findByProps({className:"rm2-badges"})),/Non funziona/);
   globalThis.__treeHealth=original;
   const refresh=r.root.findAllByType("button").find(b=>text(b)==="Aggiorna albero");
   await act(async()=>refresh.props.onClick());
-  assert.match(text(r.root.findByProps({className:"rm2-badges"})),/Collaudo reale superato/);
+  assert.match(text(r.root.findByProps({className:"rm2-badges"})),/Verde · funziona/);
   globalThis.__treeHealth={...original,latest:{...original.latest,good:{...original.latest.good,status:"fail"}}};
   await act(async()=>globalThis.__verificationOnResults());
-  assert.match(text(r.root.findByProps({className:"rm2-badges"})),/Collaudo fallito/);
+  assert.match(text(r.root.findByProps({className:"rm2-badges"})),/Non funziona/);
   const page=r.root.findByProps({className:"rm2-page"});
   const sections=page.children.filter(c=>typeof c!=="string");
   const sequence=sections.findIndex(c=>c.props.className==="rm2-footer-work");

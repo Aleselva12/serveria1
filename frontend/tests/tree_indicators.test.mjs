@@ -23,9 +23,9 @@ test('missing, old, expired, future, unassigned and CI evidence is not a failed 
  assert.equal(verify(node,health(),null,mapping).color,c.gray);
  assert.equal(verify(node,health(),sha,{}).color,c.gray);
 });
-test('real failure, partial proof and live success are distinct',()=>{
+test('real failure, partial proof and Debian success are distinct',()=>{
  assert.equal(verify(node,health({...result,status:'fail'}),sha,mapping).color,c.red);
- assert.equal(verify(node,health(result,{...def,kind:'synthetic'}),sha,mapping).color,c.yellow);
+ assert.equal(verify(node,health(result,{...def,kind:'synthetic'}),sha,mapping).color,c.green);
  assert.equal(verify(node,health({...result,status:'fail'},{...def,kind:'synthetic'}),sha,mapping).color,c.orange);
  assert.equal(verify(node,health(),sha,mapping).color,c.green);
  assert.equal(verify(node,health(),sha,{n:['test','missing']}).color,c.yellow);
