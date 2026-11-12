@@ -59,15 +59,15 @@ class AuditClosureTests(unittest.TestCase):
     def test_model_selection_distinguishes_disk_failure_and_uses_single_probe(self):
         from fastapi import HTTPException
 
-        import api
+        from core import system_api
         from core.models import RuntimeSettingsError
         models = [{'name':'new'}]
-        with patch.object(api,'list_ollama_models',return_value=models) as listing, patch.object(api,'save_runtime_model',side_effect=RuntimeSettingsError('Impossibile salvare il modello.')):
-            with self.assertRaises(HTTPException) as error: api.select_runtime_model(api.ModelSelectionRequest(model='new'))
+        with patch.object(system_api,'list_ollama_models',return_value=models) as listing, patch.object(system_api,'save_runtime_model',side_effect=RuntimeSettingsError('Impossibile salvare il modello.')):
+            with self.assertRaises(HTTPException) as error: system_api.select_runtime_model(system_api.ModelSelectionRequest(model='new'))
             self.assertEqual(error.exception.status_code,500)
             listing.assert_called_once()
-        with patch.object(api,'list_ollama_models',return_value=models) as listing, patch.object(api,'save_runtime_model'), patch.object(api,'get_default_model_name',return_value='new'):
-            self.assertEqual(api.select_runtime_model(api.ModelSelectionRequest(model='new')),{'active':'new','models':models})
+        with patch.object(system_api,'list_ollama_models',return_value=models) as listing, patch.object(system_api,'save_runtime_model'), patch.object(system_api,'get_default_model_name',return_value='new'):
+            self.assertEqual(system_api.select_runtime_model(system_api.ModelSelectionRequest(model='new')),{'active':'new','models':models})
             listing.assert_called_once()
 
     def test_host_check_copies_validated_workspace_and_rejects_changed_digest(self):
