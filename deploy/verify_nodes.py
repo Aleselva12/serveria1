@@ -85,9 +85,15 @@ def _action(action, run_id):
                 return {"status": "fail", "detail": "Database pacchetti Debian non integro o non verificabile"}
             if not upgrades.get("available") or upgrades.get("simulationOk") is not True:
                 return {"status": "unknown", "detail": "Simulazione aggiornamenti APT non disponibile; nessun pacchetto modificato"}
+            advisories = []
             pending = upgrades.get("pending")
             if pending:
-                return {"status": "warn", "detail": f"Debian funzionante; {pending} aggiornamenti di sistema in attesa (cache APT)"}
+                advisories.append(f"{pending} aggiornamenti di sistema in attesa (cache APT)")
+            auto = packages.get("autoSecurityUpdates")  # Absent on an older updater: no claim either way.
+            if isinstance(auto, dict) and not (auto.get("installed") and auto.get("enabled")):
+                advisories.append("aggiornamenti di sicurezza automatici non attivi (unattended-upgrades)")
+            if advisories:
+                return {"status": "warn", "detail": "Debian funzionante; " + "; ".join(advisories)}
             return {"status": "pass", "detail": "Debian reale verificato: identità host, UID/GID updater, file privati, dpkg e APT senza aggiornamenti pendenti"}
         units = snapshot.get("systemd") or {}
         if action == "systemd_host_e2e":

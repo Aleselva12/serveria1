@@ -100,6 +100,21 @@ def _upgrade_status() -> dict[str, Any]:
     return {"available": True, "pending": pending, "simulationOk": True}
 
 
+def _auto_security_updates(conf_dir: Path = Path("/etc/apt/apt.conf.d")) -> dict[str, bool]:
+    """Booleans only: is unattended-upgrades installed and enabled by APT::Periodic."""
+    enabled = False
+    try:
+        for path in sorted(conf_dir.iterdir()):
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            for line in text.splitlines():
+                line = line.split("//", 1)[0].strip()
+                if line.startswith("APT::Periodic::Unattended-Upgrade"):
+                    enabled = '"0"' not in line and '"' in line
+    except OSError:
+        pass
+    return {"installed": bool(shutil.which("unattended-upgrade")), "enabled": enabled}
+
+
 def inspect(root: Path, config: dict[str, Any]) -> dict[str, Any]:
     root = Path(root).resolve()
     uid = os.getuid() if hasattr(os, "getuid") else None
@@ -127,11 +142,13 @@ def inspect(root: Path, config: dict[str, Any]) -> dict[str, Any]:
         "packages": {
             "dpkg": _dpkg_status(),
             "upgrades": _upgrade_status(),
+            "autoSecurityUpdates": _auto_security_updates(),
         },
         "systemd": units,
         "scope": (
             "Read-only host evidence: Debian identity, updater UID/GID and private "
-            "file modes, dpkg audit, cached APT upgrade simulation, and fixed "
+            "file modes, dpkg audit, cached APT upgrade simulation, automatic security "
+            "update flags, and fixed "
             "systemd units. No restart, update, SSH login or journal content."
         ),
     }

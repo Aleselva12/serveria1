@@ -43,13 +43,14 @@ test("a CI-only E2E never certifies live Debian even for identical SHA",()=>{
   assert.equal(verifiedLiveE2E(d,r,sha),false);
   assert.equal(verifiedLiveE2E(d,result(d.id,sha,"debian-api"),sha),true);
 });
-test("only fully checked current-commit results with matching Debian E2E can color green",()=>{
+test("current-commit Debian results of any kind color green; partial proof is yellow",()=>{
   const contract=definition("chat_contract","contract","5m"),e2e=definition("chat_e2e");
   const positive=dashboard([[contract,result(contract.id)],[e2e,result(e2e.id)]]);
   assert.equal(starTone(node,positive,sha,mapping),"ok");
   assert.equal(starTone(node,positive,old,mapping),"unverified");
-  assert.equal(starTone(node,dashboard([[contract,result(contract.id)]]),sha,mapping),"unverified");
-  assert.equal(starTone(node,dashboard([[contract,result(contract.id)],[e2e,result(e2e.id,sha,"ci")]]),sha,mapping),"unverified");
+  assert.equal(starTone(node,dashboard([[contract,result(contract.id)]]),sha,mapping),"plan");
+  assert.equal(starTone(node,dashboard([[contract,result(contract.id)],[e2e,result(e2e.id,sha,"ci")]]),sha,mapping),"plan");
+  assert.equal(starTone(node,dashboard([[contract,result(contract.id)]]),sha,{A1:["chat_contract"]}),"ok");
 });
 test("old failures are historical, partial failures are orange; known issues remain orange",()=>{
   const contract=definition("chat_contract","contract","5m"),e2e=definition("chat_e2e");
@@ -117,36 +118,38 @@ test("focused worker nodes update only covered scopes; GPU is not certified by i
  assert.notEqual(starTone({...moon,id:"R1.2.p1.m1"},health,sha,checks),"ok");
 });
 
- test("synthetic and HTTP successes stay unverified; child risk propagates without certifying siblings",()=>{
+ test("synthetic, HTTP and contract successes on Debian count; child risk propagates without certifying siblings",()=>{
   for(const kind of ["synthetic","preflight","contract"]){
    const d=definition("limited",kind);
-   assert.equal(starTone(node,dashboard([[d,result(d.id)]]),sha,{A1:[d.id]}),"plan");
+   assert.equal(starTone(node,dashboard([[d,result(d.id)]]),sha,{A1:[d.id]}),"ok");
   }
   const d=definition("real"),h=dashboard([[d,result(d.id)]]);
   const children=[node,{id:"p",parent:"A1",classification:"planet",status:"partial",knownIssues:["Rischio"]}];
   assert.equal(starTone(node,h,sha,{A1:[d.id]},children),"minor");
-  assert.equal(starTone({...children[1],knownIssues:[]},h,sha,{A1:[d.id]},children),"plan");
+  assert.equal(starTone({...children[1],knownIssues:[]},h,sha,{A1:[d.id]},children),"unverified");
  });
 
-test("future scope does not block a valid live E2E; partial children remain yellow",()=>{
+test("future scope and unverified children do not block a valid live E2E",()=>{
  const d=definition("real"),h=dashboard([[d,result(d.id)]]),m={A1:[d.id]};
  const future={id:"future",parent:"A1",classification:"planet",status:"planned"};
  const partial={id:"partial",parent:"A1",classification:"planet",status:"partial"};
  const all=[node,future,partial];
  assert.equal(starTone(future,h,sha,m,all),"unknown");
- assert.equal(starTone(partial,h,sha,m,all),"plan");
+ assert.equal(starTone(partial,h,sha,m,all),"unverified");
  assert.equal(starTone({...node,timeline:{future:["An optional upgrade"]}},h,sha,m,all),"ok");
  const present={...future,status:"present"};
  assert.equal(starTone(present,h,sha,m,[node,present]),"unverified");
- assert.equal(starTone(node,h,sha,m,[node,present]),"plan");
+ assert.equal(starTone(node,h,sha,m,[node,present]),"ok");
+ assert.equal(starTone(node,dashboard(),sha,{future:[d.id]},[node,present]),"unverified");
+ assert.equal(starTone(node,h,sha,{future:[d.id]},[node,present]),"ok","Proven through its only present child");
 });
 
 test("a mapped E2E without valid proof remains neutral and unverified",()=>{
  const d=definition("real"),h=dashboard([[d,undefined]]),m={A1:[d.id]};
  assert.equal(starTone(node,h,sha,m),"unverified");
- assert.match(verificationSummary(node,h,sha,m),/Non provato/);
+ assert.match(verificationSummary(node,h,sha,m),/Non verificato/);
  assert.equal(starTone(node,dashboard([[d,result(d.id)]]),sha,m),"ok");
- assert.match(verificationSummary(node,dashboard([[d,result(d.id)]]),sha,m),/Collaudo reale superato/);
+ assert.match(verificationSummary(node,dashboard([[d,result(d.id)]]),sha,m),/Funziona/);
 });
 
 test("root areas and branches aggregate actual children without claiming their own E2E",()=>{
@@ -157,9 +160,10 @@ test("root areas and branches aggregate actual children without claiming their o
   const d=definition("real"),m={present:[d.id]};
   const all=[group,future,partial,present];
   const h=dashboard([[d,result(d.id)]]);
-  assert.equal(starTone(group,h,sha,m,all),"plan");
-  assert.equal(starTone(group,h,sha,m,[group,partial]),"plan");
-  assert.match(verificationSummary(group,h,sha,m,all),/Presente parzialmente/);
+  assert.equal(starTone(group,h,sha,m,all),"plan","One verified star and one unverified: works in part");
+  assert.equal(starTone(group,h,sha,m,[group,future,present]),"ok");
+  assert.equal(starTone(group,h,sha,m,[group,partial]),"unverified");
+  assert.match(verificationSummary(group,h,sha,m,all),/Funziona/);
   const failed=dashboard([[d,result(d.id,sha,"debian-api","fail")]]);
   assert.equal(starTone(group,failed,sha,m,all),"minor");
   assert.equal(starTone(group,failed,sha,m,[group,present]),"problem");
@@ -173,7 +177,7 @@ test("runtime descriptions distinguish expired, old and missing proof from a fai
  assert.match(verificationSummary(node,dashboard([[d,result(d.id,old)]]),sha,m),/un’altra versione/);
  const expired=new Date(Date.now()-25*3600000).toISOString();
  assert.match(verificationSummary(node,dashboard([[d,result(d.id,sha,"debian-api","pass",expired)]]),sha,m),/scaduti/);
- assert.match(verificationSummary(node,dashboard([[d,result(d.id,sha,"debian-api","fail")]]),sha,m),/Collaudo fallito/);
+ assert.match(verificationSummary(node,dashboard([[d,result(d.id,sha,"debian-api","fail")]]),sha,m),/Non funziona/);
 });
 
 test("a live E2E with an advisory (warn) is yellow, not green or unverified",()=>{
@@ -186,4 +190,12 @@ test("a live E2E with an advisory (warn) is yellow, not green or unverified",()=
   assert.match(verificationSummary(node,health,sha,m),/17 aggiornamenti/);
   assert.equal(starTone(node,dashboard([[d,result("debian_host_e2e",sha,"debian-verifier")]]),sha,m),"ok");
   assert.equal(checkState(d,result("debian_host_e2e",old,"debian-verifier","warn"),sha),"outdated");
+});
+
+test("release-scoped results stay valid until the commit changes, not 24 hours",()=>{
+  const twoDays=new Date(Date.now()-48*3600000).toISOString();
+  const scoped={...definition("suite","synthetic"),releaseScoped:true};
+  assert.equal(checkState(scoped,result("suite",sha,"debian-verifier","pass",twoDays),sha),"pass");
+  assert.equal(checkState(scoped,result("suite",old,"debian-verifier","pass",twoDays),sha),"outdated");
+  assert.equal(checkState(definition("suite","synthetic"),result("suite",sha,"debian-verifier","pass",twoDays),sha),"stale");
 });

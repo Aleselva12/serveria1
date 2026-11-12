@@ -265,7 +265,7 @@ export default function TreeHome(){
         {focusId&&<button type="button" className="rm2-overview-link" onClick={showAll}>← Torna alla panoramica delle stelle</button>}
         <div className="rm2-badges">
           <NodeIndicators {...indicators(root)}/>
-          <span className="rm2-impl">{selectedTone==="ok"?"Collaudo reale superato":selectedTone==="problem"?"Collaudo fallito":selectedTone==="unverified"?"Non collaudato":selectedTone==="plan"?"Presente parzialmente":selectedTone==="unknown"?"Non presente":"Richiede attenzione"}</span>
+          <span className="rm2-impl">{selectedTone==="ok"?"Funziona":selectedTone==="problem"?"Non funziona":selectedTone==="unverified"?"Non verificato":selectedTone==="plan"?"Da migliorare":selectedTone==="unknown"?"Non presente":"Da controllare"}</span>
           <span className={"rm2-attention tone-"+selectedTone}><i className="rm2-dot"/>{toneLabels[selectedTone]||tones[selectedTone]||"Da valutare"}</span>
         </div>
         {goals.length>0&&<div className="rm2-project-state">

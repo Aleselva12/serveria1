@@ -86,6 +86,9 @@ async def lifespan(app):
         cleanup.callback(library_monitor.stop)
         library_monitor.start()
         project_checks.start()
+        from core.verify import node_verification
+        cleanup.callback(node_verification.stop_auto)
+        node_verification.start_auto()
         # Runs may enqueue derived writes until their finalization is complete.
         # LIFO cleanup drains runs, then post-processing, before closing the DB.
         cleanup.callback(postprocess.shutdown)

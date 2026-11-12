@@ -95,10 +95,74 @@ def service_http(identifier):
     return "pass", "Endpoint HTTP raggiungibile; caricamento, recupero e integrità dei dati non collaudati"
 
 
+OSV_BATCH = "https://api.osv.dev/v1/querybatch"
+OSV_VULN = "https://api.osv.dev/v1/vulns/"
+
+
+def _installed_packages():
+    from importlib.metadata import distributions
+    found = {}
+    for dist in distributions():
+        name = (dist.metadata.get("Name") or "").strip()
+        if name and dist.version:
+            found[name.lower().replace("_", "-")] = dist.version
+    return sorted(found.items())
+
+
+def _severity(vuln):
+    """GHSA/PyPA label when present; unknown counts as moderate, never as safe."""
+    label = str((vuln.get("database_specific") or {}).get("severity") or "").upper()
+    return {"CRITICAL": "high", "HIGH": "high", "LOW": "low"}.get(label, "moderate")
+
+
+def dependency_audit(packages=None, client=None):
+    import httpx
+    packages = packages if packages is not None else _installed_packages()
+    if not packages:
+        return "unknown", "Elenco dei pacchetti installati non disponibile"
+    own = client is None
+    client = client or httpx.Client(timeout=20)
+    try:
+        hits = {}
+        for start in range(0, len(packages), 500):
+            chunk = packages[start:start + 500]
+            response = client.post(OSV_BATCH, json={"queries": [
+                {"package": {"name": name, "ecosystem": "PyPI"}, "version": version} for name, version in chunk]})
+            response.raise_for_status()
+            for (name, version), item in zip(chunk, response.json().get("results", [])):
+                ids = [vuln["id"] for vuln in item.get("vulns") or []]
+                if ids:
+                    hits[f"{name} {version}"] = ids
+        # Per package: the worst severity among its first advisories decides.
+        levels = {}
+        for package, ids in hits.items():
+            levels[package] = "low"
+            for vuln_id in ids[:10]:
+                detail = client.get(OSV_VULN + vuln_id)
+                detail.raise_for_status()
+                level = _severity(detail.json())
+                if level == "high" or (level == "moderate" and levels[package] == "low"):
+                    levels[package] = level
+                if level == "high":
+                    break
+    except Exception:
+        return "unknown", "Database vulnerabilità OSV non raggiungibile; nessun esito"
+    finally:
+        if own:
+            client.close()
+    if not hits:
+        return "pass", f"{len(packages)} pacchetti Python controllati: nessuna vulnerabilità nota"
+    high = sorted(p for p, level in levels.items() if level == "high")
+    if high:
+        return "fail", f"Vulnerabilità gravi in {len(high)} pacchetti: {', '.join(high)}"[:240]
+    return "warn", f"Vulnerabilità medie/basse in {len(hits)} pacchetti: {', '.join(sorted(hits))}"[:240]
+
+
 DIRECT = {"gmail_contract": gmail_contract, "gmail_e2e": gmail_sample,
           "files_e2e": files_sample, "preventivi_e2e": quote_sample,
           "immich_e2e": lambda: service_http("immich"),
-          "nextcloud_e2e": lambda: service_http("nextcloud")}
+          "nextcloud_e2e": lambda: service_http("nextcloud"),
+          "dependency_audit": dependency_audit}
 
 REGRESSIONS = {
     "chat_e2e": ("tests.test_component_boundaries.CatalogTests.test_chat_to_specialist_graph_exchange_with_mocked_agent", "tests.test_chat_tools"),

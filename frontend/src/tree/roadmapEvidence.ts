@@ -19,7 +19,8 @@ export function checkState(
   if (!result || !Number.isFinite(Date.parse(result.at))) return "unknown";
   if (Date.parse(result.at) > Date.now() + 60_000) return "unknown";
   const maxAge = definition.maxAgeSeconds ?? (definition.automated ? 600 : 86400);
-  if (Date.now() - Date.parse(result.at) > maxAge * 1000) return "stale";
+  // Release-scoped checks run after each install: the commit match below bounds them.
+  if (!definition.releaseScoped && Date.now() - Date.parse(result.at) > maxAge * 1000) return "stale";
   if (result.status !== "pass" && result.status !== "warn" && result.status !== "fail") return "unknown";
   const release = activeCommit?.trim().toLowerCase() || "";
   const tested = result.commit?.trim().toLowerCase() || "";
@@ -59,6 +60,11 @@ export function manualEvidence(node: Node): {kind:"ok"|"plan";date:string;text:s
 /** Future scope is absent, not an untested implementation. */
 export const isFuture = (node: Node): boolean => node.status === "planned" || node.status === "idea";
 
+/** Owner scale: green works, yellow works with something to improve, orange
+ * problems to check, red does not work, grey not verified (solid) or not yet
+ * present (dashed, future). Evidence counts only from the Debian deployment on
+ * the active commit; any check kind (e2e, synthetic, contract, preflight) does.
+ */
 export function starTone(
   node: Node,
   health: HealthDashboardData | null,
@@ -75,38 +81,41 @@ export function starTone(
     if (!active.length) return "unknown";
     if (active.every(t => t === "problem")) return "problem";
     if (active.some(t => ["problem", "minor"].includes(t))) return "minor";
-    if (active.every(t => t === "unverified")) return "unverified";
-    if (active.some(t => t === "unverified" || t === "plan")) return "plan";
-    return "ok"; // Only all verified children justify a green aggregate.
+    return fromChildren(active);
   }
   if (!["star", "planet", "moon"].includes(node.classification || "")) return "unknown";
-  const ids = mapping[node.id] || [];
-  const evidence = ids.map(id => ({def: health?.catalog.find(c => c.id === id), result: health?.latest[id]}));
+  if (isFuture(node)) return "unknown";
+  const evidence = (mapping[node.id] || []).map(id => ({def: health?.catalog.find(c => c.id === id), result: health?.latest[id]}));
   const live = (e: typeof evidence[number]) => /^debian(?:$|[-_:])/i.test(e.result?.environment || "");
-  const failed = (e: typeof evidence[number]) => live(e) && checkState(e.def, e.result, activeCommit) === "fail";
-  if (evidence.some(failed)) return evidence.every(e => e.def?.kind === "e2e" && failed(e)) ? "problem" : "minor";
+  const state = (e: typeof evidence[number]) => live(e) ? checkState(e.def, e.result, activeCommit) : "unknown";
+  const failed = evidence.filter(e => state(e) === "fail");
+  // A failed real E2E means the function does not work; other failures need checking.
+  if (failed.some(e => e.def?.kind === "e2e")) return "problem";
+  if (failed.length) return "minor";
   if (childTones.some(t => ["problem", "minor"].includes(t))) return "minor";
   if (node.knownIssues?.length) return "minor";
-  if (isFuture(node)) return "unknown";
-  // Manual checks are scoped to exact moons/planets and must not override real failures.
-  // No inference about other environments or commits is made from a manual check.
-  const manual=manualEvidence(node);
-  if (manual?.kind==="plan") return "plan";
-  if (manual?.kind==="ok" && !childTones.some(t => t==="unverified" || t==="plan")) return "ok";
-  if (childTones.some(t => t==="unverified")) return "plan";
-  const passing = (e: typeof evidence[number]) => live(e) && ["pass", "warn"].includes(checkState(e.def, e.result, activeCommit));
-  if (evidence.some(e => verifiedLiveE2E(e.def, e.result, activeCommit)) && evidence.every(passing))
-    // Works, but a check reports something to improve (e.g. pending OS updates): yellow, not green.
-    return evidence.some(e => checkState(e.def, e.result, activeCommit) === "warn") ? "plan" : "ok";
-  // A mapped functional check must be proved, even for a partial implementation.
-  if (evidence.some(e => !e.def || e.def.kind === "e2e")) return "unverified";
-  return node.status === "partial" ? "plan" : "unverified";
+  const manual = manualEvidence(node);
+  if (manual?.kind === "plan") return "plan";
+  const valid = evidence.filter(e => ["pass", "warn"].includes(state(e)));
+  if (valid.some(e => state(e) === "warn")) return "plan";
+  if (evidence.length && valid.length === evidence.length) return "ok";
+  // Some checks proven, others missing or expired: it works, the proof is incomplete.
+  if (valid.length) return "plan";
+  if (manual?.kind === "ok") return "ok";
+  // No own proof: the element is proven through its planets/moons, like a container.
+  return fromChildren(childTones.filter(t => t !== "unknown"));
+}
+/** Proof through children: green only when every present child works. */
+function fromChildren(tones: string[]): string {
+  if (tones.length && tones.every(t => t === "ok")) return "ok";
+  if (tones.some(t => t === "ok" || t === "plan")) return "plan";
+  return "unverified";
 }
 
 export const toneLabels: Record<string, string> = {
-  ok: "Verde · funzionante e collaudato", problem: "Rosso · collaudo fallito",
-  minor: "Arancione · attenzione", plan: "Giallo · funziona da migliorare o parziale",
-  unknown: "Grigio · non ancora presente", unverified: "Grigio · non collaudato",
+  ok: "Verde · funziona", problem: "Rosso · non funziona",
+  minor: "Arancione · problemi da controllare", plan: "Giallo · funziona, da migliorare",
+  unknown: "Grigio tratteggiato · non ancora presente", unverified: "Grigio · non verificato",
 };
 
 /** Runtime text shares the same decision as the map, never the static project status. */
@@ -114,29 +123,43 @@ export function verificationSummary(node: Node, health: HealthDashboardData | nu
   activeCommit: string | null, mapping: CheckMapping, nodes: readonly Node[] = []): string {
   const tone = starTone(node, health, activeCommit, mapping, nodes);
   const container = node.classification === "area" || node.role === "ramo" || ["radici", "tronco", "rami"].includes(node.id);
-  if (container && tone === "ok") return "Riepilogo positivo dei sottoelementi: verdi o parziali gialli; obiettivi non presenti esclusi. Non è un collaudo autonomo del contenitore.";
-  const manual=manualEvidence(node);
   const ids = mapping[node.id] || [];
-  if (tone === "ok" && manual?.kind === "ok")
-    return "Verifica manuale circoscritta del "+manual.date+": "+manual.text+
-      " Non è un collaudo automatico né una certificazione del commit attuale.";
-  if (tone === "ok") return "Collaudo reale superato sulla versione attiva. Elementi futuri e parziali non bloccano questo esito.";
-  if (tone === "problem") return "Collaudo fallito sulla versione attiva. Consultare gli esiti collegati.";
-  if (tone === "minor") return "Attenzione: problemi documentati, controlli falliti o sottoelementi presenti non provati. Consultare problemi e test collegati.";
-  if (tone === "unknown") return "Obiettivo non ancora presente: escluso dalla verifica del genitore.";
-  if (tone === "plan" && manual?.kind === "plan")
-    return "Rifinitura da eseguire (osservazione manuale del "+manual.date+"): "+manual.text;
-  if (tone === "plan" && ids.some(id => checkState(health?.catalog.find(c => c.id === id), health?.latest[id], activeCommit) === "warn"))
-    return "Funziona sulla versione attiva, con avvisi da risolvere: "+ids.map(id => health?.latest[id]).filter(r => r?.status === "warn").map(r => r!.detail).join(" · ");
-  if (tone === "plan") return "Presente parzialmente: completamento e collaudi restano da eseguire; non blocca il verde del genitore.";
-  if (!health || health.historyStore === "unavailable") return "Non provato: registro dei collaudi non disponibile. Non indica un guasto accertato.";
-  if (!activeCommit) return "Non provato: versione attiva non verificabile. Non indica un collaudo fallito.";
-  if (!ids.length) return "Non provato: nessun controllo associato a questo elemento presente.";
-  const states = ids.map(id => checkState(health.catalog.find(c => c.id === id), health.latest[id], activeCommit));
-  if (states.includes("outdated")) return "Non provato sulla versione attiva: esiti riferiti a un’altra versione.";
-  if (states.includes("unattributed")) return "Non provato sulla versione attiva: commit del collaudo non verificabile.";
-  if (states.includes("stale")) return "Non provato: collaudi scaduti, da ripetere.";
-  return "Non provato: manca un collaudo reale valido sul Debian per questa versione. Controlli parziali o simulati non bastano.";
+  const latest = (id: string) => health?.latest[id];
+  const state = (id: string) => /^debian(?:$|[-_:])/i.test(latest(id)?.environment || "")
+    ? checkState(health?.catalog.find(c => c.id === id), latest(id), activeCommit) : "unknown";
+  const manual = manualEvidence(node);
+  if (tone === "unknown") return "Non ancora presente: obiettivo futuro, escluso dalla verifica del genitore.";
+  if (container) return {
+    ok: "Funziona: tutti i sottoelementi presenti sono verificati.",
+    plan: "Funziona in parte: alcuni sottoelementi sono da migliorare o non ancora verificati.",
+    minor: "Problemi da controllare in uno o più sottoelementi.",
+    problem: "Non funziona: tutti i sottoelementi verificati hanno collaudi falliti.",
+  }[tone] || "Non verificato: nessun sottoelemento ha prove valide sulla versione attiva.";
+  if (tone === "problem") return "Non funziona: collaudo reale fallito sulla versione attiva. Consultare gli esiti collegati.";
+  if (tone === "minor") {
+    if (ids.some(id => state(id) === "fail")) return "Problemi da controllare: un controllo collegato è fallito sulla versione attiva.";
+    if (node.knownIssues?.length) return "Problemi da controllare: criticità documentate su questo elemento.";
+    return "Problemi da controllare in un sottoelemento.";
+  }
+  if (tone === "ok") return manual?.kind === "ok" && !ids.length
+    ? "Funziona: verifica manuale circoscritta del "+manual.date+": "+manual.text
+    : ids.length ? "Funziona: tutti i controlli collegati superati sulla versione attiva."
+    : "Funziona: verificato tramite i sottoelementi.";
+  if (tone === "plan") {
+    const warns = ids.filter(id => state(id) === "warn").map(id => latest(id)!.detail);
+    if (warns.length) return "Funziona, con avvisi da risolvere: "+warns.join(" · ");
+    if (manual?.kind === "plan") return "Funziona. Rifinitura da eseguire (osservazione manuale del "+manual.date+"): "+manual.text;
+    if (!ids.length) return "Funziona in parte: alcuni sottoelementi sono da migliorare o non ancora verificati.";
+    return "Funziona, ma non tutti i controlli collegati hanno un esito valido sulla versione attiva.";
+  }
+  if (!health || health.historyStore === "unavailable") return "Non verificato: registro dei collaudi non disponibile. Non indica un guasto.";
+  if (!activeCommit) return "Non verificato: versione attiva non verificabile. Non indica un guasto.";
+  if (!ids.length) return "Non verificato: nessun controllo collegato a questo elemento.";
+  const states = ids.map(state);
+  if (states.includes("outdated")) return "Non verificato: esiti riferiti a un’altra versione; ripetere il collaudo.";
+  if (states.includes("stale")) return "Non verificato: esiti scaduti; ripetere il collaudo.";
+  if (states.includes("unattributed")) return "Non verificato: commit del collaudo non verificabile.";
+  return "Non verificato: nessun esito valido sul Debian per la versione attiva.";
 }
 
 
@@ -164,12 +187,11 @@ export function verificationIndicator(node:Node,health:HealthDashboardData|null,
   const manual=manualEvidence(node);
   if(manual?.kind==="plan")return {label:"Rifinitura aperta · osservazione manuale del "+manual.date,color:indicatorColors.yellow};
   if(manual?.kind==="ok")return {label:"Verifica manuale circoscritta del "+manual.date,color:indicatorColors.green};
-  if(evidence.some(e=>verifiedLiveE2E(e.def,e.result,activeCommit))&&
-    evidence.every(e=>live(e)&&["pass","warn"].includes(checkState(e.def,e.result,activeCommit))))
-    return evidence.some(e=>checkState(e.def,e.result,activeCommit)==="warn")
+  const valid=evidence.filter(e=>live(e)&&["pass","warn"].includes(checkState(e.def,e.result,activeCommit)));
+  if(evidence.length&&valid.length===evidence.length)
+    return valid.some(e=>checkState(e.def,e.result,activeCommit)==="warn")
       ?{label:"Funziona · avvisi da risolvere",color:indicatorColors.yellow}
-      :{label:"Collaudo reale superato",color:indicatorColors.green};
-  if(evidence.some(e=>live(e)&&checkState(e.def,e.result,activeCommit)==="pass"))
-    return {label:"Verifica parziale · non certifica il funzionamento reale",color:indicatorColors.yellow};
+      :{label:"Controlli superati sulla versione attiva",color:indicatorColors.green};
+  if(valid.length)return {label:"Controlli superati in parte · altri da ripetere",color:indicatorColors.yellow};
   return {label:evidence.length?"Non verificato · nessun esito reale valido":"Non verificato · nessun controllo associato",color:indicatorColors.gray};
 }

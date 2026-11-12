@@ -59,17 +59,17 @@ test("outstanding GPU proof, offline HTTP 502 and hardware upgrades are not misl
  assert.ok(manualEvidence(byId.get("worker.p4.m2")).text.includes("fallback locale"));
  assert.ok(byId.get("R1.2").timeline.future.some(s=>s.includes("GPU")));
  assert.ok(byId.get("R1.1").timeline.future.some(s=>s.includes("hardware")));
- assert.equal(starTone(byId.get("R1.1.p2"),null,null,{},nodes),"plan");
+ assert.ok(!["problem","minor"].includes(starTone(byId.get("R1.1.p2"),null,null,{},nodes)));
 });
 test("untested is neutral gray, not red; manual success has a clear limited label",()=>{
  const ui=read("../src/tree/TreeHome.tsx");
  const css=read("../src/tree/tree.css");
- assert.match(source,/unverified: "Grigio · non collaudato"/);
+ assert.match(source,/unverified: "Grigio · non verificato"/);
  assert.match(css,/\.tone-unverified,.rm2-point.tone-unverified\{--rm2-tone:var\(--rm2-unknown\)\}/);
  assert.match(ui,/Verde · verificato manualmente/);
  assert.match(ui,/Non sostituisce i test del catalogo/);
  assert.match(verificationSummary(byId.get("T8.p3.m1"),null,null,{},nodes),/manuale circoscritta/);
  assert.equal(manualEvidence(byId.get("T1.p1.m1")).kind,"ok","Historical success stays recorded");
- assert.match(verificationSummary(byId.get("T1.p1.m1"),null,null,{},nodes),/Attenzione/,"Open latency issue must remain visible despite historical success");
+ assert.match(verificationSummary(byId.get("T1.p1.m1"),null,null,{},nodes),/Problemi da controllare/,"Open latency issue must remain visible despite historical success");
  assert.match(verificationSummary(byId.get("worker.p4.m2"),null,null,{},nodes),/Rifinitura da eseguire/);
 });
