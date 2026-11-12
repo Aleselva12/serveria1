@@ -58,6 +58,12 @@ mapping delle evidenze e rendering. Per il collaudo sul Debian usare il commit
 **effettivamente installato** dall'updater e verificare i servizi reali: una CI verde
 o una snapshot nuova non certificano da sole il server in esecuzione.
 
+Dopo ogni installazione l'API avvia da sola, una volta per commit installato e
+circa 3 minuti dopo l'avvio, la stessa suite del pulsante collaudi
+(`node_verification.auto_verify_release`), riusando le macchine scelte
+nell'ultimo collaudo. Non riparte se per quel commit esiste già un collaudo
+(anche interrotto) o se ne è in corso uno. Disattivabile con `CORA_AUTO_VERIFY=0`.
+
 
 ## Colori e descrizioni della verifica
 

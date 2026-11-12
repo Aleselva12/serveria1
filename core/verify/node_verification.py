@@ -1,6 +1,8 @@
 """Owner-only one-shot verification. GET never launches checks or model calls."""
 from datetime import UTC, datetime
-from threading import Thread
+import os
+import re
+from threading import Event, Lock, Thread
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
@@ -124,6 +126,16 @@ def status():
 
 @router.post("", status_code=202)
 def start(body: Launch | None = None):
+    return _launch(body, "manual")
+
+
+def _installed_release():
+    from core.verify.project_checks import _release
+    release = (_release() or "").strip().lower()
+    return release if re.fullmatch(r"[0-9a-f]{40}", release) else ""
+
+
+def _launch(body: Launch | None, trigger: str):
     conn = None
     acquired = False
     try:
@@ -142,7 +154,8 @@ def start(body: Launch | None = None):
         checks = list(verify_nodes.available_checks())
         job = {"id": str(uuid4()), "status": "running", "createdAt": _now(), "updatedAt": _now(),
                "checks": checks, "targets": body.model_dump(mode="json"), "currentCheck": checks[0] if checks else None,
-               "total": len(checks), "completed": 0, "results": [], "detail": "Collaudi avviati sul server."}
+               "total": len(checks), "completed": 0, "results": [], "trigger": trigger, "release": _installed_release(),
+               "detail": "Collaudi avviati automaticamente dopo l'installazione." if trigger == "auto" else "Collaudi avviati sul server."}
         conn.execute("INSERT INTO node_verification_runs (id,snapshot) VALUES (%s,%s)", (job["id"], Jsonb(job)))
         # Return an independent snapshot: the worker may already be recording progress.
         response = {**job, "results": []}
@@ -160,3 +173,60 @@ def start(body: Launch | None = None):
                     _release(conn)
             finally:
                 conn.close()
+
+
+# Automatic run once per installed release, so a fresh install is verified
+# without a click. Same runner, lock and evidence as the owner's button.
+AUTO_DELAY_SECONDS = 180
+_AUTO_STOP = Event()
+_AUTO_LOCK = Lock()
+_AUTO_THREAD = None
+
+
+def auto_verify_release():
+    """Start the suite unless this release already has a run. Returns the reason."""
+    if os.getenv("CORA_AUTO_VERIFY", "1").strip() == "0":
+        return "disabled"
+    from core.verify.project_checks import _environment
+    release = _installed_release()
+    if _environment() != "debian-api" or not release:
+        return "not_installed_release"
+    with _connection() as conn:
+        if conn.execute("SELECT 1 FROM node_verification_runs WHERE snapshot->>'release'=%s LIMIT 1", (release,)).fetchone():
+            return "already_verified"
+        previous = _latest(conn) or {}
+    # Reuse the owner's last machine choice; an unregistered machine falls back to none.
+    targets = {k: v for k, v in (previous.get("targets") or {}).items() if k in Launch.model_fields and v}
+    for body in (Launch(**targets), Launch()) if targets else (Launch(),):
+        try:
+            _launch(body, "auto")
+            return "started"
+        except HTTPException as error:
+            if error.status_code == 409:
+                return "busy"
+            if error.status_code != 404:
+                raise
+    return "not_started"
+
+
+def _auto_loop():
+    if _AUTO_STOP.wait(AUTO_DELAY_SECONDS):
+        return
+    try:
+        auto_verify_release()
+    except Exception:
+        pass  # Never affect the API; the owner can still start it from the tree.
+
+
+def start_auto():
+    global _AUTO_THREAD
+    with _AUTO_LOCK:
+        if _AUTO_THREAD is not None and _AUTO_THREAD.is_alive():
+            return
+        _AUTO_STOP.clear()
+        _AUTO_THREAD = Thread(target=_auto_loop, name="cora-auto-verification", daemon=True)
+        _AUTO_THREAD.start()
+
+
+def stop_auto():
+    _AUTO_STOP.set()

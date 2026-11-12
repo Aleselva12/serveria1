@@ -106,3 +106,73 @@ class NodeVerificationAPITests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AutoVerificationTests(unittest.TestCase):
+    SHA = "c" * 40
+
+    def _conn(self, existing=None, previous=None):
+        conn = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.execute.return_value.fetchone.return_value = existing
+        return conn
+
+    def _patches(self, conn, environment="debian-api", release=SHA, previous=None):
+        return (patch.dict(os.environ, {"CORA_AUTO_VERIFY": "1"}),
+                patch("core.verify.project_checks._environment", return_value=environment),
+                patch.object(service, "_installed_release", return_value=release),
+                patch.object(service, "_connection", return_value=conn),
+                patch.object(service, "_latest", return_value=previous))
+
+    def _run(self, conn, **kwargs):
+        from contextlib import ExitStack
+        with ExitStack() as stack:
+            for item in self._patches(conn, **kwargs):
+                stack.enter_context(item)
+            launch = stack.enter_context(patch.object(service, "_launch"))
+            return service.auto_verify_release(), launch
+
+    def test_new_release_starts_once_with_previous_machines(self):
+        identifier = str(uuid4())
+        reason, launch = self._run(self._conn(), previous={"targets": {"desktopMachineId": identifier, "laptopMachineId": None}})
+        self.assertEqual(reason, "started")
+        body, trigger = launch.call_args.args
+        self.assertEqual(trigger, "auto")
+        self.assertEqual(str(body.desktopMachineId), identifier)
+        self.assertIsNone(body.laptopMachineId)
+
+    def test_release_already_verified_or_not_installed_never_starts(self):
+        reason, launch = self._run(self._conn(existing={"?column?": 1}))
+        self.assertEqual(reason, "already_verified")
+        launch.assert_not_called()
+        for kwargs in ({"environment": "ci-api"}, {"release": ""}):
+            reason, launch = self._run(self._conn(), **kwargs)
+            self.assertEqual(reason, "not_installed_release")
+            launch.assert_not_called()
+        with patch.dict(os.environ, {"CORA_AUTO_VERIFY": "0"}), patch.object(service, "_launch") as launch:
+            self.assertEqual(service.auto_verify_release(), "disabled")
+            launch.assert_not_called()
+
+    def test_removed_machine_falls_back_and_running_suite_is_respected(self):
+        from fastapi import HTTPException
+        conn = self._conn()
+        previous = {"targets": {"desktopMachineId": str(uuid4())}}
+        from contextlib import ExitStack
+        with ExitStack() as stack:
+            for item in self._patches(conn, previous=previous):
+                stack.enter_context(item)
+            launch = stack.enter_context(patch.object(service, "_launch", side_effect=[HTTPException(404), None]))
+            self.assertEqual(service.auto_verify_release(), "started")
+            self.assertIsNone(launch.call_args.args[0].desktopMachineId)
+        reason, _ = self._run(conn)
+        with ExitStack() as stack:
+            for item in self._patches(conn):
+                stack.enter_context(item)
+            stack.enter_context(patch.object(service, "_launch", side_effect=HTTPException(409)))
+            self.assertEqual(service.auto_verify_release(), "busy")
+
+    def test_api_lifespan_registers_and_stops_the_automatic_run(self):
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / "api.py").read_text(encoding="utf-8")
+        self.assertIn("node_verification.start_auto()", source)
+        self.assertIn("cleanup.callback(node_verification.stop_auto)", source)
