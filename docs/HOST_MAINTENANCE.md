@@ -17,6 +17,13 @@ switch is rolled back on the next helper invocation. Failed recovery keeps the r
 and journal, reports `recovery_required` and blocks new writes. Configuration, credentials,
 application state, database and release jobs remain outside the replaced package.
 
+Besides this owner-requested alignment, an `apply` job hands off to the updater
+package of the release it is about to install, before stopping Cora (see
+`updater/README.md`). The request then carries `handoff_job`; the candidate bytes
+still come only from the host Git repository, now from the commit of a `ready`
+release being applied. The engine never hands off twice for the same job, so a
+helper rollback cannot loop.
+
 The switch uses two directory renames while the service is stopped, not a live directory
 swap. Process-interruption recovery is tested; power-loss/filesystem durability and real
 systemd behavior still require the Debian acceptance test. The previous directory is a

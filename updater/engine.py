@@ -16,6 +16,14 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 BUSY = {'queued', 'running'}
+# Services the updater builds and switches as one release. 'terminal' is part of
+# it only when the host Compose snapshot declares the optional terminal.
+RELEASE_SERVICES = ('api', 'web', 'terminal')
+BUILD_TARGETS = {'web': 'web', 'terminal': 'terminal'}
+# Stable DB probe for every image generation: core/database.py moved to
+# core/infra/database.py, and an updater must still check older images (rollback).
+DB_IMPORT = ("try:\n from core.infra.database import db_connection\n"
+             "except ModuleNotFoundError:\n from core.database import db_connection\n")
 MAX_FILE, MAX_TOTAL = 1_000_000, 40_000_000
 
 
@@ -80,6 +88,8 @@ class Engine:
         self.wakeup = threading.Event()
         self.closed = threading.Event()
         self.worker = None
+        # Set by updater.service: needed to hand off to a newer updater package.
+        self.apps = None
 
     def cmd(self, arguments, *, cwd=None, stdin=None, stdout=None, timeout=1200):
         with __import__('tempfile').TemporaryFile() as log:
@@ -106,12 +116,20 @@ class Engine:
         return self.cmd(flags+list(args), stdin=stdin, stdout=stdout, timeout=timeout)
 
     def current(self): return json.loads((self.root/'current.json').read_text())
+
+    def release_services(self):
+        declared = json.loads((self.root/'compose.json').read_text()).get('services', {})
+        return [name for name in RELEASE_SERVICES if name in ('api', 'web') or name in declared]
+
+    def up(self, images, timeout=550):
+        services = [name for name in RELEASE_SERVICES if name in images]
+        self.compose('up','-d','--no-build','--pull','never','--wait','--wait-timeout','180',*services,images=images,timeout=timeout)
     def path(self, key): return self.jobs/str(UUID(key))
     def load(self, key): return json.loads((self.path(key)/'job.json').read_text())
     def save(self, row):
         row['updated_at'] = now(); atomic(self.path(row['id'])/'job.json', row)
     def public(self, row):
-        keys = ('id','workspace_id','kind','status','phase','commit','base_commit','created_at','updated_at','error','error_stage','error_detail','cleanup_error','checks','rollback','backup_valid','previous_commit','branch','compare_url')
+        keys = ('id','workspace_id','kind','status','phase','commit','base_commit','created_at','updated_at','error','error_stage','error_detail','cleanup_error','checks','rollback','backup_valid','previous_commit','branch','compare_url','updater_handoff')
         return {key: row[key] for key in keys if key in row}
     def list_jobs(self):
         return sorted([self.public(json.loads(p.read_text())) for p in self.jobs.glob('*/job.json')], key=lambda r:r['created_at'], reverse=True)[:100]
@@ -300,9 +318,9 @@ class Engine:
         changed=self.git('diff','--name-only',row['base_commit'],row['commit']).splitlines()
         if 'compose.yml' in changed:raise ValueError('compose.yml modifica la configurazione host: serve una revisione/installazione separata del servizio updater.')
         self.phase(row,'building')
-        tags={name:'cora-candidate-'+row['id']+'-'+name for name in ('api','web')}
+        tags={name:'cora-candidate-'+row['id']+'-'+name for name in self.release_services()}
         for name in tags:
-            target=self.config['api_target'] if name=='api' else 'web'
+            target=self.config['api_target'] if name=='api' else BUILD_TARGETS[name]
             self.cmd(['docker','build','--target',target,'--build-arg','CORA_UID='+str(self.config['uid']),
                       '--build-arg','CORA_GID='+str(self.config['gid']),
                       '--build-arg','CORA_GIT_COMMIT='+row['commit'],'-t',tags[name],str(source)],timeout=1800)
@@ -313,18 +331,25 @@ class Engine:
                   '--entrypoint=python',images['api'],'-m','unittest','discover','-s','tests','-v'],timeout=300)
         summary=re.search(r'Ran (\d+) tests?',output);skipped=re.search(r'skipped=(\d+)',output)
         if not summary or int(summary[1]) <= (int(skipped[1]) if skipped else 0):raise ValueError('Nessun test Python effettivamente eseguito.')
-        row['images']=images; row['checks']={'images_built':True,'frontend_build':True,'python_suite':True}
+        row['images']=images; row['checks']={'images_built':True,'frontend_build':True,'python_suite':True,
+                                             'services':sorted(images)}
         row['status']='ready'; self.phase(row,'ready')
 
     def git_archive(self, commit, output):
         self.cmd(['git','--git-dir='+str(self.repo),'archive','--format=tar',commit],stdout=output,timeout=60)
 
+    def running_image(self, name):
+        container=self.compose('ps','-q',name,timeout=30)
+        if not container: return None
+        if '\n' in container: raise ValueError('Serve una sola istanza attiva per '+name)
+        return self.cmd(['docker','inspect','--format={{.Image}}',container],timeout=30)
+
     def images(self):
         result={}
-        for name in ('api','web'):
-            container=self.compose('ps','-q',name,timeout=30)
-            if not container or '\n' in container: raise ValueError('Serve una sola istanza attiva per '+name)
-            result[name]=self.cmd(['docker','inspect','--format={{.Image}}',container],timeout=30)
+        for name in self.release_services():
+            image=self.running_image(name)
+            if image: result[name]=image
+            elif name in ('api','web'): raise ValueError('Serve una sola istanza attiva per '+name)
         return result
 
     def backup(self, row):
@@ -367,7 +392,7 @@ class Engine:
         for path in (temporary/'state').iterdir(): shutil.move(str(path),str(self.state/path.name))
         if os.getuid()==0:
             for path in [self.state,*self.state.rglob('*')]:os.chown(path,self.config['uid'],self.config['gid'],follow_symlinks=False)
-        self.compose('up','-d','--no-build','--pull','never','--wait','--wait-timeout','180','api','web',images=images,timeout=550)
+        self.up(images)
         atomic(self.root/'current.json',{'commit':commit,'images':images,'updated_at':now()})
         row['rollback']='restored'; self.save(row)
 
@@ -426,7 +451,7 @@ class Engine:
                       '--tmpfs=/tmp:rw,nosuid,size=128m',
                       '-e','CORA_DATABASE_URL=postgresql://cora:'+password+'@'+container+':5432/cora',
                       '--entrypoint=python',image,'-c',
-                      "from core.infra.database import db_connection; c=db_connection(); conn=c.__enter__();"
+                      DB_IMPORT+"c=db_connection(); conn=c.__enter__();"
                       "conn.execute('SELECT 1');c.__exit__(None,None,None)"],timeout=300)
 
             row['checks']={**row.get('checks',{}),'migration_copy':True}
@@ -455,18 +480,52 @@ class Engine:
                 if primary_error is None:
                     raise RuntimeError('Pulizia ambiente di prova non completata: '+row['cleanup_error'])
 
+    def handoff(self, row):
+        """Switch to the updater shipped with the release before touching Cora.
+
+        Returns True when the job has been requeued and the host helper will
+        restart this service with the candidate updater, which then resumes the
+        same job. A second pass (after a successful switch or a helper rollback)
+        never hands off again, so a broken candidate updater cannot loop.
+        """
+        from updater import maintenance
+        if row.get('updater_handoff')=='requested':
+            # Resumed after the helper ran: record which package carries on.
+            try: switched=maintenance.installed_digest()==maintenance.commit_digest(self.repo,row['commit'])
+            except Exception: switched=False
+            row['updater_handoff']='switched' if switched else 'kept_previous'; self.save(row)
+            return False
+        if row.get('updater_handoff') or self.apps is None or not (self.root/'maintenance.enabled').is_file():
+            row.setdefault('updater_handoff', 'unavailable'); self.save(row)
+            return False
+        try:
+            expected=maintenance.commit_digest(self.repo,row['commit'])
+            if maintenance.installed_digest()==expected:
+                row['updater_handoff']='aligned'; self.save(row)
+                return False
+            row['updater_handoff']='requested'; row['status']='queued'; self.phase(row,'awaiting_updater')
+            maintenance.handoff(self,self.apps,row['id'],row['commit'],expected)
+        except Exception as error:
+            # Keep the current updater: the release is still installed, as before.
+            row['updater_handoff']='skipped: '+safe_diagnostic(str(error))[:200]
+            row['status']='running'; self.save(row)
+            return False
+        return True
+
     def apply(self, row):
         release=self.load(row['release_id'])
         if self.current()['commit']!=row['base_commit']: raise ValueError('La versione attiva è cambiata.')
+        if self.handoff(row): return
         row['previous_commit']=self.current()['commit']; row['previous_images']=self.images(); self.save(row)
         self.backup(row)
         self.migration_trial(row,release['images']['api'])
         row['candidate_may_have_started']=True
         self.phase(row,'candidate_starting')
-        self.compose('up','-d','--no-build','--pull','never','--wait','--wait-timeout','180','api','web',images=release['images'],timeout=550)
+        self.up(release['images'])
         # Confirm HTTP and a real DB connection in addition to container healthchecks.
         self.compose('exec','-T','api','python','-c',
-                     "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/auth/status',timeout=5)\nfrom core.infra.database import db_connection\nwith db_connection() as conn: conn.execute('SELECT 1')",timeout=30)
+                     "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/auth/status',timeout=5)\n"
+                     +DB_IMPORT+"with db_connection() as conn: conn.execute('SELECT 1')",timeout=30)
         atomic(self.root/'current.json',{'commit':row['commit'],'images':release['images'],'updated_at':now()})
         release['applied_job']=row['id']; release['status']='applied'; self.save(release)
         row['status']='completed'; self.phase(row,'completed')
@@ -494,7 +553,7 @@ class Engine:
             if row.get('backup_valid') and (row.get('candidate_may_have_started') or row.get('restore_may_have_started') or row['phase'] in {'candidate_starting','restoring'}):
                 self.restore(row,row['id'],row['previous_images'],row['previous_commit'])
             else:
-                self.compose('up','-d','--no-build','--pull','never','--wait','--wait-timeout','180','api','web',images=row['previous_images'],timeout=550)
+                self.up(row['previous_images'])
                 row['rollback']='previous_services_restarted'
         if row['kind']=='apply' and row.get('release_id'):
             release=self.load(row['release_id']);release['status']='ready';release.pop('applied_job',None);self.save(release)
@@ -531,7 +590,9 @@ class Engine:
                     except BaseException: row['status']='recovery_required'; self.save(row)
             while not self.closed.is_set():
                 with self.lock:
-                    queued=next((self.load(r['id']) for r in reversed(self.list_jobs()) if r['status']=='queued'),None)
+                    # A pending package switch owns the service: the requeued job resumes after it.
+                    queued=None if (self.root/'maintenance.request').exists() else \
+                        next((self.load(r['id']) for r in reversed(self.list_jobs()) if r['status']=='queued'),None)
                     if not queued and not (self.root/'maintenance.request').exists() and not any(r['status'] in BUSY | {'recovery_required'} for r in self.list_jobs()):
                         from updater.data_backups import tick
                         tick(self)

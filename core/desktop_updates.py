@@ -53,9 +53,16 @@ def status():
             return {"platform": "windows", **JOB}
     from programmer_agent import releases
     try:
-        return {"platform": "server", **releases.status()}
+        state = {"platform": "server", **releases.status()}
     except (ValueError, OSError):
         return {"platform": "server", "available": False, "reason": "Updater non raggiungibile", "jobs": []}
+    if state.get("available"):
+        try:
+            state["components"] = releases.request("GET", "/host/components", timeout=20)
+        except (ValueError, OSError):
+            # Older updaters lack the endpoint: the page says so instead of showing "all fine".
+            state["components"] = None
+    return state
 
 
 @router.post("/server/prepare", status_code=202)
