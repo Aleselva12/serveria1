@@ -3,7 +3,7 @@ from uuid import UUID
 
 from psycopg.types.json import Jsonb
 
-from core.database import db_connection
+from core.infra.database import db_connection
 from core.protocol import ComponentEvent
 
 

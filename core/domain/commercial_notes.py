@@ -14,12 +14,12 @@ from zipfile import BadZipFile
 from fastapi import HTTPException
 from lxml.etree import XMLSyntaxError
 
-from core.confined_paths import confined_path
-from core.database import db_connection
 from core.domain.commercial_word import parse, propose_append
 from core.domain.commercial_word import search as search_blocks
 from core.domain.server_files import operation
-from core.file_paths import library_workspace_root
+from core.infra.confined_paths import confined_path
+from core.infra.database import db_connection
+from core.infra.file_paths import library_workspace_root
 from core.runtime import checkpoint
 
 MAX_WORD_BYTES = 5_000_000

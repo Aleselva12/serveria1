@@ -32,6 +32,6 @@ un target vuoto con la versione corrispondente.
 | 0009 | Esecuzioni dei collaudi una tantum della Roadmap |
 | 0010 | Valutazioni delle priorità della Roadmap |
 
-L’esecutore è `core/database.py` dalla radice del repository. Normalizza CRLF in LF prima del checksum; rifiuta versioni duplicate, inserimenti precedenti all’ultima applicata, checksum cambiati e schema più nuovo del codice. Si attiva alla prima connessione che richiede lo schema, non è un comando di deploy separato.
+L’esecutore è `core/infra/database.py` dalla radice del repository. Normalizza CRLF in LF prima del checksum; rifiuta versioni duplicate, inserimenti precedenti all’ultima applicata, checksum cambiati e schema più nuovo del codice. Si attiva alla prima connessione che richiede lo schema, non è un comando di deploy separato.
 
 Il test di contratto è `tests/test_database_migration_contract.py`; i test PostgreSQL e il trial updater richiedono istanze sacrificabili. L’[audit del 25 ottobre](../../docs/README_AUDIT_20261025.md) resta una fotografia storica e non prova quali migrazioni siano oggi applicate sul Debian: per quello usare il commit attivo dell'updater e `cora_schema_migrations` sul database reale.

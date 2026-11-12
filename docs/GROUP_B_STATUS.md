@@ -7,7 +7,7 @@ implementato da ciò che è parziale o richiede una decisione architetturale.
 
 **Implementato**
 - lifecycle persistente di root/child run in PostgreSQL;
-- state machine esplicita in `core.run_states`;
+- state machine esplicita in `core.infra.run_states`;
 - `TaskEnvelope`, `ComponentResult`, `ComponentEvent`;
 - Component Bus tipizzato in-process;
 - Event Bus live con replay limitato;

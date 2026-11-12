@@ -156,7 +156,7 @@ def _action(action, run_id):
             raise ValueError("Memoria non riletta")
         return {"status": "pass"}
     if action == "memory_cleanup":
-        from core.database import db_connection
+        from core.infra.database import db_connection
         # Generated key AND source: never delete an unrelated memory.
         with db_connection(ensure_schema=False) as conn:
             conn.execute("DELETE FROM memories WHERE key=%s AND source='verification'", (key,))
@@ -308,7 +308,7 @@ def main():
 
 
 def execute(args, on_result=None):
-    from core.release_identity import revision
+    from core.infra.release_identity import revision
     commit = revision()
     environment = "ci-verifier" if os.getenv("GITHUB_ACTIONS") == "true" else "debian-verifier" if sys.platform == "linux" and os.getenv("CORA_RUNTIME_MODE") == "server" else "local-verifier"
     rows = []
@@ -324,7 +324,7 @@ def execute(args, on_result=None):
         print(check_id + ": " + result["status"] + " · " + result.get("detail", ""))
     persisted = False
     if args.persist:
-        from core.database import db_connection
+        from core.infra.database import db_connection
         # No schema changes; use the application's existing result store.
         with db_connection(ensure_schema=False) as conn:
             for row in rows:

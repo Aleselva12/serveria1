@@ -44,8 +44,8 @@ class ConsultationTests(unittest.TestCase):
 @unittest.skipUnless(os.getenv('CORA_RUNTIME_TEST_DATABASE_URL'),'Requires disposable PostgreSQL')
 class ConsultationPostgresTests(unittest.TestCase):
     def test_pagination_isolation_and_conversation_deletion(self):
-        from core.database import db_connection
         from core.domain.chat_store import ensure_conversation
+        from core.infra.database import db_connection
         first,second=uuid4(),uuid4()
         ensure_conversation(str(first));ensure_conversation(str(second))
         run=SimpleNamespace(thread_id=str(first),id=str(uuid4()))

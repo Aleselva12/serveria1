@@ -5,8 +5,8 @@ import time
 
 from pgvector import Vector
 
-from core.database import db_connection
 from core.domain.embeddings import EMBEDDING_MODEL, embed_batch
+from core.infra.database import db_connection
 from core.runtime import runtime
 
 _stop = threading.Event()
@@ -54,7 +54,7 @@ def index_pending_once():
             for row, vector in zip(rows,vectors):
                 conn.execute("UPDATE messages SET embedding=%s,embedding_model=%s,embedding_dimensions=%s WHERE id=%s AND embedding IS NULL",
                     (Vector(vector) if vector else None, EMBEDDING_MODEL, len(vector) if vector else None, row["id"]))
-        from core.logging import log_event
+        from core.infra.logging import log_event
         log_event("message_indexing", component="embedding_worker", duration_ms=round((time.perf_counter()-started)*1000,2), status="ok" if all(vectors) else "error", data={"message_count":len(rows)})
         return True
     finally:
@@ -68,7 +68,7 @@ def _loop():
         except Exception as error:
             # Keep the queue recoverable, but expose the failure type as metadata.
             try:
-                from core.logging import log_event
+                from core.infra.logging import log_event
                 log_event("background_indexing", component="embedding_worker",
                           status="error", data={"error_type": type(error).__name__})
             except Exception:

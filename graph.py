@@ -99,7 +99,7 @@ def _runtime_system_prompt(messages, request_text=None, manual_tools=None) -> tu
         run.timings["selected_tools"] = tool_names
         run.timings["tool_selection"] = "manual" if manual is not None else "automatic"
         run.timings["selected_tool_count"] = len(tool_names)
-        from core.event_bus import bus
+        from core.infra.event_bus import bus
         bus.publish(
             "context.pages_selected",
             "context",

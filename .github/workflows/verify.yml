@@ -102,7 +102,7 @@ jobs:
         continue-on-error: true
         run: sudo apt-get update -qq && sudo apt-get install -y age
       - run: |
-          python -c "from core.database import db_connection; c = db_connection(); c.__enter__(); c.__exit__(None, None, None)"
+          python -c "from core.infra.database import db_connection; c = db_connection(); c.__enter__(); c.__exit__(None, None, None)"
           python -m unittest discover -s tests -v
           python smoke_check.py
       - name: Node verification regression report

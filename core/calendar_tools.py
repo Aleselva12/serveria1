@@ -67,7 +67,7 @@ def calendar_tools_for(actor: str):
         if google_calendar.token_exists():
             validated = store.EventInput.model_validate(data).model_dump(mode="json")
             _require_google_approval(actor, "calendar_create_event")
-            from core.operation_journal import current_approval
+            from core.infra.operation_journal import current_approval
             approval_id = current_approval.get()
             if not approval_id:
                 raise PermissionError("Creazione Google senza approvazione persistente.")

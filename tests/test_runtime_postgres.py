@@ -9,8 +9,8 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from core.auth import provision
-from core.database import db_connection
 from core.governance import agent_tool, resolve
+from core.infra.database import db_connection
 from core.permissions import require_permission, set_policy
 from core.runtime import Runtime
 
@@ -37,7 +37,7 @@ class RuntimePostgresTests(unittest.TestCase):
     def tearDown(self):
         self.client.close();self.runtime.shutdown();self.patch.stop()
         self.postprocess.shutdown();self.postprocess_patch.stop()
-        from core.database import close_pool
+        from core.infra.database import close_pool
         close_pool()
 
     def test_login_logout_revocation_and_password_not_in_session(self):
@@ -255,7 +255,7 @@ class RuntimePostgresTests(unittest.TestCase):
 
         import graph as supervisor
         import search_agent.search_graph as specialist
-        from core.event_bus import bus
+        from core.infra.event_bus import bus
         root=FakeMessagesListChatModel(responses=[AIMessage(content='',tool_calls=[{'name':'search_agent_tool','args':{'query':'read'},'id':'delegation','type':'tool_call'}])]).with_config(metadata={'cora_role':'supervisor'})
         child=FakeListChatModel(responses=['Risposta progressiva']).with_config(metadata={'cora_role':'research'})
         with patch.object(supervisor,'model_with_tools',root),patch.object(specialist,'model_with_tools',child):

@@ -2,7 +2,7 @@
 import threading
 from uuid import UUID
 
-from core.database import database_configured, db_connection
+from core.infra.database import database_configured, db_connection
 
 _lock = threading.Lock()
 _failures = 0

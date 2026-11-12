@@ -97,8 +97,8 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(len(response.tool_calls), 2)
 
     def test_cancellation_and_uncertain_effect_are_not_recoverable(self):
-        from core.run_lifecycle import RunCancelled
-        from core.run_states import EffectUncertain
+        from core.infra.run_lifecycle import RunCancelled
+        from core.infra.run_states import EffectUncertain
         from core.runtime_context import RunTimedOut
         for error in (RunCancelled('stop'), RunTimedOut('timeout')):
             with self.assertRaises(type(error)): pg.tool_error(error)
@@ -130,7 +130,7 @@ class ContextTests(unittest.TestCase):
     def test_post_model_cancellation_prevents_tool_execution(self):
         from unittest.mock import MagicMock
 
-        from core.run_lifecycle import RunCancelled
+        from core.infra.run_lifecycle import RunCancelled
         model = MagicMock()
         model.bind_tools.return_value = model
         model.invoke.return_value = AIMessage('', tool_calls=[call('programmer_write_file')])

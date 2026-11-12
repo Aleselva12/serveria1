@@ -8,8 +8,8 @@ from uuid import uuid4
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 from core.context_budget import ContextDeferred, ContextOverflow, fit_messages, prepare_context
-from core.database import db_connection
 from core.domain.memory import MemoryConflict, memory_history, save_memory, search_memories
+from core.infra.database import db_connection
 
 
 class ContextContractTests(unittest.TestCase):
@@ -61,7 +61,7 @@ class MemoryPostgresTests(unittest.TestCase):
         permissions._policy_time=0
 
     def tearDown(self):
-        from core.database import close_pool
+        from core.infra.database import close_pool
         close_pool()
 
     def test_versioned_edit_and_stale_write_preserve_previous_content(self):

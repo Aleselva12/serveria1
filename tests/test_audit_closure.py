@@ -9,7 +9,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-from core import auth, ollama_transport
+from core import auth
+from core.infra import ollama_transport
 from updater.engine import Engine
 
 

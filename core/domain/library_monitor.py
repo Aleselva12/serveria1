@@ -5,7 +5,7 @@ import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
-from core.file_paths import knowledge_root, originals_root
+from core.infra.file_paths import knowledge_root, originals_root
 from search_agent.search_tools import BLOCKED_NAMES, BLOCKED_PARTS, _safe_path
 
 _LOCK = threading.RLock()

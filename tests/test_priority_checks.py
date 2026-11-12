@@ -26,11 +26,11 @@ class PriorityChecksTests(unittest.TestCase):
 
     def test_trace_converts_provider_units_without_adding_nested_nodes(self):
         import types
-        fake = types.ModuleType('core.execution_traces')
+        fake = types.ModuleType('core.infra.execution_traces')
         fake.read_runs = lambda **kwargs: [{'id': 'id', 'status': 'completed', 'duration_ms': 1000,
             'metrics': {'node_ms': 2000, 'models': [{'duration_ms': 900,
                 'prompt_eval_duration': 600000000, 'eval_duration': 300000000}]}}]
-        with patch.dict('sys.modules', {'core.execution_traces': fake}), patch('builtins.print') as output:
+        with patch.dict('sys.modules', {'core.infra.execution_traces': fake}), patch('builtins.print') as output:
             exec(checks.trace_source('11111111-1111-4111-8111-111111111111'), {})
         report = json.loads(output.call_args.args[0])
         run = report['runs'][0]
@@ -95,13 +95,13 @@ class PriorityChecksTests(unittest.TestCase):
 
     def test_trace_keeps_metrics_but_excludes_private_payloads(self):
         import types
-        fake = types.ModuleType('core.execution_traces')
+        fake = types.ModuleType('core.infra.execution_traces')
         fake.read_runs = lambda **kwargs: [{'id':'id','status':'completed','duration_ms':100,
             'thread_id':'private','events':[{'content':'private'}],
             'metrics':{'queue_ms':2,'context_ms':3,'output':'private',
                        'configuration':{'model':'test','ollama_base_url':'private'},
                        'models':[{'role':'programmer','duration_ms':80,'response':'private'}]}}]
-        with patch.dict('sys.modules', {'core.execution_traces':fake}), patch('builtins.print') as output:
+        with patch.dict('sys.modules', {'core.infra.execution_traces':fake}), patch('builtins.print') as output:
             exec(checks.trace_source('11111111-1111-4111-8111-111111111111'), {})
         report = json.loads(output.call_args.args[0])
         self.assertNotIn('private', json.dumps(report))

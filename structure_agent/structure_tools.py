@@ -14,7 +14,7 @@ from core.domain.plans import (
     save_plan_record,
 )
 from core.governance import agent_tool
-from core.logging import tail_events
+from core.infra.logging import tail_events
 from core.orchestration import resolve_plan_owner
 from core.permissions import check_permission as check_permission
 from core.permissions import permission_manifest, require_permission

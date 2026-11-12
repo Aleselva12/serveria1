@@ -30,7 +30,7 @@ def _connection():
     import psycopg
     from psycopg.rows import dict_row
 
-    from core.database import DATABASE_URL
+    from core.infra.database import DATABASE_URL
     if not DATABASE_URL:
         raise RuntimeError("Database non configurato")
     return psycopg.connect(DATABASE_URL, autocommit=True, row_factory=dict_row,

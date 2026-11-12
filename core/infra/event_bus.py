@@ -26,7 +26,7 @@ class EventBus:
                                    parent_span_id=parent_span_id,operation_id=operation_id)
             self.events.append(event.model_dump())
             self.condition.notify_all()
-            from core.observability import archive
+            from core.infra.observability import archive
             try: archive.record(event.model_dump(mode='json'))
             except Exception as error:
                 with archive.lock:

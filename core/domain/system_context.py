@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from core.database import db_connection
-from core.logging import log_event
+from core.infra.database import db_connection
+from core.infra.logging import log_event
 
 
 def get_system_context() -> dict[str, Any]:

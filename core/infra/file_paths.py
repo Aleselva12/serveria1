@@ -3,7 +3,7 @@ import os
 import stat
 from pathlib import Path
 
-BASE = Path(__file__).resolve().parent.parent
+BASE = Path(__file__).resolve().parents[2]
 ORIGINALS_ID = 'ia-originals'
 
 LIBRARY_ERRORS = {

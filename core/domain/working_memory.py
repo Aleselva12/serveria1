@@ -4,7 +4,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from core.database import db_connection
+from core.infra.database import db_connection
 
 DEFAULT_TTL_MINUTES = 120
 

@@ -100,7 +100,7 @@ def orchestrator_v1_contract():
         if not component or not component.get("available"):
             return "fail", "Componente orchestrazione non disponibile: " + component_id
 
-    from core.component_bus import component_bus
+    from core.infra.component_bus import component_bus
     if not callable(getattr(component_bus, "dispatch_capability", None)):
         return "fail", "Component Bus non espone dispatch_capability"
 
@@ -108,7 +108,7 @@ def orchestrator_v1_contract():
     if not callable(operational_registry):
         return "fail", "Capability Registry operativo non disponibile"
 
-    from core.run_states import TRANSITIONS
+    from core.infra.run_states import TRANSITIONS
     required_states = {"queued", "running", "cancelling", "completed", "failed", "awaiting_approval"}
     known_states = set(TRANSITIONS) | {state for targets in TRANSITIONS.values() for state in targets}
     if not required_states <= known_states:

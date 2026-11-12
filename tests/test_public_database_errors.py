@@ -8,11 +8,11 @@ class PublicDatabaseErrorsTests(unittest.TestCase):
         from core.api.memory_api import memory_status
         from core.api.runtime_api import component_states
         from core.api.system_api import health
-        from core.database import database_status
         from core.domain.memory import memory_stats
+        from core.infra.database import database_status
         secret = 'password=private-db-password host=internal-db /srv/private/db.sql SELECT confidential'
-        with patch('core.database.database_configured', return_value=True), \
-             patch('core.database.db_connection', side_effect=RuntimeError(secret)), \
+        with patch('core.infra.database.database_configured', return_value=True), \
+             patch('core.infra.database.db_connection', side_effect=RuntimeError(secret)), \
              patch('core.runtime_status._ollama_online', return_value=False), \
              patch('core.api.system_api._ollama_online', return_value=False):
             for consumer in (database_status, memory_stats, health, memory_status, component_states):

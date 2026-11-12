@@ -10,10 +10,10 @@ from pathlib import Path
 
 from docx import Document
 
-from core.confined_paths import confined_path
 from core.domain.server_files import operation, trash_area
-from core.file_paths import library_workspace_root
 from core.governance import agent_tool
+from core.infra.confined_paths import confined_path
+from core.infra.file_paths import library_workspace_root
 from core.runtime_context import ensure_runtime_active
 
 

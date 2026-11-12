@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from core.database import db_connection
+from core.infra.database import db_connection
 
 COOKIE = "cora_session"
 router = APIRouter(prefix="/auth", tags=["Accesso"])

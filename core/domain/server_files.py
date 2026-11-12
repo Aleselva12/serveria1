@@ -21,8 +21,8 @@ from pydantic import BaseModel, Field
 
 from core.access import is_loopback as is_loopback
 from core.access import require_owner
-from core.confined_paths import confined_path
-from core.file_paths import ORIGINALS_ID, original_resource
+from core.infra.confined_paths import confined_path
+from core.infra.file_paths import ORIGINALS_ID, original_resource
 
 BASE = Path(__file__).resolve().parents[2]
 RESERVED = {".cora-trash", ".cora-staging", ".cora-commercial-backups"}

@@ -8,10 +8,10 @@ from uuid import uuid4
 import httpx
 from ollama import ResponseError
 
-from core import execution_traces as traces
-from core.event_bus import EventBus
-from core.observability import DiagnosticArchive, metadata_event
-from core.provider_errors import MESSAGES, provider_detail
+from core.infra import execution_traces as traces
+from core.infra.event_bus import EventBus
+from core.infra.observability import DiagnosticArchive, metadata_event
+from core.infra.provider_errors import MESSAGES, provider_detail
 
 
 class ProviderErrorTests(unittest.TestCase):
@@ -33,7 +33,7 @@ class ProviderErrorTests(unittest.TestCase):
 
     def test_callback_bus_archive_and_jsonl_keep_only_safe_model_detail(self):
         bus=EventBus();archive=DiagnosticArchive()
-        with tempfile.TemporaryDirectory() as tmp, patch('core.event_bus.bus',bus), patch('core.observability.archive',archive), patch.object(traces,'TRACE_FILE',Path(tmp)/'trace.jsonl'), patch.dict('os.environ',{'CORA_DIAGNOSTIC_JSONL_EXPORT':'true'}):
+        with tempfile.TemporaryDirectory() as tmp, patch('core.infra.event_bus.bus',bus), patch('core.infra.observability.archive',archive), patch.object(traces,'TRACE_FILE',Path(tmp)/'trace.jsonl'), patch.dict('os.environ',{'CORA_DIAGNOSTIC_JSONL_EXPORT':'true'}):
             trace=traces.ExecutionTrace('thread','v1');span=uuid4()
             trace.on_chat_model_start({},[],run_id=span)
             trace.on_llm_error(ResponseError('secret not found',404),run_id=span)
@@ -51,7 +51,7 @@ class ProviderErrorTests(unittest.TestCase):
         row={'id':identifier,'parent_run_id':None,'metadata':{},'created_at':'2026-10-11'}
         snapshot={'id':identifier,'thread_id':'thread','status':'failed','elapsed_ms':1,'timings':{}}
         event=metadata_event({'type':'trace.span','timestamp':'2026-10-11','payload':{'kind':'model','status':'error','error_type':'ResponseError','error_detail':MESSAGES['memory']}})
-        with patch.object(traces,'database_configured',return_value=True), patch('core.run_lifecycle.get_run',return_value=row), patch('core.run_lifecycle.persisted_snapshot',return_value=snapshot), patch('core.observability.read',return_value={'events':[event],'truncated':False}):
+        with patch.object(traces,'database_configured',return_value=True), patch('core.infra.run_lifecycle.get_run',return_value=row), patch('core.infra.run_lifecycle.persisted_snapshot',return_value=snapshot), patch('core.infra.observability.read',return_value={'events':[event],'truncated':False}):
             result=traces.read_runs(run_id=identifier)
         self.assertEqual(result[0]['events'][0]['error_detail'],MESSAGES['memory'])
 
@@ -63,7 +63,7 @@ class ProviderErrorTests(unittest.TestCase):
         event=ComponentEvent(type='trace.span',source='tracing',payload={'kind':'model','error_detail':MESSAGES['timeout'],'prompt':'secret'})
         archive.record(event.model_dump(mode='json'))
         connection=MagicMock()
-        with patch('core.observability.database_configured',return_value=True), patch('core.observability.db_connection',return_value=connection):
+        with patch('core.infra.observability.database_configured',return_value=True), patch('core.infra.observability.db_connection',return_value=connection):
             self.assertTrue(archive.flush())
         inserted=connection.__enter__.return_value.execute.call_args.args[1][-1].obj
         self.assertEqual(inserted['payload']['error_detail'],MESSAGES['timeout'])

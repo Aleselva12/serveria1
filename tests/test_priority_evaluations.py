@@ -13,9 +13,9 @@ from tests.test_roadmap_classifier import FakeResponse, goal, result
 class PriorityEvaluationTests(unittest.TestCase):
     def setUp(self):
         for target, kwargs in [
-            ("core.run_lifecycle.create_run", {"return_value": {"id": "test-run"}}),
-            ("core.run_lifecycle.transition_run", {}),
-            ("core.execution_traces.append_event", {}),
+            ("core.infra.run_lifecycle.create_run", {"return_value": {"id": "test-run"}}),
+            ("core.infra.run_lifecycle.transition_run", {}),
+            ("core.infra.execution_traces.append_event", {}),
         ]:
             patcher = patch(target, **kwargs)
             patcher.start()
@@ -73,12 +73,12 @@ class PriorityEvaluationTests(unittest.TestCase):
         self.assertTrue(status["separate_from_supervisor"])
 
     def test_reads_never_trigger_inference_and_storage_errors_are_not_empty_successes(self):
-        with patch("core.database.DATABASE_URL","configured"),patch("core.database.db_connection") as db,patch.object(classifier,"_evaluate") as evaluate:
+        with patch("core.infra.database.DATABASE_URL","configured"),patch("core.infra.database.db_connection") as db,patch.object(classifier,"_evaluate") as evaluate:
             db.return_value.__enter__.return_value.execute.return_value.fetchone.return_value={"snapshot":{"ratings":[{"id":"T1"}]}}
             self.assertTrue(classifier.latest_evaluation()["available"])
             self.assertFalse(db.call_args.kwargs["ensure_schema"])
             evaluate.assert_not_called()
-        with patch("core.database.DATABASE_URL","configured"),patch("core.database.db_connection",side_effect=OSError("private-details")):
+        with patch("core.infra.database.DATABASE_URL","configured"),patch("core.infra.database.db_connection",side_effect=OSError("private-details")):
             self.assertEqual(store.latest(),{"evaluation":None,"available":False})
 
 

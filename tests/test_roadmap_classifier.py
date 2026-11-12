@@ -132,12 +132,12 @@ class ClassifierTests(unittest.TestCase):
         self.assertIn(str(classifier.TIMEOUT_SECONDS), err.exception.detail)
 
     def test_activity_records_success_and_failure(self):
-        from core import run_lifecycle
         from core.domain import priority_evaluations
+        from core.infra import run_lifecycle
         request = classifier.PreviewRequest(objectives=[goal()])
         evaluation = {"model": classifier.MODEL, "reported_model": classifier.MODEL, "objective_count": 1}
         for failure in [False, True]:
-            with patch("core.execution_traces.append_event"), patch.object(run_lifecycle, "create_run", return_value={"id": "test-run"}) as create, patch.object(run_lifecycle, "transition_run") as transition, patch.object(classifier, "_evaluate", side_effect=HTTPException(504, "Timeout") if failure else None, return_value=evaluation), patch.object(priority_evaluations, "save", return_value=True):
+            with patch("core.infra.execution_traces.append_event"), patch.object(run_lifecycle, "create_run", return_value={"id": "test-run"}) as create, patch.object(run_lifecycle, "transition_run") as transition, patch.object(classifier, "_evaluate", side_effect=HTTPException(504, "Timeout") if failure else None, return_value=evaluation), patch.object(priority_evaluations, "save", return_value=True):
                 if failure:
                     with self.assertRaises(HTTPException):
                         asyncio.run(classifier.classifier_preview(request))
@@ -147,7 +147,7 @@ class ClassifierTests(unittest.TestCase):
                 self.assertEqual([call.args[1] for call in transition.call_args_list], ["running", "failed" if failure else "completed"])
 
     def test_missing_activity_store_never_starts_untracked_inference(self):
-        with patch("core.run_lifecycle.create_run", side_effect=OSError), patch.object(classifier, "_evaluate") as evaluate:
+        with patch("core.infra.run_lifecycle.create_run", side_effect=OSError), patch.object(classifier, "_evaluate") as evaluate:
             with self.assertRaises(HTTPException) as error:
                 asyncio.run(classifier.classifier_preview(classifier.PreviewRequest(objectives=[goal()])))
             self.assertEqual(error.exception.status_code, 503)

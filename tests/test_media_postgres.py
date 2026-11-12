@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 from fastapi.testclient import TestClient
 
 from core.auth import provision
-from core.database import close_pool, db_connection
+from core.infra.database import close_pool, db_connection
 from core.runtime import Runtime
 
 

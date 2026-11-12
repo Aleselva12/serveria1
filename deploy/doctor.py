@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from core.ollama_transport import get_ollama_base_url, urlopen
+from core.infra.ollama_transport import get_ollama_base_url, urlopen
 
 
 def model_available(name,names):
@@ -13,11 +13,11 @@ def model_available(name,names):
 
 def inspect():
     checks={}
-    from core.file_paths import library_workspace_status
+    from core.infra.file_paths import library_workspace_status
     library=library_workspace_status()
     checks['library']={'ok':library['available'],**library}
     try:
-        from core.database import db_connection
+        from core.infra.database import db_connection
         with db_connection(ensure_schema=False) as conn:
             row=conn.execute("SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname='vector') AS vector").fetchone()
             migrations=conn.execute('SELECT COUNT(*) AS n FROM cora_schema_migrations').fetchone()['n']

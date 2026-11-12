@@ -10,7 +10,7 @@ from core.runtime_context import ensure_runtime_active
 
 
 def _unavailable(code='LibraryReadError', *, reading=False, action=None, for_model=True):
-    from core.file_paths import LIBRARY_ERRORS
+    from core.infra.file_paths import LIBRARY_ERRORS
     reason=LIBRARY_ERRORS.get(code, 'La consultazione della Libreria IA non è riuscita.')
     if not for_model:
         return 'Impossibile consultare la Libreria IA: '+reason+' Nessun documento letto è confermato.'
@@ -29,7 +29,7 @@ def _invoke(tool, parameters, *, reading=False, action=None, for_model=True):
     try: value=tool.invoke(parameters)
     except CapabilityExecutionError as error:
         # Legacy stop errors may have crossed a capability adapter as categories.
-        from core.run_lifecycle import RunCancelled
+        from core.infra.run_lifecycle import RunCancelled
         from core.runtime_context import RunTimedOut
         if error.code=='RunCancelled': raise RunCancelled('Run cancellato.') from error
         if error.code=='RunTimedOut': raise RunTimedOut('Tempo del run scaduto.') from error

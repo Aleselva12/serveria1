@@ -13,9 +13,9 @@ from fastapi.testclient import TestClient
 from psycopg import sql
 from psycopg.rows import dict_row
 
-from core import database
 from core.api.audio_api import router
 from core.domain import commercial_notes
+from core.infra import database
 from tests.test_commercial_notes import sample
 
 

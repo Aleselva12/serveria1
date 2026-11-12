@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 
 from core.generation_policy import run_timeout
-from core.run_lifecycle import RunCancelled, cancel_requested
+from core.infra.run_lifecycle import RunCancelled, cancel_requested
 
 
 class RunTimedOut(RuntimeError):

@@ -6,8 +6,8 @@ from uuid import UUID, uuid4
 
 from psycopg.types.json import Jsonb
 
-from core.database import database_configured, db_connection
-from core.run_states import DurabilityLost
+from core.infra.database import database_configured, db_connection
+from core.infra.run_states import DurabilityLost
 
 
 class OperationConflict(RuntimeError):
@@ -45,7 +45,7 @@ def begin(entry, payload):
                  current_approval.get(),contract.id,contract.version,entry['contract_digest'],entry['revision'],
                  contract.actor,contract.effect,contract.retry,Jsonb(payload),intent)).fetchone()
             if row:
-                from core.domain_events import operation_state
+                from core.infra.domain_events import operation_state
                 operation_state(conn,row,1)
     except Exception as error:
         raise DurabilityLost('OperationStartNotPersisted') from error
@@ -65,7 +65,7 @@ def finish(identifier, effect, result=None, error_type=None):
                 (status,Jsonb(result.model_dump(mode='json')) if result is not None else None,
                  error_type or (result.error.code if result and result.error else None),UUID(identifier))).fetchone()
             if not row: raise ValueError('Operation already finalized')
-            from core.domain_events import operation_state
+            from core.infra.domain_events import operation_state
             operation_state(conn,row,2)
     except Exception as error:
         raise DurabilityLost('OperationOutcomeNotPersisted') from error
@@ -92,7 +92,7 @@ def review(identifier, outcome, note, username):
             WHERE id=%s AND status='uncertain' AND review_outcome IS NULL RETURNING *''',
             (outcome,username,note.strip(),UUID(identifier))).fetchone()
         if not row: raise ValueError('Operazione non verificabile o già verificata.')
-        from core.domain_events import append
+        from core.infra.domain_events import append
         append(conn,type='operation.reviewed',source='owner',aggregate_id=row['id'],revision=3,
                run_id=row['run_id'],root_run_id=str(row['root_run_id']) if row['root_run_id'] else None,
                payload={'operation_id':str(row['id']),'outcome':outcome})

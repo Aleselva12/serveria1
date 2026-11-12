@@ -4,8 +4,8 @@ from urllib.request import Request
 
 import psutil
 
+from core.infra.ollama_transport import get_ollama_base_url, urlopen
 from core.models import model_options, save_runtime_model
-from core.ollama_transport import get_ollama_base_url, urlopen
 
 MODEL = 'qwen3:8b'
 

@@ -42,7 +42,7 @@ repository o tutti i README nel prompt.
 | Pagina Attività / explorer | `docs/ACTIVITY_EXPLORER.md` | sorgenti `frontend/` relativi |
 | Verifica automatica dei nodi | `docs/NODE_VERIFICATION.md` | `deploy/verify_nodes.py` |
 | Priorità / classificatore della Roadmap | `docs/PRIORITY_EVALUATIONS.md` | `docs/ROADMAP_V2_IMPLEMENTATION.md` per la Roadmap |
-| Libreria IA / workspace | `docs/library-workspace-resilience.md` | `core/file_paths.py` |
+| Libreria IA / workspace | `docs/library-workspace-resilience.md` | `core/infra/file_paths.py` |
 | Programmatore: router e contesto | `docs/programmer-semantic-router.md` | `docs/programmer-context-manager.md` per la prima versione |
 | Manutenzione host via updater | `docs/HOST_MAINTENANCE.md` | `docs/NEXTCLOUD_AIO_MAINTENANCE.md` per Nextcloud |
 | Diagnostica updater e Magazzino Tele sul Debian | `docs/TROUBLESHOOT_UPDATER_TELE.md` | `updater/README.md` |

@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import patch
 
-from core.component_bus import component_bus
 from core.governance import agent_tool, executables
+from core.infra.component_bus import component_bus
 from core.operational_capabilities import operational_registry
 
 
@@ -37,8 +37,8 @@ class OperationalCapabilitiesTests(unittest.TestCase):
             """Bus probe."""
             return str(value + 1)
 
-        with patch("core.operation_journal.begin", return_value=None), \
-             patch("core.operation_journal.finish", return_value=None), \
+        with patch("core.infra.operation_journal.begin", return_value=None), \
+             patch("core.infra.operation_journal.finish", return_value=None), \
              patch.object(component_bus, "dispatch", wraps=component_bus.dispatch) as dispatch:
             self.assertEqual(probe.invoke({"value": 2}), "3")
         self.assertTrue(dispatch.called)

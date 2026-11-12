@@ -7,9 +7,9 @@ from unittest.mock import patch
 from langchain_core.messages import AIMessageChunk
 from langchain_core.outputs import ChatGenerationChunk
 
-from core.execution_traces import ExecutionTrace
+from core.infra.execution_traces import ExecutionTrace
+from core.infra.observability import metadata_event
 from core.models import get_chat_model, model_options
-from core.observability import metadata_event
 from core.runtime import Run, current_run, publish_thinking
 from deploy import prepare_qwen3
 
@@ -61,7 +61,7 @@ class ModelThinkingTests(unittest.TestCase):
                 model=get_chat_model('programmer')
             chunks=[{'message':{'content':'','thinking':'Verifico i file'},'done':False},
                     {'message':{'content':'Risposta'},'done':True,'done_reason':'stop'}]
-            with patch.object(ConfiguredChatOllama,'_create_chat_stream',return_value=iter(chunks)), patch('core.execution_traces.append_event'):
+            with patch.object(ConfiguredChatOllama,'_create_chat_stream',return_value=iter(chunks)), patch('core.infra.execution_traces.append_event'):
                 output=list(model.stream([HumanMessage(content='prova')],config={'callbacks':[ExecutionTrace('stream-test','test')]}))
             self.assertEqual(run.thinking,'Verifico i file')
             self.assertEqual(''.join(chunk.content for chunk in output),'Risposta')

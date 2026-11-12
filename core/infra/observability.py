@@ -8,7 +8,7 @@ from uuid import UUID
 
 from psycopg.types.json import Jsonb
 
-from core.database import database_configured, db_connection
+from core.infra.database import database_configured, db_connection
 
 PAYLOAD_FIELDS = {
     'programmer.context_projection': {'compacted', 'original_tokens', 'projected_tokens'},
@@ -37,7 +37,7 @@ def metadata_event(event):
     allowed = SAFE_LOG_FIELDS | {'duration_ms','status'} if event['type'].startswith('log.') else PAYLOAD_FIELDS.get(event['type'],set())
     result['payload'] = {k:v for k,v in event['payload'].items() if k in allowed}
     if 'error_detail' in result['payload']:
-        from core.provider_errors import safe_detail
+        from core.infra.provider_errors import safe_detail
         result['payload']['error_detail'] = safe_detail(result['payload']['error_detail']) if result['payload'].get('kind') == 'model' else None
     if 'references' in result['payload']:
         references = []

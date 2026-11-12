@@ -67,7 +67,7 @@ def prepare_prompt(state: AgentState):
 
 
 def record_metric(kind, payload):
-    from core.event_bus import bus
+    from core.infra.event_bus import bus
     from core.runtime import current_run
     run = current_run.get()
     if run:
@@ -166,7 +166,7 @@ def call_llm(state: AgentState):
 
 
 def tool_error(error: Exception) -> str:
-    from core.run_lifecycle import RunCancelled
+    from core.infra.run_lifecycle import RunCancelled
     from core.runtime_context import RunTimedOut
     if isinstance(error, (RunCancelled, RunTimedOut)):
         raise error

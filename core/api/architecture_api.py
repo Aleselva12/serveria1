@@ -6,7 +6,7 @@ from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Query
 
-from core.execution_traces import read_runs
+from core.infra.execution_traces import read_runs
 
 router = APIRouter(prefix="/api/v1", tags=["Architecture"])
 
@@ -302,7 +302,7 @@ def verify_agent_model(agent_id: str):
             raise RuntimeError('Configurazione cambiata prima della verifica: ricarica e riprova.')
         model = model.model_copy(update={'reasoning': False, 'num_predict': 16, 'num_ctx': 2048})
         started = time.monotonic()
-        from core.execution_traces import ExecutionTrace
+        from core.infra.execution_traces import ExecutionTrace
         trace = ExecutionTrace(run.thread_id, run.graph_version) if run is not None else None
         reply = model.invoke([HumanMessage(content='Rispondi solo OK.')], config={'callbacks': [trace] if trace else []})
         checkpoint()

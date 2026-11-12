@@ -7,9 +7,9 @@ from typing import Any
 
 from pgvector import Vector
 
-from core.database import db_connection
 from core.domain.embeddings import embed_text as embed_text
 from core.domain.transcripts import write_transcript
+from core.infra.database import db_connection
 
 CHAT_CONTEXT_MESSAGES = max(2, int(os.getenv("CORA_CHAT_CONTEXT_MESSAGES", "40")))
 

@@ -4,8 +4,8 @@ import threading
 from datetime import UTC
 from uuid import UUID, uuid4
 
-from core.database import db_connection
-from core.run_states import TERMINAL, TRANSITIONS
+from core.infra.database import db_connection
+from core.infra.run_states import TERMINAL, TRANSITIONS
 
 STATUSES = set(TRANSITIONS)
 class RunConflict(RuntimeError): pass
@@ -24,7 +24,7 @@ def create_run(*, thread_id, kind='chat', target='supervisor', parent_run_id=Non
             VALUES (%s,%s,%s,%s,%s,'queued',%s::jsonb) RETURNING *''',
             (UUID(run_id) if run_id else uuid4(),thread_id,kind,target,UUID(parent_run_id) if parent_run_id else None,
              json.dumps(metadata or {},ensure_ascii=False))).fetchone()
-        from core.domain_events import run_state
+        from core.infra.domain_events import run_state
         run_state(conn,row)
         return row
 
@@ -50,7 +50,7 @@ def transition_run(run_id, status, *, error_type=None, metadata=None, expected_s
             (status,status,status in TERMINAL,error_type,json.dumps(metadata or {},default=str),
              json.dumps(result,default=str) if result is not None else None,
              json.dumps(approval_ids) if approval_ids is not None else None,current['id'])).fetchone()
-        from core.domain_events import run_state
+        from core.infra.domain_events import run_state
         run_state(conn,row,current['status'])
     if status in TERMINAL:
         with _cancel_lock: _cancelled.discard(str(run_id))
@@ -63,7 +63,7 @@ def mark_stop(run_id, reason):
             WHERE id=%s AND NOT cancel_requested AND status=ANY(%s) RETURNING *''',
             (reason,UUID(run_id),[s for s in STATUSES if s not in TERMINAL])).fetchone()
         if changed:
-            from core.domain_events import append
+            from core.infra.domain_events import append
             append(conn,type='run.stop_requested',source='runtime',aggregate_id=changed['id'],revision=changed['revision'],run_id=changed['id'],payload={'reason':reason})
         row = conn.execute('SELECT stop_reason,status FROM runtime_runs WHERE id=%s',(UUID(run_id),)).fetchone()
         if not row: raise KeyError(run_id)
@@ -85,7 +85,7 @@ def request_cancel(run_id):
         ids = [r['id'] for r in family]
         marked = conn.execute('''UPDATE runtime_runs SET cancel_requested=TRUE,stop_reason=COALESCE(stop_reason,'cancelled'),revision=revision+1
             WHERE id=ANY(%s) AND status=ANY(%s) RETURNING *''',(ids,[s for s in STATUSES if s not in TERMINAL])).fetchall()
-        from core.domain_events import append
+        from core.infra.domain_events import append
         for changed in marked:
             append(conn,type='run.stop_requested',source='runtime',aggregate_id=changed['id'],revision=changed['revision'],run_id=changed['id'],payload={'reason':changed['stop_reason']})
     ids = [r["id"] for r in marked]
@@ -131,7 +131,7 @@ def recover():
             ([s for s in STATUSES if s not in TERMINAL],)).fetchall()
         operations = conn.execute('''UPDATE capability_operations SET status=CASE WHEN effect IN ('write','delegate') THEN 'uncertain' ELSE 'failed' END,
             finished_at=NOW(),error_type='ProcessInterrupted' WHERE status='started' RETURNING *''').fetchall()
-        from core.domain_events import operation_state, run_state
+        from core.infra.domain_events import operation_state, run_state
         for row in runs: run_state(conn,row)
         for row in operations: operation_state(conn,row,2)
         conn.execute("UPDATE action_approvals SET status='uncertain',error_type='ProcessInterrupted' WHERE status='executing'")

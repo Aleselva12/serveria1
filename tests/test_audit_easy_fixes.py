@@ -23,8 +23,8 @@ class AuditEasyFixesTests(unittest.TestCase):
             return execute
         with patch.object(api, "validate_runtime_profile"), patch(
             "core.runtime.recover_interrupted"
-        ), patch("core.observability.archive.start", mark("archive.start")), patch(
-            "core.observability.archive.stop", mark("archive.stop")
+        ), patch("core.infra.observability.archive.start", mark("archive.start")), patch(
+            "core.infra.observability.archive.stop", mark("archive.stop")
         ), patch("core.domain.background_embeddings.start", mark("embeddings.start")), patch(
             "core.domain.background_embeddings.stop", mark("embeddings.stop")
         ), patch("core.domain.library_monitor.start", mark("library.start", fails=True)), patch(
@@ -52,8 +52,8 @@ class AuditEasyFixesTests(unittest.TestCase):
             return execute
         with patch.object(api, "validate_runtime_profile"), patch(
             "core.runtime.recover_interrupted"
-        ), patch("core.observability.archive.start", mark("archive.start")), patch(
-            "core.observability.archive.stop", mark("archive.stop")
+        ), patch("core.infra.observability.archive.start", mark("archive.start")), patch(
+            "core.infra.observability.archive.stop", mark("archive.stop")
         ), patch("core.domain.background_embeddings.start", mark("embeddings.start")), patch(
             "core.domain.background_embeddings.stop", mark("embeddings.stop")
         ), patch("core.domain.library_monitor.start", mark("library.start")), patch(
@@ -91,7 +91,7 @@ class AuditEasyFixesTests(unittest.TestCase):
         fake_stop.is_set.side_effect = [False, True]
         with patch.object(embeddings, "_stop", fake_stop), patch.object(
             embeddings, "index_pending_once", side_effect=RuntimeError("private input")
-        ), patch("core.logging.log_event") as log:
+        ), patch("core.infra.logging.log_event") as log:
             embeddings._loop()
             self.assertEqual(log.call_count, 1)
             kwargs = log.call_args.kwargs
@@ -102,7 +102,7 @@ class AuditEasyFixesTests(unittest.TestCase):
         with patch.object(api, "schedule_summary", side_effect=RuntimeError("private")), patch.object(
             api, "refresh_transcript"
         ) as transcript, patch.object(api, "create_episode") as episode, patch(
-            "core.logging.log_event"
+            "core.infra.logging.log_event"
         ) as log:
             api._postprocess_turn("thread", "question", "answer", "user-id", "assistant-id")
             transcript.assert_called_once_with("thread")

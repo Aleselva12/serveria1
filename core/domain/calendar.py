@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from core.database import db_connection
+from core.infra.database import db_connection
 from core.permissions import check_permission, require_permission
 
 

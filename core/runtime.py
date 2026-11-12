@@ -8,10 +8,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from core.event_bus import bus
-from core.execution_traces import append_event
 from core.generation_policy import run_timeout
-from core.run_states import TERMINAL, TRANSITIONS, DurabilityLost, EffectUncertain
+from core.infra.event_bus import bus
+from core.infra.execution_traces import append_event
+from core.infra.run_states import TERMINAL, TRANSITIONS, DurabilityLost, EffectUncertain
 
 current_run = contextvars.ContextVar("cora_run", default=None)
 
@@ -53,7 +53,7 @@ class Run:
             if status not in TRANSITIONS.get(self.status, set()):
                 raise ValueError(f"Invalid run transition {self.status} -> {status}")
             if self.durable:
-                from core.run_lifecycle import transition_run
+                from core.infra.run_lifecycle import transition_run
                 try:
                     transition_run(self.id,status,expected_status=self.status,error_type=self.error_type,
                         result=self.result,approval_ids=self.approvals,
@@ -75,7 +75,7 @@ class Run:
             if self.status in TERMINAL: return
             if self.cancel.is_set(): return
             if self.durable:
-                from core.run_lifecycle import mark_stop
+                from core.infra.run_lifecycle import mark_stop
                 try: reason = mark_stop(self.id, reason)
                 except Exception as error:
                     self.persistence_error = type(error).__name__
@@ -133,7 +133,7 @@ class Runtime:
                 run.timings["host"] = {}
             run.durable = self.persistent
             if run.durable:
-                from core.run_lifecycle import create_run
+                from core.infra.run_lifecycle import create_run
                 create_run(run_id=run.id, thread_id=thread_id, kind=kind, target=target, metadata={"graph_version":graph_version})
             self.runs[run.id] = run
             while len(self.runs) > 200:
@@ -183,7 +183,7 @@ class Runtime:
         finally:
             for actor in run.agents: run.agents[actor] = "idle"
             try:
-                from core.database import database_configured, db_connection
+                from core.infra.database import database_configured, db_connection
                 if database_configured():
                     from psycopg.types.json import Jsonb
                     with db_connection() as conn:
@@ -278,22 +278,22 @@ def publish_text(run, role, span, text):
 def checkpoint():
     run = current_run.get()
     if run:
-        from core.run_lifecycle import cancel_requested
+        from core.infra.run_lifecycle import cancel_requested
         from core.runtime_context import _deadline, _run_id
         child_id, child_deadline = _run_id.get(), _deadline.get()
         if cancel_requested(run.id) or (child_id and cancel_requested(child_id)): run.stop("cancelled")
         if child_deadline is not None and time.monotonic() >= child_deadline: run.stop("timed_out")
         run.check()
     else:
-        from core.run_lifecycle import cancel_requested
+        from core.infra.run_lifecycle import cancel_requested
         from core.runtime_context import _deadline, _run_id
         if _run_id.get() and cancel_requested(_run_id.get()): raise RunStopped('cancelled')
         if _deadline.get() is not None and time.monotonic() >= _deadline.get(): raise RunStopped('timed_out')
 
 
 def recover_interrupted():
-    from core.database import database_configured
+    from core.infra.database import database_configured
     if database_configured():
-        from core.run_lifecycle import recover
+        from core.infra.run_lifecycle import recover
         recover()
 

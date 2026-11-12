@@ -5,10 +5,10 @@ import os
 from pathlib import Path
 from urllib.error import URLError
 
-from core.component_bus import component_bus
-from core.database import database_status
+from core.infra.component_bus import component_bus
+from core.infra.database import database_status
+from core.infra.ollama_transport import get_ollama_base_url, urlopen
 from core.models import get_model_name, get_ollama_base_url
-from core.ollama_transport import get_ollama_base_url, urlopen
 
 
 def _ollama_online() -> bool:
@@ -22,7 +22,7 @@ def _ollama_online() -> bool:
 def component_runtime_status() -> dict:
     ollama = _ollama_online()
     database = database_status()
-    from core.file_paths import library_workspace_status
+    from core.infra.file_paths import library_workspace_status
     library = library_workspace_status()
     audio_root = Path(os.getenv("CORA_AUDIO_ROOT", "./audio")).expanduser()
     gmail_credentials = Path(os.getenv("CORA_GMAIL_CREDENTIALS_PATH", "./email_agent/credentials.json")).expanduser()

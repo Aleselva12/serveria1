@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from core.capabilities import Capability, ComponentDefinition
-from core.ollama_transport import get_ollama_base_url
+from core.infra.ollama_transport import get_ollama_base_url
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -46,7 +46,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         name="Event Logging",
         kind="core",
         description="Registro append-only locale degli eventi strutturati di Cora.",
-        module="core.logging",
+        module="core.infra.logging",
         capabilities=(
             Capability("log_events", "Registra eventi con timestamp, componente, stato e durata."),
             Capability("read_recent_events", "Permette di leggere gli eventi recenti per diagnosi."),
@@ -70,7 +70,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         name="Component Protocol & Bus",
         kind="core",
         description="Contratto tipizzato TaskEnvelope/ComponentResult e comunicazione diretta in-process tra componenti.",
-        module="core.component_bus",
+        module="core.infra.component_bus",
         capabilities=(
             Capability("typed_tasks", "Scambia richieste strutturate tra componenti senza serializzazione o hop di rete."),
             Capability("typed_results", "Normalizza risultati, artefatti, osservazioni ed errori dei componenti."),
