@@ -5,7 +5,7 @@ from pathlib import Path
 
 from core.additional_verifications import REGRESSIONS
 from core.health_catalog import CATALOG
-from core.tree_verification_suites import SUITES
+from core.verify.tree_verification_suites import SUITES
 
 
 class TreeVerificationSuiteTests(unittest.TestCase):

@@ -220,12 +220,12 @@ def _action(action, run_id):
 
 def available_checks():
     """Discover executable checks server-side; the website never embeds this list."""
-    from core.project_checks import _PROBES
+    from core.verify.project_checks import _PROBES
     return tuple(dict.fromkeys((*_PROBES, *CHECKS)))
 
 
 def run(check_id, settings=None):
-    from core.project_checks import _PROBES
+    from core.verify.project_checks import _PROBES
     if check_id in _PROBES:
         try:
             state, detail = _PROBES[check_id]()

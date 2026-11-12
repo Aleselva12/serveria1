@@ -30,7 +30,7 @@ allora questa pagina e il documento d'origine nella stessa modifica.
 | Gli import apparentemente inutilizzati non sono bug; **non rimuovere gli export di compatibilità**. | `AUDIT_S01_S40_STATUS_20261027.md`, S11, S17, S21 |
 | `LOG_FILE` legacy/test è intenzionale. | Audit, S12 |
 | Preset PC e Debian distinti per design (`.env.example`, `deploy/deploy.env.example`): non allinearli. | Audit, S13 e S39 |
-| I catch generici fail-closed di `core/auth.py` e `core/project_checks.py` sono intenzionali. | Audit, S25 |
+| I catch generici fail-closed di `core/auth.py` e `core/verify/project_checks.py` sono intenzionali. | Audit, S25 |
 | I rapporti di audit con SHA storici non si modificano. | Audit, S14 e S37 |
 | Gli import differiti dentro le funzioni (302) tengono aciclico il grafo dei moduli: per questo `E402` è ignorato in `pyproject.toml`. | `pyproject.toml` |
 | Righe compatte e più istruzioni per riga sono lo stile del progetto: `E501`, `E701`, `E702` ignorati. | `pyproject.toml` |

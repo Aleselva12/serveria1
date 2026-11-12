@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 
 from core.health_catalog import CATALOG
-from core.test_inventory import (
+from core.verify.test_inventory import (
     PREEXISTING_LIVE_E2E_CHECKS,
     TARGETED_E2E_NODES,
     TARGETED_NEW_E2E,

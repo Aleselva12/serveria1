@@ -29,8 +29,8 @@ class AuditEasyFixesTests(unittest.TestCase):
             "core.background_embeddings.stop", mark("embeddings.stop")
         ), patch("core.library_monitor.start", mark("library.start", fails=True)), patch(
             "core.library_monitor.stop", mark("library.stop")
-        ), patch("core.project_checks.stop", mark("checks.stop")), patch(
-            "core.project_checks.start", mark("checks.start")
+        ), patch("core.verify.project_checks.stop", mark("checks.stop")), patch(
+            "core.verify.project_checks.start", mark("checks.start")
         ), patch.object(api, "close_pool", mark("pool.close")):
             async def check():
                 async with api.lifespan(None):
@@ -58,8 +58,8 @@ class AuditEasyFixesTests(unittest.TestCase):
             "core.background_embeddings.stop", mark("embeddings.stop")
         ), patch("core.library_monitor.start", mark("library.start")), patch(
             "core.library_monitor.stop", mark("library.stop", fails=True)
-        ), patch("core.project_checks.start", mark("checks.start")), patch(
-            "core.project_checks.stop", mark("checks.stop")
+        ), patch("core.verify.project_checks.start", mark("checks.start")), patch(
+            "core.verify.project_checks.stop", mark("checks.stop")
         ), patch.object(api, "notification_worker") as notify, patch.object(
             api.runtime, "shutdown", mark("runtime.shutdown")
         ), patch.object(api, "close_pool", mark("pool.close")):

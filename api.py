@@ -70,14 +70,12 @@ from core.models import (
     get_model_name as get_model_name,
 )
 from core.monitoring import router as monitoring_router
-from core.node_verification import router as node_verification_router
 from core.notifications import router as notifications_router
 from core.notifications import worker as notification_worker
 from core.ollama_transport import get_ollama_base_url, urlopen
 from core.orchestration_api import router as orchestration_router
 from core.permissions_api import router as permissions_router
 from core.postprocessing import Postprocessing
-from core.project_checks import router as project_checks_router
 from core.registry import get_agents, get_registry
 from core.roadmap_classifier_api import router as roadmap_classifier_router
 from core.runtime import RunStopped as RunStopped
@@ -88,6 +86,8 @@ from core.server_files import router as files_router
 from core.system_context import get_system_context, update_system_context
 from core.tool_definitions import definition
 from core.tool_inventory import inventory
+from core.verify.node_verification import router as node_verification_router
+from core.verify.project_checks import router as project_checks_router
 from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
 from graph import graph
 from programmer_agent.api import router as programmer_router
@@ -103,8 +103,9 @@ async def lifespan(app):
     from core import background_embeddings
     from core.runtime import recover_interrupted
     recover_interrupted()
-    from core import library_monitor, project_checks
+    from core import library_monitor
     from core.observability import archive
+    from core.verify import project_checks
     # Cleanup is registered before each start to cover partial initialization.
     # ExitStack continues all remaining stops even if a stop itself fails.
     with ExitStack() as cleanup:

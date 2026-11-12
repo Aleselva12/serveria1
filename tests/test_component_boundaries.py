@@ -7,8 +7,9 @@ import unittest
 from datetime import UTC
 from unittest.mock import patch
 
-from core import project_checks, project_contracts
+from core import project_contracts
 from core.health_catalog import CATALOG, COMPONENTS
+from core.verify import project_checks
 
 
 class CatalogTests(unittest.TestCase):
