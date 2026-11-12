@@ -145,7 +145,7 @@ def run_once(*, persist: bool = False) -> dict:
         start = monotonic()
         try:
             status, detail = probe()
-            if status not in {"pass","fail","unknown","skipped"}: raise ValueError("Invalid status")
+            if status not in {"pass","warn","fail","unknown","skipped"}: raise ValueError("Invalid status")
         except Exception:
             status, detail = "fail", "Controllo non riuscito: verificare il componente " + key
         checks.append({"id":key, "label":CHECKS[key], "status":status,

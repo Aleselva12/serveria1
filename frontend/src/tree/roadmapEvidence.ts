@@ -1,7 +1,7 @@
 import type { HealthCheckDefinition, HealthDashboardData, HealthResult } from "../services/api";
 import type { Node } from "./model";
 
-export type CheckState = "pass" | "fail" | "unknown" | "stale" | "outdated" | "unattributed" | "planned";
+export type CheckState = "pass" | "warn" | "fail" | "unknown" | "stale" | "outdated" | "unattributed" | "planned";
 export type CheckMapping = Readonly<Record<string, readonly string[]>>;
 const fullSha = /^[0-9a-f]{40}$/i;
 
@@ -20,7 +20,7 @@ export function checkState(
   if (Date.parse(result.at) > Date.now() + 60_000) return "unknown";
   const maxAge = definition.maxAgeSeconds ?? (definition.automated ? 600 : 86400);
   if (Date.now() - Date.parse(result.at) > maxAge * 1000) return "stale";
-  if (result.status !== "pass" && result.status !== "fail") return "unknown";
+  if (result.status !== "pass" && result.status !== "warn" && result.status !== "fail") return "unknown";
   const release = activeCommit?.trim().toLowerCase() || "";
   const tested = result.commit?.trim().toLowerCase() || "";
   if (!fullSha.test(release) || !fullSha.test(tested)) return "unattributed";
@@ -28,7 +28,8 @@ export function checkState(
   return result.status;
 }
 
-/** Green requires a successful E2E tied to both the installed SHA and the
+/** A "warn" result works but reports an advisory: it counts as proof, coloured yellow.
+ * Green requires a successful E2E tied to both the installed SHA and the
  * Debian environment. A CI-only E2E or an API preflight does not qualify.
  */
 export function verifiedLiveE2E(
@@ -37,7 +38,7 @@ export function verifiedLiveE2E(
   activeCommit: string | null,
 ): boolean {
   return definition?.kind === "e2e" &&
-    checkState(definition, result, activeCommit) === "pass" &&
+    ["pass", "warn"].includes(checkState(definition, result, activeCommit)) &&
     /^debian(?:$|[-_:])/i.test(result?.environment || "");
 }
 
@@ -93,8 +94,10 @@ export function starTone(
   if (manual?.kind==="plan") return "plan";
   if (manual?.kind==="ok" && !childTones.some(t => t==="unverified" || t==="plan")) return "ok";
   if (childTones.some(t => t==="unverified")) return "plan";
-  if (evidence.some(e => verifiedLiveE2E(e.def, e.result, activeCommit)) &&
-      evidence.every(e => live(e) && checkState(e.def, e.result, activeCommit) === "pass")) return "ok";
+  const passing = (e: typeof evidence[number]) => live(e) && ["pass", "warn"].includes(checkState(e.def, e.result, activeCommit));
+  if (evidence.some(e => verifiedLiveE2E(e.def, e.result, activeCommit)) && evidence.every(passing))
+    // Works, but a check reports something to improve (e.g. pending OS updates): yellow, not green.
+    return evidence.some(e => checkState(e.def, e.result, activeCommit) === "warn") ? "plan" : "ok";
   // A mapped functional check must be proved, even for a partial implementation.
   if (evidence.some(e => !e.def || e.def.kind === "e2e")) return "unverified";
   return node.status === "partial" ? "plan" : "unverified";
@@ -102,7 +105,7 @@ export function starTone(
 
 export const toneLabels: Record<string, string> = {
   ok: "Verde · funzionante e collaudato", problem: "Rosso · collaudo fallito",
-  minor: "Arancione · attenzione", plan: "Giallo · presente parzialmente",
+  minor: "Arancione · attenzione", plan: "Giallo · funziona da migliorare o parziale",
   unknown: "Grigio · non ancora presente", unverified: "Grigio · non collaudato",
 };
 
@@ -113,6 +116,7 @@ export function verificationSummary(node: Node, health: HealthDashboardData | nu
   const container = node.classification === "area" || node.role === "ramo" || ["radici", "tronco", "rami"].includes(node.id);
   if (container && tone === "ok") return "Riepilogo positivo dei sottoelementi: verdi o parziali gialli; obiettivi non presenti esclusi. Non è un collaudo autonomo del contenitore.";
   const manual=manualEvidence(node);
+  const ids = mapping[node.id] || [];
   if (tone === "ok" && manual?.kind === "ok")
     return "Verifica manuale circoscritta del "+manual.date+": "+manual.text+
       " Non è un collaudo automatico né una certificazione del commit attuale.";
@@ -122,8 +126,9 @@ export function verificationSummary(node: Node, health: HealthDashboardData | nu
   if (tone === "unknown") return "Obiettivo non ancora presente: escluso dalla verifica del genitore.";
   if (tone === "plan" && manual?.kind === "plan")
     return "Rifinitura da eseguire (osservazione manuale del "+manual.date+"): "+manual.text;
+  if (tone === "plan" && ids.some(id => checkState(health?.catalog.find(c => c.id === id), health?.latest[id], activeCommit) === "warn"))
+    return "Funziona sulla versione attiva, con avvisi da risolvere: "+ids.map(id => health?.latest[id]).filter(r => r?.status === "warn").map(r => r!.detail).join(" · ");
   if (tone === "plan") return "Presente parzialmente: completamento e collaudi restano da eseguire; non blocca il verde del genitore.";
-  const ids = mapping[node.id] || [];
   if (!health || health.historyStore === "unavailable") return "Non provato: registro dei collaudi non disponibile. Non indica un guasto accertato.";
   if (!activeCommit) return "Non provato: versione attiva non verificabile. Non indica un collaudo fallito.";
   if (!ids.length) return "Non provato: nessun controllo associato a questo elemento presente.";
@@ -160,8 +165,10 @@ export function verificationIndicator(node:Node,health:HealthDashboardData|null,
   if(manual?.kind==="plan")return {label:"Rifinitura aperta · osservazione manuale del "+manual.date,color:indicatorColors.yellow};
   if(manual?.kind==="ok")return {label:"Verifica manuale circoscritta del "+manual.date,color:indicatorColors.green};
   if(evidence.some(e=>verifiedLiveE2E(e.def,e.result,activeCommit))&&
-    evidence.every(e=>live(e)&&checkState(e.def,e.result,activeCommit)==="pass"))
-    return {label:"Collaudo reale superato",color:indicatorColors.green};
+    evidence.every(e=>live(e)&&["pass","warn"].includes(checkState(e.def,e.result,activeCommit))))
+    return evidence.some(e=>checkState(e.def,e.result,activeCommit)==="warn")
+      ?{label:"Funziona · avvisi da risolvere",color:indicatorColors.yellow}
+      :{label:"Collaudo reale superato",color:indicatorColors.green};
   if(evidence.some(e=>live(e)&&checkState(e.def,e.result,activeCommit)==="pass"))
     return {label:"Verifica parziale · non certifica il funzionamento reale",color:indicatorColors.yellow};
   return {label:evidence.length?"Non verificato · nessun esito reale valido":"Non verificato · nessun controllo associato",color:indicatorColors.gray};

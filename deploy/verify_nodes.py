@@ -87,7 +87,7 @@ def _action(action, run_id):
                 return {"status": "unknown", "detail": "Simulazione aggiornamenti APT non disponibile; nessun pacchetto modificato"}
             pending = upgrades.get("pending")
             if pending:
-                return {"status": "unknown", "detail": f"Debian coerente; {pending} aggiornamenti risultano pendenti dalla cache APT"}
+                return {"status": "warn", "detail": f"Debian funzionante; {pending} aggiornamenti di sistema in attesa (cache APT)"}
             return {"status": "pass", "detail": "Debian reale verificato: identità host, UID/GID updater, file privati, dpkg e APT senza aggiornamenti pendenti"}
         units = snapshot.get("systemd") or {}
         if action == "systemd_host_e2e":
@@ -229,7 +229,7 @@ def run(check_id, settings=None):
     if check_id in _PROBES:
         try:
             state, detail = _PROBES[check_id]()
-            if state not in {"pass", "fail", "unknown", "skipped"}:
+            if state not in {"pass", "warn", "fail", "unknown", "skipped"}:
                 raise ValueError("Invalid state")
             return {"status": state, "detail": str(detail)[:240]}
         except Exception:
@@ -298,7 +298,7 @@ def main():
         except Exception:
             result = {"status": "fail", "detail": "Passaggio non riuscito: " + args.action}
         print("CORA_CHECK=" + json.dumps(result))
-        return 0 if result["status"] == "pass" else 1
+        return 0 if result["status"] in {"pass", "warn"} else 1
     try:
         with _lease(args.persist):
             return execute(args)
