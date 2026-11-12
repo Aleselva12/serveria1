@@ -19,7 +19,12 @@ _lock = threading.Lock()
 def _shape(source):
     """Code shape that ignores formatting and import order (ruff reorderings)."""
     tree = ast.parse(source)
-    imports = sorted(ast.dump(node) for node in tree.body if isinstance(node, (ast.Import, ast.ImportFrom)))
+    imports = []
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            names = sorted((alias.name, alias.asname or '') for alias in node.names)
+            imports.extend((getattr(node, 'module', None) or '', getattr(node, 'level', 0), name) for name in names)
+    imports.sort()
     rest = [ast.dump(node) for node in tree.body if not isinstance(node, (ast.Import, ast.ImportFrom))]
     return imports, rest
 
@@ -81,7 +86,8 @@ def _helper(engine, commit):
     if same:
         return _row('helper', 'Helper manutenzione host', 'ok')
     return _row('helper', 'Helper manutenzione host', 'outdated', '', '',
-                'Non si aggiorna da solo per scelta: reinstallarlo con sudo (docs/HOST_MAINTENANCE.md).')
+                'Non si aggiorna da solo per scelta: aggiornarlo a mano con sudo copiando '
+                'updater/host_maintenance.py del rilascio attivo (docs/HOST_MAINTENANCE.md).')
 
 
 def inspect(engine, *, clock=time.monotonic):
