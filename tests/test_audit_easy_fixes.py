@@ -111,10 +111,11 @@ class AuditEasyFixesTests(unittest.TestCase):
                              {"action": "summary", "error_type": "RuntimeError"})
 
     def test_create_conversation_does_not_leak_internal_error_as_422(self):
-        with patch.object(api, "ensure_conversation",
+        from core import conversations_api
+        with patch.object(conversations_api, "ensure_conversation",
                           side_effect=RuntimeError("database password is private")):
             with self.assertRaises(HTTPException) as error:
-                api.create_conversation(Mock(id="00000000-0000-0000-0000-000000000001", project_id=None))
+                conversations_api.create_conversation(Mock(id="00000000-0000-0000-0000-000000000001", project_id=None))
             self.assertEqual(error.exception.status_code, 500)
             self.assertNotIn("private", error.exception.detail)
 
@@ -146,9 +147,14 @@ class AuditEasyFixesTests(unittest.TestCase):
 
     def test_runtime_routes_have_no_duplicate_http_method_path_pairs(self):
         from fastapi.routing import APIRoute
-        pairs = [(method, route.path) for route in api.app.routes
+
+        from core.tool_inventory import flatten_routes
+        # app.routes keeps each included router as one entry: flatten, or the check
+        # would only see the few endpoints still declared directly on the app.
+        pairs = [(method, route.path) for route in flatten_routes(api.app.routes)
                  if isinstance(route, APIRoute)
                  for method in route.methods]
+        self.assertGreater(len(pairs), 150)
         self.assertEqual(len(pairs), len(set(pairs)))
 
     def test_programmer_io_error_is_unavailable_not_validation(self):

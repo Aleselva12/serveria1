@@ -3,13 +3,10 @@ import os
 import time
 import uuid
 from contextlib import ExitStack, asynccontextmanager
-from typing import Literal
-from urllib.error import URLError
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from psycopg.errors import ForeignKeyViolation
 from pydantic import BaseModel, Field
 
 from core.architecture_api import architecture_graph
@@ -23,72 +20,43 @@ from core.chat_attachments import attachment_rows, request_content
 from core.chat_attachments import public as attachment_public
 from core.chat_attachments import router as attachments_router
 from core.chat_store import (
-    archive_conversation,
-    conversation_stats,
-    delete_conversation,
     ensure_conversation,
-    get_messages,
-    list_conversations,
-    move_conversation,
     refresh_transcript,
-    rename_conversation,
     save_message,
 )
 from core.chat_store import (
     recent_context as recent_context,
 )
 from core.context_budget import prepare_context, schedule_summary
-from core.conversation_projects import (
-    create_project,
-    delete_project,
-    list_projects,
-    update_project,
-)
-from core.database import close_pool, database_status
+from core.conversations_api import router as conversations_router
+from core.database import close_pool
 from core.desktop_updates import router as update_router
-from core.episodes import create_episode, list_episodes
+from core.episodes import create_episode
 from core.execution_traces import ExecutionTrace
 from core.ia_library import router as library_router
 from core.logging import logged_operation
 from core.machines_api import router as machines_router
 from core.managed_apps_api import router as managed_apps_router
-from core.memory import (
-    MemoryConflict,
-    delete_memory,
-    memory_history,
-    memory_stats,
-    save_memory,
-    search_memories,
-)
-from core.models import (
-    RuntimeSettingsError,
-    get_default_model_name,
-    list_ollama_models,
-    save_runtime_model,
-)
+from core.memory_api import router as memory_router
 from core.models import (
     get_model_name as get_model_name,
 )
 from core.monitoring import router as monitoring_router
 from core.notifications import router as notifications_router
 from core.notifications import worker as notification_worker
-from core.ollama_transport import get_ollama_base_url, urlopen
 from core.orchestration_api import router as orchestration_router
 from core.permissions_api import router as permissions_router
 from core.postprocessing import Postprocessing
-from core.registry import get_agents, get_registry
 from core.roadmap_classifier_api import router as roadmap_classifier_router
 from core.runtime import RunStopped as RunStopped
 from core.runtime import checkpoint, publish_text, runtime
 from core.runtime_api import router as runtime_router
-from core.runtime_profile import runtime_mode, validate_runtime_profile
+from core.runtime_profile import validate_runtime_profile
 from core.server_files import router as files_router
-from core.system_context import get_system_context, update_system_context
-from core.tool_definitions import definition
-from core.tool_inventory import inventory
+from core.system_api import router as system_router
 from core.verify.node_verification import router as node_verification_router
 from core.verify.project_checks import router as project_checks_router
-from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
+from core.working_memory import set_working_memory
 from graph import graph
 from programmer_agent.api import router as programmer_router
 
@@ -155,6 +123,10 @@ app.include_router(notifications_router)
 app.include_router(architecture_router)
 app.include_router(automation_router)
 app.include_router(programmer_router)
+# Formerly inline in this file; included here so the route order is unchanged.
+app.include_router(system_router)
+app.include_router(conversations_router)
+app.include_router(memory_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -182,318 +154,6 @@ class ChatResponse(BaseModel):
     response: str
     thread_id: str
     run_id: str | None = None
-
-
-class MemoryWriteRequest(BaseModel):
-    memory_type: str
-    key: str = Field(min_length=1,max_length=200)
-    content: str = Field(min_length=1,max_length=12000)
-    source: str = "user_explicit"
-    importance: int = Field(default=3,ge=1,le=5)
-    expires_at: str | None = None
-    metadata: dict = Field(default_factory=dict)
-    assertion: Literal['user_statement','observation','inference','unclassified'] = "user_statement"
-    confidence: float | None = Field(default=None, ge=0, le=1)
-    expected_version: int = Field(default=0, ge=0)
-    expected_memory_id: uuid.UUID | None = None
-
-
-class SystemContextRequest(BaseModel):
-    content: str = Field(max_length=12000)
-    metadata: dict = Field(default_factory=dict)
-    expected_version: int = Field(ge=1)
-
-
-class ModelSelectionRequest(BaseModel):
-    model: str = Field(min_length=1, max_length=200)
-
-
-class WorkingMemoryRequest(BaseModel):
-    state: dict = Field(default_factory=dict)
-    ttl_minutes: int = 120
-
-
-class ConversationCreateRequest(BaseModel):
-    id: uuid.UUID
-    project_id: uuid.UUID | None = None
-
-
-class ConversationUpdateRequest(BaseModel):
-    title: str | None = Field(default=None, max_length=160)
-    archived: bool | None = None
-    project_id: uuid.UUID | None = None
-    clear_project: bool = False
-
-
-class ProjectCreateRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
-    shared_context: str = Field(default="", max_length=12000)
-
-
-class ProjectUpdateRequest(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=120)
-    shared_context: str | None = Field(default=None, max_length=12000)
-
-
-def _ollama_online() -> bool:
-    from core.agent_models import binding, remote_ready
-    selected = binding('supervisor')
-    if selected and selected['machine_id'] != 'local':
-        return remote_ready(selected['machine_id'], selected['model'])
-    try:
-        with urlopen(f"{get_ollama_base_url()}/api/tags", timeout=1.5):
-            return True
-    except (URLError, TimeoutError, OSError):
-        return False
-
-
-@app.get("/health")
-def health():
-    from core.file_paths import library_workspace_status
-    database = database_status()
-    from core.machines_api import _find
-    from core.models import resolve_model
-    selected = resolve_model('supervisor')
-    try:
-        machine_name = 'Ollama di Cora' if selected['machine_id'] == 'local' else _find(selected['machine_id'])['name']
-    except HTTPException:
-        machine_name = 'Worker non registrato'
-    return {
-        "status": "ok",
-        "library": library_workspace_status(),
-        "ollama_online": _ollama_online(),
-        "model": selected['model'],
-        "model_machine": machine_name,
-        "model_source": selected['source'],
-        "model_configuration_id": selected['configuration_id'],
-        "runtime_mode": runtime_mode(),
-        "agents": [agent["name"] for agent in get_agents()],
-        "memory": memory_stats(),
-        "database": database,
-        "chat": conversation_stats() if database.get("reachable") else {
-            "conversations": 0,
-            "messages": 0,
-        },
-    }
-
-
-@app.get("/runtime/configuration")
-def runtime_configuration():
-    from core.models import performance_configuration
-    return performance_configuration("supervisor")
-
-
-@app.get("/runtime/models")
-def runtime_models():
-    try:
-        models = list_ollama_models()
-    except Exception as error:
-        raise HTTPException(503, "Ollama non raggiungibile.") from error
-    return {"active": get_default_model_name("supervisor"), "models": models}
-
-
-@app.put("/runtime/model")
-def select_runtime_model(request: ModelSelectionRequest):
-    try:
-        models = list_ollama_models()
-        save_runtime_model(request.model, models=models)
-    except RuntimeSettingsError as error:
-        raise HTTPException(500, str(error)) from error
-    except ValueError as error:
-        raise HTTPException(422, str(error)) from error
-    except Exception as error:
-        raise HTTPException(503, "Ollama non raggiungibile.") from error
-    return {"active": get_default_model_name("supervisor"), "models": models}
-
-
-@app.get("/tools/inventory")
-def tools_inventory():
-    return inventory(app.routes)
-
-
-@app.get("/tools/definition")
-def tools_definition(tool_id: str):
-    from fastapi import HTTPException
-    try:
-        return definition(tool_id, app.routes)
-    except KeyError as error:
-        raise HTTPException(404, "Tool non trovato.") from error
-
-
-@app.get("/capabilities")
-def capabilities():
-    return get_registry()
-
-
-@app.get("/conversations")
-def conversations(limit: int = 100, include_archived: bool = False):
-    return list_conversations(limit=limit, include_archived=include_archived)
-
-
-@app.post("/conversations")
-def create_conversation(request: ConversationCreateRequest):
-    try:
-        return ensure_conversation(
-            str(request.id),
-            project_id=str(request.project_id) if request.project_id else None,
-        )
-    except ValueError as error:
-        raise HTTPException(422, "Identificativo conversazione o progetto non valido.") from error
-    except ForeignKeyViolation as error:
-        raise HTTPException(422, "Progetto inesistente o non valido.") from error
-    except Exception as error:
-        # Internal/DB errors are not invalid client parameters; never disclose SQL details.
-        raise HTTPException(500, "Creazione conversazione non riuscita.") from error
-
-
-@app.patch("/conversations/{conversation_id}")
-def update_conversation(conversation_id: str, request: ConversationUpdateRequest):
-    try:
-        row = None
-        if request.title is not None:
-            row = rename_conversation(conversation_id, request.title)
-        if request.archived is not None:
-            row = archive_conversation(conversation_id, request.archived)
-        if request.project_id is not None or request.clear_project:
-            row = move_conversation(
-                conversation_id,
-                None if request.clear_project else str(request.project_id),
-            )
-        if row is None:
-            rows = [
-                item
-                for item in list_conversations(limit=500, include_archived=True)
-                if str(item["id"]) == conversation_id
-            ]
-            if not rows:
-                raise KeyError(conversation_id)
-            row = rows[0]
-        return row
-    except KeyError as error:
-        raise HTTPException(404, "Conversazione o progetto non trovato.") from error
-    except ValueError as error:
-        raise HTTPException(422, str(error)) from error
-
-
-@app.delete("/conversations/{conversation_id}")
-def remove_conversation(conversation_id: str):
-    if not delete_conversation(conversation_id):
-        raise HTTPException(404, "Conversazione non trovata.")
-    return {"deleted": True}
-
-
-@app.get("/conversation-projects")
-def conversation_projects():
-    return list_projects()
-
-
-@app.post("/conversation-projects")
-def add_conversation_project(request: ProjectCreateRequest):
-    return create_project(request.name, request.shared_context)
-
-
-@app.patch("/conversation-projects/{project_id}")
-def edit_conversation_project(project_id: str, request: ProjectUpdateRequest):
-    try:
-        return update_project(
-            project_id,
-            name=request.name,
-            shared_context=request.shared_context,
-        )
-    except KeyError as error:
-        raise HTTPException(404, "Progetto non trovato.") from error
-
-
-@app.delete("/conversation-projects/{project_id}")
-def remove_conversation_project(project_id: str):
-    if not delete_project(project_id):
-        raise HTTPException(404, "Progetto non trovato.")
-    return {"deleted": True}
-
-
-@app.get("/conversations/{conversation_id}/messages")
-def conversation_messages(conversation_id: str, limit: int = 500):
-    return get_messages(conversation_id, limit=limit)
-
-
-@app.get("/memory/context")
-def read_system_context():
-    return get_system_context()
-
-
-@app.put("/memory/context")
-def write_system_context(request: SystemContextRequest):
-    try:
-        return update_system_context(request.content, expected_version=request.expected_version,
-            metadata={**request.metadata, "source": "user_settings"})
-    except MemoryConflict as error:
-        raise HTTPException(409,str(error)) from error
-
-
-@app.get("/memory/episodes")
-def episodes(limit: int = 50):
-    return list_episodes(limit=limit)
-
-
-@app.get("/memory/working")
-def working_memory():
-    return list_working_memory()
-
-
-@app.put("/memory/working/{agent_id}/{thread_id}")
-def write_working_memory(agent_id: str, thread_id: str, request: WorkingMemoryRequest):
-    return set_working_memory(
-        agent_id=agent_id,
-        thread_id=thread_id,
-        state=request.state,
-        ttl_minutes=request.ttl_minutes,
-    )
-
-
-@app.delete("/memory/working/{agent_id}/{thread_id}")
-def remove_working_memory(agent_id: str, thread_id: str):
-    return {"deleted": clear_working_memory(agent_id=agent_id, thread_id=thread_id)}
-
-
-@app.get("/memory")
-def memories(query: str = "", memory_type: str = "", limit: int = 50, include_expired: bool = False):
-    return search_memories(query, memory_type=memory_type, limit=limit,include_expired=include_expired)
-
-
-@app.get("/memory/stats")
-def memory_status():
-    return memory_stats()
-
-
-@app.post("/memory")
-def write_memory(request: MemoryWriteRequest):
-    try:
-        return save_memory(
-            memory_type=request.memory_type,
-            key=request.key,
-            content=request.content,
-            source="user_explicit",
-            importance=request.importance,
-            expires_at=request.expires_at,
-            metadata=request.metadata,
-            assertion=request.assertion, confidence=request.confidence,
-            expected_version=request.expected_version, editor="user",
-            expected_memory_id=str(request.expected_memory_id) if request.expected_memory_id else None,
-        )
-    except MemoryConflict as error:
-        raise HTTPException(409,str(error)) from error
-    except ValueError as error:
-        raise HTTPException(422,str(error)) from error
-
-
-@app.get("/memory/{memory_id}/history")
-def read_memory_history(memory_id: uuid.UUID, limit: int = 50):
-    return memory_history(str(memory_id),limit=limit)
-
-
-@app.delete("/memory/{memory_id}")
-def remove_memory(memory_id: str):
-    return {"deleted": delete_memory(memory_id)}
 
 
 def execute_chat(request: ChatRequest, run):
