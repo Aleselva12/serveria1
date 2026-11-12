@@ -52,7 +52,7 @@ def _library() -> tuple[str, str]:
 
 
 def _audio() -> tuple[str, str]:
-    from core.audio_api import audio_status
+    from core.api.audio_api import audio_status
     result = audio_status()
     if result.get("ready"):
         return "pass", "Motore dichiarato pronto; trascrizione reale non eseguita"

@@ -53,15 +53,15 @@ class VerificationTests(unittest.TestCase):
 
     def test_worker_disabled_is_skipped_without_inference(self):
         with patch.dict(os.environ, {"CORA_VERIFY_DESKTOP_ID": "desktop"}), patch(
-            "core.machines_api._find", return_value={"enabled": False}
-        ), patch("core.machines_api.test_worker_inference") as infer:
+            "core.api.machines_api._find", return_value={"enabled": False}
+        ), patch("core.api.machines_api.test_worker_inference") as infer:
             self.assertEqual(verifier._action("desktop_e2e", "a"*32)["status"], "skipped")
             infer.assert_not_called()
 
     def test_worker_old_protocol_and_wrong_actual_model_cannot_pass(self):
         with patch.dict(os.environ, {"CORA_VERIFY_DESKTOP_ID": "desktop"}), patch(
-            "core.machines_api._find", return_value={"enabled": True, "selected_model": "chosen:8b"}
-        ), patch("core.machines_api.test_worker_inference", return_value={"response": "CORA_WORKER_OK"}) as infer:
+            "core.api.machines_api._find", return_value={"enabled": True, "selected_model": "chosen:8b"}
+        ), patch("core.api.machines_api.test_worker_inference", return_value={"response": "CORA_WORKER_OK"}) as infer:
             self.assertEqual(verifier._action("desktop_e2e", "a"*32)["status"], "unknown")
             infer.return_value = {"actual_model": "different:8b", "done": True, "response": "CORA_WORKER_OK"}
             with self.assertRaises(ValueError): verifier._action("desktop_e2e", "a"*32)

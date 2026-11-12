@@ -13,7 +13,7 @@ from psycopg.rows import dict_row
 
 from core import calendar as store
 from core import notifications
-from core.calendar_api import router
+from core.api.calendar_api import router
 from core.calendar_tools import calendar_tools_for
 from core.permissions import check_permission, validate_permission_configuration
 

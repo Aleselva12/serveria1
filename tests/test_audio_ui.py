@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from core import audio_api
+from core.api import audio_api
 
 
 class AudioUITests(unittest.TestCase):

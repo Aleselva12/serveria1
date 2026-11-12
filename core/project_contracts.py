@@ -32,7 +32,7 @@ def chat_contract():
     return "pass", "Contratti Chat → grafo → tool delegati presenti; nessuna inferenza eseguita"
 
 def audio_word_contract():
-    from core.audio_api import router
+    from core.api.audio_api import router
     problem = _assert_routes(router, [
         ("/api/v1/audio/{ident}/transcribe", "POST"),
         ("/api/v1/audio/{ident}/commercial/proposals", "POST"),
@@ -47,7 +47,7 @@ def audio_word_contract():
     return "pass", "Contratti Audio → proposta → approvazione → Word presenti"
 
 def calendar_contract():
-    from core.calendar_api import router
+    from core.api.calendar_api import router
     problem = _assert_routes(router, [
         ("/api/v1/calendar/events", "POST"),
         ("/api/v1/calendar/events/{event_id}", "PATCH"),
@@ -60,7 +60,7 @@ def calendar_contract():
     return "pass", "Contratti Calendario → proposte → Google presenti; OAuth non provato"
 
 def worker_contract():
-    from core.machines_api import router
+    from core.api.machines_api import router
     problem = _assert_routes(router, [
         ("/api/v1/machines/{machine_id}/generate", "POST"),
         ("/api/v1/machines/{machine_id}/test", "POST"),
@@ -75,7 +75,7 @@ def worker_contract():
 
 def orchestrator_v1_contract():
     """Structural W1 proof without importing the global FastAPI app or causing side effects."""
-    from core.orchestration_api import router as orchestration_router
+    from core.api.orchestration_api import router as orchestration_router
     problem = _assert_routes(orchestration_router, [
         ("/api/v1/runtime/capabilities", "GET"),
         ("/api/v1/runtime/coordinator", "GET"),
@@ -83,7 +83,7 @@ def orchestrator_v1_contract():
     ], "Orchestratore V1 → router dedicato")
     if problem: return problem
 
-    from core.runtime_api import router as runtime_router
+    from core.api.runtime_api import router as runtime_router
     problem = _assert_routes(runtime_router, [
         ("/api/v1/runtime/diagnostics", "GET"),
     ], "Orchestratore V1 → diagnostica runtime")

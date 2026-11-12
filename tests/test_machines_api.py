@@ -8,7 +8,7 @@ from unittest.mock import patch
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from core import machines_api as machines
+from core.api import machines_api as machines
 
 
 class MachinesTests(unittest.TestCase):

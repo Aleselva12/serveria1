@@ -111,7 +111,7 @@ class AuditEasyFixesTests(unittest.TestCase):
                              {"action": "summary", "error_type": "RuntimeError"})
 
     def test_create_conversation_does_not_leak_internal_error_as_422(self):
-        from core import conversations_api
+        from core.api import conversations_api
         with patch.object(conversations_api, "ensure_conversation",
                           side_effect=RuntimeError("database password is private")):
             with self.assertRaises(HTTPException) as error:

@@ -8,7 +8,7 @@ from unittest.mock import patch
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from core import roadmap_classifier_api as classifier
+from core.api import roadmap_classifier_api as classifier
 
 
 def goal(identifier="T1"):

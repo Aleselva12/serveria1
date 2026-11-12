@@ -19,7 +19,7 @@ def worker_update():
     from pathlib import Path
 
     from fastapi.responses import Response
-    root = Path(__file__).resolve().parents[1] / 'worker'
+    root = Path(__file__).resolve().parents[2] / 'worker'
     data = io.BytesIO()
     try:
         with zipfile.ZipFile(data, 'w', zipfile.ZIP_DEFLATED) as archive:
@@ -86,7 +86,7 @@ def run_detail(run_id: str):
 
 def architecture_overview():
     """System-level view: agent delegation, shared support and direct API paths."""
-    from core.calendar_api import router as calendar_router
+    from core.api.calendar_api import router as calendar_router
     from core.ia_library import router as library_router
     from core.models import get_model_name
     from core.monitoring import router as monitoring_router
@@ -172,7 +172,7 @@ def shadow_router_status():
 @router.get('/architecture/agents')
 def agents_catalog():
     from core.agent_models import ROLES, bindings
-    from core.machines_api import _read
+    from core.api.machines_api import _read
     from core.model_evidence import observations
     from core.models import resolve_model
     from core.registry import get_registry
@@ -200,7 +200,7 @@ def agents_catalog():
                        'assignment': assignment, 'machine_name': 'Ollama di Cora' if machine == 'local' else machines.get(machine, 'Worker non registrato'),
                        'runtime': runtime.get(identifier, {'status': 'unknown', 'checks': {}}),
                        'tools': [e for e in tools['entries'] if e['kind'] == 'tool' and owners[identifier] in e['agents']]})
-    from core.audio_api import audio_status
+    from core.api.audio_api import audio_status
     audio = next((a for a in agents if a['id'] == 'audio_agent'), None)
     if audio is not None: audio['transcription'] = audio_status()
     return {'agents': agents, 'components': [c for c in registry['components'] if c['kind'] == 'core' and c['id'] not in ROLES],
@@ -229,7 +229,7 @@ def download_default_models(pack: str):
 
 @router.get('/architecture/model-targets')
 def model_targets():
-    from core.machines_api import _read, _settings
+    from core.api.machines_api import _read, _settings
     return {'targets': [dict(id='local', name='Ollama di Cora', enabled=True, active_model=None)] + [
         dict(id=m['id'], name=m['name'], enabled=_settings(m)['enabled'],
              active_model=_settings(m)['selected_model']) for m in _read()]}
@@ -237,7 +237,7 @@ def model_targets():
 
 @router.get('/architecture/model-targets/{machine_id}')
 def target_models(machine_id: str):
-    from core.machines_api import _find, _settings, _worker_call
+    from core.api.machines_api import _find, _settings, _worker_call
     from core.models import list_ollama_models
     if machine_id == 'local':
         try:
