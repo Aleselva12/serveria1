@@ -48,6 +48,17 @@ package as `bootstrap.previous`. Later package updates need no sudo prompt. The 
 itself is deliberately not self-updated: changes to its protocol require a reviewed host
 installation. No new network listener or third container is introduced.
 
+To update an already installed helper after a reviewed change to
+`updater/host_maintenance.py` (the installer refuses to overwrite it), with no
+maintenance request pending:
+
+```sh
+sudo install -o root -g root -m 0644 updater/host_maintenance.py /usr/local/lib/cora-host-maintenance.py
+```
+
+The Aggiornamenti page compares the helper with the active release ignoring formatting
+and import order, so only real code changes show it as outdated.
+
 Do not run the installer from inside `installed`. Existing bootstrap artifacts or helper
 configuration cause refusal rather than overwrite. If installation fails, inspect its
 error and service state before retrying; do not delete backups merely to bypass a refusal.

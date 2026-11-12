@@ -42,7 +42,8 @@ lo sostituisce insieme ad API/web; il rollback lo riporta all'immagine precedent
 api, web, terminale, pacchetto updater e helper host con il commit attivo; la pagina
 Aggiornamenti mostra in rosso ogni parte non allineata. L'helper in `/usr/local/lib`
 resta fuori dall'aggiornamento automatico per scelta: se risulta non aggiornato va
-reinstallato con sudo.
+copiato a mano con sudo (vedi `docs/HOST_MAINTENANCE.md`). Il confronto ignora
+formattazione e ordine degli import.
 
 **Anche il checkout host è separato dalla release.** L'installazione di un candidato
 aggiorna le immagini e il commit attivo dell'updater, ma un checkout come

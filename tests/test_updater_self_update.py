@@ -174,6 +174,12 @@ class HelperShapeTests(unittest.TestCase):
         self.assertEqual(components._shape(a), components._shape(b))
         self.assertNotEqual(components._shape(a), components._shape(a.replace(b'1', b'2')))
 
+    def test_names_inside_one_import_can_be_reordered(self):
+        a = b'from urllib.request import Request, build_opener, ProxyHandler\n'
+        b = b'from urllib.request import ProxyHandler, Request, build_opener\n'
+        self.assertEqual(components._shape(a), components._shape(b))
+        self.assertNotEqual(components._shape(a), components._shape(b'from urllib.request import Request\n'))
+
 
 class DatabaseProbeTests(unittest.TestCase):
     def probe(self, modules):
