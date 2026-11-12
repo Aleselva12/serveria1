@@ -191,8 +191,8 @@ class ShutdownDrainTests(unittest.TestCase):
         with ExitStack() as mocks:
             for target in ['api.validate_runtime_profile', 'core.runtime.recover_interrupted',
                            'core.observability.archive.start', 'core.observability.archive.stop',
-                           'core.background_embeddings.start', 'core.background_embeddings.stop',
-                           'core.library_monitor.start', 'core.library_monitor.stop',
+                           'core.domain.background_embeddings.start', 'core.domain.background_embeddings.stop',
+                           'core.domain.library_monitor.start', 'core.domain.library_monitor.stop',
                            'core.verify.project_checks.start', 'core.verify.project_checks.stop',
                            'api.notification_worker.start', 'api.notification_worker.stop']:
                 mocks.enter_context(patch(target))

@@ -8,7 +8,7 @@ from typing import Any
 from pgvector import Vector
 
 from core.database import database_status, db_connection
-from core.embeddings import EMBEDDING_MODEL, embed_text
+from core.domain.embeddings import EMBEDDING_MODEL, embed_text
 from core.logging import log_event
 
 ALLOWED_MEMORY_TYPES = {

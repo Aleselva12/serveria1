@@ -8,8 +8,8 @@ from typing import Any
 from pgvector import Vector
 
 from core.database import db_connection
-from core.embeddings import embed_text as embed_text
-from core.transcripts import write_transcript
+from core.domain.embeddings import embed_text as embed_text
+from core.domain.transcripts import write_transcript
 
 CHAT_CONTEXT_MESSAGES = max(2, int(os.getenv("CORA_CHAT_CONTEXT_MESSAGES", "40")))
 
@@ -174,7 +174,7 @@ def get_messages(conversation_id: str, *, limit: int | None = None) -> list[dict
 
 
 def recent_context(conversation_id: str) -> list[dict[str, str]]:
-    from core.conversation_projects import project_context_for_conversation
+    from core.domain.conversation_projects import project_context_for_conversation
 
     rows = get_messages(conversation_id, limit=CHAT_CONTEXT_MESSAGES)
     result = [

@@ -268,7 +268,7 @@ def prepare_context(conversation_id, callbacks=None, should_yield=None):
             if not older: older = load_older()
     context = []
     try:
-        from core.conversation_projects import project_context_for_conversation
+        from core.domain.conversation_projects import project_context_for_conversation
         project_context = project_context_for_conversation(conversation_id)
     except Exception:
         project_context = ""

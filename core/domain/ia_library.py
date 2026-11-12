@@ -9,8 +9,7 @@ from fastapi import File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from core.confined_paths import confined_path
-from core.file_paths import ORIGINALS_ID, LibraryAccessError, library_workspace_root
-from core.server_files import (
+from core.domain.server_files import (
     exists,
     make_router,
     node,
@@ -21,6 +20,7 @@ from core.server_files import (
     upload_to,
     vacant,
 )
+from core.file_paths import ORIGINALS_ID, LibraryAccessError, library_workspace_root
 
 LIBRARY_ID = 'library'
 
@@ -120,12 +120,12 @@ class MonitorFolder(BaseModel):
 
 @router.get('/monitor')
 def monitor_status():
-    from core.library_monitor import status
+    from core.domain.library_monitor import status
     return status()
 
 @router.put('/monitor/folder')
 def monitor_folder(body: MonitorFolder):
-    from core.library_monitor import set_folder
+    from core.domain.library_monitor import set_folder
     with operation():
         try:
             return set_folder(body.folder, body.enabled)
@@ -134,7 +134,7 @@ def monitor_folder(body: MonitorFolder):
 
 @router.post('/monitor/scan')
 def monitor_scan():
-    from core.library_monitor import scan_once, status
+    from core.domain.library_monitor import scan_once, status
     with operation():
         if not scan_once():
             raise HTTPException(503, 'Scansione non completata; registro precedente conservato.')

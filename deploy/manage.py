@@ -85,7 +85,7 @@ def google_calendar_auth(login_hint='', port=8765):
         '--mount',f'type=bind,src={state},dst=/state',
         '-e','CORA_GOOGLE_CALENDAR_CREDENTIALS_PATH=/state/gmail/credentials.json',
         '-e','CORA_GOOGLE_CALENDAR_TOKEN_PATH=/state/google-calendar/token.json',
-        image,'python','-m','core.google_calendar_auth',
+        image,'python','-m','core.domain.google_calendar_auth',
         '--host','127.0.0.1','--port',str(port),
     ]
     if login_hint:

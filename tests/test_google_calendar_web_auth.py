@@ -8,8 +8,8 @@ from urllib.parse import parse_qs, urlsplit
 
 from google.auth.exceptions import RefreshError
 
-from core import google_calendar as provider
-from core import google_calendar_web_auth as oauth
+from core.domain import google_calendar as provider
+from core.domain import google_calendar_web_auth as oauth
 
 
 class CalendarWebAuthTests(unittest.TestCase):

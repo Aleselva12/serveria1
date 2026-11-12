@@ -14,7 +14,7 @@ from core.orchestration import DEFAULT_PLAN_OWNER, resolve_plan_owner
 from core.permissions import check_permission as check_permission
 from core.permissions import require_permission
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
 
 WORKSPACE_ROOT = Path(

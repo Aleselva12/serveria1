@@ -11,10 +11,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from psycopg.rows import dict_row
 
-from core import calendar as store
-from core import notifications
 from core.api.calendar_api import router
 from core.calendar_tools import calendar_tools_for
+from core.domain import calendar as store
+from core.domain import notifications
 from core.permissions import check_permission, validate_permission_configuration
 
 DATA = dict(title="Cliente", start="2026-10-02T09:00:00+02:00", end="2026-10-02T10:00:00+02:00", all_day=False, notes="Preventivo")

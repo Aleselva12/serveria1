@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from core import library_monitor as monitor
+from core.domain import library_monitor as monitor
 from search_agent import search_tools  # noqa: F401 - importing it registers the research tools
 
 

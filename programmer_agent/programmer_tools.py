@@ -107,7 +107,7 @@ def programmer_graph(workspace_id: str, query: str, node_id: str = "") -> dict:
 def programmer_validate_automation(workspace_id: str, data: dict) -> dict:
     """Valida una bozza usando lo stesso schema dell'editor Tools. Non la attiva o esegue."""
     _workspace(workspace_id)
-    from core.automation_drafts import validate_graph
+    from core.domain.automation_drafts import validate_graph
     from core.tool_inventory import inventory
     ids = {e["id"] for e in inventory()["entries"] if e["kind"] == "tool"}
     return {"draft": validate_graph(data, tool_ids=ids), "executes_actions": False}

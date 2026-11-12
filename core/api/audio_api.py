@@ -10,8 +10,8 @@ from pydantic import BaseModel, Field
 
 from core.access import owner_dependency
 from core.database import db_connection
+from core.domain.server_files import exists, operation, resolve, upload_to
 from core.runtime import checkpoint, runtime
-from core.server_files import exists, operation, resolve, upload_to
 
 router = APIRouter(prefix='/api/v1/audio', tags=['Audio'], dependencies=[Depends(owner_dependency('files'))])
 
@@ -191,7 +191,7 @@ def export(ident: uuid.UUID):
 def copy_to_library(ident: uuid.UUID):
     from io import BytesIO
 
-    from core.ia_library import upload_copy
+    from core.domain.ia_library import upload_copy
     row = get_record(ident)
     if row['transcript'] is None: raise HTTPException(409, 'Trascrizione non ancora disponibile.')
     # Version in the filename avoids overwriting an earlier imported transcript.
@@ -222,7 +222,7 @@ class CommercialDecision(BaseModel):
 
 @router.post('/{ident}/commercial/analyze', status_code=202)
 def analyze_commercial(ident: uuid.UUID, expected_version: int):
-    from core import commercial_notes
+    from core.domain import commercial_notes
     row = get_record(ident)
     if row['transcript'] is None or row['version'] != expected_version:
         raise HTTPException(409, 'Trascrizione cambiata o non disponibile.')
@@ -244,7 +244,7 @@ def analyze_commercial(ident: uuid.UUID, expected_version: int):
 
 @router.get('/{ident}/commercial/customers')
 def commercial_customers(ident: uuid.UUID, query: str):
-    from core import commercial_notes
+    from core.domain import commercial_notes
     row = get_record(ident)
     if row['transcript'] is None:
         raise HTTPException(409, 'Trascrivi prima la registrazione.')
@@ -256,14 +256,14 @@ def commercial_customers(ident: uuid.UUID, query: str):
 
 @router.get('/{ident}/commercial/proposals')
 def commercial_proposals(ident: uuid.UUID):
-    from core import commercial_notes
+    from core.domain import commercial_notes
     get_record(ident)
     return commercial_notes.proposals(ident)
 
 
 @router.post('/{ident}/commercial/proposals', status_code=201)
 def commercial_propose(ident: uuid.UUID, body: CommercialProposalRequest):
-    from core import commercial_notes
+    from core.domain import commercial_notes
     try:
         return commercial_notes.create_proposal(
             ident, body.expected_audio_version, body.selected.model_dump(), body.date, body.note)
@@ -278,7 +278,7 @@ def commercial_propose(ident: uuid.UUID, body: CommercialProposalRequest):
 
 @router.post('/{ident}/commercial/proposals/{proposal_id}/resolve')
 def commercial_resolve(ident: uuid.UUID, proposal_id: uuid.UUID, body: CommercialDecision):
-    from core import commercial_notes
+    from core.domain import commercial_notes
     if proposal_id not in {uuid.UUID(p['id']) for p in commercial_notes.proposals(ident)}:
         raise HTTPException(404, 'Proposta della registrazione non trovata.')
     try:

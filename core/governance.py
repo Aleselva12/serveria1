@@ -158,7 +158,7 @@ def execute_capability(identifier, payload):
             from core.permissions import get_permission_rule
             required = sorted({needed.action} | {a for a in contract.required_actions if get_permission_rule(contract.actor,a).policy.value == "confirm"})
             if contract.approval == "calendar":
-                from core import google_calendar
+                from core.domain import google_calendar
                 if google_calendar.token_exists():
                     # Pin the generic approval to the Google OAuth account.
                     # It may not later execute on a different account or local DB.
@@ -198,7 +198,7 @@ def execute_capability(identifier, payload):
         operation_status = finish(operation_id, contract.effect, None if escaped_error else result, escaped_error)
         if operation_status == 'uncertain' and not escaped_error:
             result.error = CapabilityError(code='EffectUncertain',message='Esito dell’effetto non verificabile. Controlla l’operazione in Attività prima di ripetere.')
-        from core.consultations import record
+        from core.domain.consultations import record
         record('tool', contract.id, operation_status if operation_status == 'uncertain' else result.status, run=run)
         from core.error_decisions import decide as orchestration_decision
         decision = orchestration_decision(

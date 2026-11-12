@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 LOCK = threading.RLock()
-BASE = Path(__file__).resolve().parents[1]
+BASE = Path(__file__).resolve().parents[2]
 KINDS = {"trigger", "tool", "condition", "output"}
 
 

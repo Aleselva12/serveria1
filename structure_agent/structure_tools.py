@@ -2,13 +2,8 @@ from __future__ import annotations
 
 import json
 
-from core.governance import agent_tool
-from core.logging import tail_events
-from core.memory import memory_stats
-from core.orchestration import resolve_plan_owner
-from core.permissions import check_permission as check_permission
-from core.permissions import permission_manifest, require_permission
-from core.plans import (
+from core.domain.memory import memory_stats
+from core.domain.plans import (
     create_evaluation_record,
     create_management_record,
     create_plan_record,
@@ -18,6 +13,11 @@ from core.plans import (
     save_management_record,
     save_plan_record,
 )
+from core.governance import agent_tool
+from core.logging import tail_events
+from core.orchestration import resolve_plan_owner
+from core.permissions import check_permission as check_permission
+from core.permissions import permission_manifest, require_permission
 from core.registry import get_registry
 from local_tools import list_project_files, read_project_file, system_status_tool
 

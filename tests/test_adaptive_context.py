@@ -50,7 +50,7 @@ class AdaptiveContextTests(unittest.TestCase):
                     assert 'ESTRATTO' in messages[-1].content
                     return AIMessage('Nel documento sintetico, il 24/10/2026: richiamare lunedi. Fonte parziale.')
                 return AIMessage('',tool_calls=[{'id':'read-once','name':'library_read','args':{'relative_path':'synthetic.docx'}}])
-        with patch.dict(os.environ, {'CORA_CONTEXT_TOKENS':'4096'}), patch.object(supervisor,'model_with_tools',Model()), patch.object(supervisor,'ensure_runtime_active'), patch.object(supervisor,'_runtime_system_prompt',return_value=('Use sources and disclose partial data.','',[],['library_read'])), patch('core.library_preflight.preload',return_value=''), patch.dict(supervisor.tool_node.tools_by_name,{'library_read':library_read}):
+        with patch.dict(os.environ, {'CORA_CONTEXT_TOKENS':'4096'}), patch.object(supervisor,'model_with_tools',Model()), patch.object(supervisor,'ensure_runtime_active'), patch.object(supervisor,'_runtime_system_prompt',return_value=('Use sources and disclose partial data.','',[],['library_read'])), patch('core.domain.library_preflight.preload',return_value=''), patch.dict(supervisor.tool_node.tools_by_name,{'library_read':library_read}):
             result = supervisor.graph.invoke({'messages':[HumanMessage('Leggi le ultime note di Capitan Ventura')], 'request_text':'Leggi le ultime note di Capitan Ventura'})
         self.assertIn('richiamare lunedi',result['messages'][-1].content)
         self.assertEqual(reads,['synthetic.docx'])

@@ -108,7 +108,7 @@ class AuditClosureTests(unittest.TestCase):
     def test_windows_long_path_has_client_error(self):
         from fastapi import HTTPException
 
-        from core.server_files import guard
+        from core.domain.server_files import guard
         error = OSError(22, 'invalid path'); error.winerror = 206
         with self.assertRaises(HTTPException) as caught:
             with guard(): raise error

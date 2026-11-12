@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 from fastapi import HTTPException
 
 import api
-from core import background_embeddings as embeddings
 from core import desktop_updates
+from core.domain import background_embeddings as embeddings
 from programmer_agent import api as programmer_api
 
 
@@ -25,10 +25,10 @@ class AuditEasyFixesTests(unittest.TestCase):
             "core.runtime.recover_interrupted"
         ), patch("core.observability.archive.start", mark("archive.start")), patch(
             "core.observability.archive.stop", mark("archive.stop")
-        ), patch("core.background_embeddings.start", mark("embeddings.start")), patch(
-            "core.background_embeddings.stop", mark("embeddings.stop")
-        ), patch("core.library_monitor.start", mark("library.start", fails=True)), patch(
-            "core.library_monitor.stop", mark("library.stop")
+        ), patch("core.domain.background_embeddings.start", mark("embeddings.start")), patch(
+            "core.domain.background_embeddings.stop", mark("embeddings.stop")
+        ), patch("core.domain.library_monitor.start", mark("library.start", fails=True)), patch(
+            "core.domain.library_monitor.stop", mark("library.stop")
         ), patch("core.verify.project_checks.stop", mark("checks.stop")), patch(
             "core.verify.project_checks.start", mark("checks.start")
         ), patch.object(api, "close_pool", mark("pool.close")):
@@ -54,10 +54,10 @@ class AuditEasyFixesTests(unittest.TestCase):
             "core.runtime.recover_interrupted"
         ), patch("core.observability.archive.start", mark("archive.start")), patch(
             "core.observability.archive.stop", mark("archive.stop")
-        ), patch("core.background_embeddings.start", mark("embeddings.start")), patch(
-            "core.background_embeddings.stop", mark("embeddings.stop")
-        ), patch("core.library_monitor.start", mark("library.start")), patch(
-            "core.library_monitor.stop", mark("library.stop", fails=True)
+        ), patch("core.domain.background_embeddings.start", mark("embeddings.start")), patch(
+            "core.domain.background_embeddings.stop", mark("embeddings.stop")
+        ), patch("core.domain.library_monitor.start", mark("library.start")), patch(
+            "core.domain.library_monitor.stop", mark("library.stop", fails=True)
         ), patch("core.verify.project_checks.start", mark("checks.start")), patch(
             "core.verify.project_checks.stop", mark("checks.stop")
         ), patch.object(api, "notification_worker") as notify, patch.object(
@@ -129,10 +129,10 @@ class AuditEasyFixesTests(unittest.TestCase):
             self.assertNotIn("/private", error.exception.detail)
 
     def test_notification_worker_reports_cycle_failure_without_private_data(self):
-        from core.notifications import NotificationWorker
+        from core.domain.notifications import NotificationWorker
         notification = NotificationWorker()
         notification._stop.wait = Mock(side_effect=[False, True])
-        with patch("core.notifications.deliver_calendar_reminders",
+        with patch("core.domain.notifications.deliver_calendar_reminders",
                    side_effect=OSError("/private/calendar/data")):
             notification._run()
         health = notification.health()
@@ -140,7 +140,7 @@ class AuditEasyFixesTests(unittest.TestCase):
         self.assertIsNotNone(health["last_attempt"])
         self.assertNotIn("/private", str(health))
         notification._stop.wait.side_effect = [False, True]
-        with patch("core.notifications.deliver_calendar_reminders"):
+        with patch("core.domain.notifications.deliver_calendar_reminders"):
             notification._run()
         self.assertIsNone(notification.health()["last_error_type"])
         self.assertIsNotNone(notification.health()["last_success"])

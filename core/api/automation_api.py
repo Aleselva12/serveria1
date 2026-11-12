@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from core import automation_drafts as store
 from core.access import owner_dependency
+from core.domain import automation_drafts as store
 from core.tool_inventory import inventory
 
 router = APIRouter(

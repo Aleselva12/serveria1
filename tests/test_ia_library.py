@@ -8,8 +8,8 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core.ia_library import router as library_router
-from core.server_files import router as server_router
+from core.domain.ia_library import router as library_router
+from core.domain.server_files import router as server_router
 
 
 class LibraryCopiesTests(unittest.TestCase):
@@ -92,7 +92,7 @@ class LibraryCopiesTests(unittest.TestCase):
         self.assertEqual(source.read_text(), 'original')
 
     def test_failed_copy_keeps_completed_upload_original(self):
-        with patch('core.ia_library.copy_document', side_effect=OSError('disk full')):
+        with patch('core.domain.ia_library.copy_document', side_effect=OSError('disk full')):
             response = self.client.post(self.prefix + '/upload', files={'file': ('report.txt', b'hello')})
         self.assertEqual(response.status_code, 503)
         self.assertIn('originale conservato', response.json()['detail'])
@@ -100,7 +100,7 @@ class LibraryCopiesTests(unittest.TestCase):
         self.assertFalse((self.library / 'report.txt').exists())
 
     def test_failure_after_atomic_publication_preserves_original_and_root_error(self):
-        from core import server_files
+        from core.domain import server_files
         def fail_node(*args, **kwargs):
             raise RuntimeError("synthetic post-publication failure")
         with patch.object(server_files, "node", side_effect=fail_node):

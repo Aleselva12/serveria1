@@ -12,9 +12,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from lxml import etree
 
-from core.ia_library import router as library_router
-from core.server_files import router
-from core.word_files import NS
+from core.domain.ia_library import router as library_router
+from core.domain.server_files import router
+from core.domain.word_files import NS
 
 
 class WordFilesTests(unittest.TestCase):

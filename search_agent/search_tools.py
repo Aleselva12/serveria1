@@ -164,7 +164,7 @@ def _read_document(path: Path) -> str:
         text = text[:MAX_TEXT_CHARS] + "\n\n[TESTO TRONCATO PER LIMITE DI SICUREZZA]"
 
     _activity("read", path=path.relative_to(library_workspace_root()).as_posix())
-    from core.consultations import record
+    from core.domain.consultations import record
     record('file', path.relative_to(library_workspace_root()).as_posix(), 'read')
     return text
 
@@ -387,8 +387,8 @@ def append_word_document(
                 "error": "L'aggiornamento è consentito solo per file .docx.",
             }, ensure_ascii=False)
 
+        from core.domain.server_files import operation
         from core.library_tools import archive_previous, checked_file, publish_bytes
-        from core.server_files import operation
         path, before = checked_file(relative_path, expected_sha256)
         document = Document(io.BytesIO(before))
         if heading.strip():

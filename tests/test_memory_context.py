@@ -9,7 +9,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 from core.context_budget import ContextDeferred, ContextOverflow, fit_messages, prepare_context
 from core.database import db_connection
-from core.memory import MemoryConflict, memory_history, save_memory, search_memories
+from core.domain.memory import MemoryConflict, memory_history, save_memory, search_memories
 
 
 class ContextContractTests(unittest.TestCase):
@@ -46,7 +46,7 @@ class ContextContractTests(unittest.TestCase):
         from core.context_pages import preload_context, resolve_context_pages
         selected = resolve_context_pages('Cosa sai di me?')
         self.assertIn('owner_context',[page.id for page in selected])
-        with patch('core.system_context.get_system_context', return_value={'version':3,'content':'owner one','updated_at':None}) as get:
+        with patch('core.domain.system_context.get_system_context', return_value={'version':3,'content':'owner one','updated_at':None}) as get:
             data, providers = preload_context(selected)
         self.assertEqual(providers,['owner_context'])
         self.assertIn('owner one',data)
@@ -65,7 +65,7 @@ class MemoryPostgresTests(unittest.TestCase):
         close_pool()
 
     def test_versioned_edit_and_stale_write_preserve_previous_content(self):
-        with patch('core.memory.embed_text') as embed:
+        with patch('core.domain.memory.embed_text') as embed:
             first=save_memory(memory_type='fact',key='owner',content='Original')
             second=save_memory(memory_type='fact',key='owner',content='Corrected',expected_version=1,expected_memory_id=str(first['id']))
             with self.assertRaises(MemoryConflict):save_memory(memory_type='fact',key='owner',content='Stale',expected_version=1,expected_memory_id=str(first['id']))
@@ -139,12 +139,12 @@ class MemoryPostgresTests(unittest.TestCase):
         self.assertEqual(context[-1]['content'],'recent')
 
     def test_background_embedding_cannot_attach_to_a_changed_memory_version(self):
-        from core.background_embeddings import index_pending_once, runtime
+        from core.domain.background_embeddings import index_pending_once, runtime
         first=save_memory(memory_type='note',key='embedding',content='Old')
         def changed(_):
             save_memory(memory_type='note',key='embedding',content='New',expected_version=1,expected_memory_id=str(first['id']))
             return [[1.0,2.0]]
-        with patch.object(runtime,'last_foreground',0),patch.object(runtime,'snapshot',return_value=[]),patch('core.background_embeddings.EMBEDDING_MODEL','test'),patch('core.background_embeddings.embed_batch',side_effect=changed):
+        with patch.object(runtime,'last_foreground',0),patch.object(runtime,'snapshot',return_value=[]),patch('core.domain.background_embeddings.EMBEDDING_MODEL','test'),patch('core.domain.background_embeddings.embed_batch',side_effect=changed):
             self.assertTrue(index_pending_once())
         with db_connection() as c:row=c.execute('SELECT * FROM memories WHERE id=%s',(first['id'],)).fetchone()
         self.assertEqual(row['version'],2);self.assertIsNone(row['embedding'])
@@ -190,8 +190,8 @@ class MemoryPostgresTests(unittest.TestCase):
             self.assertEqual(client.put('/memory/context',json={'content':'Stale','expected_version':context['version']}).status_code,409)
 
     def test_delete_and_recreate_same_key_cannot_retarget_a_previous_proposal(self):
+        from core.domain.memory import delete_memory
         from core.governance import resolve
-        from core.memory import delete_memory
         from core.permissions import set_policy
         from tools import remember_tool
         first=save_memory(memory_type='note',key='recreated',content='Original')

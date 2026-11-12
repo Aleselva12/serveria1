@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core import google_calendar
 from core.api.calendar_api import router
+from core.domain import google_calendar
 
 
 class GoogleCalendarProviderTests(unittest.TestCase):

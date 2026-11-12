@@ -71,7 +71,7 @@ def _runtime_system_prompt(messages, request_text=None, manual_tools=None) -> tu
     from core.chat_tools import validate_selection
     manual = validate_selection(manual_tools, supervisor_tools)
     tool_names = manual if manual is not None else list(dict.fromkeys(selected_tool_names(selected)))
-    from core.library_routing import library_intent
+    from core.domain.library_routing import library_intent
     if manual is None and library_intent(user_text):
         tool_names = list(dict.fromkeys(tool_names + ["library_list", "library_search", "library_read"]))
     # A Library-only request must not expose repository browsing tools.
@@ -85,7 +85,7 @@ def _runtime_system_prompt(messages, request_text=None, manual_tools=None) -> tu
 
     run = current_run.get()
     if run:
-        from core.consultations import record
+        from core.domain.consultations import record
         for page in selected:
             record('context', page.id, 'included', run=run)
         for provider in preload_providers:
@@ -119,7 +119,7 @@ def prepare_turn(state: CoraState):
     prompt, memory_context, context_pages, tool_names = _runtime_system_prompt(state["messages"], state.get("request_text"), state.get("manual_tools"))
     # Explicitly named Library documents are discovered before the LLM call.
     # This is a read-only, permission-checked preflight; manual tool selection wins.
-    from core.library_preflight import preload as library_preload
+    from core.domain.library_preflight import preload as library_preload
     preflight = library_preload(state.get("request_text") or _latest_user_text(state["messages"]), tool_names)
     if preflight:
         memory_context = (memory_context + "\n\n" + preflight) if memory_context else preflight
@@ -155,7 +155,7 @@ def call_model(state: CoraState):
     ensure_runtime_active()
     # Direct, governed read-only listing for explicit IA Library inventory questions.
     # Never override an explicit manual tool selection.
-    from core.library_routing import list_documents_direct, list_requested
+    from core.domain.library_routing import list_documents_direct, list_requested
     if state.get("manual_tools") is None and "library_list" in state.get("selected_tool_names", []):
         request = state.get("request_text") or _latest_user_text(state["messages"])
         if list_requested(request):

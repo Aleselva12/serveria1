@@ -39,7 +39,7 @@ def audio_word_contract():
         ("/api/v1/audio/{ident}/commercial/proposals/{proposal_id}/resolve", "POST"),
     ], "Audio → approvazione")
     if problem: return problem
-    from core import commercial_notes, commercial_word
+    from core.domain import commercial_notes, commercial_word
     if not all(callable(getattr(commercial_word, n, None)) for n in ("parse","propose_append")):
         return "fail", "Collegamento assente: Audio → motore Word"
     if not callable(getattr(commercial_notes, "resolve_proposal", None)):
@@ -54,7 +54,7 @@ def calendar_contract():
         ("/api/v1/calendar/proposals/{proposal_id}/resolve", "POST"),
     ], "Calendario → approvazione")
     if problem: return problem
-    from core import google_calendar
+    from core.domain import google_calendar
     if not all(callable(getattr(google_calendar,n,None)) for n in ("create_event","update_event","delete_event")):
         return "fail", "Collegamento assente: Calendar API → Google"
     return "pass", "Contratti Calendario → proposte → Google presenti; OAuth non provato"

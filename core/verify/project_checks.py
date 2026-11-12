@@ -74,7 +74,7 @@ def _word_sample() -> tuple[str, str]:
 
     from docx import Document
 
-    from core.commercial_word import parse, propose_append
+    from core.domain.commercial_word import parse, propose_append
 
     document = Document()
     for line in ("LIDO TEST", "Interlocutore prova", "21/10/2026", "Nota originale",

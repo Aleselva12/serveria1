@@ -6,7 +6,7 @@ from datetime import UTC
 from pathlib import Path
 from unittest.mock import patch
 
-from core import google_calendar as provider
+from core.domain import google_calendar as provider
 
 
 class ServiceAccountTests(unittest.TestCase):

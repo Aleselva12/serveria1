@@ -21,7 +21,7 @@ from wsgiref.util import request_uri
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-from core.google_calendar import CREDENTIALS_PATH, SCOPES, TOKEN_PATH, verify_access
+from core.domain.google_calendar import CREDENTIALS_PATH, SCOPES, TOKEN_PATH, verify_access
 
 
 class CallbackApp:

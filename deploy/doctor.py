@@ -35,7 +35,7 @@ def inspect():
         checks['ollama']={'ok':not missing,'missing_models':missing}
     except Exception as error:checks['ollama']={'ok':False,'error_type':type(error).__name__}
     try:
-        from core.server_files import roots
+        from core.domain.server_files import roots
         directories=[(r['id'],Path(r['path']),r['writable']) for r in roots()]
         for name in ('CORA_KNOWLEDGE_ROOT','CORA_AUDIO_ROOT','CORA_TRANSCRIPT_ROOT','CORA_STRUCTURE_WORKSPACE','CORA_AUTOMATION_ROOT','CORA_QUOTE_ROOT'):
             if os.getenv(name):directories.append((name,Path(os.environ[name]),True))

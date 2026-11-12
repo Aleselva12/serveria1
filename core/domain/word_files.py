@@ -232,7 +232,7 @@ def patch_document(content, body):
 
 
 def register_word_editor(router, root_provider):
-    from core.server_files import exists, operation, resolve, root_for
+    from core.domain.server_files import exists, operation, resolve, root_for
 
     @router.get('/word')
     def open_word(root_id: str, path: str):

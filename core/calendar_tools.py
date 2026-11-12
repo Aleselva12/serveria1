@@ -1,8 +1,8 @@
 """Actor-bound calendar tools: identity and approval cannot be supplied by the LLM."""
 from datetime import datetime
 
-from core import calendar as store
-from core import google_calendar
+from core.domain import calendar as store
+from core.domain import google_calendar
 from core.governance import agent_tool
 from core.permissions import require_permission
 

@@ -40,7 +40,7 @@ def files_sample():
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
-    from core.server_files import make_router
+    from core.domain.server_files import make_router
     token = "cora-synthetic-verification"
     with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"CORA_OWNER_TOKEN": token}):
         roots = [{"id": "test", "path": folder, "writable": True}]

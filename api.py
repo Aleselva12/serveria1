@@ -25,38 +25,38 @@ from core.api.runtime_api import router as runtime_router
 from core.api.system_api import router as system_router
 from core.auth import AuthMiddleware
 from core.auth import router as auth_router
-from core.chat_attachments import attachment_rows, request_content
-from core.chat_attachments import public as attachment_public
-from core.chat_attachments import router as attachments_router
-from core.chat_store import (
+from core.context_budget import prepare_context, schedule_summary
+from core.database import close_pool
+from core.desktop_updates import router as update_router
+from core.domain.chat_attachments import attachment_rows, request_content
+from core.domain.chat_attachments import public as attachment_public
+from core.domain.chat_attachments import router as attachments_router
+from core.domain.chat_store import (
     ensure_conversation,
     refresh_transcript,
     save_message,
 )
-from core.chat_store import (
+from core.domain.chat_store import (
     recent_context as recent_context,
 )
-from core.context_budget import prepare_context, schedule_summary
-from core.database import close_pool
-from core.desktop_updates import router as update_router
-from core.episodes import create_episode
+from core.domain.episodes import create_episode
+from core.domain.ia_library import router as library_router
+from core.domain.notifications import router as notifications_router
+from core.domain.notifications import worker as notification_worker
+from core.domain.server_files import router as files_router
+from core.domain.working_memory import set_working_memory
 from core.execution_traces import ExecutionTrace
-from core.ia_library import router as library_router
 from core.logging import logged_operation
 from core.models import (
     get_model_name as get_model_name,
 )
 from core.monitoring import router as monitoring_router
-from core.notifications import router as notifications_router
-from core.notifications import worker as notification_worker
 from core.postprocessing import Postprocessing
 from core.runtime import RunStopped as RunStopped
 from core.runtime import checkpoint, publish_text, runtime
 from core.runtime_profile import validate_runtime_profile
-from core.server_files import router as files_router
 from core.verify.node_verification import router as node_verification_router
 from core.verify.project_checks import router as project_checks_router
-from core.working_memory import set_working_memory
 from graph import graph
 from programmer_agent.api import router as programmer_router
 
@@ -68,10 +68,10 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gpt-oss:20b")
 @asynccontextmanager
 async def lifespan(app):
     validate_runtime_profile()
-    from core import background_embeddings
+    from core.domain import background_embeddings
     from core.runtime import recover_interrupted
     recover_interrupted()
-    from core import library_monitor
+    from core.domain import library_monitor
     from core.observability import archive
     from core.verify import project_checks
     # Cleanup is registered before each start to cover partial initialization.
