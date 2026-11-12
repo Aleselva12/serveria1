@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm AS api
+FROM python:3.15-slim-bookworm AS api
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY requirements-deploy.lock ./
@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir --require-hashes -r requirements-deploy-audio.loc
 USER cora
 
 # Optional personal terminal: no application data, Docker socket, or host shell.
-FROM python:3.12-slim-bookworm AS terminal
+FROM python:3.15-slim-bookworm AS terminal
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY terminal_service/requirements.lock ./requirements.lock
