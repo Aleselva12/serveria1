@@ -46,7 +46,7 @@ def fingerprint(path):
 
 
 def register_extras(router, root_provider, *, allow_upload):
-    from core.server_files import (
+    from core.domain.server_files import (
         RESERVED,
         exists,
         node,
@@ -270,7 +270,7 @@ def register_extras(router, root_provider, *, allow_upload):
                 if allow_upload:
                     result = upload_to(root, base, meta['path'], upload)
                 else:
-                    from core.ia_library import upload_copy
+                    from core.domain.ia_library import upload_copy
                     result = upload_copy(meta['path'], upload)
             meta['result'] = result
             (slot/'meta.json').write_text(json.dumps(meta))

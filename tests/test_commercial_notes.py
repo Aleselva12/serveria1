@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from docx import Document
 
-from core import commercial_notes
+from core.domain import commercial_notes
 
 
 def sample():

@@ -55,7 +55,7 @@ def _calendar_provider():
     if not _calendar_ready():
         raise ValueError("Account Google di collaudo separato richiesto")
     os.environ["CORA_GOOGLE_CALENDAR_TOKEN_PATH"] = os.environ["CORA_VERIFY_CALENDAR_TOKEN_PATH"]
-    from core import google_calendar
+    from core.domain import google_calendar
     return google_calendar
 
 
@@ -145,12 +145,12 @@ def _action(action, run_id):
         state = "fail" if not result.wasSuccessful() else "skipped" if result.skipped or not result.testsRun else "pass"
         return {"status": state, "detail": f"Regressioni isolate: {result.testsRun} test, {len(result.failures)} fallimenti, {len(result.errors)} errori, {len(result.skipped)} saltati. Servizi reali non certificati"}
     if action == "memory_write":
-        from core.memory import save_memory
+        from core.domain.memory import save_memory
         save_memory(memory_type="note", key=key, content=key,
                     source="verification", importance=1)
         return {"status": "pass"}
     if action == "memory_read":
-        from core.memory import search_memories
+        from core.domain.memory import search_memories
         rows = search_memories(key, memory_type="note")
         if not any(row["key"] == key and row["content"] == key for row in rows):
             raise ValueError("Memoria non riletta")

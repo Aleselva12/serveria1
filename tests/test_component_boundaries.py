@@ -80,7 +80,7 @@ class CatalogTests(unittest.TestCase):
              patch.object(supervisor,"ensure_runtime_active"), \
              patch.object(supervisor,"_runtime_system_prompt",
                           return_value=("Prompt di test","",[],["search_agent_tool"])), \
-             patch("core.library_preflight.preload",return_value=""), \
+             patch("core.domain.library_preflight.preload",return_value=""), \
              patch.dict(supervisor.tool_node.tools_by_name,{"search_agent_tool":search_agent_tool}):
             result = supervisor.graph.invoke({
                 "messages":[HumanMessage("Cerca ordine di prova")],

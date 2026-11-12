@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 
-from core import chat_attachments as attachments
+from core.domain import chat_attachments as attachments
 
 
 class AttachmentTests(unittest.TestCase):

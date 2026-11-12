@@ -192,7 +192,7 @@ def inventory(routes=(), root: Path = ROOT):
         ("Microfono live opzionale", "Audio", "Funzione rinviata e non implementata. Le registrazioni salvate si caricano già dalla pagina Audio."),
     ]
     names = {e["name"] for e in entries}
-    if (root / "core/chat_attachments.py").is_file() or any(getattr(r, "path", "").startswith("/api/v1/chat/attachments") for r in routes):
+    if (root / "core/domain/chat_attachments.py").is_file() or any(getattr(r, "path", "").startswith("/api/v1/chat/attachments") for r in routes):
         planned = [p for p in planned if p[0] != "Allegati della chat"]
     planned.extend(FILE_TOOL_BACKLOG)
     for name, group, description in planned:

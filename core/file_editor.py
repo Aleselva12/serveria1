@@ -40,7 +40,7 @@ def revision(data):
 
 
 def register_editor(router, root_provider):
-    from core.server_files import exists, operation, resolve, root_for
+    from core.domain.server_files import exists, operation, resolve, root_for
 
     @router.get('/text')
     def open_text(root_id: str, path: str):
@@ -78,7 +78,7 @@ def register_editor(router, root_provider):
 
 def save_bytes(base, path, original, data, expected_revision):
     """Called under the filesystem operation lock; never overwrite a stale revision."""
-    from core.server_files import exists, resolve
+    from core.domain.server_files import exists, resolve
     target = resolve(base, path)
     exists(target)
     before = target.stat()

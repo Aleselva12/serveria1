@@ -5,9 +5,11 @@ from collections.abc import Callable
 from langchain_core.messages import HumanMessage
 
 from core.component_bus import component_bus
+from core.domain.memory import delete_memory, save_memory, search_memories
+from core.domain.system_context import get_system_context
+from core.domain.working_memory import set_working_memory
 from core.governance import agent_tool
 from core.logging import logged_operation, tail_events
-from core.memory import delete_memory, save_memory, search_memories
 from core.permissions import require_permission
 from core.protocol import TaskEnvelope
 from core.registry import registry_json
@@ -15,8 +17,6 @@ from core.run_lifecycle import RunCancelled, create_run, transition_run
 from core.run_states import DurabilityLost
 from core.runtime import RunStopped, checkpoint, publish_text
 from core.runtime_context import RunTimedOut, bind_runtime, current_runtime
-from core.system_context import get_system_context
-from core.working_memory import set_working_memory
 from local_tools import (
     calculator_tool as _calculator_tool,
 )

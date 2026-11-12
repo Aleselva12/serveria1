@@ -36,7 +36,7 @@ def update_system_context(
     with db_connection() as connection:
         previous = connection.execute('SELECT version FROM system_context WHERE id=1 FOR UPDATE').fetchone()
         if expected_version is not None and (previous['version'] if previous else 0) != expected_version:
-            from core.memory import MemoryConflict
+            from core.domain.memory import MemoryConflict
             raise MemoryConflict('Contesto modificato altrove: rileggi la versione corrente.')
         row = connection.execute(
             """

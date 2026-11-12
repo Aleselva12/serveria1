@@ -7,7 +7,7 @@ from programmer_agent import workspace as ws
 
 
 def contracts(identifier):
-    from core.automation_drafts import validate_graph
+    from core.domain.automation_drafts import validate_graph
     from core.tool_inventory import inventory
     from programmer_agent.components import _load
     rows = _load(identifier)

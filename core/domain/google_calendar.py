@@ -390,7 +390,7 @@ def publish_local_events(events: list[dict]) -> dict:
 
 def _conditional_event_request(event_id: str, expected_version: int, *, data: dict | None = None) -> dict:
     """Reject stale revisions, then atomically enforce ETag using Google's If-Match."""
-    from core.calendar import CalendarConflict
+    from core.domain.calendar import CalendarConflict
     previous = get_event(event_id)
     if previous["version"] != expected_version:
         raise CalendarConflict("L'evento Google è cambiato: rileggilo prima di procedere.")

@@ -5,7 +5,7 @@ from io import BytesIO
 
 from docx import Document
 
-from core.commercial_word import parse, propose_append, search
+from core.domain.commercial_word import parse, propose_append, search
 
 
 def sample():

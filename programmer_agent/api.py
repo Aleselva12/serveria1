@@ -127,7 +127,7 @@ def import_graph(workspace_id: UUID, data: GraphImport):
 @router.post("/workspaces/{workspace_id}/drafts", status_code=201)
 def import_draft(workspace_id: UUID, data: DraftImport):
     """Explicit owner import into the existing graphical editor; never execution."""
-    from core.automation_drafts import save_draft
+    from core.domain.automation_drafts import save_draft
     from core.tool_inventory import inventory
     identifier = str(workspace_id)
     path = call(ws.file_path, identifier, data.path)
@@ -141,8 +141,8 @@ def import_draft(workspace_id: UUID, data: DraftImport):
 
 
 def execute_programmer(request: ProgrammerRequest, run) -> dict:
-    from core.chat_store import ensure_conversation, save_message
     from core.context_budget import prepare_context
+    from core.domain.chat_store import ensure_conversation, save_message
     from core.execution_traces import ExecutionTrace
     from core.models import get_model_name
     from core.runtime_context import bind_runtime

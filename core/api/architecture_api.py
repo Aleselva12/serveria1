@@ -87,11 +87,11 @@ def run_detail(run_id: str):
 def architecture_overview():
     """System-level view: agent delegation, shared support and direct API paths."""
     from core.api.calendar_api import router as calendar_router
-    from core.ia_library import router as library_router
+    from core.domain.ia_library import router as library_router
+    from core.domain.server_files import router as files_router
     from core.models import get_model_name
     from core.monitoring import router as monitoring_router
     from core.registry import get_registry
-    from core.server_files import router as files_router
     from tools import supervisor_tools
 
     registry = get_registry()

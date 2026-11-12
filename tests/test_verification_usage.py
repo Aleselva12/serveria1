@@ -39,7 +39,7 @@ class UsageEvidenceTests(unittest.TestCase):
             local.assert_not_called()
 
     def test_calendar_readback_is_required_before_green_and_never_repeats_write(self):
-        from core import google_calendar
+        from core.domain import google_calendar
         event = dict(id="private-id",version=1,title="private-title",start="start",end="end")
         with patch.object(usage, "enabled", return_value=True), patch.object(google_calendar, "get_event", return_value=event), patch.object(google_calendar, "create_event") as create, patch.object(usage, "record") as record:
             usage.calendar_write("create", event)
@@ -52,7 +52,7 @@ class UsageEvidenceTests(unittest.TestCase):
             self.assertNotIn("private-error", record.call_args.args[2])
 
     def test_synthetic_runs_cannot_publish_live_evidence_or_read_google(self):
-        from core import google_calendar
+        from core.domain import google_calendar
         with patch.dict(os.environ, {"CORA_VERIFICATION_SYNTHETIC":"1"}), patch("core.database.DATABASE_URL", "configured"), patch("core.verify.project_checks._release", return_value="a"*40), patch("core.database.db_connection") as db, patch.object(google_calendar, "get_event") as read:
             self.assertFalse(usage.record("worker_e2e", "pass", "fake"))
             usage.calendar_write("create", {"id":"fake"})

@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from psycopg.errors import ForeignKeyViolation
 from pydantic import BaseModel, Field
 
-from core.chat_store import (
+from core.domain.chat_store import (
     archive_conversation,
     delete_conversation,
     ensure_conversation,
@@ -14,7 +14,7 @@ from core.chat_store import (
     move_conversation,
     rename_conversation,
 )
-from core.conversation_projects import (
+from core.domain.conversation_projects import (
     create_project,
     delete_project,
     list_projects,

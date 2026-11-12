@@ -43,7 +43,7 @@ class AudioUITests(unittest.TestCase):
             self.assertEqual(error.exception.status_code,409)
     def test_library_export_keeps_versioned_filename_and_original(self):
         ident=uuid.uuid4()
-        with patch.object(audio_api,'get_record',return_value={'transcript':'testo corretto','version':3}),patch('core.ia_library.upload_copy') as upload:
+        with patch.object(audio_api,'get_record',return_value={'transcript':'testo corretto','version':3}),patch('core.domain.ia_library.upload_copy') as upload:
             audio_api.copy_to_library(ident)
             _,file=upload.call_args.args
             self.assertIn('-v3.txt',file.filename);self.assertEqual(file.file.read(),b'testo corretto')

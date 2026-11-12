@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 from fastapi import HTTPException
 
-from core import priority_evaluations as store
 from core.api import roadmap_classifier_api as classifier
+from core.domain import priority_evaluations as store
 from tests.test_roadmap_classifier import FakeResponse, goal, result
 
 

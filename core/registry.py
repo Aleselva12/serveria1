@@ -22,7 +22,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
     ComponentDefinition(
         id="calendar", name="Calendario", kind="core",
         description="Calendario PostgreSQL condiviso tra interfaccia e tool: storico, recupero e proposte agenti approvabili.",
-        module="core.calendar",
+        module="core.domain.calendar",
         capabilities=(
             Capability("calendar_events", "Legge e gestisce gli eventi persistenti nelle viste mese e giorno."),
             Capability("calendar_proposals", "Gestisce le proposte degli agenti con conferma utente e controllo versione."),
@@ -137,7 +137,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         name="Planning Artifacts",
         kind="core",
         description="Persistenza locale strutturata di plan, evaluation e management artifact.",
-        module="core.plans",
+        module="core.domain.plans",
         capabilities=(
             Capability("create_plan_record", "Crea piani strutturati con owner orchestrator e target_component separato."),
             Capability("save_plan_record", "Salva piani nel workspace autorizzato."),
@@ -150,7 +150,7 @@ COMPONENTS: tuple[ComponentDefinition, ...] = (
         name="Persistent Memory",
         kind="core",
         description="Memoria persistente PostgreSQL con pgvector, separata dalla cronologia completa e dai log.",
-        module="core.memory",
+        module="core.domain.memory",
         capabilities=(
             Capability("save_memory", "Crea o aggiorna memorie strutturate autorizzate."),
             Capability("search_memory", "Cerca memorie persistenti per tipo, chiave e contenuto."),

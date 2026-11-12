@@ -7,8 +7,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from core import file_paths
+from core.domain.library_preflight import preload
 from core.governance import CapabilityExecutionError
-from core.library_preflight import preload
 from search_agent import search_tools
 
 
@@ -25,7 +25,7 @@ class LibraryWorkspaceTests(unittest.TestCase):
 
     def test_first_agent_access_initializes_same_default_as_ui_without_opening_files(self):
         import tools
-        from core.ia_library import library_base
+        from core.domain.ia_library import library_base
         self.assertFalse((self.base/'knowledge').exists())
         data=json.loads(tools.library_list.invoke({}))
         self.assertEqual(data['documents'],[])
@@ -35,7 +35,7 @@ class LibraryWorkspaceTests(unittest.TestCase):
 
     def test_agents_and_ui_follow_current_configuration_not_an_import_time_path(self):
         import tools
-        from core.ia_library import library_base
+        from core.domain.ia_library import library_base
         for folder in ('first','second'):
             root=self.base/folder;root.mkdir();(root/'note.txt').write_text(folder,encoding='utf-8')
             with patch.dict(os.environ,{'CORA_KNOWLEDGE_ROOT':str(root)}):
@@ -44,7 +44,7 @@ class LibraryWorkspaceTests(unittest.TestCase):
 
     def test_missing_configured_mount_is_not_created_or_replaced_with_default(self):
         import tools
-        from core.ia_library import library_roots
+        from core.domain.ia_library import library_roots
         missing=self.base/'not-mounted'
         with patch.dict(os.environ,{'CORA_KNOWLEDGE_ROOT':str(missing)}):
             self.assertEqual(Path(library_roots()[0]['path']),missing)
@@ -147,7 +147,7 @@ class PreflightFailureTests(unittest.TestCase):
 
     @patch('tools.library_list')
     def test_direct_listing_handles_unavailability_and_malformed_results(self,listing):
-        from core.library_routing import list_documents_direct
+        from core.domain.library_routing import list_documents_direct
         listing.invoke.side_effect=CapabilityExecutionError('LibraryRootMissing','private details')
         self.assertIn('Impossibile consultare',list_documents_direct())
         listing.invoke.side_effect=None;listing.invoke.return_value='{}'

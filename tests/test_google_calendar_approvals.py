@@ -6,10 +6,10 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
-from core import calendar as local
-from core import google_calendar
 from core.api import calendar_api
 from core.calendar_tools import calendar_tools_for
+from core.domain import calendar as local
+from core.domain import google_calendar
 
 DATA = {
     "title": "Visita cliente",

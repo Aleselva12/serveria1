@@ -6,10 +6,11 @@ from googleapiclient.errors import HttpError
 from psycopg import OperationalError
 from pydantic import BaseModel, Field
 
-from core import calendar as store
-from core import google_calendar, governance
-from core import google_calendar_web_auth as web_auth
+from core import governance
 from core.access import require_owner
+from core.domain import calendar as store
+from core.domain import google_calendar
+from core.domain import google_calendar_web_auth as web_auth
 
 
 def calendar_owner(request: Request):

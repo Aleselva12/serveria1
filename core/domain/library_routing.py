@@ -15,7 +15,7 @@ def list_requested(text: str) -> bool:
 
 def list_documents_direct() -> str:
     """No Ollama required. Reuse governed Library API, preserving permissions."""
-    from core.library_preflight import _invoke, _unavailable
+    from core.domain.library_preflight import _invoke, _unavailable
     from tools import library_list
     data,error = _invoke(library_list,{"directory": ".", "recursive": True},action='elenco',for_model=False)
     if error: return error

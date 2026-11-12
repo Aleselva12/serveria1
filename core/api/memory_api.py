@@ -5,8 +5,8 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from core.episodes import list_episodes
-from core.memory import (
+from core.domain.episodes import list_episodes
+from core.domain.memory import (
     MemoryConflict,
     delete_memory,
     memory_history,
@@ -14,8 +14,8 @@ from core.memory import (
     save_memory,
     search_memories,
 )
-from core.system_context import get_system_context, update_system_context
-from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
+from core.domain.system_context import get_system_context, update_system_context
+from core.domain.working_memory import clear_working_memory, list_working_memory, set_working_memory
 
 router = APIRouter()
 

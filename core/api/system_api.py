@@ -4,9 +4,9 @@ from urllib.error import URLError
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from core.chat_store import conversation_stats
 from core.database import database_status
-from core.memory import memory_stats
+from core.domain.chat_store import conversation_stats
+from core.domain.memory import memory_stats
 from core.models import (
     RuntimeSettingsError,
     get_default_model_name,

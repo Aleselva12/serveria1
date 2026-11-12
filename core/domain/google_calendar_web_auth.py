@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 
-from core import google_calendar as provider
+from core.domain import google_calendar as provider
 
 TTL = 600
 

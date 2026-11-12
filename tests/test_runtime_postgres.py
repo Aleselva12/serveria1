@@ -197,13 +197,13 @@ class RuntimePostgresTests(unittest.TestCase):
         self.assertEqual(row['status'],'uncertain');self.assertIn('error',row['result'])
 
     def test_empty_memory_skips_embedding_and_unrelated_memory_is_filtered(self):
-        from core.memory import search_memories
+        from core.domain.memory import search_memories
         with db_connection() as c: c.execute('TRUNCATE memories CASCADE')
-        with patch('core.memory.embed_text') as embed:
+        with patch('core.domain.memory.embed_text') as embed:
             self.assertEqual(search_memories('test'),[]);embed.assert_not_called()
         with db_connection() as c:
             c.execute("INSERT INTO memories (id,memory_type,key,content,source) VALUES (%s,'fact','calendar','Meeting Monday','test')",(uuid4(),))
-        with patch('core.memory.embed_text',return_value=(None,None)):
+        with patch('core.domain.memory.embed_text',return_value=(None,None)):
             self.assertEqual(search_memories('unrelated phrase'),[])
             self.assertEqual(len(search_memories('Meeting')),1)
 

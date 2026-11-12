@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TRANSCRIPT_ROOT = Path(
     os.getenv(
         "CORA_CHAT_TRANSCRIPT_ROOT",

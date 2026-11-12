@@ -8,7 +8,7 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core.server_files import router
+from core.domain.server_files import router
 
 
 class ServerFilesTests(unittest.TestCase):
@@ -177,7 +177,7 @@ class ServerFilesTests(unittest.TestCase):
         self.assertEqual(self.post('/folders', path='a' * 300).status_code, 400)
 
     def test_loopback_accepts_ipv4_mapped_address(self):
-        from core.server_files import is_loopback
+        from core.domain.server_files import is_loopback
         self.assertTrue(is_loopback('::ffff:127.0.0.1'))
         self.assertTrue(is_loopback('::1'))
         self.assertFalse(is_loopback('192.168.1.5'))

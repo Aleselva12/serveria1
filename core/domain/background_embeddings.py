@@ -6,7 +6,7 @@ import time
 from pgvector import Vector
 
 from core.database import db_connection
-from core.embeddings import EMBEDDING_MODEL, embed_batch
+from core.domain.embeddings import EMBEDDING_MODEL, embed_batch
 from core.runtime import runtime
 
 _stop = threading.Event()

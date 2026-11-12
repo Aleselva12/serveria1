@@ -2,7 +2,7 @@ import json
 import unittest
 from unittest.mock import patch
 
-from core.library_routing import library_intent, list_documents_direct, list_requested
+from core.domain.library_routing import library_intent, list_documents_direct, list_requested
 
 
 class LibraryRoutingTests(unittest.TestCase):

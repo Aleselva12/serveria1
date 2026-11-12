@@ -6,8 +6,8 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict
 from starlette.responses import StreamingResponse
 
-from core import calendar
 from core.database import pool_stats
+from core.domain import calendar
 from core.event_bus import bus
 from core.governance import approval_history, capability_registry, list_approvals, resolve
 from core.permissions import set_policy
@@ -24,7 +24,7 @@ def chat_model_profile():
 
 @router.get('/chat/consultations/{conversation_id}')
 def consultations(conversation_id: UUID, before: int | None = Query(None,ge=1), limit: int = Query(100,ge=1,le=200)):
-    from core.consultations import read
+    from core.domain.consultations import read
     return read(conversation_id,before,limit)
 
 class Decision(BaseModel):

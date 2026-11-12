@@ -91,7 +91,7 @@ def calendar_write(action, result):
     try:
         from googleapiclient.errors import HttpError
 
-        from core import google_calendar as calendar
+        from core.domain import google_calendar as calendar
         if action == "delete":
             try:
                 current = calendar.service().events().get(calendarId="primary", eventId=result["id"]).execute()

@@ -145,7 +145,7 @@ def model_status() -> dict:
 
 @router.get("/classifier/status")
 def classifier_status():
-    from core.priority_evaluations import latest
+    from core.domain.priority_evaluations import latest
     history = latest()
     last = history["evaluation"]
     return {**model_status(), "provider": "Ollama", "role": "roadmap_classifier",
@@ -157,7 +157,7 @@ def classifier_status():
 
 @router.get("/classifier/latest")
 def latest_evaluation():
-    from core.priority_evaluations import latest
+    from core.domain.priority_evaluations import latest
     return latest()
 
 
@@ -274,7 +274,7 @@ async def classifier_preview(payload: PreviewRequest):
         trace("running")
         try:
             evaluation = await run_in_threadpool(_evaluate, payload)
-            from core.priority_evaluations import save
+            from core.domain.priority_evaluations import save
             persisted = await run_in_threadpool(save, evaluation)
             await run_in_threadpool(transition_run, run_id, "completed",
                 result={"model": evaluation["model"], "reported_model": evaluation["reported_model"],
