@@ -18,10 +18,31 @@ In entrambi i casi il commit candidato è immutabile durante build/verifica e no
 vengono incorporate modifiche locali non committate. Un errore di preparazione non
 modifica la release attiva.
 
-**Il software updater installato è separato da Cora.** Aggiornare API/web non
-sostituisce automaticamente `/srv/cora-updater/installed` o
-`/srv/cora-tools/updater/installed`: modifiche al controllore host richiedono una
-revisione/installazione separata con servizio fermo e senza job in corso.
+**L'updater si aggiorna con il rilascio che installa.** Quando l'helper
+`cora-host-maintenance` è installato (`docs/HOST_MAINTENANCE.md`), un job `apply`
+confronta, prima di fermare Cora, il pacchetto `updater/*.py` del commit candidato
+con quello installato. Se differiscono, il job torna `queued` nella fase
+`awaiting_updater`, l'helper sostituisce `installed/` con il pacchetto del
+candidato (stesse verifiche e ripristino automatico di sempre) e il nuovo updater
+riprende lo stesso job. Così un rilascio che richiede un updater più recente viene
+sempre installato dall'updater che porta con sé. Il passaggio avviene una sola volta
+per job: se l'helper ripristina il pacchetto precedente, l'installazione prosegue
+con quello. Senza helper, o con app gestite occupate, il job annota il motivo in
+`updater_handoff` e prosegue come prima.
+
+Il codice dell'updater deve quindi restare compatibile con le immagini precedenti
+(rollback): per esempio la prova database importa `core.infra.database` con
+ripiego su `core.database`.
+
+**Il terminale fa parte del rilascio.** Se lo snapshot Compose dichiara il servizio
+`terminal`, la preparazione costruisce anche il target `terminal` e l'installazione
+lo sostituisce insieme ad API/web; il rollback lo riporta all'immagine precedente.
+
+**Versioni dei componenti.** `GET /host/components` (bridge autenticato) confronta
+api, web, terminale, pacchetto updater e helper host con il commit attivo; la pagina
+Aggiornamenti mostra in rosso ogni parte non allineata. L'helper in `/usr/local/lib`
+resta fuori dall'aggiornamento automatico per scelta: se risulta non aggiornato va
+reinstallato con sudo.
 
 **Anche il checkout host è separato dalla release.** L'installazione di un candidato
 aggiorna le immagini e il commit attivo dell'updater, ma un checkout come

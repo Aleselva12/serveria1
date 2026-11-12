@@ -17,6 +17,9 @@ def handler(engine, token, apps=None):
             data=json.dumps(value,ensure_ascii=False).encode()
             self.send_response(code);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
         def dispatch(self):
+            if self.command=='GET' and self.path.strip('/')=='host/components':
+                # Read-only and slow (docker/git): never delays jobs or other requests.
+                return self.dispatch_locked()
             with engine.lock:
                 return self.dispatch_locked()
         def dispatch_locked(self):
@@ -30,6 +33,9 @@ def handler(engine, token, apps=None):
                         from updater.maintenance import status
                         return self.reply(200,status(engine.root))
                     if parts==['host','diagnostics']: return self.reply(200,host_diagnostics(engine.root,engine.config))
+                    if parts==['host','components']:
+                        from updater.components import inspect as components
+                        return self.reply(200,components(engine))
                     if parts==['managed-apps'] and apps is not None: return self.reply(200,apps.status())
                     if len(parts)==2 and parts[0]=='jobs': return self.reply(200,engine.public(engine.load(parts[1])))
                 elif self.command=='POST':
@@ -68,8 +74,11 @@ def main():
     root=Path(args.root).resolve()
     with (root/'service.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        engine=Engine(root);engine.start()
-        server=ThreadingHTTPServer((engine.config['listen'],engine.config['port']),handler(engine,(root/'bridge.token').read_text().strip(),AppManager(engine.config,engine.root)))
+        engine=Engine(root)
+        apps=AppManager(engine.config,engine.root)
+        engine.apps=apps  # before start(): a resumed apply may hand off to a newer updater
+        engine.start()
+        server=ThreadingHTTPServer((engine.config['listen'],engine.config['port']),handler(engine,(root/'bridge.token').read_text().strip(),apps))
         import threading
         serving=threading.Thread(target=server.serve_forever,daemon=True);serving.start()
         try:

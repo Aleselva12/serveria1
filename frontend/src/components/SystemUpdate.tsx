@@ -7,14 +7,24 @@ type UpdateJob = {
   base_commit?: string; error?: string; error_stage?: string; error_detail?: string;
   cleanup_error?: string; updated_at?: string;
 };
+type Component = {
+  id: string; label: string; status: string; installed: string; expected: string; note: string;
+};
+type Components = { commit: string; aligned: boolean; components: Component[] };
 type Update = {
   platform: string; status?: string; directory?: string; commit?: string;
   phase?: string; available?: boolean; reason?: string; active_commit?: string;
-  jobs?: UpdateJob[];
+  jobs?: UpdateJob[]; components?: Components | null;
+};
+const componentStatus: Record<string, [string, string]> = {
+  ok: ["Aggiornato", "#1f7a4d"], outdated: ["Non aggiornato", "#b42318"],
+  untracked: ["Fuori dai rilasci", "#b42318"], stopped: ["Fermo", "#b42318"],
+  missing: ["Non installato", "#b42318"], updating: ["In aggiornamento", "#965a14"],
+  unknown: ["Non verificabile", "#965a14"],
 };
 const working = (job: UpdateJob) => ["queued", "running"].includes(job.status);
 const phaseNames: Record<string, string> = {
-  queued: "In attesa", building: "Compilazione delle immagini", testing: "Esecuzione dei test",
+  queued: "In attesa", awaiting_updater: "Aggiornamento dell'updater prima dell'installazione", building: "Compilazione delle immagini", testing: "Esecuzione dei test",
   ready: "Verifiche completate", stopping: "Arresto controllato dei servizi",
   backing_up: "Backup dei dati", backup_complete: "Backup completato",
   migration_trial: "Prova delle migrazioni su una copia dei dati",
@@ -108,6 +118,7 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
         {state.available === false && connected === true &&
           <p role="alert" style={{color:"#b42318"}}>{state.reason || "Servizio updater non disponibile."}</p>}
         <p>Commit installato: <code>{short(state.active_commit)}</code></p>
+        {connected === true && state.available !== false && <ComponentVersions value={state.components} />}
         {state.available !== false && <button className="file-tool" disabled={!canAct}
           onClick={() => void invoke("/api/v1/system/update/server/prepare")}>
           Prepara aggiornamento da GitHub
@@ -161,4 +172,25 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
       </> : connected === null ? <p>Caricamento stato aggiornamenti…</p> : null}
     </section>}
   </div>;
+}
+
+function ComponentVersions({ value }: { value?: Components | null }) {
+  if (value === undefined) return null;
+  if (value === null) return <p role="alert" style={{color:"#965a14"}}>
+    Versioni dei componenti non disponibili: l'updater host è di una versione precedente e si allineerà al prossimo aggiornamento.
+  </p>;
+  const stale = value.components.filter(item => item.status !== "ok");
+  return <details className="updater-diagnostic" open={stale.length > 0}>
+    <summary style={{color: value.aligned ? "#1f7a4d" : "#b42318", fontWeight: 600}}>
+      {value.aligned ? "Tutti i componenti sono aggiornati" : stale.length + " componenti non allineati al commit installato"}
+    </summary>
+    {value.components.map(item => {
+      const [text, color] = componentStatus[item.status] || [item.status, "#965a14"];
+      return <div key={item.id} className="settings-row">
+        <span>{item.label}</span>
+        <span style={{color, fontWeight: 600}}>{text}</span>
+        {item.status !== "ok" && <p>{item.note}{item.installed && <> Installato: <code>{short(item.installed.replace("sha256:", ""))}</code></>}{item.expected && <> · atteso: <code>{short(item.expected.replace("sha256:", ""))}</code></>}</p>}
+      </div>;
+    })}
+  </details>;
 }
