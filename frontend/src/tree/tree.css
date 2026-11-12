@@ -240,6 +240,7 @@
 
 /* V2.2: distinguish test provenance from confirmed live health. */
 .rm2-check-state.outdated,.rm2-check-state.unattributed,.rm2-check-state.stale{color:#e6c58c;background:#3b3326}
+.rm2-check-state.warn{color:#facc15;background:#3b3720}
 .rm2-check-state.planned{color:#b3c2ce;background:#253342}
 .rm2-check-state.unknown{color:#a6bac2;background:#23323b}
 .rm2-test-note code{font-family:ui-monospace,monospace;color:#b5e8d0}

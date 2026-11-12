@@ -122,7 +122,8 @@ class VerificationTests(unittest.TestCase):
         }
         with patch("programmer_agent.releases.request", return_value=pending):
             result = verifier._action("debian_host_e2e", "a"*32)
-        self.assertEqual(result["status"], "unknown")
+        # Pending OS updates: the host works, with an advisory (yellow), not unverified.
+        self.assertEqual(result["status"], "warn")
         self.assertIn("2 aggiornamenti", result["detail"])
         with patch("programmer_agent.releases.request", side_effect=ValueError("offline")):
             result = verifier._action("systemd_host_e2e", "a"*32)

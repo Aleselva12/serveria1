@@ -175,3 +175,15 @@ test("runtime descriptions distinguish expired, old and missing proof from a fai
  assert.match(verificationSummary(node,dashboard([[d,result(d.id,sha,"debian-api","pass",expired)]]),sha,m),/scaduti/);
  assert.match(verificationSummary(node,dashboard([[d,result(d.id,sha,"debian-api","fail")]]),sha,m),/Collaudo fallito/);
 });
+
+test("a live E2E with an advisory (warn) is yellow, not green or unverified",()=>{
+  const d=definition("debian_host_e2e"),m={A1:["debian_host_e2e"]};
+  const warn={...result("debian_host_e2e",sha,"debian-verifier","warn"),detail:"Debian funzionante; 17 aggiornamenti di sistema in attesa (cache APT)"};
+  const health=dashboard([[d,warn]]);
+  assert.equal(checkState(d,warn,sha),"warn");
+  assert.equal(verifiedLiveE2E(d,warn,sha),true);
+  assert.equal(starTone(node,health,sha,m),"plan");
+  assert.match(verificationSummary(node,health,sha,m),/17 aggiornamenti/);
+  assert.equal(starTone(node,dashboard([[d,result("debian_host_e2e",sha,"debian-verifier")]]),sha,m),"ok");
+  assert.equal(checkState(d,result("debian_host_e2e",old,"debian-verifier","warn"),sha),"outdated");
+});
