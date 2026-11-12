@@ -34,7 +34,7 @@ Il modulo implementato non è ancora un Agente Commerciale operativo e **non è 
 
 Qui la destinazione è una **copia Word dentro la Libreria IA**, non il NAS originale. La pagina Audio offre: trascrizione manuale (con Faster-Whisper installato), analisi commerciale esplicita tramite modello Ollama locale, modifica dell'appunto, ricerca ricorsiva dei blocchi cliente nei DOCX, scelta esplicita del cliente corretto e creazione della proposta. Nessuna selezione automatica ambigua e nessuna pubblicazione durante l'analisi.
 
-I nuovi componenti core/audio_api.py e core/commercial_notes.py espongono analisi, ricerca, proposte e approvazioni. La migrazione 0006_commercial_note_proposals.sql registra versione trascrizione, percorso relativo, hash Word, blocco cliente, data e testo esatto, scadenza 24 ore e stato non ripetibile. Le proposte identiche per la stessa registrazione non possono rimanere attive o approvate contemporaneamente.
+I nuovi componenti core/api/audio_api.py e core/commercial_notes.py espongono analisi, ricerca, proposte e approvazioni. La migrazione 0006_commercial_note_proposals.sql registra versione trascrizione, percorso relativo, hash Word, blocco cliente, data e testo esatto, scadenza 24 ore e stato non ripetibile. Le proposte identiche per la stessa registrazione non possono rimanere attive o approvate contemporaneamente.
 
 **Pubblicazione:** solo dopo conferma proprietario; il sistema riapre il Word, confronta hash e blocco, prepara una copia con nuovi paragrafi soltanto, conserva backup completo nella cartella privata .cora-commercial-backups e sostituisce atomicamente la copia IA. Tabelle e oggetti Word avanzati sono bloccati. Le cartelle dei backup sono escluse da File Server e dalle ricerche documentali agentiche.
 

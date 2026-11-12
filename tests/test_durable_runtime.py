@@ -58,9 +58,9 @@ class DurablePostgresTests(unittest.TestCase):
         self.assertEqual(same['revision'],row['revision']);self.assertEqual(same['result'],result)
         self.assertNotIn('overwrite',same['metadata'])
         with self.assertRaises(RunConflict): transition_run(run.id,'running')
-        from core.runtime_api import router
+        from core.api.runtime_api import router
         app=FastAPI();app.include_router(router)
-        with patch('core.runtime_api.runtime',Runtime()),TestClient(app) as client:
+        with patch('core.api.runtime_api.runtime',Runtime()),TestClient(app) as client:
             restored=client.get('/api/v1/runtime/runs/'+run.id)
             self.assertEqual(restored.status_code,200);self.assertEqual(restored.json()['result'],result)
             events=client.get('/api/v1/runtime/runs/'+run.id+'/events')
@@ -257,8 +257,8 @@ class DurablePostgresTests(unittest.TestCase):
         self.assertEqual(effects,[]);self.assertEqual(list_operations(run_id=id),[])
 
     def test_owner_review_api_is_strict_and_cannot_change_the_recorded_actor(self):
+        from core.api.runtime_api import router
         from core.auth import AuthMiddleware
-        from core.runtime_api import router
         @agent_tool('supervisor',actions=('remember_memory',),effect='write',retry='never')
         def review_api_write()->str:
             """An uncertain effect requires owner evidence."""

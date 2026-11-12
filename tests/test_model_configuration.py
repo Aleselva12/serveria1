@@ -84,7 +84,7 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(models.get_chat_model('audio').model, 'audio-new')
 
     def test_verification_uses_saved_factory_no_tools_and_rejects_queued_changes(self):
-        from core.architecture_api import verify_agent_model
+        from core.api.architecture_api import verify_agent_model
         jobs = []
         def submit(thread, work, **kwargs): jobs.append(work); return SimpleNamespace(id='test-run')
         with patch('core.runtime.runtime.submit', side_effect=submit), patch('core.runtime.checkpoint'):
@@ -107,7 +107,7 @@ class ConfigurationTests(unittest.TestCase):
         from fastapi import HTTPException
 
         from audio_agent import audio_tools
-        from core.audio_api import reload_transcription_engine
+        from core.api.audio_api import reload_transcription_engine
         audio_tools._load_whisper_model.cache_clear()
         factory = Mock()
         try:
@@ -118,7 +118,7 @@ class ConfigurationTests(unittest.TestCase):
                     self.assertEqual(audio_tools.transcription_configuration()['model'], 'medium')
                     self.assertEqual(audio_tools.transcription_configuration()['loaded']['model'], 'small')
                     slot = threading.Lock()
-                    with patch('core.audio_api.runtime.slot', slot):
+                    with patch('core.api.audio_api.runtime.slot', slot):
                         slot.acquire()
                         with self.assertRaises(HTTPException): reload_transcription_engine()
                         slot.release()

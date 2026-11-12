@@ -122,7 +122,7 @@ def _public(row: dict) -> dict:
 
 def create_proposal(audio_id: UUID, audio_version: int, selected: dict, date: str, note: str) -> dict:
     """Persist a reviewed proposal without changing any document."""
-    from core.audio_api import get_record
+    from core.api.audio_api import get_record
     row = get_record(audio_id)
     if row["transcript"] is None or row["version"] != audio_version:
         raise ValueError("Trascrizione modificata: prepara nuovamente l'appunto.")

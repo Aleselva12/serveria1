@@ -9,13 +9,22 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from core.architecture_api import architecture_graph
-from core.architecture_api import router as architecture_router
-from core.audio_api import router as audio_router
+from core.api.architecture_api import architecture_graph
+from core.api.architecture_api import router as architecture_router
+from core.api.audio_api import router as audio_router
+from core.api.automation_api import router as automation_router
+from core.api.calendar_api import router as calendar_router
+from core.api.conversations_api import router as conversations_router
+from core.api.machines_api import router as machines_router
+from core.api.managed_apps_api import router as managed_apps_router
+from core.api.memory_api import router as memory_router
+from core.api.orchestration_api import router as orchestration_router
+from core.api.permissions_api import router as permissions_router
+from core.api.roadmap_classifier_api import router as roadmap_classifier_router
+from core.api.runtime_api import router as runtime_router
+from core.api.system_api import router as system_router
 from core.auth import AuthMiddleware
 from core.auth import router as auth_router
-from core.automation_api import router as automation_router
-from core.calendar_api import router as calendar_router
 from core.chat_attachments import attachment_rows, request_content
 from core.chat_attachments import public as attachment_public
 from core.chat_attachments import router as attachments_router
@@ -28,32 +37,23 @@ from core.chat_store import (
     recent_context as recent_context,
 )
 from core.context_budget import prepare_context, schedule_summary
-from core.conversations_api import router as conversations_router
 from core.database import close_pool
 from core.desktop_updates import router as update_router
 from core.episodes import create_episode
 from core.execution_traces import ExecutionTrace
 from core.ia_library import router as library_router
 from core.logging import logged_operation
-from core.machines_api import router as machines_router
-from core.managed_apps_api import router as managed_apps_router
-from core.memory_api import router as memory_router
 from core.models import (
     get_model_name as get_model_name,
 )
 from core.monitoring import router as monitoring_router
 from core.notifications import router as notifications_router
 from core.notifications import worker as notification_worker
-from core.orchestration_api import router as orchestration_router
-from core.permissions_api import router as permissions_router
 from core.postprocessing import Postprocessing
-from core.roadmap_classifier_api import router as roadmap_classifier_router
 from core.runtime import RunStopped as RunStopped
 from core.runtime import checkpoint, publish_text, runtime
-from core.runtime_api import router as runtime_router
 from core.runtime_profile import validate_runtime_profile
 from core.server_files import router as files_router
-from core.system_api import router as system_router
 from core.verify.node_verification import router as node_verification_router
 from core.verify.project_checks import router as project_checks_router
 from core.working_memory import set_working_memory

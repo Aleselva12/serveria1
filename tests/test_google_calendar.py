@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from core import google_calendar
-from core.calendar_api import router
+from core.api.calendar_api import router
 
 
 class GoogleCalendarProviderTests(unittest.TestCase):

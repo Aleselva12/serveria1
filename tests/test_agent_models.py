@@ -52,7 +52,7 @@ class AssignmentTests(unittest.TestCase):
 
     def test_remote_off_profile_mismatch_and_old_bridge_never_fall_back(self):
         row = {'id': 'pc', 'enabled': False, 'active_profile': 'light', 'profiles': {'heavy': 'big', 'medium': 'mid', 'light': 'small'}}
-        with patch.dict(os.environ, {'CORA_RUNTIME_MODE': 'server'}), patch('core.machines_api._find', return_value=row), patch('core.machines_api._worker_call') as call:
+        with patch.dict(os.environ, {'CORA_RUNTIME_MODE': 'server'}), patch('core.api.machines_api._find', return_value=row), patch('core.api.machines_api._worker_call') as call:
             with self.assertRaises(HTTPException): assignments.chat_on_worker('pc', 'small', {})
             call.assert_not_called()
             row['enabled'] = True
@@ -75,7 +75,7 @@ class AssignmentTests(unittest.TestCase):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from core.architecture_api import router
+        from core.api.architecture_api import router
         app = FastAPI(); app.include_router(router); client = TestClient(app)
         row = {'id': 'pc', 'name': 'Desktop', 'enabled': True, 'selected_model': 'qwen3:8b'}
         upgraded = False
@@ -86,7 +86,7 @@ class AssignmentTests(unittest.TestCase):
                 return {'models': [{'name': 'qwen3:8b'}], **({'agent_chat': True} if upgraded else {})}
             self.assertEqual(endpoint, '/chat')
             return {'model': payload['model'], 'message': {'role': 'assistant', 'content': 'desktop answer'}, 'done': True}
-        with patch.dict(os.environ, {'CORA_RUNTIME_MODE': 'server'}), patch('core.machines_api._find', return_value=row), patch('core.machines_api._worker_call', side_effect=transport):
+        with patch.dict(os.environ, {'CORA_RUNTIME_MODE': 'server'}), patch('core.api.machines_api._find', return_value=row), patch('core.api.machines_api._worker_call', side_effect=transport):
             result = client.put('/api/v1/architecture/agents/supervisor/model', json={'machine_id': 'pc', 'model': 'qwen3:8b'})
             self.assertEqual(result.status_code, 200)
             self.assertEqual(result.json()['configuration']['machine_id'], 'pc')
@@ -108,8 +108,8 @@ class AssignmentTests(unittest.TestCase):
                "active_profile": "light",
                "profiles": {"heavy": "old-heavy", "medium": "old-medium", "light": "old-light"}}
         with patch.dict(os.environ, {"CORA_RUNTIME_MODE": "server"}), \
-             patch("core.machines_api._find", return_value=row), \
-             patch("core.machines_api._worker_call") as remote:
+             patch("core.api.machines_api._find", return_value=row), \
+             patch("core.api.machines_api._worker_call") as remote:
             assignments.remote_machine("pc", "qwen3-coder:30b-a3b-q4_K_M")
             with self.assertRaises(HTTPException) as denied:
                 assignments.remote_machine("pc", "old-light")
@@ -140,7 +140,7 @@ class AssignmentTests(unittest.TestCase):
     def test_remote_dispatch_checks_profile_every_request_and_keeps_settings(self):
         row = {'id': 'pc', 'enabled': True, 'active_profile': 'light', 'profiles': {'heavy': 'big', 'medium': 'mid', 'light': 'small'}}
         before = json.dumps(row, sort_keys=True)
-        with patch.dict(os.environ, {'CORA_RUNTIME_MODE': 'server'}), patch('core.machines_api._find', return_value=row), patch('core.machines_api._worker_call', return_value={'agent_chat': True, 'model': 'small', 'done': True, 'message': {'role':'assistant','content':'OK'}}) as call:
+        with patch.dict(os.environ, {'CORA_RUNTIME_MODE': 'server'}), patch('core.api.machines_api._find', return_value=row), patch('core.api.machines_api._worker_call', return_value={'agent_chat': True, 'model': 'small', 'done': True, 'message': {'role':'assistant','content':'OK'}}) as call:
             assignments.chat_on_worker('pc', 'small', {'messages': [{'role': 'user', 'content': 'hello'}], 'tools': [], 'model': 'small'})
             self.assertEqual(call.call_args.args[1], '/chat')
             self.assertFalse(call.call_args.args[2]['stream'])

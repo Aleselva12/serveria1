@@ -59,7 +59,7 @@ class AuditClosureTests(unittest.TestCase):
     def test_model_selection_distinguishes_disk_failure_and_uses_single_probe(self):
         from fastapi import HTTPException
 
-        from core import system_api
+        from core.api import system_api
         from core.models import RuntimeSettingsError
         models = [{'name':'new'}]
         with patch.object(system_api,'list_ollama_models',return_value=models) as listing, patch.object(system_api,'save_runtime_model',side_effect=RuntimeSettingsError('Impossibile salvare il modello.')):

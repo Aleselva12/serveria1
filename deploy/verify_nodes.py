@@ -195,7 +195,7 @@ def _action(action, run_id):
                 raise ValueError("Evento non eliminato")
         return {"status": "pass", "detail": "OAuth test: creazione, duplicato, modifica, lettura e cancellazione; approvazioni UI non collaudate"}
     if action in ("desktop_e2e", "laptop_e2e"):
-        from core.machines_api import _find, _settings, test_worker_inference
+        from core.api.machines_api import _find, _settings, test_worker_inference
         machine_id = os.getenv("CORA_VERIFY_" + action.split("_")[0].upper() + "_ID", "").strip()
         if not machine_id:
             return {"status": "unknown", "detail": "Seleziona la macchina nelle destinazioni dei collaudi"}

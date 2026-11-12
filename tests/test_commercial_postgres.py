@@ -14,7 +14,7 @@ from psycopg import sql
 from psycopg.rows import dict_row
 
 from core import commercial_notes, database
-from core.audio_api import router
+from core.api.audio_api import router
 from tests.test_commercial_notes import sample
 
 

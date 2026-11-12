@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from langchain_core.runnables import RunnableLambda
 
 from core import execution_traces as traces
-from core.architecture_api import architecture_graph, router
+from core.api.architecture_api import architecture_graph, router
 
 
 class RuntimeTests(unittest.TestCase):

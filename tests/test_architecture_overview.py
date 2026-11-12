@@ -4,13 +4,13 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core.architecture_api import architecture_overview, router
+from core.api.architecture_api import architecture_overview, router
 
 
 class OverviewTests(unittest.TestCase):
     def test_overview_has_separate_agents_and_actual_bound_delegations(self):
         from tools import supervisor_tools
-        with patch('core.architecture_api.architecture_graph', side_effect=AssertionError('No internal graph inspection')):
+        with patch('core.api.architecture_api.architecture_graph', side_effect=AssertionError('No internal graph inspection')):
             overview = architecture_overview()
         self.assertEqual({n['id'] for n in overview['nodes'] if n['kind'] == 'agent'},
                          {'supervisor', 'structure_agent', 'local_research_agent', 'audio_agent', 'email_quotes_agent', 'programmer_agent'})
@@ -25,7 +25,7 @@ class OverviewTests(unittest.TestCase):
         self.assertNotEqual(overview['version'], changed['version'])
 
     def test_direct_paths_are_registered_routes_and_no_agent_tools(self):
-        from core.calendar_api import router as calendar_router
+        from core.api.calendar_api import router as calendar_router
         overview = architecture_overview()
         calendar = next(p for p in overview['direct_paths'] if p['id'] == 'calendar_direct')
         self.assertEqual(set(calendar['routes']), {r.path for r in calendar_router.routes})

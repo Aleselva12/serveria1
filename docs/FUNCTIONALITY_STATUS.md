@@ -5,7 +5,7 @@ Non usare "operativo" in base alla sola presenza di file, pulsanti o check CI.
 
 ## Audio — controllo 2026-10-21
 
-- UI: `frontend/src/components/Audio.tsx`; API: `core/audio_api.py`; motore: `audio_agent/audio_tools.py`.
+- UI: `frontend/src/components/Audio.tsx`; API: `core/api/audio_api.py`; motore: `audio_agent/audio_tools.py`.
 - Upload file audio registrati (da smartphone/PC): API POST `/api/v1/audio`. **Operativo per il caricamento**: confermato sul telefono dal file M4A presente in elenco.
 - Elenco, dettagli, download audio, modifica/esportazione trascrizione, copia in Libreria IA: **implementati**, da collaudare end-to-end sul server.
 - Trascrizione Faster-Whisper: **non operativa sul Debian al 21/10**; il runtime ha segnalato dipendenze audio non installate. Un tag o sha Docker non attesta il target di build.

@@ -18,8 +18,8 @@ from core.runtime import Runtime
 class MediaPostgresTests(unittest.TestCase):
     def setUp(self):
         import api
-        import core.audio_api as audio_api
-        import core.runtime_api as runtime_api
+        import core.api.audio_api as audio_api
+        import core.api.runtime_api as runtime_api
         from audio_agent import audio_tools
         self.api=api;self.audio_api=audio_api;self.temp=tempfile.TemporaryDirectory();base=Path(self.temp.name)
         self.files=base/'files';self.library=base/'library';self.originals=base/'originals';self.audio=base/'audio'

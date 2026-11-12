@@ -131,7 +131,7 @@ def start(body: Launch | None = None):
         settings = {}
         for name, identifier in (("DESKTOP", body.desktopMachineId), ("LAPTOP", body.laptopMachineId)):
             if identifier:
-                from core.machines_api import _find
+                from core.api.machines_api import _find
                 _find(str(identifier))  # Only registered machines, never a client-provided URL/command.
                 settings["CORA_VERIFY_" + name + "_ID"] = str(identifier)
         conn = _connection()

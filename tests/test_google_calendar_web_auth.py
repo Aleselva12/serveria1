@@ -123,7 +123,7 @@ class CalendarWebAuthApiTests(unittest.TestCase):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from core.calendar_api import router
+        from core.api.calendar_api import router
         app = FastAPI(); app.include_router(router)
         with patch.dict(os.environ, {"CORA_OWNER_TOKEN":"owner"}), TestClient(app) as client:
             for path in ("start", "finish"):

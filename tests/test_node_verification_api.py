@@ -54,7 +54,7 @@ class NodeVerificationAPITests(unittest.TestCase):
     def test_start_returns_immediately_and_only_accepts_registered_machine_ids(self):
         identifier = str(uuid4())
         conn = MagicMock()
-        with patch.object(service, "_connection", return_value=conn), patch.object(service, "_locked", return_value=True), patch.object(service, "Thread") as thread, patch("core.machines_api._find", return_value={}) as find:
+        with patch.object(service, "_connection", return_value=conn), patch.object(service, "_locked", return_value=True), patch.object(service, "Thread") as thread, patch("core.api.machines_api._find", return_value={}) as find:
             response = self.client.post("/api/v1/system/node-verification", headers=self.auth, json={"desktopMachineId": identifier})
             self.assertEqual(response.status_code, 202)
             job = response.json()

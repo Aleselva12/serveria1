@@ -39,7 +39,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(status, "pass", detail)
 
     def test_orchestration_router_is_complete(self):
-        from core.orchestration_api import router
+        from core.api.orchestration_api import router
         expected = {
             ("/api/v1/runtime/capabilities", "GET"),
             ("/api/v1/runtime/coordinator", "GET"),

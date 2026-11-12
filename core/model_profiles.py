@@ -54,7 +54,7 @@ def profile_for(resolved, *, refresh=False):
                 info = json.loads(raw)
         else:
             from core.agent_models import remote_machine
-            from core.machines_api import _worker_call
+            from core.api.machines_api import _worker_call
             machine = remote_machine(resolved['machine_id'], resolved['model'])
             info = _worker_call(machine, '/model-info', {'model':resolved['model']}, timeout=5)
         if not isinstance(info, dict) or info.get('error'):

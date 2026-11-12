@@ -32,7 +32,7 @@ class UsageEvidenceTests(unittest.TestCase):
 
     def test_wrong_worker_model_never_returns_a_reply_or_calls_local_ollama(self):
         from core import agent_models
-        with patch.object(agent_models, "remote_machine", return_value={}), patch.object(agent_models, "require_agent_chat"), patch("core.machines_api._worker_call", return_value={"model":"wrong", "done":True, "message":{"role":"assistant", "content":"OK"}}), patch.object(usage, "worker_ids", return_value=[]), patch.object(usage, "record"), patch("langchain_ollama.ChatOllama._create_chat_stream") as local:
+        with patch.object(agent_models, "remote_machine", return_value={}), patch.object(agent_models, "require_agent_chat"), patch("core.api.machines_api._worker_call", return_value={"model":"wrong", "done":True, "message":{"role":"assistant", "content":"OK"}}), patch.object(usage, "worker_ids", return_value=[]), patch.object(usage, "record"), patch("langchain_ollama.ChatOllama._create_chat_stream") as local:
             with self.assertRaises(HTTPException) as error:
                 agent_models.chat_on_worker("pc", "selected", {})
             self.assertEqual(error.exception.status_code, 502)

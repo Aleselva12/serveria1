@@ -92,13 +92,13 @@ class DiagnosticUnitTests(unittest.TestCase):
         finally:current_run.reset(token)
 
     def test_stream_resets_invalid_future_or_foreign_process_cursor_once(self):
+        from core.api.runtime_api import router
         from core.runtime import Runtime, publish_text
-        from core.runtime_api import router
         runtime=Runtime(persistent=False)
         run=runtime.submit('stream',lambda run:{'response':'canonical'})
         self.assertTrue(run.done.wait(2));publish_text(run,'test','span','known output')
         app=FastAPI();app.include_router(router)
-        with patch('core.runtime_api.runtime',runtime),TestClient(app) as client:
+        with patch('core.api.runtime_api.runtime',runtime),TestClient(app) as client:
             for cursor in ['invalid',str(uuid4())+':9000']:
                 response=client.get('/api/v1/runtime/runs/'+run.id+'/events',headers={'Last-Event-ID':cursor})
                 self.assertEqual(response.text.count('event: resync'),1)

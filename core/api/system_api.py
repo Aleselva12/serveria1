@@ -42,7 +42,7 @@ def _ollama_online() -> bool:
 def health():
     from core.file_paths import library_workspace_status
     database = database_status()
-    from core.machines_api import _find
+    from core.api.machines_api import _find
     from core.models import resolve_model
     selected = resolve_model('supervisor')
     try:

@@ -4,7 +4,7 @@ import {readFileSync} from "node:fs";
 const read=path=>readFileSync(new URL(path,import.meta.url),"utf8");
 const ui=read("../src/tree/RoadmapPriorities.tsx");
 const home=read("../src/tree/TreeHome.tsx");
-const api=read("../../core/roadmap_classifier_api.py");
+const api=read("../../core/api/roadmap_classifier_api.py");
 const server=read("../../api.py");
 
 test("local model classifier is available from Roadmap only on explicit click",()=>{
