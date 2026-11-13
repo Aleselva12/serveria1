@@ -69,10 +69,10 @@ def _parse_reply(text: str) -> tuple[str, float | None]:
     text = text.strip()
     try:
         data = json.loads(text)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as error:
         start, end = text.find("{"), text.rfind("}")
         if start < 0 or end <= start:
-            raise ValueError("ShadowRouterInvalidJSON")
+            raise ValueError("ShadowRouterInvalidJSON") from error
         data = json.loads(text[start:end + 1])
     route = str(data.get("route", "")).strip().lower()
     if route not in ROUTE_LABELS:

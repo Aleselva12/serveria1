@@ -122,7 +122,7 @@ def programmer_components(workspace_id: str) -> dict:
 
 @agent_tool(ACTOR, actions=('write_workspace',), effect='write', retry='never')
 def programmer_register_component(workspace_id: str, title: str, kind: str, files: list[str], integration: str,
-                                  dependencies: list[str] = [], component_id: str = '') -> dict:
+                                  dependencies: list[str] = [], component_id: str = '') -> dict:  # noqa: B006 - default non mutato (register fa `dependencies or []`); cambiarlo altererebbe lo schema dello strumento
     """Registra/revisiona una bozza tool/automation/frontend/other con file, test e istruzioni di integrazione."""
     from programmer_agent.components import register
     return register(_workspace(workspace_id), title, kind, files, dependencies, integration, component_id)

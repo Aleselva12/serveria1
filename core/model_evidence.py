@@ -25,7 +25,8 @@ def observations():
 
 def matches_requested(requested, reported):
     if not reported: return None
-    canonical = lambda name: name if ':' in name.rsplit('/', 1)[-1] else name + ':latest'
+    def canonical(name):
+        return name if ':' in name.rsplit('/', 1)[-1] else name + ':latest'
     return canonical(requested) == canonical(reported)
 
 

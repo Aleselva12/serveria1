@@ -39,7 +39,7 @@ def index_pending_once():
             vectors = embed_batch([row['content'] for row in memories])
             if _stop.is_set(): return False
             with db_connection() as conn:
-                for row, vector in zip(memories,vectors):
+                for row, vector in zip(memories, vectors, strict=False):
                     conn.execute("""UPDATE memories SET embedding=%s,embedding_model=%s,embedding_dimensions=%s
                         WHERE id=%s AND version=%s AND embedding IS NULL""",
                         (Vector(vector) if vector else None,EMBEDDING_MODEL,len(vector) if vector else None,row['id'],row['version']))
@@ -51,7 +51,7 @@ def index_pending_once():
         vectors = embed_batch([row["content"] for row in rows])
         if _stop.is_set(): return False
         with db_connection() as conn:
-            for row, vector in zip(rows,vectors):
+            for row, vector in zip(rows, vectors, strict=False):
                 conn.execute("UPDATE messages SET embedding=%s,embedding_model=%s,embedding_dimensions=%s WHERE id=%s AND embedding IS NULL",
                     (Vector(vector) if vector else None, EMBEDDING_MODEL, len(vector) if vector else None, row["id"]))
         from core.infra.logging import log_event

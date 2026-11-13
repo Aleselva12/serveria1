@@ -87,7 +87,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 self.send_json(200, {"models": installed_models(), "backend": "windows-ollama",
                                     "reachable": True, "agent_chat": True})
-            except (OSError, TimeoutError, HTTPError, URLError, ValueError) as exc:
+            except (OSError, TimeoutError, HTTPError, URLError, ValueError):
                 self.send_json(503, {"models": [], "reachable": False,
                                      "detail": "Ollama Windows non raggiungibile dal container"})
             return

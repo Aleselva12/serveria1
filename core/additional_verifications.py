@@ -129,7 +129,7 @@ def dependency_audit(packages=None, client=None):
             response = client.post(OSV_BATCH, json={"queries": [
                 {"package": {"name": name, "ecosystem": "PyPI"}, "version": version} for name, version in chunk]})
             response.raise_for_status()
-            for (name, version), item in zip(chunk, response.json().get("results", [])):
+            for (name, version), item in zip(chunk, response.json().get("results", []), strict=False):
                 ids = [vuln["id"] for vuln in item.get("vulns") or []]
                 if ids:
                     hits[f"{name} {version}"] = ids

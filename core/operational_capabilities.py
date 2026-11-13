@@ -38,7 +38,7 @@ def operational_registry() -> dict:
     for actor, role in role_map.items():
         try: model_cache[actor] = resolve_model(role)
         except Exception: model_cache[actor] = None
-    for key, entry in sorted(executables.items(), key=lambda item: item[1]["contract"].id):
+    for _key, entry in sorted(executables.items(), key=lambda item: item[1]["contract"].id):
         contract = entry["contract"]
         component = ACTOR_COMPONENT.get(contract.actor, contract.actor)
         state = runtime.get(component, {"status": "unknown", "checks": {}})
