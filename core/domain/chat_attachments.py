@@ -20,7 +20,7 @@ MAX_TEXT = 2400
 
 
 def attachment_root():
-    base = Path((os.getenv('CORA_CHAT_ATTACHMENTS_ROOT', '').strip() or str(Path(__file__).resolve().parents[2]/'data'/'chat_attachments'))).expanduser().resolve()
+    base = Path(os.getenv('CORA_CHAT_ATTACHMENTS_ROOT', '').strip() or str(Path(__file__).resolve().parents[2]/'data'/'chat_attachments')).expanduser().resolve()
     base.mkdir(parents=True, exist_ok=True)
     return base
 

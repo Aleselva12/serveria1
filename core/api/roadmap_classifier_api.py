@@ -203,7 +203,7 @@ def _evaluate(payload: PreviewRequest) -> dict:
             reply = json.loads(response.read(65_000))
         answer = RawRatings.model_validate_json(reply["message"]["content"])
     except HTTPError as exc:
-        detail = "Modello non disponibile su Ollama: verifica il catalogo e la configurazione." if exc.code == 404 else "Ollama ha rifiutato la valutazione (HTTP %s). Verifica risorse e log del servizio." % exc.code
+        detail = "Modello non disponibile su Ollama: verifica il catalogo e la configurazione." if exc.code == 404 else f"Ollama ha rifiutato la valutazione (HTTP {exc.code}). Verifica risorse e log del servizio."
         raise HTTPException(503, detail) from exc
     except (TimeoutError, URLError, OSError) as exc:
         timed_out = isinstance(exc, TimeoutError) or isinstance(getattr(exc, "reason", None), TimeoutError)

@@ -80,8 +80,8 @@ def component_runtime_status() -> dict:
     remote_checks = {}
     if keys:
         with ThreadPoolExecutor(max_workers=4) as probes:
-            remote_checks = dict(zip(keys, probes.map(lambda key: remote_ready(*key), keys)))
-    for identifier, role in ROLES.items():
+            remote_checks = dict(zip(keys, probes.map(lambda key: remote_ready(*key), keys), strict=False))
+    for identifier, _role in ROLES.items():
         selected = assignments[identifier]
         if selected and selected['machine_id'] != 'local':
             key = (selected['machine_id'], selected['model'])

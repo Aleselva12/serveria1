@@ -2,7 +2,6 @@ import json
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -177,7 +176,7 @@ def _speaker_for_segment(
     segment_start: float,
     segment_end: float,
     tracks: list[dict],
-) -> Optional[str]:
+) -> str | None:
     best_speaker = None
     best_overlap = 0.0
 
