@@ -2,6 +2,16 @@
 
 Interfaccia React/TypeScript/Vite di `serveria1`, nella stessa repository del backend. La vecchia repository frontend è archiviata. Installazione: `npm ci`; sviluppo: `npm run dev`; verifica: `npm test` e `npm run build`.
 
+La compilazione deve funzionare anche sul server Intel Core i3-2100 (Sandy Bridge,
+AVX ma senza AVX2). Dopo un arresto `Illegal instruction` durante la build con
+Vite 8, la toolchain torna a Vite 6.4.6 e Plugin React 4.7.0; restano gli
+aggiornamenti di sicurezza Python/Nginx e le dipendenze applicative aggiornate.
+Il workflow `Frontend CPU compatibility` compila con CPU Sandy Bridge emulata,
+incluso il processo separato esbuild. Un futuro aggiornamento della toolchain
+deve superare anche questa prova; una build su runner moderni non basta a
+dimostrare la compatibilità con il server. L'esatta istruzione responsabile
+del precedente arresto non è stata identificata sul server.
+
 Il proxy Vite inoltra `/backend/*` a `http://127.0.0.1:8000`. `CORA_API_TARGET` cambia la destinazione backend; `VITE_API_BASE_URL` cambia la base HTTP del browser. Per sessioni remote preferire UI e API sullo stesso sito; configurare l'origine nel backend. Non inserire chiavi o password in variabili Vite.
 
 In modalità password il login personale riusa un cookie HttpOnly di sette giorni; desktop e Tailscale hanno percorsi distinti, dichiarati da `/auth/status`. `src/services/transport.ts` è il confine condiviso per cookie, header delle scritture e scadenza della sessione. `AuthGate` richiede il login, oppure consente la sola visualizzazione offline quando il backend non è raggiungibile. L'account iniziale si crea sul PC con `python -m core.auth`, come descritto nel README principale.
