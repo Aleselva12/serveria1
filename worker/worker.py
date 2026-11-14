@@ -12,7 +12,7 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, ProxyHandler, build_opener
+from urllib.request import ProxyHandler, Request, build_opener
 
 PORT = int(os.getenv("CORA_WORKER_PORT", "8765"))
 BASE = os.getenv("CORA_OLLAMA_BASE_URL", "http://host.docker.internal:11434").rstrip("/")
@@ -87,7 +87,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 self.send_json(200, {"models": installed_models(), "backend": "windows-ollama",
                                     "reachable": True, "agent_chat": True})
-            except (OSError, TimeoutError, HTTPError, URLError, ValueError) as exc:
+            except (OSError, TimeoutError, HTTPError, URLError, ValueError):
                 self.send_json(503, {"models": [], "reachable": False,
                                      "detail": "Ollama Windows non raggiungibile dal container"})
             return

@@ -1,6 +1,7 @@
 """Non-destructive boundary checks: pinpoint the broken hop, NOT end-to-end proof."""
 from __future__ import annotations
 
+
 def _routes(router):
     return {(r.path, method) for r in router.routes for method in (getattr(r, "methods", None) or ())}
 
@@ -31,14 +32,14 @@ def chat_contract():
     return "pass", "Contratti Chat → grafo → tool delegati presenti; nessuna inferenza eseguita"
 
 def audio_word_contract():
-    from core.audio_api import router
+    from core.api.audio_api import router
     problem = _assert_routes(router, [
         ("/api/v1/audio/{ident}/transcribe", "POST"),
         ("/api/v1/audio/{ident}/commercial/proposals", "POST"),
         ("/api/v1/audio/{ident}/commercial/proposals/{proposal_id}/resolve", "POST"),
     ], "Audio → approvazione")
     if problem: return problem
-    from core import commercial_word, commercial_notes
+    from core.domain import commercial_notes, commercial_word
     if not all(callable(getattr(commercial_word, n, None)) for n in ("parse","propose_append")):
         return "fail", "Collegamento assente: Audio → motore Word"
     if not callable(getattr(commercial_notes, "resolve_proposal", None)):
@@ -46,20 +47,20 @@ def audio_word_contract():
     return "pass", "Contratti Audio → proposta → approvazione → Word presenti"
 
 def calendar_contract():
-    from core.calendar_api import router
+    from core.api.calendar_api import router
     problem = _assert_routes(router, [
         ("/api/v1/calendar/events", "POST"),
         ("/api/v1/calendar/events/{event_id}", "PATCH"),
         ("/api/v1/calendar/proposals/{proposal_id}/resolve", "POST"),
     ], "Calendario → approvazione")
     if problem: return problem
-    from core import google_calendar
+    from core.domain import google_calendar
     if not all(callable(getattr(google_calendar,n,None)) for n in ("create_event","update_event","delete_event")):
         return "fail", "Collegamento assente: Calendar API → Google"
     return "pass", "Contratti Calendario → proposte → Google presenti; OAuth non provato"
 
 def worker_contract():
-    from core.machines_api import router
+    from core.api.machines_api import router
     problem = _assert_routes(router, [
         ("/api/v1/machines/{machine_id}/generate", "POST"),
         ("/api/v1/machines/{machine_id}/test", "POST"),
@@ -74,7 +75,7 @@ def worker_contract():
 
 def orchestrator_v1_contract():
     """Structural W1 proof without importing the global FastAPI app or causing side effects."""
-    from core.orchestration_api import router as orchestration_router
+    from core.api.orchestration_api import router as orchestration_router
     problem = _assert_routes(orchestration_router, [
         ("/api/v1/runtime/capabilities", "GET"),
         ("/api/v1/runtime/coordinator", "GET"),
@@ -82,7 +83,7 @@ def orchestrator_v1_contract():
     ], "Orchestratore V1 → router dedicato")
     if problem: return problem
 
-    from core.runtime_api import router as runtime_router
+    from core.api.runtime_api import router as runtime_router
     problem = _assert_routes(runtime_router, [
         ("/api/v1/runtime/diagnostics", "GET"),
     ], "Orchestratore V1 → diagnostica runtime")
@@ -99,7 +100,7 @@ def orchestrator_v1_contract():
         if not component or not component.get("available"):
             return "fail", "Componente orchestrazione non disponibile: " + component_id
 
-    from core.component_bus import component_bus
+    from core.infra.component_bus import component_bus
     if not callable(getattr(component_bus, "dispatch_capability", None)):
         return "fail", "Component Bus non espone dispatch_capability"
 
@@ -107,13 +108,13 @@ def orchestrator_v1_contract():
     if not callable(operational_registry):
         return "fail", "Capability Registry operativo non disponibile"
 
-    from core.run_states import TRANSITIONS
+    from core.infra.run_states import TRANSITIONS
     required_states = {"queued", "running", "cancelling", "completed", "failed", "awaiting_approval"}
     known_states = set(TRANSITIONS) | {state for targets in TRANSITIONS.values() for state in targets}
     if not required_states <= known_states:
         return "fail", "State Machine incompleta per la base orchestrazione"
 
-    from core.context_contracts import ContextRequest, ContextPacket
+    from core.context_contracts import ContextPacket, ContextRequest
     if ContextRequest.model_json_schema().get("title") != "ContextRequest":
         return "fail", "Contratto ContextRequest non disponibile"
     if ContextPacket.model_json_schema().get("title") != "ContextPacket":

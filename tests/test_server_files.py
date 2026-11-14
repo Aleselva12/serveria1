@@ -7,7 +7,8 @@ from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from core.server_files import router
+
+from core.domain.server_files import router
 
 
 class ServerFilesTests(unittest.TestCase):
@@ -176,7 +177,7 @@ class ServerFilesTests(unittest.TestCase):
         self.assertEqual(self.post('/folders', path='a' * 300).status_code, 400)
 
     def test_loopback_accepts_ipv4_mapped_address(self):
-        from core.server_files import is_loopback
+        from core.domain.server_files import is_loopback
         self.assertTrue(is_loopback('::ffff:127.0.0.1'))
         self.assertTrue(is_loopback('::1'))
         self.assertFalse(is_loopback('192.168.1.5'))
@@ -208,8 +209,9 @@ class ServerFilesTests(unittest.TestCase):
         self.assertEqual(self.get('/trash').json()['items'],[])
 
     def test_confined_path_rejects_sibling_prefix_and_internal_links(self):
-        from core.confined_paths import confined_path
         from fastapi import HTTPException
+
+        from core.infra.confined_paths import confined_path
         sibling=self.base/'files-private';sibling.mkdir()
         with self.assertRaises(HTTPException):confined_path(self.data,sibling/'secret')
         (self.data/'folder').mkdir();self.make_symlink(self.data / 'alias', self.data / 'folder', target_is_directory=True)

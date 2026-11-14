@@ -6,10 +6,10 @@ API/web images and all existing service settings are left untouched.
 import copy
 import json
 import os
-from pathlib import Path
 import secrets
 import shlex
 import tempfile
+from pathlib import Path
 
 from deploy.tailscale_login import run, update_env, validate
 

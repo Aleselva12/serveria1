@@ -1,12 +1,13 @@
-from copy import deepcopy
 import os
 import unittest
+from copy import deepcopy
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from core import node_verification as service
+
+from core.verify import node_verification as service
 
 
 class NodeVerificationAPITests(unittest.TestCase):
@@ -35,7 +36,11 @@ class NodeVerificationAPITests(unittest.TestCase):
             ids = [row["id"] for row in response.json()["availableChecks"]]
             self.assertEqual(len(ids), len(set(ids)))
             self.assertEqual(set(ids), set(service.CATALOG))
-            self.assertTrue({"word_document_regression", "capability_permissions_regression", "file_preview_regression"} <= set(ids))
+            self.assertTrue({"word_document_regression", "capability_permissions_regression", "file_preview_regression", "test_inventory_regression", "evidence_provenance_regression"} <= set(ids))
+            inventory = response.json()["testInventory"]
+            self.assertEqual(inventory["total"], inventory["runnerLinked"] + inventory["repositoryOnly"])
+            self.assertGreater(inventory["total"], 90)
+            self.assertTrue(any(row["module"] == "test_test_inventory" for row in inventory["tests"]))
             worker.assert_not_called()
 
     def test_duplicate_click_is_rejected_across_workers_and_cli(self):
@@ -49,7 +54,7 @@ class NodeVerificationAPITests(unittest.TestCase):
     def test_start_returns_immediately_and_only_accepts_registered_machine_ids(self):
         identifier = str(uuid4())
         conn = MagicMock()
-        with patch.object(service, "_connection", return_value=conn), patch.object(service, "_locked", return_value=True), patch.object(service, "Thread") as thread, patch("core.machines_api._find", return_value={}) as find:
+        with patch.object(service, "_connection", return_value=conn), patch.object(service, "_locked", return_value=True), patch.object(service, "Thread") as thread, patch("core.api.machines_api._find", return_value={}) as find:
             response = self.client.post("/api/v1/system/node-verification", headers=self.auth, json={"desktopMachineId": identifier})
             self.assertEqual(response.status_code, 202)
             job = response.json()
@@ -84,8 +89,8 @@ class NodeVerificationAPITests(unittest.TestCase):
                 on_result({"id": key, "status": status, "detail": "Test", "environment": "debian-verifier", "commit": "a"*40, "durationMs": 1, "at": "2026-11-05T12:00:00+00:00"})
         with patch.object(service.verify_nodes, "execute", side_effect=execute), patch.object(service, "_save", side_effect=lambda c,j:writes.append(deepcopy(j))), patch.object(service, "_release") as release:
             service._run(conn, job, {})
-        self.assertEqual([j["completed"] for j in writes], [1, 2, 2])
-        self.assertEqual(writes[0]["currentCheck"], "two")
+        self.assertEqual([j["completed"] for j in writes], [0, 0, 1, 2, 2])
+        self.assertEqual(writes[2]["currentCheck"], "two")
         self.assertEqual(writes[-1]["status"], "failed")
         self.assertEqual(conn.execute.call_count, 2)
         release.assert_called_once_with(conn)
@@ -101,3 +106,73 @@ class NodeVerificationAPITests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AutoVerificationTests(unittest.TestCase):
+    SHA = "c" * 40
+
+    def _conn(self, existing=None, previous=None):
+        conn = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.execute.return_value.fetchone.return_value = existing
+        return conn
+
+    def _patches(self, conn, environment="debian-api", release=SHA, previous=None):
+        return (patch.dict(os.environ, {"CORA_AUTO_VERIFY": "1"}),
+                patch("core.verify.project_checks._environment", return_value=environment),
+                patch.object(service, "_installed_release", return_value=release),
+                patch.object(service, "_connection", return_value=conn),
+                patch.object(service, "_latest", return_value=previous))
+
+    def _run(self, conn, **kwargs):
+        from contextlib import ExitStack
+        with ExitStack() as stack:
+            for item in self._patches(conn, **kwargs):
+                stack.enter_context(item)
+            launch = stack.enter_context(patch.object(service, "_launch"))
+            return service.auto_verify_release(), launch
+
+    def test_new_release_starts_once_with_previous_machines(self):
+        identifier = str(uuid4())
+        reason, launch = self._run(self._conn(), previous={"targets": {"desktopMachineId": identifier, "laptopMachineId": None}})
+        self.assertEqual(reason, "started")
+        body, trigger = launch.call_args.args
+        self.assertEqual(trigger, "auto")
+        self.assertEqual(str(body.desktopMachineId), identifier)
+        self.assertIsNone(body.laptopMachineId)
+
+    def test_release_already_verified_or_not_installed_never_starts(self):
+        reason, launch = self._run(self._conn(existing={"?column?": 1}))
+        self.assertEqual(reason, "already_verified")
+        launch.assert_not_called()
+        for kwargs in ({"environment": "ci-api"}, {"release": ""}):
+            reason, launch = self._run(self._conn(), **kwargs)
+            self.assertEqual(reason, "not_installed_release")
+            launch.assert_not_called()
+        with patch.dict(os.environ, {"CORA_AUTO_VERIFY": "0"}), patch.object(service, "_launch") as launch:
+            self.assertEqual(service.auto_verify_release(), "disabled")
+            launch.assert_not_called()
+
+    def test_removed_machine_falls_back_and_running_suite_is_respected(self):
+        from fastapi import HTTPException
+        conn = self._conn()
+        previous = {"targets": {"desktopMachineId": str(uuid4())}}
+        from contextlib import ExitStack
+        with ExitStack() as stack:
+            for item in self._patches(conn, previous=previous):
+                stack.enter_context(item)
+            launch = stack.enter_context(patch.object(service, "_launch", side_effect=[HTTPException(404), None]))
+            self.assertEqual(service.auto_verify_release(), "started")
+            self.assertIsNone(launch.call_args.args[0].desktopMachineId)
+        reason, _ = self._run(conn)
+        with ExitStack() as stack:
+            for item in self._patches(conn):
+                stack.enter_context(item)
+            stack.enter_context(patch.object(service, "_launch", side_effect=HTTPException(409)))
+            self.assertEqual(service.auto_verify_release(), "busy")
+
+    def test_api_lifespan_registers_and_stops_the_automatic_run(self):
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / "api.py").read_text(encoding="utf-8")
+        self.assertIn("node_verification.start_auto()", source)
+        self.assertIn("cleanup.callback(node_verification.stop_auto)", source)

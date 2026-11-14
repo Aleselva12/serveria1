@@ -1,31 +1,34 @@
 """Fault injection and disposable PostgreSQL tests for durable execution."""
 import os
-import threading
 import tempfile
-from pathlib import Path
+import threading
 import unittest
-from uuid import uuid4
+from pathlib import Path
 from unittest.mock import patch
+from uuid import uuid4
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from core.runtime import Runtime, Run, current_run
-from core.run_states import DurabilityLost
-from core.governance import agent_tool, execute_capability, executables
-from core.database import db_connection
-from core.run_lifecycle import create_run, transition_run, get_run, recover, request_cancel, RunConflict
-from core.operation_journal import get_operation, list_operations, review, begin
+
+from core.governance import agent_tool, executables, execute_capability
+from core.infra.database import db_connection
+from core.infra.operation_journal import begin, get_operation, list_operations, review
+from core.infra.run_lifecycle import RunConflict, create_run, get_run, recover, request_cancel, transition_run
+from core.infra.run_states import DurabilityLost
+from core.runtime import Run, Runtime, current_run
+
 
 class DurabilityUnitTests(unittest.TestCase):
     def test_failed_admission_never_registers_or_starts_work(self):
         runtime = Runtime(); effects=[]
-        with patch('core.run_lifecycle.create_run',side_effect=OSError('private details')):
+        with patch('core.infra.run_lifecycle.create_run',side_effect=OSError('private details')):
             with self.assertRaises(OSError): runtime.submit('not-admitted',lambda run:effects.append(True))
         self.assertEqual(runtime.runs,{})
         self.assertEqual(effects,[])
 
     def test_failed_running_transition_aborts_before_callback_and_closes_runtime(self):
         runtime = Runtime(); effects=[]
-        with patch('core.run_lifecycle.create_run'),patch('core.run_lifecycle.transition_run',side_effect=OSError('private details')):
+        with patch('core.infra.run_lifecycle.create_run'),patch('core.infra.run_lifecycle.transition_run',side_effect=OSError('private details')):
             run = runtime.submit('not-started',lambda run:effects.append(True))
             self.assertTrue(run.done.wait(2))
         self.assertEqual(effects,[])
@@ -55,9 +58,9 @@ class DurablePostgresTests(unittest.TestCase):
         self.assertEqual(same['revision'],row['revision']);self.assertEqual(same['result'],result)
         self.assertNotIn('overwrite',same['metadata'])
         with self.assertRaises(RunConflict): transition_run(run.id,'running')
-        from core.runtime_api import router
+        from core.api.runtime_api import router
         app=FastAPI();app.include_router(router)
-        with patch('core.runtime_api.runtime',Runtime()),TestClient(app) as client:
+        with patch('core.api.runtime_api.runtime',Runtime()),TestClient(app) as client:
             restored=client.get('/api/v1/runtime/runs/'+run.id)
             self.assertEqual(restored.status_code,200);self.assertEqual(restored.json()['result'],result)
             events=client.get('/api/v1/runtime/runs/'+run.id+'/events')
@@ -144,7 +147,7 @@ class DurablePostgresTests(unittest.TestCase):
         def journal_start_test()->str:
             """Cannot act unless the intent is committed."""
             effects.append(True);return 'ok'
-        with patch('core.operation_journal.db_connection',side_effect=OSError('private detail')):
+        with patch('core.infra.operation_journal.db_connection',side_effect=OSError('private detail')):
             with self.assertRaises(DurabilityLost):execute_capability('supervisor.journal_start_test',{})
         self.assertEqual(effects,[])
 
@@ -156,7 +159,7 @@ class DurablePostgresTests(unittest.TestCase):
             effects.append(True);return 'ok'
         def work(run):
             journal_finish_test.invoke({});continued.append(True);return {}
-        with patch('core.operation_journal.finish',side_effect=DurabilityLost('OutcomeNotPersisted')):
+        with patch('core.infra.operation_journal.finish',side_effect=DurabilityLost('OutcomeNotPersisted')):
             run=self.runtime.submit('journal-lost',work);self.assertTrue(run.done.wait(3))
         self.assertEqual(effects,[True]);self.assertEqual(continued,[])
         self.assertEqual(run.status,'interrupted');self.assertTrue(self.runtime.closed)
@@ -174,7 +177,7 @@ class DurablePostgresTests(unittest.TestCase):
         def fail_completion(id,status,**kwargs):
             if status=='completed':raise OSError('Completion unavailable')
             return real_transition(id,status,**kwargs)
-        with patch('core.run_lifecycle.transition_run',side_effect=fail_completion):
+        with patch('core.infra.run_lifecycle.transition_run',side_effect=fail_completion):
             run=self.runtime.submit('run-completion-lost',lambda run:{'response':known_write.invoke({})})
             self.assertTrue(run.done.wait(3))
         self.assertEqual(run.status,'interrupted');self.assertEqual(get_run(run.id)['status'],'running')
@@ -188,7 +191,7 @@ class DurablePostgresTests(unittest.TestCase):
             row=real_transition(id,status,**kwargs)
             if status=='completed':raise OSError('Commit acknowledgement lost')
             return row
-        with patch('core.run_lifecycle.transition_run',side_effect=lose_acknowledgement):
+        with patch('core.infra.run_lifecycle.transition_run',side_effect=lose_acknowledgement):
             run=self.runtime.submit('committed-but-unacknowledged',lambda run:{'response':'persisted'})
             self.assertTrue(run.done.wait(3))
         self.assertEqual(run.status,'interrupted');self.assertTrue(self.runtime.closed)
@@ -210,9 +213,10 @@ class DurablePostgresTests(unittest.TestCase):
         self.assertEqual(operation['result']['approval_id'],row['approval_ids'][0])
 
     def test_delegated_proposal_persists_child_result_and_awaiting_approval(self):
+        from langchain_core.messages import AIMessage
+
         from core.calendar_tools import calendar_tools_for
         from tools import _delegate_agent
-        from langchain_core.messages import AIMessage
         tool=next(t for t in calendar_tools_for('email_quotes_agent') if t.name=='calendar_create_event')
         class Graph:
             def stream(self,state,**kwargs):
@@ -237,7 +241,7 @@ class DurablePostgresTests(unittest.TestCase):
         self.assertEqual(str(pending['root_run_id']),run.id)
 
     def test_committed_cancel_is_checked_at_the_effect_boundary(self):
-        from core.run_lifecycle import mark_stop
+        from core.infra.run_lifecycle import mark_stop
         from core.runtime import RunStopped
         root=create_run(thread_id='cancel-before-effect');id=str(root['id']);transition_run(id,'running')
         effects=[]
@@ -253,7 +257,7 @@ class DurablePostgresTests(unittest.TestCase):
         self.assertEqual(effects,[]);self.assertEqual(list_operations(run_id=id),[])
 
     def test_owner_review_api_is_strict_and_cannot_change_the_recorded_actor(self):
-        from core.runtime_api import router
+        from core.api.runtime_api import router
         from core.auth import AuthMiddleware
         @agent_tool('supervisor',actions=('remember_memory',),effect='write',retry='never')
         def review_api_write()->str:
@@ -272,12 +276,12 @@ class DurablePostgresTests(unittest.TestCase):
             self.assertEqual(again.status_code,409)
 
     def test_trace_failure_does_not_change_canonical_success(self):
-        with tempfile.TemporaryDirectory() as directory, patch('core.execution_traces.TRACE_FILE',Path(directory)), patch.dict(os.environ,{'CORA_DIAGNOSTIC_JSONL_EXPORT':'true'}):
+        with tempfile.TemporaryDirectory() as directory, patch('core.infra.execution_traces.TRACE_FILE',Path(directory)), patch.dict(os.environ,{'CORA_DIAGNOSTIC_JSONL_EXPORT':'true'}):
             run=self.runtime.submit('trace-lost',lambda run:{'response':'known result'})
             self.assertTrue(run.done.wait(3))
             self.assertEqual(run.status,'completed')
             self.assertEqual(get_run(run.id)['result'],{'response':'known result'})
-            from core.execution_traces import trace_status
+            from core.infra.execution_traces import trace_status
             self.assertEqual(trace_status()['write_error'], 'PermissionError' if os.name == 'nt' else 'IsADirectoryError')
 
     def test_child_cancellation_marks_root_and_all_descendants(self):

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from collections import Counter
-from dataclasses import asdict, dataclass
-from enum import Enum, IntEnum
-from dataclasses import replace
-import time
 import threading
+import time
+from collections import Counter
+from dataclasses import asdict, dataclass, replace
+from enum import Enum, IntEnum
 
 
 class PermissionLevel(IntEnum):
@@ -357,7 +356,7 @@ def require_permission(
     user_approved: bool = False,
 ) -> PermissionDecision:
     """Return the decision or raise PermissionError when the action cannot run."""
-    from core.governance import invocation, approved_action, ApprovalRequired
+    from core.governance import ApprovalRequired, approved_action, invocation
     from core.runtime import checkpoint
     checkpoint()
     call, grant = invocation.get(), approved_action.get()
@@ -416,7 +415,7 @@ _policy_lock = threading.Lock()
 
 def policy_overrides():
     global _policy_cache, _policy_time
-    from core.database import database_configured, db_connection
+    from core.infra.database import database_configured, db_connection
     if not database_configured(): return {}
     with _policy_lock:
         if time.monotonic() - _policy_time > 2:
@@ -429,7 +428,7 @@ def policy_overrides():
 
 def set_policy(actor, action, policy):
     global _policy_time
-    from core.database import db_connection
+    from core.infra.database import db_connection
     base = next((r for r in RULES if r.actor == actor and r.action == action), None)
     if not base: raise KeyError("Capability sconosciuta.")
     # No execution path exists for these capabilities. Keep them blocked.

@@ -6,11 +6,14 @@ never silently executed against real data.
 """
 from __future__ import annotations
 
+
 def entry(id, title, component, kind, stage, frequency, *, depends=(), description=""):
     return {"id": id, "title": title, "component": component, "kind": kind,
             "stage": stage, "frequency": frequency, "dependsOn": list(depends),
             "description": description, "automated": frequency == "5m",
-            "maxAgeSeconds": 600 if frequency == "5m" else 86400}
+            "maxAgeSeconds": 600 if frequency == "5m" else 86400,
+            # Run once per installed release: valid until the commit changes, not for 24h only.
+            "releaseScoped": frequency in ("on_release", "on_change")}
 
 _CATALOG = [
     entry("database", "PostgreSQL leggibile", "cora", "preflight", "API → DB", "5m"),
@@ -48,8 +51,20 @@ _CATALOG = [
     entry("nextcloud_e2e", "Nextcloud: raggiungibilità HTTP", "nextcloud", "preflight", "API → endpoint configurato; file reali esclusi", "daily"),
     entry("magazzino_e2e", "Magazzino: installazione e allowlist isolate", "magazzino_tele", "synthetic", "Manager applicazioni simulato; import escluso", "on_release"),
     entry("preventivi_e2e", "Preventivi: generazione e rilettura PDF sintetico", "preventivi", "synthetic", "Dati → generatore → PDF", "on_release"),
+    entry("dependency_audit", "Dipendenze Python: vulnerabilità note (OSV)", "cora", "preflight",
+          "API → pacchetti installati → database OSV", "on_release",
+          description="Confronta nomi e versioni dei pacchetti installati nell'API con il database pubblico OSV; nessun altro dato inviato. Gravi: errore; medie/basse: avviso."),
     entry("worker_e2e", "Chat agente su worker e modello effettivo", "worker", "e2e", "Agente → worker assegnato → /chat", "on_change",
           depends=("worker_contract",)),
+    entry("debian_host_e2e", "Debian host: identità, permessi e stato pacchetti", "cora", "e2e",
+          "API → updater host → Debian", "on_change",
+          description="Host reale in sola lettura: Debian, UID/GID updater, file privati, dpkg audit e simulazione APT; non installa aggiornamenti."),
+    entry("systemd_host_e2e", "systemd host: updater attivo e unità coerente", "cora", "e2e",
+          "API → updater host → systemd", "on_change",
+          description="Interroga solo cora-updater.service; nessun restart/stop/start e nessun contenuto del journal."),
+    entry("host_admin_e2e", "Amministrazione host: SSH e configurazione servizi", "cora", "e2e",
+          "API → updater host → ssh.service", "on_change",
+          description="Verifica caricamento/stato di ssh.service e presenza delle unità; non apre connessioni SSH e non legge credenziali."),
     entry("desktop_e2e", "Desktop: inferenza e modello effettivo", "worker", "e2e", "API → desktop configurato → modello", "on_change"),
     entry("laptop_e2e", "Laptop: inferenza e modello effettivo", "worker", "e2e", "API → laptop configurato → modello", "on_change"),
     entry("memory_regression", "Memoria e contratti contesto: regressioni", "cora", "synthetic", "Test isolati → contesto", "on_release"),
@@ -65,7 +80,8 @@ _CATALOG.append(entry('files_lifecycle_regression', 'File: copia, spostamento, c
 _CATALOG.append(entry('files_access_regression', 'File: accesso, sola lettura e confinamento', 'files', "synthetic", "Fixture isolate → funzioni e API", "on_release", description="Regressioni su dati temporanei; installazione, browser e dati reali esclusi."))
 _CATALOG.append(entry('word_document_regression', 'Word: lettura, modifica protetta, backup e conflitti', 'audio', "synthetic", "Fixture isolate → funzioni e API", "on_release", description="Regressioni su dati temporanei; installazione, browser e dati reali esclusi."))
 
-from core.tree_verification_suites import SUITES as TREE_SUITES
+from core.verify.tree_verification_suites import SUITES as TREE_SUITES
+
 _CATALOG.extend(entry(key, item["title"], item["component"], "synthetic", "Suite isolate su fixture", "on_release", description=item["scope"]) for key, item in TREE_SUITES.items())
 
 CATALOG = {item["id"]: item for item in _CATALOG}

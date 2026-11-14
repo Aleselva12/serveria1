@@ -3,20 +3,22 @@ import json
 import os
 import tempfile
 import threading
-import time
 import unittest
-from datetime import datetime,timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from uuid import uuid4
 from unittest.mock import patch
+from uuid import uuid4
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
+from core.infra.database import db_connection
+from core.infra.domain_events import read as read_critical
+from core.infra.event_bus import EventBus
+from core.infra.observability import DiagnosticArchive, metadata_event, prune
+from core.infra.observability import read as read_diagnostics
+from core.infra.run_lifecycle import create_run, get_run, recover, transition_run
 from core.protocol import ComponentEvent
-from core.observability import DiagnosticArchive,metadata_event,prune,read as read_diagnostics
-from core.event_bus import EventBus
-from core.database import db_connection
-from core.run_lifecycle import create_run,transition_run,get_run,recover
-from core.domain_events import read as read_critical
 
 
 class DiagnosticUnitTests(unittest.TestCase):
@@ -34,14 +36,14 @@ class DiagnosticUnitTests(unittest.TestCase):
     def test_queue_is_bounded_and_freezes_payload_without_database_io(self):
         recorder=DiagnosticArchive(1)
         event=ComponentEvent(type='context.selected',source='test',payload={'optional_included':['conversation_summary']}).model_dump()
-        with patch('core.observability.db_connection') as db:
+        with patch('core.infra.observability.db_connection') as db:
             recorder.record(event);event['payload']['optional_included'].clear();recorder.record(event);db.assert_not_called()
         self.assertEqual(recorder.status()['dropped'],1)
         self.assertEqual(recorder.queue[0]['payload']['optional_included'],['conversation_summary'])
 
     def test_database_failure_keeps_pending_diagnostics_and_exposes_health(self):
         recorder=DiagnosticArchive();recorder.record(ComponentEvent(type='run.state',source='test',payload={'status':'running'}).model_dump())
-        with patch('core.observability.database_configured',return_value=True),patch('core.observability.db_connection',side_effect=OSError('secret')):
+        with patch('core.infra.observability.database_configured',return_value=True),patch('core.infra.observability.db_connection',side_effect=OSError('secret')):
             self.assertFalse(recorder.flush())
         self.assertEqual(recorder.status()['pending'],1)
         self.assertEqual(recorder.status()['last_error'],'OSError')
@@ -49,7 +51,7 @@ class DiagnosticUnitTests(unittest.TestCase):
 
     def test_failed_diagnostic_sink_cannot_break_live_bus(self):
         bus=EventBus(2)
-        with patch('core.observability.archive.record',side_effect=OSError('secret')):
+        with patch('core.infra.observability.archive.record',side_effect=OSError('secret')):
             bus.publish('test','test',run_id='run')
         self.assertEqual(len(bus.read(0,'run')[0]),1)
         self.assertTrue(bus.read(100)[1])
@@ -57,23 +59,24 @@ class DiagnosticUnitTests(unittest.TestCase):
         self.assertEqual(events,[]);self.assertEqual(watermark,1)
 
     def test_log_file_failure_cannot_invalidate_completed_work_or_store_exception_text(self):
-        from core.logging import logged_operation
-        from core.observability import archive
-        with tempfile.TemporaryDirectory() as directory,patch('core.logging.LOG_FILE',Path(directory)):
+        from core.infra.logging import logged_operation
+        from core.infra.observability import archive
+        with tempfile.TemporaryDirectory() as directory,patch('core.infra.logging.LOG_FILE',Path(directory)):
             with logged_operation('test',component='test',data={'prompt':'secret'}) as context:context['result']={'response':'secret'}
             with self.assertRaises(OSError):
                 with logged_operation('test_error',component='test'):raise OSError('secret')
         self.assertNotIn('secret',json.dumps(list(archive.queue)))
-        with patch('core.event_bus.bus.publish',side_effect=OSError('secret')):
+        with patch('core.infra.event_bus.bus.publish',side_effect=OSError('secret')):
             with logged_operation('failed_sink',component='test'):pass
             with self.assertRaisesRegex(ValueError,'original'):
                 with logged_operation('failed_sink',component='test'):raise ValueError('original')
 
     def test_model_first_token_is_per_invocation_and_errors_leave_no_busy_agent(self):
-        from core.runtime import Run,current_run
-        from core.execution_traces import ExecutionTrace
-        from langchain_core.outputs import LLMResult,ChatGeneration
         from langchain_core.messages import AIMessage
+        from langchain_core.outputs import ChatGeneration, LLMResult
+
+        from core.infra.execution_traces import ExecutionTrace
+        from core.runtime import Run, current_run
         run=Run('thread');token=current_run.set(run)
         try:
             trace=ExecutionTrace('thread','v1');span=uuid4()
@@ -89,13 +92,13 @@ class DiagnosticUnitTests(unittest.TestCase):
         finally:current_run.reset(token)
 
     def test_stream_resets_invalid_future_or_foreign_process_cursor_once(self):
-        from core.runtime import Runtime,publish_text
-        from core.runtime_api import router
+        from core.api.runtime_api import router
+        from core.runtime import Runtime, publish_text
         runtime=Runtime(persistent=False)
         run=runtime.submit('stream',lambda run:{'response':'canonical'})
         self.assertTrue(run.done.wait(2));publish_text(run,'test','span','known output')
         app=FastAPI();app.include_router(router)
-        with patch('core.runtime_api.runtime',runtime),TestClient(app) as client:
+        with patch('core.api.runtime_api.runtime',runtime),TestClient(app) as client:
             for cursor in ['invalid',str(uuid4())+':9000']:
                 response=client.get('/api/v1/runtime/runs/'+run.id+'/events',headers={'Last-Event-ID':cursor})
                 self.assertEqual(response.text.count('event: resync'),1)
@@ -111,11 +114,11 @@ class EventPostgresTests(unittest.TestCase):
         with db_connection() as conn:conn.execute('TRUNCATE diagnostic_events')
 
     def tearDown(self):
-        from core.database import close_pool
+        from core.infra.database import close_pool
         close_pool()
 
     def test_migration_checksum_prevents_silent_schema_rewrites(self):
-        from core import database
+        from core.infra import database
         with db_connection() as conn:
             version=conn.execute('SELECT checksum FROM cora_schema_migrations WHERE version=%s',('0001_baseline',)).fetchone()
             self.assertIsNotNone(version)
@@ -128,7 +131,7 @@ class EventPostgresTests(unittest.TestCase):
 
     @unittest.skipIf(os.getenv('CORA_DB_POOL_SIZE')=='1','Requires concurrent real PostgreSQL connections')
     def test_critical_cursor_follows_commit_order(self):
-        from core.domain_events import append
+        from core.infra.domain_events import append
         acquired=threading.Event();attempted=threading.Event();release=threading.Event();finished=threading.Event()
         errors=[];ids=[uuid4(),uuid4()]
         def first():
@@ -161,7 +164,7 @@ class EventPostgresTests(unittest.TestCase):
     def test_critical_failure_rolls_back_state_and_event_together(self):
         run=create_run(thread_id='atomic');id=str(run['id'])
         before=read_critical(run_id=id)['events']
-        with patch('core.domain_events.run_state',side_effect=OSError('critical store failed')):
+        with patch('core.infra.domain_events.run_state',side_effect=OSError('critical store failed')):
             with self.assertRaises(OSError):transition_run(id,'running')
         self.assertEqual(get_run(id)['status'],'queued')
         self.assertEqual(read_critical(run_id=id)['events'],before)
@@ -178,8 +181,8 @@ class EventPostgresTests(unittest.TestCase):
         self.assertEqual(first['events']+remaining['events'],events)
 
     def test_operation_journal_commits_only_metadata_and_review_is_a_fact_not_replay(self):
-        from core.governance import agent_tool,execute_capability
-        from core.operation_journal import review,get_operation
+        from core.governance import agent_tool, execute_capability
+        from core.infra.operation_journal import get_operation, review
         @agent_tool('supervisor',actions=('calculate',),effect='write',retry='never')
         def event_test_write(secret:str)->str:
             """A failed external write has an uncertain result."""
@@ -207,8 +210,8 @@ class EventPostgresTests(unittest.TestCase):
 
     def test_timestamp_ties_paginate_without_skipping_and_expired_cursor_is_explicit(self):
         recorder=DiagnosticArchive();root=create_run(thread_id='paging');id=str(root['id'])
-        timestamp=datetime.now(timezone.utc).isoformat()
-        for i in range(5):recorder.record(ComponentEvent(type='run.state',source='test',run_id=id,timestamp=timestamp,payload={'status':'running'}).model_dump())
+        timestamp=datetime.now(UTC).isoformat()
+        for _i in range(5):recorder.record(ComponentEvent(type='run.state',source='test',run_id=id,timestamp=timestamp,payload={'status':'running'}).model_dump())
         self.assertTrue(recorder.flush())
         first=read_diagnostics(run_id=id,limit=2);second=read_diagnostics(run_id=id,limit=2,before=first['next_before']);third=read_diagnostics(run_id=id,limit=2,before=second['next_before'])
         self.assertEqual(len({e['id'] for page in [first,second,third] for e in page['events']}),5)
@@ -216,7 +219,7 @@ class EventPostgresTests(unittest.TestCase):
         with self.assertRaises(ValueError):read_diagnostics(run_id=id,before=first['next_before'])
 
     def test_trace_listing_uses_canonical_state_even_when_diagnostics_are_missing(self):
-        from core.execution_traces import read_runs
+        from core.infra.execution_traces import read_runs
         root=create_run(thread_id='no-diagnostics');id=str(root['id']);transition_run(id,'running');transition_run(id,'completed',result={'response':'private'})
         trace=read_runs(run_id=id)[0]
         self.assertEqual(trace['status'],'completed');self.assertEqual(trace['events'],[])

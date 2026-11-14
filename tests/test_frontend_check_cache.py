@@ -1,13 +1,12 @@
 """Run a real Vite configuration build with dependency/cache separation."""
 import json
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 
 from updater.check_runner import run
-
 
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -2,8 +2,11 @@
 import os
 import unittest
 from unittest.mock import patch
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
-from core.context_budget import fit_messages, _valid_exchange, message_cost
+
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+
+from core.context_budget import _valid_exchange, fit_messages, message_cost
+
 
 class AdaptiveContextTests(unittest.TestCase):
     def test_large_library_read_keeps_customer_near_end_and_complete_tool_exchange(self):
@@ -31,8 +34,9 @@ class AdaptiveContextTests(unittest.TestCase):
 
 
     def test_graph_completes_after_large_read_without_replaying_the_tool(self):
-        import graph as supervisor
         from langchain_core.tools import tool
+
+        import graph as supervisor
         reads = []
         @tool
         def library_read(relative_path: str) -> str:
@@ -46,7 +50,7 @@ class AdaptiveContextTests(unittest.TestCase):
                     assert 'ESTRATTO' in messages[-1].content
                     return AIMessage('Nel documento sintetico, il 24/10/2026: richiamare lunedi. Fonte parziale.')
                 return AIMessage('',tool_calls=[{'id':'read-once','name':'library_read','args':{'relative_path':'synthetic.docx'}}])
-        with patch.dict(os.environ, {'CORA_CONTEXT_TOKENS':'4096'}), patch.object(supervisor,'model_with_tools',Model()), patch.object(supervisor,'ensure_runtime_active'), patch.object(supervisor,'_runtime_system_prompt',return_value=('Use sources and disclose partial data.','',[],['library_read'])), patch('core.library_preflight.preload',return_value=''), patch.dict(supervisor.tool_node.tools_by_name,{'library_read':library_read}):
+        with patch.dict(os.environ, {'CORA_CONTEXT_TOKENS':'4096'}), patch.object(supervisor,'model_with_tools',Model()), patch.object(supervisor,'ensure_runtime_active'), patch.object(supervisor,'_runtime_system_prompt',return_value=('Use sources and disclose partial data.','',[],['library_read'])), patch('core.domain.library_preflight.preload',return_value=''), patch.dict(supervisor.tool_node.tools_by_name,{'library_read':library_read}):
             result = supervisor.graph.invoke({'messages':[HumanMessage('Leggi le ultime note di Capitan Ventura')], 'request_text':'Leggi le ultime note di Capitan Ventura'})
         self.assertIn('richiamare lunedi',result['messages'][-1].content)
         self.assertEqual(reads,['synthetic.docx'])

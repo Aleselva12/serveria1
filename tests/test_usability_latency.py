@@ -1,9 +1,11 @@
 import json
 import unittest
-from unittest.mock import patch, MagicMock
-from core import embeddings
+from unittest.mock import MagicMock, patch
+
 from core.auth import setup_if_needed
-from core.background_embeddings import index_pending_once
+from core.domain import embeddings
+from core.domain.background_embeddings import index_pending_once
+
 
 class LatencyUnitTests(unittest.TestCase):
     def test_embedding_query_cache_and_specific_timeout(self):
@@ -18,8 +20,9 @@ class LatencyUnitTests(unittest.TestCase):
 
     def test_background_does_not_acquire_slot_after_recent_foreground_work(self):
         import time
-        from core.background_embeddings import runtime
-        with patch.object(runtime,'last_foreground',time.monotonic()),patch('core.background_embeddings.db_connection') as db:
+
+        from core.domain.background_embeddings import runtime
+        with patch.object(runtime,'last_foreground',time.monotonic()),patch('core.domain.background_embeddings.db_connection') as db:
             self.assertFalse(index_pending_once());db.assert_not_called()
         self.assertTrue(runtime.slot.acquire(blocking=False));runtime.slot.release()
 

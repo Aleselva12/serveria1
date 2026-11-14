@@ -1,15 +1,16 @@
 """Exercise the browser relay against a real local SSH protocol server."""
 import asyncio
 import json
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import asyncssh
 import httpx2
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
+
 from terminal_service.app import Settings, create_app
 
 

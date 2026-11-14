@@ -8,7 +8,8 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from core.automation_api import router
+
+from core.api.automation_api import router
 
 
 class DraftApiTests(unittest.TestCase):

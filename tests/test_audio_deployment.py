@@ -1,14 +1,15 @@
 import json
 import os
-from pathlib import Path
 import sys
 import tempfile
 import types
 import unittest
-from unittest.mock import Mock,patch
-from audio_agent.audio_tools import _load_whisper_model,transcribe_audio_file
-from audio_agent.model_setup import digest,verify,prepare
-from deploy.doctor import model_available,inspect
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+from audio_agent.audio_tools import _load_whisper_model
+from audio_agent.model_setup import digest, prepare, verify
+from deploy.doctor import inspect, model_available
 
 
 class AudioDeploymentTests(unittest.TestCase):
@@ -42,9 +43,10 @@ class AudioDeploymentTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'checksum mismatch'):verify(path)
 
     def test_cancel_during_segment_iteration_escapes_without_partial_transcript(self):
-        from core.runtime import RunStopped
-        from core.governance import find_capability
         from types import SimpleNamespace
+
+        from core.governance import find_capability
+        from core.runtime import RunStopped
         with tempfile.TemporaryDirectory() as temporary:
             path=Path(temporary);(path/'sample.wav').write_bytes(b'fixture')
             model=Mock();model.transcribe.return_value=([SimpleNamespace(text='partial',start=0,end=1)],SimpleNamespace(language='it'))
@@ -66,7 +68,7 @@ class AudioDeploymentTests(unittest.TestCase):
 
     def test_doctor_reports_failed_dependency_without_credentials_or_exception_text(self):
         with tempfile.TemporaryDirectory() as temporary:
-            with patch.dict(os.environ,{'CORA_API_BUILD_TARGET':'api'},clear=True),patch('core.database.db_connection') as db,patch('core.server_files.roots',return_value=[{'id':'test','path':temporary,'writable':True}]),patch('deploy.doctor.urlopen',side_effect=OSError('private password in error')):
+            with patch.dict(os.environ,{'CORA_API_BUILD_TARGET':'api'},clear=True),patch('core.infra.database.db_connection') as db,patch('core.domain.server_files.roots',return_value=[{'id':'test','path':temporary,'writable':True}]),patch('deploy.doctor.urlopen',side_effect=OSError('private password in error')):
                 conn=db.return_value.__enter__.return_value
                 conn.execute.return_value.fetchone.side_effect=[{'vector':True},{'n':1}]
                 result=inspect()

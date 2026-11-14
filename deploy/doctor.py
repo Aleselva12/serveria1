@@ -3,7 +3,8 @@ import importlib.util
 import json
 import os
 from pathlib import Path
-from core.ollama_transport import urlopen, get_ollama_base_url
+
+from core.infra.ollama_transport import get_ollama_base_url, urlopen
 
 
 def model_available(name,names):
@@ -12,18 +13,18 @@ def model_available(name,names):
 
 def inspect():
     checks={}
-    from core.file_paths import library_workspace_status
+    from core.infra.file_paths import library_workspace_status
     library=library_workspace_status()
     checks['library']={'ok':library['available'],**library}
     try:
-        from core.database import db_connection
+        from core.infra.database import db_connection
         with db_connection(ensure_schema=False) as conn:
             row=conn.execute("SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname='vector') AS vector").fetchone()
             migrations=conn.execute('SELECT COUNT(*) AS n FROM cora_schema_migrations').fetchone()['n']
         checks['database']={'ok':bool(row['vector'] and migrations),'migrations':migrations}
     except Exception as error:checks['database']={'ok':False,'error_type':type(error).__name__}
     try:
-        from core.models import get_model_name, ROLE_MODEL_ENV
+        from core.models import ROLE_MODEL_ENV, get_model_name
         endpoint=get_ollama_base_url()
         with urlopen(endpoint+'/api/tags',timeout=5) as response:data=json.load(response)
         names={model['name'] for model in data.get('models',[])}
@@ -34,7 +35,7 @@ def inspect():
         checks['ollama']={'ok':not missing,'missing_models':missing}
     except Exception as error:checks['ollama']={'ok':False,'error_type':type(error).__name__}
     try:
-        from core.server_files import roots
+        from core.domain.server_files import roots
         directories=[(r['id'],Path(r['path']),r['writable']) for r in roots()]
         for name in ('CORA_KNOWLEDGE_ROOT','CORA_AUDIO_ROOT','CORA_TRANSCRIPT_ROOT','CORA_STRUCTURE_WORKSPACE','CORA_AUTOMATION_ROOT','CORA_QUOTE_ROOT'):
             if os.getenv(name):directories.append((name,Path(os.environ[name]),True))

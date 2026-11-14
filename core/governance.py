@@ -1,19 +1,21 @@
 """Actor-bound tool execution, approvals and executable capability registry."""
 import contextvars
 import functools
-import inspect
 import hashlib
 import importlib
+import inspect
 import json
 import time
-from datetime import datetime, timezone
-from uuid import uuid4, UUID
+from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID, uuid4
+
 from langchain_core.tools import tool as langchain_tool
 from psycopg.types.json import Jsonb
-from core.database import db_connection
-from core.runtime import current_run, checkpoint
-from core.event_bus import bus
+
+from core.infra.database import db_connection
+from core.infra.event_bus import bus
+from core.runtime import checkpoint, current_run
 
 invocation = contextvars.ContextVar("tool_invocation", default=None)
 approved_action = contextvars.ContextVar("approved_action", default=None)
@@ -27,20 +29,22 @@ class ApprovalRequired(BaseException):
 def agent_tool(actor, *, capability=None, actions, effect, retry, conditional_actions=(), version=1, approval="generic", response_mode="data"):
     """Register an explicit contract; the LangChain tool is only an adapter."""
     def decorate(fn):
+        from typing import Any, get_type_hints
+
         from pydantic import ConfigDict, TypeAdapter, create_model
-        from typing import get_type_hints, Any
+
         from core.capability_contracts import CapabilityContract, CapabilityResult
         identifier = fn.__module__ + ":" + fn.__name__ + ":" + actor
         capability_id = actor + "." + (capability or fn.__name__)
         @functools.wraps(fn)
         def guarded(*args, **kwargs):
             payload = dict(inspect.signature(fn).bind(*args, **kwargs).arguments)
-            from core.component_bus import component_bus
+            from core.infra.component_bus import component_bus
             result = component_bus.dispatch_capability(capability_id, payload, source=actor)
             if result.status == "failed":
                 error = result.errors[0] if result.errors else {"code": "CapabilityFailed", "message": "Operazione non completata."}
                 if result.decision == "effect_uncertain":
-                    from core.run_states import EffectUncertain
+                    from core.infra.run_states import EffectUncertain
                     raise EffectUncertain(str(error.get("message", "Esito incerto.")))
                 raise CapabilityExecutionError(str(error.get("code", "CapabilityFailed")), str(error.get("message", "Operazione non completata.")))
             return result.metadata.get("native")
@@ -102,8 +106,9 @@ def bind_capabilities(actor, tools):
 
 
 def execute_capability(identifier, payload):
-    from core.capability_contracts import CapabilityResult, CapabilityError
     from fastapi.encoders import jsonable_encoder
+
+    from core.capability_contracts import CapabilityError, CapabilityResult
     tool_id, entry = find_capability(identifier)
     contract = entry["contract"]
     result = CapabilityResult(capability_id=contract.id, contract_version=contract.version, status="ok")
@@ -116,7 +121,7 @@ def execute_capability(identifier, payload):
         checkpoint()
         payload = entry["input_model"].model_validate(payload).model_dump()
         token = invocation.set({"actor":contract.actor,"tool_id":tool_id,"payload":payload,"actions":entry["actions"]})
-        from core.permissions import require_permission, get_permission_rule
+        from core.permissions import get_permission_rule, require_permission
         for action in contract.required_actions:
             rule = get_permission_rule(contract.actor, action)
             if not rule or rule.policy.value == "blocked": require_permission(contract.actor, action)
@@ -124,7 +129,7 @@ def execute_capability(identifier, payload):
             rule = get_permission_rule(contract.actor, action)
             if contract.approval == "calendar" and rule and rule.policy.value == "confirm": continue
             require_permission(contract.actor, action)
-        from core.operation_journal import begin
+        from core.infra.operation_journal import begin
         operation_id = begin(entry, payload)
         result.operation_id = operation_id
         native = entry["fn"](**payload)
@@ -136,7 +141,7 @@ def execute_capability(identifier, payload):
         if isinstance(parsed, dict) and (parsed.get("status") in {"error","failed"} or ("error" in parsed and parsed["error"])):
             result.status = "error"
             result.error = CapabilityError(code="ToolReportedError", message=str(parsed.get("error") or "Operazione non completata."))
-            from core.file_paths import LIBRARY_ERRORS
+            from core.infra.file_paths import LIBRARY_ERRORS
             if isinstance(parsed.get('error_code'),str) and parsed['error_code'] in LIBRARY_ERRORS:
                 result.error.code=parsed['error_code']
         elif isinstance(parsed, dict) and parsed.get("status") == "pending":
@@ -153,7 +158,7 @@ def execute_capability(identifier, payload):
             from core.permissions import get_permission_rule
             required = sorted({needed.action} | {a for a in contract.required_actions if get_permission_rule(contract.actor,a).policy.value == "confirm"})
             if contract.approval == "calendar":
-                from core import google_calendar
+                from core.domain import google_calendar
                 if google_calendar.token_exists():
                     # Pin the generic approval to the Google OAuth account.
                     # It may not later execute on a different account or local DB.
@@ -189,11 +194,11 @@ def execute_capability(identifier, payload):
         if run and result.status == 'pending' and result.approval_id:
             with run.lock:
                 if result.approval_id not in run.approvals: run.approvals.append(result.approval_id)
-        from core.operation_journal import finish
+        from core.infra.operation_journal import finish
         operation_status = finish(operation_id, contract.effect, None if escaped_error else result, escaped_error)
         if operation_status == 'uncertain' and not escaped_error:
             result.error = CapabilityError(code='EffectUncertain',message='Esito dell’effetto non verificabile. Controlla l’operazione in Attività prima di ripetere.')
-        from core.consultations import record
+        from core.domain.consultations import record
         record('tool', contract.id, operation_status if operation_status == 'uncertain' else result.status, run=run)
         from core.error_decisions import decide as orchestration_decision
         decision = orchestration_decision(
@@ -231,14 +236,14 @@ def resolve(identifier, approve, username):
         row = conn.execute("SELECT * FROM action_approvals WHERE id=%s FOR UPDATE", (UUID(identifier),)).fetchone()
         if not row: raise KeyError(identifier)
         if row["status"] != "pending": raise ValueError("Richiesta già gestita.")
-        if row["expires_at"] <= datetime.now(timezone.utc): raise ValueError("Richiesta scaduta.")
+        if row["expires_at"] <= datetime.now(UTC): raise ValueError("Richiesta scaduta.")
         conn.execute("UPDATE action_approvals SET status=%s,resolved_at=NOW(),resolved_by=%s WHERE id=%s",
             ("executing" if approve else "rejected",username,row["id"]))
     if not approve: return {"status": "rejected"}
     token = None
     approval_token = None
     escaped = None
-    from core.run_states import DurabilityLost, EffectUncertain
+    from core.infra.run_states import DurabilityLost, EffectUncertain
     from core.runtime import RunStopped
     try:
         load_capabilities()
@@ -247,7 +252,7 @@ def resolve(identifier, approve, username):
         if (row["capability_id"],row["contract_version"],row["contract_digest"]) != (entry["contract"].id,entry["contract"].version,entry["contract_digest"]): raise PermissionError("Contratto della proposta non disponibile. Crea una nuova proposta.")
         normalized = entry["input_model"].model_validate(row["payload"]).model_dump()
         token = approved_action.set((row["actor"],frozenset(row["actions"] or [row["action"]]),row["tool_id"],normalized))
-        from core.operation_journal import current_approval
+        from core.infra.operation_journal import current_approval
         approval_token = current_approval.set(row['id'])
         outcome = execute_capability(entry["contract"].id,normalized)
         result = outcome.native if outcome.status != "error" else outcome.model_dump(mode="json")

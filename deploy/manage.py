@@ -3,13 +3,13 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import secrets
 import shutil
 import subprocess
 import sys
 import tarfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV = ROOT / 'deploy.env'
@@ -85,7 +85,7 @@ def google_calendar_auth(login_hint='', port=8765):
         '--mount',f'type=bind,src={state},dst=/state',
         '-e','CORA_GOOGLE_CALENDAR_CREDENTIALS_PATH=/state/gmail/credentials.json',
         '-e','CORA_GOOGLE_CALENDAR_TOKEN_PATH=/state/google-calendar/token.json',
-        image,'python','-m','core.google_calendar_auth',
+        image,'python','-m','core.domain.google_calendar_auth',
         '--host','127.0.0.1','--port',str(port),
     ]
     if login_hint:
@@ -117,7 +117,7 @@ def backup(path):
         shutil.copyfile(ENV,path/'deploy.env');(path/'deploy.env').chmod(0o600)
         revision=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True)
         images=compose('images','--format','json',capture_output=True,text=True).stdout
-        manifest={'version':1,'created_at':datetime.now(timezone.utc).isoformat(),
+        manifest={'version':1,'created_at':datetime.now(UTC).isoformat(),
                   'revision':revision.stdout.strip(),'images':images,
                   'sha256':{name:digest(path/name) for name in ('database.dump','state.tar.gz','deploy.env')}}
         (path/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
@@ -191,5 +191,5 @@ def main():
 if __name__=='__main__':
     try:main()
     except (ValueError,OSError,subprocess.CalledProcessError) as error:
-        print('Operazione non riuscita:',error,file=sys.stderr);raise SystemExit(1)
+        print('Operazione non riuscita:',error,file=sys.stderr);raise SystemExit(1) from error
 

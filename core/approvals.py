@@ -1,6 +1,8 @@
 """Compatibility facade; governed bound tool requests are the only executable approvals."""
-from core.governance import list_approvals as _list, propose, resolve, executables
+from core.governance import executables, propose, resolve
+from core.governance import list_approvals as _list
 from core.permissions import get_permission_rule
+
 
 class ApprovalConflict(RuntimeError):
     pass

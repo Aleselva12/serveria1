@@ -1,7 +1,9 @@
 """Authenticated fixed-operation bridge. No host shell or token reaches the model/browser."""
 import os
 from urllib.parse import urlparse
+
 import httpx
+
 from programmer_agent import workspace as ws
 
 

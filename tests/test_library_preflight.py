@@ -1,7 +1,8 @@
 import json
 import unittest
 from unittest.mock import patch
-from core import library_preflight as preflight
+
+from core.domain import library_preflight as preflight
 
 
 class LibraryPreflightTests(unittest.TestCase):

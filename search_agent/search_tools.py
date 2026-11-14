@@ -1,21 +1,20 @@
-import json
 import hashlib
 import io
+import json
 import os
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
-from dotenv import load_dotenv
 from docx import Document
-from core.governance import agent_tool
+from dotenv import load_dotenv
 from pypdf import PdfReader
 
+from core.governance import agent_tool
+from core.infra.confined_paths import confined_path
+from core.infra.file_paths import LIBRARY_ERRORS, LibraryAccessError, library_workspace_root
+from core.infra.run_lifecycle import RunCancelled
 from core.permissions import require_permission
-from core.file_paths import library_workspace_root, LibraryAccessError, LIBRARY_ERRORS
-from core.confined_paths import confined_path
-from core.runtime_context import ensure_runtime_active, RunTimedOut
-from core.run_lifecycle import RunCancelled
-
+from core.runtime_context import RunTimedOut, ensure_runtime_active
 
 load_dotenv()
 
@@ -92,8 +91,8 @@ def _read_error(error, action):
 
 def _activity(action: str, *, path: str = ".", query: str = ""):
     # Content-bearing progress stays in the authenticated live stream, not diagnostics.
+    from core.infra.event_bus import bus
     from core.runtime import current_run
-    from core.event_bus import bus
     run = current_run.get()
     if run:
         bus.publish("library.activity", "library", run_id=run.id, thread_id=run.thread_id,
@@ -165,7 +164,7 @@ def _read_document(path: Path) -> str:
         text = text[:MAX_TEXT_CHARS] + "\n\n[TESTO TRONCATO PER LIMITE DI SICUREZZA]"
 
     _activity("read", path=path.relative_to(library_workspace_root()).as_posix())
-    from core.consultations import record
+    from core.domain.consultations import record
     record('file', path.relative_to(library_workspace_root()).as_posix(), 'read')
     return text
 
@@ -388,8 +387,8 @@ def append_word_document(
                 "error": "L'aggiornamento è consentito solo per file .docx.",
             }, ensure_ascii=False)
 
-        from core.library_tools import checked_file, archive_previous, publish_bytes
-        from core.server_files import operation
+        from core.domain.server_files import operation
+        from core.library_tools import archive_previous, checked_file, publish_bytes
         path, before = checked_file(relative_path, expected_sha256)
         document = Document(io.BytesIO(before))
         if heading.strip():
@@ -438,4 +437,5 @@ LOCAL_RESEARCH_TOOLS = [
 
 
 from core.calendar_tools import calendar_tools_for
+
 LOCAL_RESEARCH_TOOLS += calendar_tools_for("local_research_agent")

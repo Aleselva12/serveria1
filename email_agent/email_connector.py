@@ -1,7 +1,7 @@
 import base64
 import os
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime
 
@@ -10,7 +10,6 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-
 
 load_dotenv()
 

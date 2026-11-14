@@ -7,7 +7,7 @@ from unittest.mock import patch
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from core import webpush
+from core.domain import webpush
 
 
 def b64(data: bytes) -> str:

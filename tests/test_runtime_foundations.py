@@ -2,28 +2,30 @@ import json
 import os
 import tempfile
 import threading
-import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+
 from core.auth import AuthMiddleware, password_hash, verify_password
 from core.context_budget import fit_messages
-from core.event_bus import EventBus
-from core.runtime import Runtime, Run, RunStopped, checkpoint, current_run
 from core.governance import agent_tool, approved_action
+from core.infra.event_bus import EventBus
 from core.permissions import require_permission
+from core.runtime import Run, RunStopped, Runtime, checkpoint
+
 
 class RuntimeTests(unittest.TestCase):
     def setUp(self):
         self.export = patch.dict(os.environ,{'CORA_DIAGNOSTIC_JSONL_EXPORT':'true'});self.export.start()
         self.temp = tempfile.TemporaryDirectory()
-        self.file = patch('core.execution_traces.TRACE_FILE', Path(self.temp.name)/'traces.jsonl')
+        self.file = patch('core.infra.execution_traces.TRACE_FILE', Path(self.temp.name)/'traces.jsonl')
         self.file.start()
-        self.journal = patch('core.operation_journal.begin',return_value=None);self.journal.start()
-        self.finish = patch('core.operation_journal.finish',return_value=None);self.finish.start()
+        self.journal = patch('core.infra.operation_journal.begin',return_value=None);self.journal.start()
+        self.finish = patch('core.infra.operation_journal.finish',return_value=None);self.finish.start()
         self.runtime = Runtime(persistent=False)
     def tearDown(self):
         self.export.stop()
@@ -126,6 +128,16 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(writes,['first'])
 
 class AuthTests(unittest.TestCase):
+    def setUp(self):
+        # This suite tests password/cookie contracts on a synthetic app, even
+        # when invoked by a production server using Tailscale authentication.
+        environment = patch.dict(os.environ, {
+            'CORA_AUTH_MODE': 'password',
+            'CORA_UI_ORIGINS': 'http://localhost:5173,http://127.0.0.1:5173',
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
+
     def test_hash_salted_and_wrong_password_rejected(self):
         a=password_hash('long-personal-password'); b=password_hash('long-personal-password')
         self.assertNotEqual(a,b); self.assertTrue(verify_password('long-personal-password',a)); self.assertFalse(verify_password('other',a))

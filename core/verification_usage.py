@@ -9,8 +9,8 @@ _last = {}
 
 def enabled():
     try:
-        from core.database import DATABASE_URL
-        from core.project_checks import _release
+        from core.infra.database import DATABASE_URL
+        from core.verify.project_checks import _release
         return bool(DATABASE_URL and _release() and os.getenv("GITHUB_ACTIONS") != "true" and os.getenv("CORA_VERIFICATION_SYNTHETIC") != "1")
     except Exception:
         return False
@@ -19,8 +19,8 @@ def enabled():
 def record(check_id, status, detail):
     """Best effort: evidence storage must not turn a successful operation into an error."""
     try:
-        from core.database import DATABASE_URL, db_connection
-        from core.project_checks import _release, _environment
+        from core.infra.database import db_connection
+        from core.verify.project_checks import _environment, _release
         if not enabled():
             return False
         commit = _release()
@@ -51,7 +51,7 @@ def worker_ids(machine_id):
     targets = {"desktopMachineId": os.getenv("CORA_VERIFY_DESKTOP_ID"),
                "laptopMachineId": os.getenv("CORA_VERIFY_LAPTOP_ID")}
     try:
-        from core.database import db_connection
+        from core.infra.database import db_connection
         with db_connection(ensure_schema=False) as conn:
             row = conn.execute("SELECT snapshot FROM node_verification_runs ORDER BY created_at DESC LIMIT 1").fetchone()
         if row:
@@ -89,8 +89,9 @@ def calendar_write(action, result):
     if not enabled():
         return
     try:
-        from core import google_calendar as calendar
         from googleapiclient.errors import HttpError
+
+        from core.domain import google_calendar as calendar
         if action == "delete":
             try:
                 current = calendar.service().events().get(calendarId="primary", eventId=result["id"]).execute()

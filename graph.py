@@ -1,19 +1,25 @@
 import time
-from core.runtime import current_run
-from dotenv import load_dotenv
 
-from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
-from langgraph.graph import StateGraph, START, END, MessagesState
+from dotenv import load_dotenv
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from core.context_budget import fit_messages
+from core.context_pages import (
+    preload_context,
+    render_pages,
+    resolve_context_pages,
+    routing_text,
+    selected_tool_names,
+)
 from core.governance import bind_capabilities, tool_contract
 from core.models import get_chat_model
-from core.context_pages import resolve_context_pages, selected_tool_names, render_pages, preload_context, routing_text
 from core.prompt_context import with_permanent_context
+from core.runtime import current_run
 from core.runtime_context import ensure_runtime_active
-from tools import supervisor_tools
 from prompt import SUPERVISOR_BOOTSTRAP
+from tools import supervisor_tools
 
 load_dotenv()
 
@@ -65,7 +71,7 @@ def _runtime_system_prompt(messages, request_text=None, manual_tools=None) -> tu
     from core.chat_tools import validate_selection
     manual = validate_selection(manual_tools, supervisor_tools)
     tool_names = manual if manual is not None else list(dict.fromkeys(selected_tool_names(selected)))
-    from core.library_routing import library_intent
+    from core.domain.library_routing import library_intent
     if manual is None and library_intent(user_text):
         tool_names = list(dict.fromkeys(tool_names + ["library_list", "library_search", "library_read"]))
     # A Library-only request must not expose repository browsing tools.
@@ -79,7 +85,7 @@ def _runtime_system_prompt(messages, request_text=None, manual_tools=None) -> tu
 
     run = current_run.get()
     if run:
-        from core.consultations import record
+        from core.domain.consultations import record
         for page in selected:
             record('context', page.id, 'included', run=run)
         for provider in preload_providers:
@@ -93,7 +99,7 @@ def _runtime_system_prompt(messages, request_text=None, manual_tools=None) -> tu
         run.timings["selected_tools"] = tool_names
         run.timings["tool_selection"] = "manual" if manual is not None else "automatic"
         run.timings["selected_tool_count"] = len(tool_names)
-        from core.event_bus import bus
+        from core.infra.event_bus import bus
         bus.publish(
             "context.pages_selected",
             "context",
@@ -113,7 +119,7 @@ def prepare_turn(state: CoraState):
     prompt, memory_context, context_pages, tool_names = _runtime_system_prompt(state["messages"], state.get("request_text"), state.get("manual_tools"))
     # Explicitly named Library documents are discovered before the LLM call.
     # This is a read-only, permission-checked preflight; manual tool selection wins.
-    from core.library_preflight import preload as library_preload
+    from core.domain.library_preflight import preload as library_preload
     preflight = library_preload(state.get("request_text") or _latest_user_text(state["messages"]), tool_names)
     if preflight:
         memory_context = (memory_context + "\n\n" + preflight) if memory_context else preflight
@@ -149,7 +155,7 @@ def call_model(state: CoraState):
     ensure_runtime_active()
     # Direct, governed read-only listing for explicit IA Library inventory questions.
     # Never override an explicit manual tool selection.
-    from core.library_routing import list_requested, list_documents_direct
+    from core.domain.library_routing import list_documents_direct, list_requested
     if state.get("manual_tools") is None and "library_list" in state.get("selected_tool_names", []):
         request = state.get("request_text") or _latest_user_text(state["messages"])
         if list_requested(request):
@@ -171,8 +177,8 @@ def call_model(state: CoraState):
             fit_messages(messages_for_llm, tools=selected_tools if selected_tools else None, reserve=128)
         )
     else:
+        from core.model_profiles import ModelToolsUnsupported, profile_for
         from core.models import resolve_model
-        from core.model_profiles import profile_for, ModelToolsUnsupported
         profile = profile_for(resolve_model('supervisor'))
         if selected_tools and profile['tools'] is False:
             raise ModelToolsUnsupported("Il modello selezionato non supporta strumenti. Scegli Nessuno per conversare o seleziona manualmente un modello compatibile.")

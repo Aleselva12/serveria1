@@ -1,12 +1,13 @@
 """Fixed Docker checks, stdlib only; also installed with the trusted host service."""
 from __future__ import annotations
+
 import os
 import re
 import subprocess
 import tempfile
 import time
-from pathlib import Path
 from uuid import uuid4
+
 
 def _docker(*args: str, timeout: float = 10) -> str:
     # docker logs can be verbose: spool to disk and expose a bounded prefix.

@@ -8,12 +8,15 @@ import os
 import sys
 import tempfile
 import time
-from pathlib import Path
 from contextlib import ExitStack
+from pathlib import Path
 from unittest.mock import patch
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-from programmer_agent import programmer_graph as pg, workspace as ws
+
+from programmer_agent import programmer_graph as pg
+from programmer_agent import workspace as ws
 
 
 def run_case(active, broken=False):
@@ -53,9 +56,9 @@ def run_case(active, broken=False):
         stack.enter_context(patch.object(pg, 'get_chat_model', return_value=ScriptedModel()))
         stack.enter_context(patch.object(pg, 'with_permanent_context', side_effect=lambda p:p))
         stack.enter_context(patch.object(pg, 'record_metric', side_effect=lambda kind, payload:samples.append({'kind':kind, **payload})))
-        stack.enter_context(patch('core.operation_journal.begin', return_value='offline'))
-        stack.enter_context(patch('core.operation_journal.finish'))
-        stack.enter_context(patch('core.database.database_configured', return_value=True))
+        stack.enter_context(patch('core.infra.operation_journal.begin', return_value='offline'))
+        stack.enter_context(patch('core.infra.operation_journal.finish'))
+        stack.enter_context(patch('core.infra.database.database_configured', return_value=True))
         stack.enter_context(patch('core.permissions.policy_overrides', return_value={}))
         started = time.perf_counter()
         result = pg.graph.invoke({'messages':[HumanMessage('Modifica sample.py e verifica la sintassi')]}, {'recursion_limit':20})

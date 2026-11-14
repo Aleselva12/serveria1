@@ -2,8 +2,12 @@
 import os
 import unittest
 from unittest.mock import MagicMock, patch
+
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-from programmer_agent import request_router as router, context_manager as cm, programmer_graph as pg
+
+from programmer_agent import context_manager as cm
+from programmer_agent import programmer_graph as pg
+from programmer_agent import request_router as router
 from programmer_agent.programmer_tools import PROGRAMMER_TOOLS
 
 
@@ -90,7 +94,7 @@ class RouterTests(unittest.TestCase):
             factory.assert_not_called()
 
     def test_cancellation_is_not_swallowed(self):
-        from core.run_lifecycle import RunCancelled
+        from core.infra.run_lifecycle import RunCancelled
         from core.runtime_context import RunTimedOut
         for error in [RunCancelled('stop'), RunTimedOut('deadline')]:
             model = self.model()

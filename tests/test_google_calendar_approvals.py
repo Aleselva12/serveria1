@@ -6,10 +6,10 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
-from core import google_calendar
-from core import calendar_api
-from core import calendar as local
+from core.api import calendar_api
 from core.calendar_tools import calendar_tools_for
+from core.domain import calendar as local
+from core.domain import google_calendar
 
 DATA = {
     "title": "Visita cliente",
@@ -58,8 +58,8 @@ class GoogleCalendarApprovalTests(unittest.TestCase):
         self.assertEqual(result["id"], current["id"])
 
     def test_google_update_rejects_etag_changed_during_request(self):
-        from httplib2 import Response
         from googleapiclient.errors import HttpError
+        from httplib2 import Response
         current = {"id": "non-uuid-id", "etag": '"old"', "version": 42}
         request = Mock()
         request.headers = {}
@@ -78,7 +78,7 @@ class GoogleCalendarApprovalTests(unittest.TestCase):
              patch.object(google_calendar, "connection_fingerprint", return_value="fingerprint"), \
              patch.object(google_calendar, "create_event") as create, \
              patch("core.permissions.policy_overrides", return_value={}), \
-             patch("core.operation_journal.begin", return_value=None), \
+             patch("core.infra.operation_journal.begin", return_value=None), \
              patch("core.governance.propose", return_value={"id": uuid4()}) as propose:
             result = tool.invoke(DATA)
         wire = json.loads(result)
@@ -104,7 +104,7 @@ class GoogleCalendarApprovalTests(unittest.TestCase):
 class GoogleApprovalPostgresTests(unittest.TestCase):
     def test_durable_owner_approval_once_and_oauth_switch_blocks_execution(self):
         from core import governance, permissions
-        from core.database import db_connection, close_pool
+        from core.infra.database import close_pool, db_connection
         governance.load_capabilities()
         tool = next(t for t in calendar_tools_for('supervisor') if t.name == 'calendar_create_event')
         identifiers = []

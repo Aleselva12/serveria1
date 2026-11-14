@@ -11,9 +11,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from core.infra.ollama_transport import get_ollama_base_url
 from core.permissions import validate_permission_configuration
-from core.ollama_transport import get_ollama_base_url
-
 
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
@@ -21,28 +20,28 @@ load_dotenv(ROOT / ".env")
 MODULES = [
     "core.auth",
     "core.runtime",
-    "core.run_states",
-    "core.operation_journal",
+    "core.infra.run_states",
+    "core.infra.operation_journal",
     "core.protocol",
-    "core.event_bus",
+    "core.infra.event_bus",
     "core.governance",
     "core.context_budget",
     "core.capabilities",
     "core.capability_contracts",
     "core.registry",
-    "core.logging",
-    "core.memory",
+    "core.infra.logging",
+    "core.domain.memory",
     "core.permissions",
-    "core.component_bus",
+    "core.infra.component_bus",
     "core.access",
     "core.approvals",
-    "core.run_lifecycle",
+    "core.infra.run_lifecycle",
     "core.runtime_context",
     "core.runtime_status",
-    "core.permissions_api",
-    "core.runtime_api",
+    "core.api.permissions_api",
+    "core.api.runtime_api",
     "core.orchestration",
-    "core.plans",
+    "core.domain.plans",
     "local_tools",
     "search_agent.search_tools",
     "search_agent.search_graph",

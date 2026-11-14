@@ -1,14 +1,13 @@
-import json
 import tempfile
 import unittest
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock,patch
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from core import audio_api
+from unittest.mock import MagicMock, patch
+
+from core.api import audio_api
+
 
 class AudioUITests(unittest.TestCase):
     def test_worker_uses_shared_engine_and_saves_transcript_with_compare_and_swap(self):
@@ -44,7 +43,7 @@ class AudioUITests(unittest.TestCase):
             self.assertEqual(error.exception.status_code,409)
     def test_library_export_keeps_versioned_filename_and_original(self):
         ident=uuid.uuid4()
-        with patch.object(audio_api,'get_record',return_value={'transcript':'testo corretto','version':3}),patch('core.ia_library.upload_copy') as upload:
+        with patch.object(audio_api,'get_record',return_value={'transcript':'testo corretto','version':3}),patch('core.domain.ia_library.upload_copy') as upload:
             audio_api.copy_to_library(ident)
             _,file=upload.call_args.args
             self.assertIn('-v3.txt',file.filename);self.assertEqual(file.file.read(),b'testo corretto')

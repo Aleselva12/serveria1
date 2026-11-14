@@ -1,7 +1,9 @@
 """Home update flow reuses the authenticated fixed-operation host bridge."""
 import unittest
 from unittest.mock import patch
+
 from fastapi import HTTPException
+
 from core import desktop_updates as updates
 
 

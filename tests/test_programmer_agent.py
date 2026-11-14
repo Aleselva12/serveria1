@@ -2,15 +2,18 @@ import json
 import os
 import tempfile
 import unittest
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
-from contextlib import ExitStack
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage, HumanMessage
-from programmer_agent import workspace as ws, knowledge
+
+from programmer_agent import knowledge
+from programmer_agent import workspace as ws
 from programmer_agent.api import router
-from programmer_agent.checks import run_check, docker_check
+from programmer_agent.checks import docker_check, run_check
 
 
 class ProgrammerTests(unittest.TestCase):
@@ -147,8 +150,8 @@ class ProgrammerTests(unittest.TestCase):
         self.assertEqual(self.client.post("/api/v1/programmer/runs", json={"workspace_id": self.identifier, "message": " ", "actor": "admin"}).status_code, 422)
 
     def test_agent_loop_writes_workspace_through_governed_tool(self):
-        from programmer_agent.programmer_graph import graph
         from core.governance import executables
+        from programmer_agent.programmer_graph import graph
         identifier = self.identifier
         class Model:
             def bind_tools(self, tools): return self
@@ -160,9 +163,9 @@ class ProgrammerTests(unittest.TestCase):
             stack.enter_context(ws.bind_workspace(self.identifier))
             stack.enter_context(patch('programmer_agent.programmer_graph.get_chat_model', return_value=Model()))
             stack.enter_context(patch('programmer_agent.programmer_graph.with_permanent_context', side_effect=lambda p:p))
-            stack.enter_context(patch('core.operation_journal.begin', return_value='op'))
-            stack.enter_context(patch('core.operation_journal.finish'))
-            stack.enter_context(patch('core.database.database_configured', return_value=True))
+            stack.enter_context(patch('core.infra.operation_journal.begin', return_value='op'))
+            stack.enter_context(patch('core.infra.operation_journal.finish'))
+            stack.enter_context(patch('core.infra.database.database_configured', return_value=True))
             stack.enter_context(patch('core.permissions.policy_overrides', return_value={}))
             result = graph.invoke({"messages": [HumanMessage(content="Crea un file") ]}, config={"recursion_limit": 12})
         self.assertIn("Bozza creata", result["messages"][-1].content)
@@ -216,6 +219,7 @@ class ProgrammerTests(unittest.TestCase):
 
     def test_optional_graphify_build_is_code_only_and_queries_real_graph(self):
         import shutil
+
         from programmer_agent.build_graph import build
         if not shutil.which('graphify'):
             self.skipTest('Optional Graphify CLI not installed')
@@ -234,7 +238,9 @@ class ProgrammerTests(unittest.TestCase):
         self.assertEqual(_workspace(self.identifier), self.identifier)
 
     def test_component_delivery_is_complete_immutable_and_lifecycle_requires_evidence(self):
-        import io, zipfile
+        import io
+        import zipfile
+
         from programmer_agent import components as cp
         ws.write(self.identifier, 'generated.py', 'value = 42')
         row = cp.register(self.identifier, 'Example', 'other', ['generated.py'], ['stdlib'], 'Review and integrate manually')

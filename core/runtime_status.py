@@ -4,10 +4,10 @@ import importlib.util
 import os
 from pathlib import Path
 from urllib.error import URLError
-from core.ollama_transport import urlopen, get_ollama_base_url
 
-from core.component_bus import component_bus
-from core.database import database_status
+from core.infra.component_bus import component_bus
+from core.infra.database import database_status
+from core.infra.ollama_transport import get_ollama_base_url, urlopen
 from core.models import get_model_name, get_ollama_base_url
 
 
@@ -22,7 +22,7 @@ def _ollama_online() -> bool:
 def component_runtime_status() -> dict:
     ollama = _ollama_online()
     database = database_status()
-    from core.file_paths import library_workspace_status
+    from core.infra.file_paths import library_workspace_status
     library = library_workspace_status()
     audio_root = Path(os.getenv("CORA_AUDIO_ROOT", "./audio")).expanduser()
     gmail_credentials = Path(os.getenv("CORA_GMAIL_CREDENTIALS_PATH", "./email_agent/credentials.json")).expanduser()
@@ -72,15 +72,16 @@ def component_runtime_status() -> dict:
             "checks": database,
         },
     }
-    from core.agent_models import ROLES, binding, remote_ready
     from concurrent.futures import ThreadPoolExecutor
+
+    from core.agent_models import ROLES, binding, remote_ready
     assignments = {identifier: binding(role) for identifier, role in ROLES.items()}
     keys = {(s['machine_id'], s['model']) for s in assignments.values() if s and s['machine_id'] != 'local'}
     remote_checks = {}
     if keys:
         with ThreadPoolExecutor(max_workers=4) as probes:
-            remote_checks = dict(zip(keys, probes.map(lambda key: remote_ready(*key), keys)))
-    for identifier, role in ROLES.items():
+            remote_checks = dict(zip(keys, probes.map(lambda key: remote_ready(*key), keys), strict=False))
+    for identifier, _role in ROLES.items():
         selected = assignments[identifier]
         if selected and selected['machine_id'] != 'local':
             key = (selected['machine_id'], selected['model'])

@@ -2,10 +2,10 @@
 import copy
 import json
 import os
-from pathlib import Path
 import tempfile
-from types import SimpleNamespace
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from deploy.terminal_updater import add_terminal, prepare

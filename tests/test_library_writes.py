@@ -5,9 +5,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
+
 from core import library_tools as lib
-from core.governance import execute_capability, executables, approved_action
-from search_agent import search_tools as research
+from core.governance import approved_action, executables, execute_capability
+from search_agent import search_tools as research  # noqa: F401 - importing it registers the research tools
 
 
 class LibraryWriteTests(unittest.TestCase):
@@ -22,10 +23,10 @@ class LibraryWriteTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)/'library'; self.root.mkdir()
-        for target, value in [('core.file_paths.knowledge_root',lambda: self.root),
+        for target, value in [('core.infra.file_paths.knowledge_root',lambda: self.root),
                               ('core.permissions.policy_overrides',lambda: {}),
-                              ('core.operation_journal.begin',lambda *args: None),
-                              ('core.operation_journal.finish',lambda *args, **kwargs: None)]:
+                              ('core.infra.operation_journal.begin',lambda *args: None),
+                              ('core.infra.operation_journal.finish',lambda *args, **kwargs: None)]:
             p=patch(target,value);p.start();self.addCleanup(p.stop)
         (self.root/'note.txt').write_text('prima')
         self.hash=lib.digest(b'prima')

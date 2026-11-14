@@ -2,16 +2,18 @@
 import io
 import json
 import os
-from pathlib import Path, PurePosixPath
 import re
 import shutil
 import subprocess
 import sys
 import threading
-from urllib.request import Request, urlopen
 import zipfile
+from pathlib import Path, PurePosixPath
+from urllib.request import Request, urlopen
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+
 from core.auth import auth_mode
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,9 +53,16 @@ def status():
             return {"platform": "windows", **JOB}
     from programmer_agent import releases
     try:
-        return {"platform": "server", **releases.status()}
+        state = {"platform": "server", **releases.status()}
     except (ValueError, OSError):
         return {"platform": "server", "available": False, "reason": "Updater non raggiungibile", "jobs": []}
+    if state.get("available"):
+        try:
+            state["components"] = releases.request("GET", "/host/components", timeout=20)
+        except (ValueError, OSError):
+            # Older updaters lack the endpoint: the page says so instead of showing "all fine".
+            state["components"] = None
+    return state
 
 
 @router.post("/server/prepare", status_code=202)
@@ -179,7 +188,8 @@ def prepare():
         phase = "ready"
         # State stays at its original path. The owner switches only after stopping Cora
         # and backing up PostgreSQL; never activate code from a background HTTP worker.
-        quote = lambda p: "'" + str(p).replace("'", "''") + "'"
+        def quote(p):
+            return "'" + str(p).replace("'", "''") + "'"
         script = "$ErrorActionPreference = 'Stop'\n"
         script += "if (Get-NetTCPConnection -LocalPort 8000,5173 -State Listen -ErrorAction SilentlyContinue) { throw 'Chiudi Cora prima di continuare.' }\n"
         script += f"Copy-Item -LiteralPath {quote(ROOT / '.env')} -Destination {quote(candidate / '.env')}\n"

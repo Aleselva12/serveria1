@@ -1,10 +1,12 @@
 """Optional Graphify CLI adapter: baseline code only, no model backend or generated execution."""
 from __future__ import annotations
+
 import json
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+
 from core.runtime import checkpoint
 from programmer_agent import workspace as ws
 from programmer_agent.knowledge import import_graph

@@ -7,12 +7,12 @@ import argparse
 import ipaddress
 import json
 import os
-from pathlib import Path
 import re
 import secrets
 import shlex
 import subprocess
 import tempfile
+from pathlib import Path
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -107,7 +107,7 @@ def main():
             raise ValueError('Identità proprietario sovrascritta da Compose.')
         # Existing owner is retained; no new account/password is silently created.
         result = run(*base, 'exec', '-T', 'api', 'python', '-c',
-                     'from core.database import db_connection\n'
+                     'from core.infra.database import db_connection\n'
                      'with db_connection() as c:\n'
                      ' print(c.execute("SELECT COUNT(*) AS n FROM app_users").fetchone()["n"])')
         if result.strip() != '1':
@@ -129,4 +129,4 @@ if __name__ == '__main__':
     except (ValueError, KeyError, subprocess.CalledProcessError) as error:
         # Do not print subprocess output: resolved Compose configs contain secrets.
         raise SystemExit(str(error) if not isinstance(error, subprocess.CalledProcessError)
-                         else 'Verifica fallita. Controlla Docker, Tailscale e l’account proprietario sul server.')
+                         else 'Verifica fallita. Controlla Docker, Tailscale e l’account proprietario sul server.') from error

@@ -1,10 +1,13 @@
 import os
 import unittest
 from unittest.mock import patch
-from core.generation_policy import run_timeout, model_timeout, output_tokens, response_instruction
-from core.models import get_chat_model, performance_configuration
-from core.context_budget import fit_messages
+
 from langchain_core.messages import HumanMessage
+
+from core.context_budget import fit_messages
+from core.generation_policy import model_timeout, output_tokens, response_instruction, run_timeout
+from core.models import get_chat_model, performance_configuration
+
 
 class GenerationPolicyTests(unittest.TestCase):
     def test_unlimited_overrides_installed_legacy_budgets(self):

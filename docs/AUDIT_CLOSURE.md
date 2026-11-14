@@ -12,9 +12,9 @@ attesta installazione, merge o prove sul server personale.
 | 4 | Override mantenuti da gestione deploy e installazione updater, nello stesso ordine | deploy/manage.py, updater/setup.py |
 | 5 | UI descrive il contesto proprietario come consultazione selettiva | frontend/src/App.tsx |
 | 6 | README allineato alla memoria su richiesta; nessuna reintroduzione del recupero sempre attivo | README.md |
-| 7 | Dettagli provider ammessi nella proiezione persistente e nella vista runtime | core/observability.py, core/execution_traces.py |
-| 8 | Solo categorie e messaggi fissi del provider, anche per la lettura dei vecchi archivi | core/provider_errors.py, test_provider_errors.py |
-| 9 | Endpoint unico 11434, trasporto senza proxy ambiente per probe/embedding, doctor include Programmatore | core/ollama_transport.py, deploy/doctor.py |
+| 7 | Dettagli provider ammessi nella proiezione persistente e nella vista runtime | core/infra/observability.py, core/infra/execution_traces.py |
+| 8 | Solo categorie e messaggi fissi del provider, anche per la lettura dei vecchi archivi | core/infra/provider_errors.py, test_provider_errors.py |
+| 9 | Endpoint unico 11434, trasporto senza proxy ambiente per probe/embedding, doctor include Programmatore | core/infra/ollama_transport.py, deploy/doctor.py |
 | 10 | NAS soltanto nell’override, porta guida 8090, profilo di collaudo distinto da garanzia di produzione | deploy/README.md, deploy/SERVER_TEST_CURRENT.md |
 | 11 | Profili Docker via bridge host autenticato, snapshot verificato fuori dal mount API, comandi fissi e limiti; API senza socket Docker | updater/check_runner.py, updater/engine.py, programmer_agent/checks.py |
 | 12 | Link nuovi aprono la UI, richiedono login e conservano la destinazione interna; token nel frammento URL | AuthGate.tsx, SharedFile.tsx, sharedFiles.ts |

@@ -1,5 +1,7 @@
 import unittest
+
 from core.context_pages import resolve_context_pages, selected_tool_names
+
 
 class OwnerContextSelectionTests(unittest.TestCase):
     def test_ciao_does_not_load_owner_context(self):

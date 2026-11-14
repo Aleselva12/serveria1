@@ -5,7 +5,7 @@ runtime state explicit and exposes one diagnostic snapshot over existing cores.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True)
@@ -20,7 +20,7 @@ class StateOwner:
 STATE_OWNERSHIP: tuple[StateOwner, ...] = (
     StateOwner(
         "task_lifecycle",
-        "runtime_runs (PostgreSQL) via core.run_lifecycle",
+        "runtime_runs (PostgreSQL) via core.infra.run_lifecycle",
         True,
         "Stato canonico di root run e child run, revisioni, cancellazioni ed esiti.",
         ("core.runtime.Run", "working_memory status", "diagnostic events"),
@@ -34,7 +34,7 @@ STATE_OWNERSHIP: tuple[StateOwner, ...] = (
     ),
     StateOwner(
         "component_exchange",
-        "TaskEnvelope / ComponentResult via core.component_bus",
+        "TaskEnvelope / ComponentResult via core.infra.component_bus",
         False,
         "Contratto tipizzato per richieste e risultati tra componenti nello stesso processo.",
         ("component bus snapshot",),
@@ -48,14 +48,14 @@ STATE_OWNERSHIP: tuple[StateOwner, ...] = (
     ),
     StateOwner(
         "live_events",
-        "core.event_bus.EventBus",
+        "core.infra.event_bus.EventBus",
         False,
         "Streaming/replay limitato del processo corrente; non è la fonte autorevole storica.",
         ("diagnostic archive",),
     ),
     StateOwner(
         "diagnostics",
-        "diagnostic_events (PostgreSQL) via core.observability",
+        "diagnostic_events (PostgreSQL) via core.infra.observability",
         True,
         "Telemetria best-effort e metadati tecnici per Attività/diagnostica.",
         ("EventBus", "execution traces"),
@@ -110,12 +110,12 @@ def validate_ownership() -> dict:
 
 def snapshot() -> dict:
     """Aggregate existing state without introducing a second source of truth."""
-    from core.runtime import runtime
-    from core.event_bus import bus
-    from core.database import pool_stats
-    from core.execution_traces import trace_status
-    from core.component_bus import component_bus
+    from core.infra.component_bus import component_bus
+    from core.infra.database import pool_stats
+    from core.infra.event_bus import bus
+    from core.infra.execution_traces import trace_status
     from core.permissions import permission_manifest, validate_permission_configuration
+    from core.runtime import runtime
 
     rules = permission_manifest()
     policies = {}

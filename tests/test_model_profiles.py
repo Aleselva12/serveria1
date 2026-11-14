@@ -2,7 +2,8 @@ import json
 import os
 import unittest
 from unittest.mock import patch
-from core.model_profiles import parse_profile, profile_for, _cache
+
+from core.model_profiles import _cache, parse_profile, profile_for
 from core.models import get_chat_model
 
 RESOLVED = {'role':'supervisor','model':'model:8b','machine_id':'local','source':'default','configuration_id':'test'}
@@ -31,8 +32,9 @@ class ModelProfileTests(unittest.TestCase):
             self.assertNotIn('think', unsupported._chat_params([]))
 
     def test_no_tool_model_can_chat_but_cannot_bind_tools(self):
-        from core.model_profiles import ModelToolsUnsupported
         from langchain_core.tools import tool
+
+        from core.model_profiles import ModelToolsUnsupported
         @tool
         def read():
             """Synthetic read."""
@@ -44,14 +46,14 @@ class ModelProfileTests(unittest.TestCase):
 
     def test_old_worker_metadata_is_unknown_and_never_falls_back_local(self):
         remote = {**RESOLVED,'machine_id':'desktop'}
-        with patch('core.agent_models.remote_machine',return_value={'id':'desktop'}), patch('core.machines_api._worker_call',side_effect=RuntimeError('old bridge')) as call, patch('core.ollama_transport.urlopen') as local:
+        with patch('core.agent_models.remote_machine',return_value={'id':'desktop'}), patch('core.api.machines_api._worker_call',side_effect=RuntimeError('old bridge')) as call, patch('core.infra.ollama_transport.urlopen') as local:
             result = profile_for(remote)
         self.assertFalse(result['verified']);self.assertIsNone(result['tools'])
         self.assertEqual(result['transport'],'buffered');local.assert_not_called();self.assertEqual(call.call_count,1)
 
     def test_cache_is_separate_for_machine_and_model(self):
         from io import BytesIO
-        with patch('core.ollama_transport.urlopen',side_effect=lambda *a,**k:BytesIO(json.dumps({'capabilities':['tools']}).encode())) as fetch:
+        with patch('core.infra.ollama_transport.urlopen',side_effect=lambda *a,**k:BytesIO(json.dumps({'capabilities':['tools']}).encode())) as fetch:
             profile_for(RESOLVED);profile_for(RESOLVED)
             profile_for({**RESOLVED,'model':'other'})
         self.assertEqual(fetch.call_count,2)

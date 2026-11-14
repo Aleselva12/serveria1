@@ -412,7 +412,7 @@ preesistente. Su quella macchina usare `manage.py init`, configurare il nuovo
 `deploy.env`, porta/origine e Ollama, poi `manage.py restore <backup>` e
 `manage.py up`. Non copiare gli override NAS o i token updater dell'host attuale.
 Ripristinare l'API target corretto, specialmente se il backup include Audio.
-Non eseguire `deploy/ci_verify.py` sulla macchina attuale: è una fixture CI che
+Non eseguire `deploy/ci_disposable_deployment.py` sulla macchina attuale: è una fixture CI che
 elimina volumi e state del proprio ambiente.
 
 Chiudere BKP-01 solo dopo health, login proprietario, un dato database noto,

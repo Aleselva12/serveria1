@@ -4,13 +4,13 @@ from langchain_core.messages import SystemMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
+from audio_agent.audio_prompt import AUDIO_AGENT_PROMPT
+from audio_agent.audio_tools import AUDIO_TOOLS
 from core.context_budget import fit_messages, model_context_limit
 from core.governance import bind_capabilities
 from core.models import get_chat_model
 from core.prompt_context import with_permanent_context
 from core.runtime_context import ensure_runtime_active
-from audio_agent.audio_prompt import AUDIO_AGENT_PROMPT
-from audio_agent.audio_tools import AUDIO_TOOLS
 
 
 class AgentState(MessagesState):

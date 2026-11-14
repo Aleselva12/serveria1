@@ -9,7 +9,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-from core import auth, ollama_transport
+from core import auth
+from core.infra import ollama_transport
 from updater.engine import Engine
 
 
@@ -57,16 +58,17 @@ class AuditClosureTests(unittest.TestCase):
             self.assertEqual(ollama_transport.get_ollama_base_url(), 'http://ollama:11434')
 
     def test_model_selection_distinguishes_disk_failure_and_uses_single_probe(self):
-        import api
-        from core.models import RuntimeSettingsError
         from fastapi import HTTPException
+
+        from core.api import system_api
+        from core.models import RuntimeSettingsError
         models = [{'name':'new'}]
-        with patch.object(api,'list_ollama_models',return_value=models) as listing, patch.object(api,'save_runtime_model',side_effect=RuntimeSettingsError('Impossibile salvare il modello.')):
-            with self.assertRaises(HTTPException) as error: api.select_runtime_model(api.ModelSelectionRequest(model='new'))
+        with patch.object(system_api,'list_ollama_models',return_value=models) as listing, patch.object(system_api,'save_runtime_model',side_effect=RuntimeSettingsError('Impossibile salvare il modello.')):
+            with self.assertRaises(HTTPException) as error: system_api.select_runtime_model(system_api.ModelSelectionRequest(model='new'))
             self.assertEqual(error.exception.status_code,500)
             listing.assert_called_once()
-        with patch.object(api,'list_ollama_models',return_value=models) as listing, patch.object(api,'save_runtime_model'), patch.object(api,'get_default_model_name',return_value='new'):
-            self.assertEqual(api.select_runtime_model(api.ModelSelectionRequest(model='new')),{'active':'new','models':models})
+        with patch.object(system_api,'list_ollama_models',return_value=models) as listing, patch.object(system_api,'save_runtime_model'), patch.object(system_api,'get_default_model_name',return_value='new'):
+            self.assertEqual(system_api.select_runtime_model(system_api.ModelSelectionRequest(model='new')),{'active':'new','models':models})
             listing.assert_called_once()
 
     def test_host_check_copies_validated_workspace_and_rejects_changed_digest(self):
@@ -105,8 +107,9 @@ class AuditClosureTests(unittest.TestCase):
             request.assert_called_once_with('POST','/workspaces/workspace-id/check',{'profile':'python_tests','workspace_digest':'a'*64},timeout=180)
 
     def test_windows_long_path_has_client_error(self):
-        from core.server_files import guard
         from fastapi import HTTPException
+
+        from core.domain.server_files import guard
         error = OSError(22, 'invalid path'); error.winerror = 206
         with self.assertRaises(HTTPException) as caught:
             with guard(): raise error
@@ -114,9 +117,13 @@ class AuditClosureTests(unittest.TestCase):
 
     def test_host_http_check_requires_token_and_exact_payload(self):
         from http.server import ThreadingHTTPServer
-        from updater.service import handler
+
         import httpx
+
+        from updater.service import handler
+        temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)
         engine=MagicMock()
+        engine.root=Path(temporary.name)
         engine.check_workspace.return_value={'passed':True,'environment':'docker-host'}
         server=ThreadingHTTPServer(('127.0.0.1',0),handler(engine,'private-token'))
         thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
@@ -132,5 +139,8 @@ class AuditClosureTests(unittest.TestCase):
                 self.assertEqual(response.status_code,200)
                 self.assertTrue(response.json()['passed'])
                 engine.check_workspace.assert_called_once_with('id','python_tests','a'*64)
+                (engine.root/'maintenance.request').write_text('{}')
+                self.assertEqual(client.post('/workspaces/id/check',json=data).status_code,409)
+                self.assertEqual(engine.check_workspace.call_count,1)
         finally:
             server.shutdown();server.server_close();thread.join()

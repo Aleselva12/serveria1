@@ -5,11 +5,14 @@ import unittest
 from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+
 from core.context_budget import ContextOverflow, _valid_exchange, message_cost
-from core.observability import metadata_event
-from programmer_agent.loop_context import fit_programmer_messages, without_thinking
-from programmer_agent import programmer_graph as pg, workspace as ws
+from core.infra.observability import metadata_event
+from programmer_agent import programmer_graph as pg
+from programmer_agent import workspace as ws
+from programmer_agent.loop_context import fit_programmer_messages
 
 
 def call(identity='write', **args):
@@ -94,8 +97,8 @@ class LoopContextTests(unittest.TestCase):
             identifier=ws.create('Regression',source)['id']
             stack.enter_context(ws.bind_workspace(identifier))
             stack.enter_context(patch.object(pg,'with_permanent_context',side_effect=lambda p:p))
-            stack.enter_context(patch('core.operation_journal.begin',return_value=None))
-            stack.enter_context(patch('core.operation_journal.finish'))
+            stack.enter_context(patch('core.infra.operation_journal.begin',return_value=None))
+            stack.enter_context(patch('core.infra.operation_journal.finish'))
             stack.enter_context(patch('core.permissions.policy_overrides',return_value={}))
             stack.enter_context(patch.object(pg,'record_metric'))
             step=0

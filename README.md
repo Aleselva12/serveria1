@@ -1,20 +1,43 @@
 # Cora Lab
 
-Cora è un sistema locale/private-first per usare un server personale come piattaforma
-di lavoro: frontend React/Vite, backend FastAPI, agenti LangGraph, modelli Ollama,
-PostgreSQL/pgvector e servizi esterni collegati tramite rete privata/Tailscale.
+**Cora Lab** is an open-source, self-hosted, privacy-first platform for
+running and coordinating local AI assistants and personal productivity tools.
+It brings together a React/Vite interface, a FastAPI backend, LangGraph agents,
+Ollama models, PostgreSQL/pgvector, and explicitly configured integrations
+over a private network such as Tailscale.
 
-Questa repository contiene **Cora**. Immich, Nextcloud, Ollama esterno, worker desktop,
-terminale personale e applicazioni gestite possono essere collegati ma restano
-deployment distinti.
+This repository contains the **Cora** application. Immich, Nextcloud, external
+Ollama instances, desktop workers, personal terminals, and managed applications
+are separate services that may be integrated but are not bundled deployments.
+Cora is under active development, designed for a single owner, and is **not
+hardened for public Internet exposure or general multi-user deployment**.
+
+Licensed under [MIT](LICENSE). Bug reports, documentation improvements, tests,
+and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 > Per agenti e operatori: usa [docs/AGENT_CONTEXT.md](docs/AGENT_CONTEXT.md) per
 > scegliere il README specialistico corretto senza caricare documentazione inutile.
 
-## Stato corrente
+## Open source e contributi
 
-Lo stato qui sotto descrive il **codice corrente della repository**, non certifica
-da solo cosa sia già installato sul Debian.
+**Cora Lab è un progetto open source, distribuito con licenza [MIT](LICENSE).**
+Il codice è pubblico per essere studiato, utilizzato, modificato e distribuito, anche
+in progetti derivati, nel rispetto dei termini della licenza.
+
+L'obiettivo è costruire una piattaforma **self-hosted e private-first** per
+orchestrare assistenti e strumenti locali: gestione di file e memoria, agenti
+specializzati, modelli Ollama e integrazioni esplicitamente configurate dal
+proprietario. Il progetto è in sviluppo attivo e **non** è una piattaforma
+pronta per l'esposizione pubblica o l'uso multiutente.
+
+Sono benvenuti segnalazioni di bug, miglioramenti alla documentazione, test,
+proposte e pull request. Prima di contribuire, leggere
+[CONTRIBUTING.md](CONTRIBUTING.md). Segnalare eventuali vulnerabilità in modo
+riservato al maintainer anziché pubblicare dettagli o credenziali in un issue.
+
+## Funzioni disponibili nel codice
+
+Per identificare la versione in servizio sul Debian, confronta il commit dell'API in esecuzione con la release attiva nell'updater. Le integrazioni dipendono dalla configurazione dell'installazione.
 
 - **Updater:** la UI può preparare il `main` GitHub tramite un servizio updater host
   separato, eseguire build/test/migrazioni su copia e applicare il candidato solo
@@ -31,8 +54,7 @@ da solo cosa sia già installato sul Debian.
   Immich/Nextcloud.
 - **Roadmap ad albero:** la struttura radici–tronco–rami deriva dalla snapshot
   Atlas/qwe e resta manuale; stato/test/evidenze possono sovrapporsi senza cambiare
-  automaticamente la gerarchia. Il classificatore locale suggerisce priorità ma
-  non riscrive la mappa.
+  automaticamente la gerarchia. Dalla Roadmap si possono avviare collaudi una tantum e chiedere al classificatore Ollama di valutare fino a otto obiettivi. La Home mostra i primi cinque dell'ultima valutazione salvata, quando disponibile.
 - **Programmatore:** lavora su workspace separati e rilascia tramite l'updater;
   non modifica direttamente il codice attivo.
 
@@ -94,6 +116,7 @@ e [docs/MACHINES.md](docs/MACHINES.md).
 | Migrazioni | [database/migrations/README.md](database/migrations/README.md) |
 | Programmatore | [programmer_agent/README.md](programmer_agent/README.md) |
 | Roadmap ad albero | [frontend/src/tree/README.md](frontend/src/tree/README.md) |
+| Selezione del contesto in chat | [context_pages/README.md](context_pages/README.md) |
 | Agenti e modelli | [docs/AGENT-CARDS.md](docs/AGENT-CARDS.md) |
 | Orchestrazione | [docs/SYSTEM_COORDINATOR.md](docs/SYSTEM_COORDINATOR.md) |
 | Audio → Word | [docs/COMMERCIAL_AUDIO_WORD.md](docs/COMMERCIAL_AUDIO_WORD.md) |
@@ -111,7 +134,7 @@ Percorso rapido Windows:
 
 1. copiare `.env.example` in `.env` e configurare database, root autorizzati e Ollama;
 2. avviare PostgreSQL + pgvector:
-   `docker compose -f docker-compose.database.yml up -d`;
+   `docker compose -f compose.database.yml up -d`;
 3. avviare `AVVIO.cmd`.
 
 In alternativa:

@@ -57,7 +57,7 @@ senza avviare una generazione. Il controllo usa lo stesso trasporto senza proxy 
 
 ```sh
 docker compose --env-file deploy.env exec api python -c \
-  'from core.ollama_transport import get_ollama_base_url,urlopen; print(urlopen(get_ollama_base_url()+"/api/tags",timeout=5).status)'
+  'from core.infra.ollama_transport import get_ollama_base_url,urlopen; print(urlopen(get_ollama_base_url()+"/api/tags",timeout=5).status)'
 ```
 
 L'immagine iniziale contiene le dipendenze core. Il profilo audio CPU descritto
@@ -107,6 +107,8 @@ Non vengono inventati speaker: una richiesta di diarizzazione senza un motore
 configurato continua a dichiararne l'indisponibilità.
 
 ## Collaudo della macchina reale
+
+Dalla Roadmap, avvia i collaudi una tantum disponibili per il nodo e leggi l'ambito della suite accanto all'esito. Per l'attribuzione al deployment serve la revisione dell'API in esecuzione e la sua corrispondenza con la release attiva. Le suite isolate verificano il comportamento coperto dai test. Per attestare accesso o funzionamento sul Debian servono le prove E2E pertinenti.
 
 Sul PC Windows si può mantenere l'avvio nativo, senza migrare il database al
 nuovo Compose. Chiudere Cora e usare `AVVIO.cmd -ConAudio` per installare la sola
@@ -214,6 +216,20 @@ uv pip compile requirements-core.txt --python-version 3.12 \
   --python-platform x86_64-unknown-linux-gnu --generate-hashes \
   --no-annotate --no-header -o requirements-deploy.lock
 ```
+
+La CI installa invece `requirements-dev.lock`, compilato da `requirements-test.txt`
+(cioè `requirements-core.txt` più le sole dipendenze di test) per Linux e Windows,
+partendo dalle versioni del lock di deploy, così i test girano sulle stesse versioni
+della produzione:
+
+```sh
+cp requirements-deploy.lock requirements-dev.lock
+uv pip compile requirements-test.txt --universal --python-version 3.12 \
+  --generate-hashes --no-annotate --no-header -o requirements-dev.lock
+```
+
+Rigenerare sempre entrambi i lock insieme: `tests/test_requirement_locks.py` fallisce
+se un pacchetto manca, avanza o ha versioni diverse fra i due.
 
 Lo schema è versionato con checksum; leggere `database/migrations/README.md`
 prima di modificarlo. Il workflow CI prevede verifiche per entrambi i target, un ciclo di build, avvio,
@@ -388,7 +404,7 @@ Il [worker](../worker/UPDATE.md) appartiene a un deployment distinto. Il [termin
 
 Google Calendar ha token separato da Gmail: configurare `CORA_GOOGLE_CALENDAR_CREDENTIALS_PATH` e `CORA_GOOGLE_CALENDAR_TOKEN_PATH` secondo i percorsi nel container. `python3 deploy/manage.py google-calendar-auth` usa il helper OAuth con listener loopback e tunnel SSH dal computer; nessun token viene creato dalla sola build. Richiede interazione con il vero account e verifica dedicata.
 
-`deploy/ci_verify.py` è esclusivamente una fixture sacrificabile: ferma servizi ed elimina volumi/state del proprio ambiente. Non eseguirla su un server con dati. Prevede build, login, evento SSE persistito, restore, inferenza audio su silenzio per il target CPU e prova updater; non prova la qualità di una chat reale o di una trascrizione. Nessuna di queste procedure è stata eseguita sul Debian reale durante questo audit. [Inventario, prove e residui](../docs/README_AUDIT_20261025.md).
+`deploy/ci_disposable_deployment.py` è esclusivamente una fixture sacrificabile: ferma servizi ed elimina volumi/state del proprio ambiente. Non eseguirla su un server con dati. Prevede build, login, evento SSE persistito, restore, inferenza audio su silenzio per il target CPU e prova updater; non prova la qualità di una chat reale o di una trascrizione. Nessuna di queste procedure è stata eseguita sul Debian reale durante questo audit. [Inventario, prove e residui](../docs/README_AUDIT_20261025.md).
 
 
 ## Google Calendar: rinnovo e ricollegamento dal sito

@@ -1,12 +1,14 @@
 """Bounded prompt assembly. Summaries are derived chat data, never semantic memories."""
-from core.generation_policy import output_tokens as generation_output_tokens
 import json
 import os
-import uuid
 import re
 import unicodedata
-from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage, AIMessage
-from core.database import db_connection
+import uuid
+
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+
+from core.generation_policy import output_tokens as generation_output_tokens
+from core.infra.database import db_connection
 from core.runtime import checkpoint
 
 
@@ -56,7 +58,8 @@ def library_excerpt(content, query, max_chars):
     """Bound only read-only source data, with an explicit incomplete-source marker."""
     if len(content) <= max_chars:
         return content
-    normalize = lambda text: ''.join(c for c in unicodedata.normalize('NFKD', text.casefold()) if not unicodedata.combining(c))
+    def normalize(text):
+        return ''.join(c for c in unicodedata.normalize('NFKD', text.casefold()) if not unicodedata.combining(c))
     terms = set(re.findall(r'[\w]{4,}', normalize(query))) - {'leggi','ultime','ultimo','dentro','libreria','documento','cliente','riprova','quello','questo','scritto','profilo'}
     # Keep source identity/hash and rank windows by distinct query terms. Never
     # infer that a partial window contains the latest entry in the whole file.
@@ -165,7 +168,7 @@ def fit_messages(messages, reserve=2048, tools=None, output_reserve=None, contex
     from core.runtime import current_run
     run = current_run.get()
     if run:
-        from core.event_bus import bus
+        from core.infra.event_bus import bus
         run.timings.update(context_estimated_tokens=used,context_input_budget=budget,
                            context_dropped_turns=len(groups)-retained_groups, context_compacted_reads=compacted)
         bus.publish("context.selected","context",run_id=run.id,thread_id=run.thread_id,
@@ -266,7 +269,7 @@ def prepare_context(conversation_id, callbacks=None, should_yield=None):
             if not older: older = load_older()
     context = []
     try:
-        from core.conversation_projects import project_context_for_conversation
+        from core.domain.conversation_projects import project_context_for_conversation
         project_context = project_context_for_conversation(conversation_id)
     except Exception:
         project_context = ""

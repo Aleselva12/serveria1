@@ -18,10 +18,32 @@ In entrambi i casi il commit candidato è immutabile durante build/verifica e no
 vengono incorporate modifiche locali non committate. Un errore di preparazione non
 modifica la release attiva.
 
-**Il software updater installato è separato da Cora.** Aggiornare API/web non
-sostituisce automaticamente `/srv/cora-updater/installed` o
-`/srv/cora-tools/updater/installed`: modifiche al controllore host richiedono una
-revisione/installazione separata con servizio fermo e senza job in corso.
+**L'updater si aggiorna con il rilascio che installa.** Quando l'helper
+`cora-host-maintenance` è installato (`docs/HOST_MAINTENANCE.md`), un job `apply`
+confronta, prima di fermare Cora, il pacchetto `updater/*.py` del commit candidato
+con quello installato. Se differiscono, il job torna `queued` nella fase
+`awaiting_updater`, l'helper sostituisce `installed/` con il pacchetto del
+candidato (stesse verifiche e ripristino automatico di sempre) e il nuovo updater
+riprende lo stesso job. Così un rilascio che richiede un updater più recente viene
+sempre installato dall'updater che porta con sé. Il passaggio avviene una sola volta
+per job: se l'helper ripristina il pacchetto precedente, l'installazione prosegue
+con quello. Senza helper, o con app gestite occupate, il job annota il motivo in
+`updater_handoff` e prosegue come prima.
+
+Il codice dell'updater deve quindi restare compatibile con le immagini precedenti
+(rollback): per esempio la prova database importa `core.infra.database` con
+ripiego su `core.database`.
+
+**Il terminale fa parte del rilascio.** Se lo snapshot Compose dichiara il servizio
+`terminal`, la preparazione costruisce anche il target `terminal` e l'installazione
+lo sostituisce insieme ad API/web; il rollback lo riporta all'immagine precedente.
+
+**Versioni dei componenti.** `GET /host/components` (bridge autenticato) confronta
+api, web, terminale, pacchetto updater e helper host con il commit attivo; la pagina
+Aggiornamenti mostra in rosso ogni parte non allineata. L'helper in `/usr/local/lib`
+resta fuori dall'aggiornamento automatico per scelta: se risulta non aggiornato va
+copiato a mano con sudo (vedi `docs/HOST_MAINTENANCE.md`). Il confronto ignora
+formattazione e ordine degli import.
 
 **Anche il checkout host è separato dalla release.** L'installazione di un candidato
 aggiorna le immagini e il commit attivo dell'updater, ma un checkout come
@@ -91,13 +113,17 @@ python3 -m updater.recover --root /srv/cora-updater --job UUID_DEL_JOB
 
 Il lock impedisce di recuperare mentre il servizio è ancora attivo. Riavviare poi il servizio. Non modificare a mano job/manifest per aggirare una verifica. Conservare spazio per backup, estrazione e immagini; non viene fatta pulizia automatica di Git, job o backup.
 
+## Identità della release in esecuzione
+
+L'API ricava il commit da `.cora-revision` o dalla configurazione di build. Per gli updater precedenti che preparano i sorgenti con `git archive`, può recuperarlo da `.cora-archive-revision`, valorizzato da Git durante l'esportazione. In un checkout di sviluppo usa `HEAD` soltanto se i file tracciati sono puliti. Quando manca una revisione verificabile, i collaudi non possono essere attribuiti alla release attiva.
+
 ## Confini del rilascio
 
 La configurazione host/Compose e il software updater installato restano fidati e separati. Una modifica a compose.yml viene rifiutata durante la preparazione: nuovi mount, porte, altri servizi o modifiche al controllore richiedono una revisione/installazione host distinta. Il normale rilascio può modificare l'intero codice applicativo, comprese architettura agentica e capacità del programmatore, ma non amministra altri servizi NAS né il sistema operativo.
 
 Le migrazioni già applicate restano immutabili: aggiungerne nuove secondo database/migrations/README.md. Il backup riguarda il database dedicato Cora e state, non mount NAS esterni o modelli Ollama. Non eseguire altri processi che scrivano questi dati durante lo snapshot.
 
-Le verifiche di codice e migrazioni non certificano la qualità del modello, la correttezza funzionale di ogni richiesta o l'assenza di errori semantici. Nel workspace di sviluppo Git/HTTP vengono provati realmente; i test unitari delle operazioni Docker/deployment usano simulazioni. È inoltre presente `updater/ci_verify.py`, richiamato dalla fixture deployment CI, che prevede release, prova migrazioni su copia, applicazione e rollback Docker reali su installazione sacrificabile; la presenza di questa prova non ne certifica l’esito sul commit attuale. Il ciclo reale va collaudato su un'installazione sacrificabile prima del server personale.
+Le verifiche di codice e migrazioni non certificano la qualità del modello, la correttezza funzionale di ogni richiesta o l'assenza di errori semantici. Nel workspace di sviluppo Git/HTTP vengono provati realmente; i test unitari delle operazioni Docker/deployment usano simulazioni. È inoltre presente `updater/ci_release_rollback.py`, richiamato dalla fixture deployment CI, che prevede release, prova migrazioni su copia, applicazione e rollback Docker reali su installazione sacrificabile; la presenza di questa prova non ne certifica l’esito sul commit attuale. Il ciclo reale va collaudato su un'installazione sacrificabile prima del server personale.
 
 ## Verifiche del workspace dal backend Docker
 
@@ -145,6 +171,33 @@ anche la configurazione host congelata prima dei rilasci successivi.
 
 Il backup arresta API/web e include dump, state e file privati configurati, configura manifest/checksum e produce `data.tar.age` più indicatore di completamento. La retention viene applicata dopo successo e riavvio sano e non elimina i backup di release/rollback. I file temporanei decifrati e i backup pre-rilascio restano dati privati: cifrare un archivio non rende pubblicabili gli altri.
 
-`unpack` decifra/verifica in una directory nuova, non ripristina automaticamente dati live. `updater/ci_verify.py` prevede anche cifratura/decifratura e restore DB isolato. Non è attestato un backup periodico attivo o un restore riuscito sul server personale. La configurazione installata del servizio host può differire da questo checkout; aggiornarla richiede l’operatore e una revisione separata.
+`unpack` decifra/verifica in una directory nuova, non ripristina automaticamente dati live. `updater/ci_release_rollback.py` prevede anche cifratura/decifratura e restore DB isolato. Non è attestato un backup periodico attivo o un restore riuscito sul server personale. La configurazione installata del servizio host può differire da questo checkout; aggiornarla richiede l’operatore e una revisione separata.
 
 Audit 25 ottobre: setup/engine/service/check_runner/data_backups e chiamanti API/UI confrontati; nessun job reale inviato. [Prove e residui](../docs/README_AUDIT_20261025.md). Il bridge per applicazioni gestite è documentato in [MANAGED_APPS](../docs/MANAGED_APPS.md): la repository esterna e i suoi dati non rientrano in questo audit.
+
+
+## Diagnostica host M2 / R4.1
+
+Il bridge privato espone anche `GET /host/diagnostics`, accessibile soltanto con
+lo stesso token interno dell'updater. L'endpoint è intenzionalmente read-only e
+con allowlist fissa: identifica Debian, controlla coerenza UID/GID dell'updater e
+permessi dei suoi file privati, esegue `dpkg --audit`, una simulazione
+`apt-get -s upgrade` e `systemctl show` esclusivamente per
+`cora-updater.service` e `ssh.service`.
+
+Non esegue `apt update`, installazioni, restart/stop/start, login SSH, shell
+arbitraria o lettura dei contenuti del journal. I tre check T11
+`debian_host_e2e`, `systemd_host_e2e` e `host_admin_e2e` consumano questa
+istantanea e registrano commit/ambiente tramite il normale runner di verifica.
+
+Poiché il software updater installato è separato dalla release API/web, una
+release Cora che contiene questi check non rende automaticamente disponibile il
+nuovo endpoint host: prima del collaudo M2 bisogna aggiornare in modo esplicito
+`/srv/cora-updater/installed` e riavviare il solo servizio updater secondo la
+procedura amministrativa approvata. Finché l'endpoint non è disponibile i check
+ritornano `unknown`, mai `pass`.
+
+
+## Google Calendar Service Account (snapshot host)
+
+Il collegamento Calendar tramite Service Account puo essere mantenuto in un override Compose al setup o riconciliato nello snapshot host dell'updater esistente. Gli aggiornamenti e i rollback ordinari riutilizzano `compose.json`, senza rileggere il `deploy.env` della checkout. **Non sovrascrivere manualmente lo snapshot ne includere la chiave JSON nella repository.** La procedura host, le verifiche, le condizioni di sicurezza e il ripristino sono descritti in [Google Calendar Service Account](../docs/GOOGLE_CALENDAR_SERVICE_ACCOUNT.md#updater-persistente-server-debian-gia-installato).

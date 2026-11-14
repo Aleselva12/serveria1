@@ -1,0 +1,306 @@
+"""Owner UI for existing recordings, sharing the single runtime with chat."""
+import json
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse, Response
+from psycopg.types.json import Jsonb
+from pydantic import BaseModel, Field
+
+from core.access import owner_dependency
+from core.domain.server_files import exists, operation, resolve, upload_to
+from core.infra.database import db_connection
+from core.runtime import checkpoint, runtime
+
+router = APIRouter(prefix='/api/v1/audio', tags=['Audio'], dependencies=[Depends(owner_dependency('files'))])
+
+
+def engine():
+    from audio_agent import audio_tools
+    return audio_tools
+
+
+def get_record(ident):
+    with db_connection() as conn:
+        row = conn.execute('SELECT * FROM audio_records WHERE id=%s AND archived=FALSE', (ident,)).fetchone()
+    if not row: raise HTTPException(404, 'Registrazione non trovata.')
+    return row
+
+
+def public(row):
+    from core.infra.run_lifecycle import get_run, persisted_snapshot
+    state = None
+    if row['run_id']:
+        live = runtime.get(str(row['run_id']))
+        if live: state = live.snapshot()
+        else:
+            try: state = persisted_snapshot(get_run(str(row['run_id'])))
+            except KeyError: pass
+    return {'id': str(row['id']), 'title': row['title'], 'name': row['name'], 'recordedAt': row['recorded_at'],
+            'speakerNames': row['speaker_names'], 'createdAt': row['created_at'].isoformat(), 'version': row['version'],
+            'transcript': row['transcript'], 'result': row['machine_result'], 'run': state}
+
+
+@router.get('/status')
+def audio_status():
+    import importlib.util
+    import os
+    model = os.getenv('CORA_WHISPER_MODEL', 'small')
+    local_only = os.getenv('CORA_WHISPER_LOCAL_ONLY', 'false').lower() == 'true'
+    installed = importlib.util.find_spec('faster_whisper') is not None
+    # The isolated server must never claim readiness based on a model that
+    # *could* be downloaded. Runtime uses only a prepared local model.
+    model_path = Path(model)
+    verified_local = model_path.is_dir() and all(
+        (model_path / name).is_file() for name in ('model.bin', 'config.json', 'tokenizer.json', 'cora-model.json')
+    )
+    if verified_local:
+        try:
+            from audio_agent.model_setup import verify
+            verify(model_path)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError):
+            verified_local = False
+    model_ready = verified_local if local_only else True
+    diarization = os.getenv('CORA_DIARIZATION_MODEL', '')
+    reason = ('Dipendenze Faster-Whisper mancanti: usa il target Docker api-audio-cpu.'
+              if not installed else
+              'Modello Whisper locale assente o non verificato: prepara il modello sul Debian.'
+              if not model_ready else '')
+    from audio_agent.audio_tools import transcription_configuration
+    return {**transcription_configuration(), 'ready': installed and model_ready, 'engineInstalled': installed, 'localModelReady': model_ready,
+            'localOnly': local_only, 'reason': reason, 'verifiedLocalModel': verified_local,
+            'diarizationReady': bool(diarization and Path(diarization).exists() and importlib.util.find_spec('pyannote') is not None)}
+
+
+@router.get('')
+def records():
+    with db_connection() as conn:
+        rows = conn.execute('SELECT id,title,name,source_path,recorded_at,speaker_names,created_at,run_id,version,NULL AS transcript,NULL AS machine_result FROM audio_records WHERE archived=FALSE ORDER BY created_at DESC LIMIT 200').fetchall()
+    # List metadata only; fetch text/details on selection.
+    return {'items': [{k: v for k,v in public(r).items() if k not in {'transcript','result'}} for r in rows]}
+
+
+@router.post('', status_code=201)
+def upload(file: UploadFile = File(...), title: str = Form(''), recorded_at: str = Form(''), speaker_one: str = Form(''), speaker_two: str = Form('')):
+    tools = engine()
+    name = file.filename or ''
+    if Path(name).suffix.lower() not in tools.SUPPORTED_AUDIO_EXTENSIONS:
+        file.file.close()
+        raise HTTPException(415, 'Formato audio non supportato.')
+    if any(len(s)>200 for s in [title,recorded_at,speaker_one,speaker_two]):
+        file.file.close()
+        raise HTTPException(422, 'Metadati troppo lunghi.')
+    ident = uuid.uuid4()
+    base = tools.AUDIO_ROOT
+    base.mkdir(parents=True, exist_ok=True)
+    with operation():
+        inbox = resolve(base, 'ui_uploads')
+        inbox.mkdir(exist_ok=True)
+        folder = resolve(base, 'ui_uploads/'+ident.hex)
+        folder.mkdir()
+    try:
+        item = upload_to({'writable': True}, base, 'ui_uploads/'+ident.hex, file)
+        with db_connection() as conn:
+            row = conn.execute('''INSERT INTO audio_records(id,title,name,source_path,recorded_at,speaker_names)
+                VALUES(%s,%s,%s,%s,%s,%s) RETURNING *''', (ident,title.strip() or name,name,item['path'],recorded_at,Jsonb([speaker_one.strip(),speaker_two.strip()]))).fetchone()
+        return public(row)
+    except Exception:
+        import shutil
+        shutil.rmtree(folder, ignore_errors=True)
+        raise
+
+
+@router.get('/{ident}')
+def record(ident: uuid.UUID):
+    return public(get_record(ident))
+
+
+@router.get('/{ident}/source')
+def source(ident: uuid.UUID):
+    row = get_record(ident)
+    target = resolve(engine().AUDIO_ROOT, row['source_path'])
+    exists(target)
+    return FileResponse(target, filename=row['name'], headers={'Cache-Control': 'private, no-store'})
+
+
+class TranscriptionRequest(BaseModel):
+    language: str = Field(default='it', max_length=10)
+    diarize: bool = False
+    expected_speakers: int = Field(default=2, ge=1, le=10)
+    expected_version: int = Field(ge=1)
+
+
+@router.post('/{ident}/transcribe', status_code=202)
+def transcribe(ident: uuid.UUID, body: TranscriptionRequest):
+    row = get_record(ident)
+    if row['version'] != body.expected_version: raise HTTPException(409, 'Registrazione aggiornata: ricarica i dettagli.')
+    if row['transcript'] is not None: raise HTTPException(409, 'Trascrizione già disponibile; puoi correggerla ed esportarla.')
+    if not audio_status()['ready']: raise HTTPException(503, 'Trascrizione non disponibile: installa le dipendenze Audio e prepara il modello Whisper locale.')
+    def work(run):
+        with db_connection() as conn:
+            conn.execute('UPDATE audio_records SET run_id=%s WHERE id=%s', (uuid.UUID(run.id),ident))
+        tools = engine()
+        target = resolve(tools.AUDIO_ROOT, row['source_path'])
+        exists(target)
+        result = tools.transcribe_path(target, body.language, body.diarize, body.expected_speakers)
+        checkpoint()
+        transcript = result['transcript']
+        for number, name in enumerate(row['speaker_names'], 1):
+            if name:
+                import re
+                transcript = re.sub(r'(^\[[0-9:]+\] )Interlocutore '+str(number)+':', lambda match, name=name: match.group(1)+name+':', transcript, flags=re.MULTILINE)
+        with db_connection() as conn:
+            saved = conn.execute('''UPDATE audio_records SET transcript=%s,machine_result=%s,version=version+1
+                WHERE id=%s AND version=%s AND archived=FALSE AND transcript IS NULL RETURNING id''',
+                (transcript,Jsonb(result),ident,body.expected_version)).fetchone()
+            if not saved: raise RuntimeError('Trascrizione non salvata: registrazione modificata.')
+        return {'audio_id': str(ident), 'transcript_saved': True}
+    try:
+        run = runtime.submit('audio:'+str(ident), work, graph_version='audio-upload-v1', kind='audio', target='audio_agent')
+    except ValueError as error: raise HTTPException(409, str(error)) from error
+    except RuntimeError as error: raise HTTPException(503, 'Runtime non disponibile. Verifica Attività.') from error
+    with db_connection() as conn:
+        conn.execute('UPDATE audio_records SET run_id=%s WHERE id=%s', (uuid.UUID(run.id),ident))
+    return run.snapshot()
+
+
+class TranscriptEdit(BaseModel):
+    transcript: str = Field(max_length=1_000_000)
+    expected_version: int = Field(ge=1)
+
+
+@router.put('/{ident}/transcript')
+def edit(ident: uuid.UUID, body: TranscriptEdit):
+    with db_connection() as conn:
+        row = conn.execute('''UPDATE audio_records SET transcript=%s,version=version+1
+            WHERE id=%s AND version=%s AND archived=FALSE AND transcript IS NOT NULL RETURNING *''',
+            (body.transcript,ident,body.expected_version)).fetchone()
+    if not row: raise HTTPException(409, 'Trascrizione non disponibile o versione cambiata. Ricarica i dettagli.')
+    return public(row)
+
+
+@router.get('/{ident}/transcript/download')
+def export(ident: uuid.UUID):
+    row = get_record(ident)
+    if row['transcript'] is None: raise HTTPException(409, 'Trascrizione non ancora disponibile.')
+    return Response(row['transcript'], media_type='text/plain; charset=utf-8', headers={'Content-Disposition': 'attachment; filename="trascrizione-'+str(ident)+'.txt"','Cache-Control':'private, no-store'})
+
+
+@router.post('/{ident}/library', status_code=201)
+def copy_to_library(ident: uuid.UUID):
+    from io import BytesIO
+
+    from core.domain.ia_library import upload_copy
+    row = get_record(ident)
+    if row['transcript'] is None: raise HTTPException(409, 'Trascrizione non ancora disponibile.')
+    # Version in the filename avoids overwriting an earlier imported transcript.
+    name = 'trascrizione-'+str(ident)+'-v'+str(row['version'])+'.txt'
+    return upload_copy('', UploadFile(filename=name, file=BytesIO(row['transcript'].encode('utf-8'))))
+
+
+# Commercial call notes are an explicit, separate stage after transcription.
+# The target is an IA Library COPY; original NAS files are never touched.
+class CommercialMatch(BaseModel):
+    path: str = Field(min_length=1, max_length=1000)
+    heading: str = Field(min_length=1, max_length=200)
+    start: int = Field(ge=0)
+    stop: int = Field(ge=1)
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class CommercialProposalRequest(BaseModel):
+    expected_audio_version: int = Field(ge=1)
+    selected: CommercialMatch
+    date: str = Field(pattern=r"^\d{2}/\d{2}/\d{4}$")
+    note: str = Field(min_length=1, max_length=5000)
+
+
+class CommercialDecision(BaseModel):
+    approve: bool
+
+
+@router.post('/{ident}/commercial/analyze', status_code=202)
+def analyze_commercial(ident: uuid.UUID, expected_version: int):
+    from core.domain import commercial_notes
+    row = get_record(ident)
+    if row['transcript'] is None or row['version'] != expected_version:
+        raise HTTPException(409, 'Trascrizione cambiata o non disponibile.')
+    def work(run):
+        result = commercial_notes.analyze(row['transcript'])
+        checkpoint()
+        if get_record(ident)['version'] != expected_version:
+            raise ValueError('Trascrizione modificata durante analisi: riavvia manualmente.')
+        return {'analysis': result, 'audio_version': expected_version}
+    try:
+        run = runtime.submit('commercial:'+str(ident), work, graph_version='commercial-audio-v1',
+                             kind='commercial', target='local_research_agent')
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(503, 'Runtime non disponibile.') from error
+    return run.snapshot()
+
+
+@router.get('/{ident}/commercial/customers')
+def commercial_customers(ident: uuid.UUID, query: str):
+    from core.domain import commercial_notes
+    row = get_record(ident)
+    if row['transcript'] is None:
+        raise HTTPException(409, 'Trascrivi prima la registrazione.')
+    try:
+        return commercial_notes.find_customers(query)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+
+
+@router.get('/{ident}/commercial/proposals')
+def commercial_proposals(ident: uuid.UUID):
+    from core.domain import commercial_notes
+    get_record(ident)
+    return commercial_notes.proposals(ident)
+
+
+@router.post('/{ident}/commercial/proposals', status_code=201)
+def commercial_propose(ident: uuid.UUID, body: CommercialProposalRequest):
+    from core.domain import commercial_notes
+    try:
+        return commercial_notes.create_proposal(
+            ident, body.expected_audio_version, body.selected.model_dump(), body.date, body.note)
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from error
+    except Exception as error:
+        from psycopg import errors
+        if isinstance(error, errors.UniqueViolation):
+            raise HTTPException(409, 'Questa annotazione è già stata proposta o approvata.') from error
+        raise
+
+
+@router.post('/{ident}/commercial/proposals/{proposal_id}/resolve')
+def commercial_resolve(ident: uuid.UUID, proposal_id: uuid.UUID, body: CommercialDecision):
+    from core.domain import commercial_notes
+    if proposal_id not in {uuid.UUID(p['id']) for p in commercial_notes.proposals(ident)}:
+        raise HTTPException(404, 'Proposta della registrazione non trovata.')
+    try:
+        return commercial_notes.resolve_proposal(proposal_id, body.approve)
+    except KeyError as error:
+        raise HTTPException(404, str(error)) from error
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(409, str(error)) from error
+
+
+@router.post('/engine/reload')
+def reload_transcription_engine():
+    # No engine may be released while a model job is running.
+    if not runtime.slot.acquire(blocking=False):
+        raise HTTPException(409, 'Attendi il termine dell’esecuzione attiva prima di ricaricare Whisper.')
+    try:
+        tools = engine()
+        tools._load_whisper_model.cache_clear()
+        tools._loaded_whisper_configuration = None
+        return {'reloaded': True, 'configuration': tools.transcription_configuration(),
+                'note': 'Cache svuotata. Whisper verrà caricato alla prossima trascrizione; le variabili Docker richiedono il riavvio del container.'}
+    finally:
+        runtime.slot.release()

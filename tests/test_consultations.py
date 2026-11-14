@@ -1,11 +1,10 @@
 import os
-from pathlib import Path
 import unittest
 from types import SimpleNamespace
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from uuid import uuid4
 
-from core import consultations
+from core.domain import consultations
 
 
 class ConsultationTests(unittest.TestCase):
@@ -24,7 +23,8 @@ class ConsultationTests(unittest.TestCase):
 
     def test_roadmap_render_is_current_and_decisions_remain_explicit(self):
         import json
-        from deploy.render_roadmap import ROOT,render
+
+        from deploy.render_roadmap import ROOT, render
         rows=json.loads((ROOT/'docs/roadmap.json').read_text(encoding='utf-8'))
         current=json.loads((ROOT/'docs/project-status.json').read_text(encoding='utf-8'))
         self.assertEqual((ROOT/'frontend/src/project-status.generated.json').read_text(encoding='utf-8'),
@@ -44,8 +44,8 @@ class ConsultationTests(unittest.TestCase):
 @unittest.skipUnless(os.getenv('CORA_RUNTIME_TEST_DATABASE_URL'),'Requires disposable PostgreSQL')
 class ConsultationPostgresTests(unittest.TestCase):
     def test_pagination_isolation_and_conversation_deletion(self):
-        from core.chat_store import ensure_conversation
-        from core.database import db_connection
+        from core.domain.chat_store import ensure_conversation
+        from core.infra.database import db_connection
         first,second=uuid4(),uuid4()
         ensure_conversation(str(first));ensure_conversation(str(second))
         run=SimpleNamespace(thread_id=str(first),id=str(uuid4()))

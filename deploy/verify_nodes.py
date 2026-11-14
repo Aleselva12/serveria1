@@ -6,17 +6,18 @@ Only generated fixtures are written. No user service is restarted.
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from time import monotonic
-from uuid import uuid4, UUID
+from uuid import UUID, uuid4
 
-from core.additional_verifications import DIRECT, REGRESSIONS as EXTRA_REGRESSIONS
+from core.additional_verifications import DIRECT
+from core.additional_verifications import REGRESSIONS as EXTRA_REGRESSIONS
 
 REGRESSIONS = {
     "memory_regression": ("tests.test_memory_context.ContextContractTests", "tests.test_context_contracts"),
@@ -25,7 +26,7 @@ REGRESSIONS = {
     "files_regression": ("tests.test_library_writes", "tests.test_file_editor"),
 }
 REGRESSIONS.update(EXTRA_REGRESSIONS)
-CHECKS = ("memory_e2e", "calendar_e2e", "desktop_e2e", "laptop_e2e", "worker_e2e", *REGRESSIONS, *DIRECT)
+CHECKS = ("memory_e2e", "calendar_e2e", "desktop_e2e", "laptop_e2e", "worker_e2e", "debian_host_e2e", "systemd_host_e2e", "host_admin_e2e", *REGRESSIONS, *DIRECT)
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -54,7 +55,7 @@ def _calendar_provider():
     if not _calendar_ready():
         raise ValueError("Account Google di collaudo separato richiesto")
     os.environ["CORA_GOOGLE_CALENDAR_TOKEN_PATH"] = os.environ["CORA_VERIFY_CALENDAR_TOKEN_PATH"]
-    from core import google_calendar
+    from core.domain import google_calendar
     return google_calendar
 
 
@@ -64,6 +65,66 @@ def _action(action, run_id):
     if action in DIRECT:
         state, detail = DIRECT[action]()
         return {"status": state, "detail": detail}
+    if action in {"debian_host_e2e", "systemd_host_e2e", "host_admin_e2e"}:
+        from programmer_agent import releases
+        try:
+            snapshot = releases.request("GET", "/host/diagnostics", timeout=20)
+        except ValueError:
+            return {"status": "unknown", "detail": "Diagnostica host non disponibile: aggiornare/avviare il bridge updater sul Debian"}
+        if action == "debian_host_e2e":
+            os_info = snapshot.get("os") or {}
+            identity = snapshot.get("identity") or {}
+            packages = snapshot.get("packages") or {}
+            dpkg = packages.get("dpkg") or {}
+            upgrades = packages.get("upgrades") or {}
+            if os_info.get("ID") != "debian":
+                return {"status": "fail", "detail": "Host updater non identificato come Debian"}
+            if not identity.get("uidMatchesConfigured") or not identity.get("privateUpdaterFiles"):
+                return {"status": "fail", "detail": "UID/GID updater o permessi dei file privati host non coerenti"}
+            if not dpkg.get("available") or not dpkg.get("auditClean"):
+                return {"status": "fail", "detail": "Database pacchetti Debian non integro o non verificabile"}
+            if not upgrades.get("available") or upgrades.get("simulationOk") is not True:
+                return {"status": "unknown", "detail": "Simulazione aggiornamenti APT non disponibile; nessun pacchetto modificato"}
+            advisories = []
+            pending = upgrades.get("pending")
+            if pending:
+                advisories.append(f"{pending} aggiornamenti di sistema in attesa (cache APT)")
+            auto = packages.get("autoSecurityUpdates")  # Absent on an older updater: no claim either way.
+            if isinstance(auto, dict) and not (auto.get("installed") and auto.get("enabled")):
+                advisories.append("aggiornamenti di sicurezza automatici non attivi (unattended-upgrades)")
+            if advisories:
+                return {"status": "warn", "detail": "Debian funzionante; " + "; ".join(advisories)}
+            return {"status": "pass", "detail": "Debian reale verificato: identità host, UID/GID updater, file privati, dpkg e APT senza aggiornamenti pendenti"}
+        units = snapshot.get("systemd") or {}
+        if action == "systemd_host_e2e":
+            unit = units.get("cora-updater.service") or {}
+            ok = (
+                unit.get("available") and unit.get("loadState") == "loaded" and
+                unit.get("activeState") == "active" and unit.get("subState") == "running" and
+                str(unit.get("execMainStatus", "")) == "0" and unit.get("fragmentPresent") and
+                bool(unit.get("standardOutput")) and bool(unit.get("standardError"))
+            )
+            return {
+                "status": "pass" if ok else "fail",
+                "detail": (
+                    "cora-updater.service caricato e attivo; stato processo e sink output systemd leggibili. Nessun restart eseguito"
+                    if ok else "cora-updater.service non risulta pienamente attivo/coerente sul Debian"
+                ),
+            }
+        ssh = units.get("ssh.service") or {}
+        updater = units.get("cora-updater.service") or {}
+        ok = (
+            ssh.get("available") and ssh.get("loadState") == "loaded" and
+            ssh.get("activeState") == "active" and ssh.get("fragmentPresent") and
+            updater.get("fragmentPresent")
+        )
+        return {
+            "status": "pass" if ok else "fail",
+            "detail": (
+                "ssh.service reale attivo e unità SSH/updater presenti; nessuna connessione SSH o lettura credenziali eseguita"
+                if ok else "SSH o configurazione delle unità host non risultano disponibili/attivi"
+            ),
+        }
     if action == "worker_e2e":
         from core.agent_models import binding, chat_on_worker
         selected = binding("supervisor")
@@ -90,18 +151,18 @@ def _action(action, run_id):
         state = "fail" if not result.wasSuccessful() else "skipped" if result.skipped or not result.testsRun else "pass"
         return {"status": state, "detail": f"Regressioni isolate: {result.testsRun} test, {len(result.failures)} fallimenti, {len(result.errors)} errori, {len(result.skipped)} saltati. Servizi reali non certificati"}
     if action == "memory_write":
-        from core.memory import save_memory
+        from core.domain.memory import save_memory
         save_memory(memory_type="note", key=key, content=key,
                     source="verification", importance=1)
         return {"status": "pass"}
     if action == "memory_read":
-        from core.memory import search_memories
+        from core.domain.memory import search_memories
         rows = search_memories(key, memory_type="note")
         if not any(row["key"] == key and row["content"] == key for row in rows):
             raise ValueError("Memoria non riletta")
         return {"status": "pass"}
     if action == "memory_cleanup":
-        from core.database import db_connection
+        from core.infra.database import db_connection
         # Generated key AND source: never delete an unrelated memory.
         with db_connection(ensure_schema=False) as conn:
             conn.execute("DELETE FROM memories WHERE key=%s AND source='verification'", (key,))
@@ -118,7 +179,7 @@ def _action(action, run_id):
                 if error.resp.status not in (404, 410):
                     raise
             return {"status": "pass"}
-        start = datetime.now(timezone.utc) + timedelta(days=1)
+        start = datetime.now(UTC) + timedelta(days=1)
         data = dict(title=key, start=start.isoformat(), end=(start+timedelta(minutes=5)).isoformat(),
                     all_day=False, notes="Collaudo automatico Cora", reminder_minutes=None)
         first = calendar.create_event(data, request_id=key)
@@ -140,7 +201,7 @@ def _action(action, run_id):
                 raise ValueError("Evento non eliminato")
         return {"status": "pass", "detail": "OAuth test: creazione, duplicato, modifica, lettura e cancellazione; approvazioni UI non collaudate"}
     if action in ("desktop_e2e", "laptop_e2e"):
-        from core.machines_api import _find, _settings, test_worker_inference
+        from core.api.machines_api import _find, _settings, test_worker_inference
         machine_id = os.getenv("CORA_VERIFY_" + action.split("_")[0].upper() + "_ID", "").strip()
         if not machine_id:
             return {"status": "unknown", "detail": "Seleziona la macchina nelle destinazioni dei collaudi"}
@@ -165,16 +226,16 @@ def _action(action, run_id):
 
 def available_checks():
     """Discover executable checks server-side; the website never embeds this list."""
-    from core.project_checks import _PROBES
+    from core.verify.project_checks import _PROBES
     return tuple(dict.fromkeys((*_PROBES, *CHECKS)))
 
 
 def run(check_id, settings=None):
-    from core.project_checks import _PROBES
+    from core.verify.project_checks import _PROBES
     if check_id in _PROBES:
         try:
             state, detail = _PROBES[check_id]()
-            if state not in {"pass", "fail", "unknown", "skipped"}:
+            if state not in {"pass", "warn", "fail", "unknown", "skipped"}:
                 raise ValueError("Invalid state")
             return {"status": state, "detail": str(detail)[:240]}
         except Exception:
@@ -243,7 +304,7 @@ def main():
         except Exception:
             result = {"status": "fail", "detail": "Passaggio non riuscito: " + args.action}
         print("CORA_CHECK=" + json.dumps(result))
-        return 0 if result["status"] == "pass" else 1
+        return 0 if result["status"] in {"pass", "warn"} else 1
     try:
         with _lease(args.persist):
             return execute(args)
@@ -253,7 +314,7 @@ def main():
 
 
 def execute(args, on_result=None):
-    from core.release_identity import revision
+    from core.infra.release_identity import revision
     commit = revision()
     environment = "ci-verifier" if os.getenv("GITHUB_ACTIONS") == "true" else "debian-verifier" if sys.platform == "linux" and os.getenv("CORA_RUNTIME_MODE") == "server" else "local-verifier"
     rows = []
@@ -261,7 +322,7 @@ def execute(args, on_result=None):
         start = monotonic()
         result = run(check_id, getattr(args, "settings", None))
         row = {"id": check_id, **result, "commit": commit or None, "environment": environment,
-               "source": "manual", "at": datetime.now(timezone.utc).isoformat(),
+               "source": "manual", "at": datetime.now(UTC).isoformat(),
                "durationMs": int((monotonic()-start)*1000)}
         rows.append(row)
         if on_result:
@@ -269,7 +330,7 @@ def execute(args, on_result=None):
         print(check_id + ": " + result["status"] + " · " + result.get("detail", ""))
     persisted = False
     if args.persist:
-        from core.database import db_connection
+        from core.infra.database import db_connection
         # No schema changes; use the application's existing result store.
         with db_connection(ensure_schema=False) as conn:
             for row in rows:

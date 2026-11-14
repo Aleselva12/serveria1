@@ -40,6 +40,9 @@ COPY frontend/ ./
 ENV VITE_API_BASE_URL=/backend
 RUN npm run build
 
-FROM nginx:1.28-alpine AS web
+FROM nginx:1.30.6-alpine AS web
+# Keep the maintained stable Nginx line and apply Alpine security updates.
+# OS upgrades alone cannot patch Nginx pinned by the retired 1.28 image.
+RUN apk upgrade --no-cache
 COPY deploy/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=frontend /build/dist /usr/share/nginx/html

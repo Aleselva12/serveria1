@@ -1,13 +1,12 @@
-import unittest
 import os
+import unittest
 from unittest.mock import MagicMock, patch
-from datetime import datetime
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core import google_calendar
-from core.calendar_api import router
+from core.api.calendar_api import router
+from core.domain import google_calendar
 
 
 class GoogleCalendarProviderTests(unittest.TestCase):

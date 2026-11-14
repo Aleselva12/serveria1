@@ -2,10 +2,11 @@
 import argparse
 import json
 import os
-from pathlib import Path
 import secrets
 import shutil
 import subprocess
+from pathlib import Path
+
 from updater.engine import atomic
 
 

@@ -1,11 +1,12 @@
-from datetime import datetime, timedelta, timezone
 import os
 import unittest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
+
 from core import verification_usage as usage
-from core import project_checks
+from core.verify import project_checks
 
 
 class UsageEvidenceTests(unittest.TestCase):
@@ -31,14 +32,14 @@ class UsageEvidenceTests(unittest.TestCase):
 
     def test_wrong_worker_model_never_returns_a_reply_or_calls_local_ollama(self):
         from core import agent_models
-        with patch.object(agent_models, "remote_machine", return_value={}), patch.object(agent_models, "require_agent_chat"), patch("core.machines_api._worker_call", return_value={"model":"wrong", "done":True, "message":{"role":"assistant", "content":"OK"}}), patch.object(usage, "worker_ids", return_value=[]), patch.object(usage, "record"), patch("langchain_ollama.ChatOllama._create_chat_stream") as local:
+        with patch.object(agent_models, "remote_machine", return_value={}), patch.object(agent_models, "require_agent_chat"), patch("core.api.machines_api._worker_call", return_value={"model":"wrong", "done":True, "message":{"role":"assistant", "content":"OK"}}), patch.object(usage, "worker_ids", return_value=[]), patch.object(usage, "record"), patch("langchain_ollama.ChatOllama._create_chat_stream") as local:
             with self.assertRaises(HTTPException) as error:
                 agent_models.chat_on_worker("pc", "selected", {})
             self.assertEqual(error.exception.status_code, 502)
             local.assert_not_called()
 
     def test_calendar_readback_is_required_before_green_and_never_repeats_write(self):
-        from core import google_calendar
+        from core.domain import google_calendar
         event = dict(id="private-id",version=1,title="private-title",start="start",end="end")
         with patch.object(usage, "enabled", return_value=True), patch.object(google_calendar, "get_event", return_value=event), patch.object(google_calendar, "create_event") as create, patch.object(usage, "record") as record:
             usage.calendar_write("create", event)
@@ -51,8 +52,8 @@ class UsageEvidenceTests(unittest.TestCase):
             self.assertNotIn("private-error", record.call_args.args[2])
 
     def test_synthetic_runs_cannot_publish_live_evidence_or_read_google(self):
-        from core import google_calendar
-        with patch.dict(os.environ, {"CORA_VERIFICATION_SYNTHETIC":"1"}), patch("core.database.DATABASE_URL", "configured"), patch("core.project_checks._release", return_value="a"*40), patch("core.database.db_connection") as db, patch.object(google_calendar, "get_event") as read:
+        from core.domain import google_calendar
+        with patch.dict(os.environ, {"CORA_VERIFICATION_SYNTHETIC":"1"}), patch("core.infra.database.DATABASE_URL", "configured"), patch("core.verify.project_checks._release", return_value="a"*40), patch("core.infra.database.db_connection") as db, patch.object(google_calendar, "get_event") as read:
             self.assertFalse(usage.record("worker_e2e", "pass", "fake"))
             usage.calendar_write("create", {"id":"fake"})
             read.assert_not_called()
@@ -61,21 +62,21 @@ class UsageEvidenceTests(unittest.TestCase):
     def test_recovery_is_recorded_immediately_even_inside_throttle_window(self):
         usage._last.clear()
         self.addCleanup(usage._last.clear)
-        with patch.object(usage, "enabled", return_value=True), patch("core.database.db_connection") as db, patch("core.project_checks._release", return_value="a"*40):
+        with patch.object(usage, "enabled", return_value=True), patch("core.infra.database.db_connection") as db, patch("core.verify.project_checks._release", return_value="a"*40):
             for status in ("pass", "fail", "pass", "pass"):
                 usage.record("worker_e2e", status, "same operation")
             self.assertEqual(db.return_value.__enter__.return_value.execute.call_count, 3)
 
     def test_runtime_evidence_survives_missing_fixture_without_forging_freshness(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         def row(status, detail, at):
             return dict(check_id="calendar_e2e", status=status,detail=detail,source="manual",environment="debian-api",commit_sha="a"*40,duration_ms=1,observed_at=at)
         for age, expected, proof_status in ((60,"pass","pass"),(2*86400,"unknown","pass"),(60,"unknown","unknown")):
             conn = MagicMock()
             current = row("unknown", "Account test non configurato", now)
             proof = row(proof_status, "Uso reale: scrittura riletta", now-timedelta(seconds=age))
-            conn.execute.side_effect = [MagicMock(fetchall=lambda:[current]), MagicMock(fetchall=lambda:[]), MagicMock(fetchall=lambda:[proof])]
-            with patch("core.database.db_connection") as db, patch.object(project_checks,"_release",return_value="a"*40), patch.object(project_checks,"_environment",return_value="debian-api"):
+            conn.execute.side_effect = [MagicMock(fetchall=lambda current=current:[current]), MagicMock(fetchall=lambda:[]), MagicMock(fetchall=lambda proof=proof:[proof])]
+            with patch("core.infra.database.db_connection") as db, patch.object(project_checks,"_release",return_value="a"*40), patch.object(project_checks,"_environment",return_value="debian-api"):
                 db.return_value.__enter__.return_value = conn
                 result = project_checks.health_dashboard()["latest"]["calendar_e2e"]
             self.assertEqual(result["status"], expected)

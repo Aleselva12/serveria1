@@ -6,6 +6,7 @@ type Run = {
   id:string; status:"running"|"completed"|"failed"|"interrupted";
   total:number; completed:number; currentCheck:string|null; updatedAt:string;
   detail:string; results:HealthResult[];
+  hostMaintenance?:{status:string;rollbackAvailable?:boolean};
   targets?:{desktopMachineId:string|null;laptopMachineId:string|null};
 };
 type Check = {id:string;title:string};
@@ -100,6 +101,7 @@ export default function NodeVerificationPanel({onResults}:{onResults:()=>void}){
       {running&&job.currentCheck?" · "+title(job.currentCheck):""}</p>
       <progress max={job.total||1} value={job.completed} aria-label="Avanzamento dei collaudi"/>
       <p>{passed} superati · {failed} falliti · {unknown} non verificati o saltati. {job.detail}</p>
+      {job.hostMaintenance?.status==="updated"&&<p>Aggiornamento prerequisito updater eseguito automaticamente. Copia precedente conservata per il ripristino.</p>}
       <details open={!running}><summary>Esiti dell'ultima esecuzione</summary>
         <ul>{job.results.map(r=><li key={r.id} className={"rm2-verification-result result-"+r.status}>
           <strong>{title(r.id)} · {resultLabels[r.status]}</strong><span>{r.detail}</span></li>)}</ul>

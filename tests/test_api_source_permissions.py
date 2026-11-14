@@ -1,14 +1,13 @@
 """Reproduce private updater extraction and check image source access modes."""
 import io
 import os
-from pathlib import Path
 import shlex
 import subprocess
 import sys
 import tarfile
 import tempfile
 import unittest
-
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 

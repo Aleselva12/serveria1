@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-from datetime import datetime, timezone
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from datetime import UTC, datetime
+from pathlib import Path
 from uuid import UUID
 
 
@@ -130,7 +130,7 @@ OLLAMA = '''
 import json, time
 from urllib.request import Request
 from core.models import get_model_name, get_model_keep_alive
-from core.ollama_transport import urlopen, get_ollama_base_url
+from core.infra.ollama_transport import urlopen, get_ollama_base_url
 model = get_model_name('programmer')
 samples = []
 for index in range(3):
@@ -167,7 +167,7 @@ def trace_source(identifier):
     identifier = str(UUID(identifier))
     return '''
 import json
-from core.execution_traces import read_runs
+from core.infra.execution_traces import read_runs
 rows = read_runs(run_id=IDENTIFIER, include_events=False)
 result = []
 for row in rows:
@@ -285,7 +285,7 @@ def main(argv=None):
         except ValueError: parser.error("trace richiede --run-id con UUID valido")
     root = args.root.resolve()
     overrides = [(path if path.is_absolute() else root / path).resolve() for path in args.compose_file]
-    report = {"version": 1, "mode": args.mode, "sampled_at": datetime.now(timezone.utc).isoformat()}
+    report = {"version": 1, "mode": args.mode, "sampled_at": datetime.now(UTC).isoformat()}
     try:
         inventory, api_id = inspect_host(root, overrides, args.updater_root.resolve())
         report["inventory"] = inventory

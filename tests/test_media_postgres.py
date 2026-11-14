@@ -5,18 +5,21 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
-from uuid import UUID,uuid4
+from uuid import UUID, uuid4
+
 from fastapi.testclient import TestClient
-from core.database import db_connection,close_pool
+
 from core.auth import provision
+from core.infra.database import close_pool, db_connection
 from core.runtime import Runtime
+
 
 @unittest.skipUnless(os.getenv('CORA_RUNTIME_TEST_DATABASE_URL'), 'Requires disposable PostgreSQL+pgvector')
 class MediaPostgresTests(unittest.TestCase):
     def setUp(self):
         import api
-        import core.audio_api as audio_api
-        import core.runtime_api as runtime_api
+        import core.api.audio_api as audio_api
+        import core.api.runtime_api as runtime_api
         from audio_agent import audio_tools
         self.api=api;self.audio_api=audio_api;self.temp=tempfile.TemporaryDirectory();base=Path(self.temp.name)
         self.files=base/'files';self.library=base/'library';self.originals=base/'originals';self.audio=base/'audio'

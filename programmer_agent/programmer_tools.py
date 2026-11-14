@@ -1,9 +1,9 @@
 from __future__ import annotations
-import json
+
 from core.governance import agent_tool, capability_registry
 from core.runtime import checkpoint
-from programmer_agent import workspace as ws
 from programmer_agent import knowledge
+from programmer_agent import workspace as ws
 from programmer_agent.checks import run_check
 
 ACTOR = "programmer_agent"
@@ -107,7 +107,7 @@ def programmer_graph(workspace_id: str, query: str, node_id: str = "") -> dict:
 def programmer_validate_automation(workspace_id: str, data: dict) -> dict:
     """Valida una bozza usando lo stesso schema dell'editor Tools. Non la attiva o esegue."""
     _workspace(workspace_id)
-    from core.automation_drafts import validate_graph
+    from core.domain.automation_drafts import validate_graph
     from core.tool_inventory import inventory
     ids = {e["id"] for e in inventory()["entries"] if e["kind"] == "tool"}
     return {"draft": validate_graph(data, tool_ids=ids), "executes_actions": False}
@@ -122,7 +122,7 @@ def programmer_components(workspace_id: str) -> dict:
 
 @agent_tool(ACTOR, actions=('write_workspace',), effect='write', retry='never')
 def programmer_register_component(workspace_id: str, title: str, kind: str, files: list[str], integration: str,
-                                  dependencies: list[str] = [], component_id: str = '') -> dict:
+                                  dependencies: list[str] = [], component_id: str = '') -> dict:  # noqa: B006 - default non mutato (register fa `dependencies or []`); cambiarlo altererebbe lo schema dello strumento
     """Registra/revisiona una bozza tool/automation/frontend/other con file, test e istruzioni di integrazione."""
     from programmer_agent.components import register
     return register(_workspace(workspace_id), title, kind, files, dependencies, integration, component_id)

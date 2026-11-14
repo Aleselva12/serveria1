@@ -1,18 +1,18 @@
 """Regression checks for audit findings that do not need a live Debian host."""
 import unittest
 from unittest.mock import Mock, patch
+
 from fastapi import HTTPException
 
 import api
-from core import background_embeddings as embeddings
 from core import desktop_updates
+from core.domain import background_embeddings as embeddings
 from programmer_agent import api as programmer_api
 
 
 class AuditEasyFixesTests(unittest.TestCase):
     def test_lifespan_cleans_up_after_worker_start_failure(self):
         import asyncio
-        from unittest.mock import call
 
         order = []
         def mark(name, fails=False):
@@ -23,14 +23,14 @@ class AuditEasyFixesTests(unittest.TestCase):
             return execute
         with patch.object(api, "validate_runtime_profile"), patch(
             "core.runtime.recover_interrupted"
-        ), patch("core.observability.archive.start", mark("archive.start")), patch(
-            "core.observability.archive.stop", mark("archive.stop")
-        ), patch("core.background_embeddings.start", mark("embeddings.start")), patch(
-            "core.background_embeddings.stop", mark("embeddings.stop")
-        ), patch("core.library_monitor.start", mark("library.start", fails=True)), patch(
-            "core.library_monitor.stop", mark("library.stop")
-        ), patch("core.project_checks.stop", mark("checks.stop")), patch(
-            "core.project_checks.start", mark("checks.start")
+        ), patch("core.infra.observability.archive.start", mark("archive.start")), patch(
+            "core.infra.observability.archive.stop", mark("archive.stop")
+        ), patch("core.domain.background_embeddings.start", mark("embeddings.start")), patch(
+            "core.domain.background_embeddings.stop", mark("embeddings.stop")
+        ), patch("core.domain.library_monitor.start", mark("library.start", fails=True)), patch(
+            "core.domain.library_monitor.stop", mark("library.stop")
+        ), patch("core.verify.project_checks.stop", mark("checks.stop")), patch(
+            "core.verify.project_checks.start", mark("checks.start")
         ), patch.object(api, "close_pool", mark("pool.close")):
             async def check():
                 async with api.lifespan(None):
@@ -52,14 +52,14 @@ class AuditEasyFixesTests(unittest.TestCase):
             return execute
         with patch.object(api, "validate_runtime_profile"), patch(
             "core.runtime.recover_interrupted"
-        ), patch("core.observability.archive.start", mark("archive.start")), patch(
-            "core.observability.archive.stop", mark("archive.stop")
-        ), patch("core.background_embeddings.start", mark("embeddings.start")), patch(
-            "core.background_embeddings.stop", mark("embeddings.stop")
-        ), patch("core.library_monitor.start", mark("library.start")), patch(
-            "core.library_monitor.stop", mark("library.stop", fails=True)
-        ), patch("core.project_checks.start", mark("checks.start")), patch(
-            "core.project_checks.stop", mark("checks.stop")
+        ), patch("core.infra.observability.archive.start", mark("archive.start")), patch(
+            "core.infra.observability.archive.stop", mark("archive.stop")
+        ), patch("core.domain.background_embeddings.start", mark("embeddings.start")), patch(
+            "core.domain.background_embeddings.stop", mark("embeddings.stop")
+        ), patch("core.domain.library_monitor.start", mark("library.start")), patch(
+            "core.domain.library_monitor.stop", mark("library.stop", fails=True)
+        ), patch("core.verify.project_checks.start", mark("checks.start")), patch(
+            "core.verify.project_checks.stop", mark("checks.stop")
         ), patch.object(api, "notification_worker") as notify, patch.object(
             api.runtime, "shutdown", mark("runtime.shutdown")
         ), patch.object(api, "close_pool", mark("pool.close")):
@@ -91,7 +91,7 @@ class AuditEasyFixesTests(unittest.TestCase):
         fake_stop.is_set.side_effect = [False, True]
         with patch.object(embeddings, "_stop", fake_stop), patch.object(
             embeddings, "index_pending_once", side_effect=RuntimeError("private input")
-        ), patch("core.logging.log_event") as log:
+        ), patch("core.infra.logging.log_event") as log:
             embeddings._loop()
             self.assertEqual(log.call_count, 1)
             kwargs = log.call_args.kwargs
@@ -102,7 +102,7 @@ class AuditEasyFixesTests(unittest.TestCase):
         with patch.object(api, "schedule_summary", side_effect=RuntimeError("private")), patch.object(
             api, "refresh_transcript"
         ) as transcript, patch.object(api, "create_episode") as episode, patch(
-            "core.logging.log_event"
+            "core.infra.logging.log_event"
         ) as log:
             api._postprocess_turn("thread", "question", "answer", "user-id", "assistant-id")
             transcript.assert_called_once_with("thread")
@@ -111,10 +111,11 @@ class AuditEasyFixesTests(unittest.TestCase):
                              {"action": "summary", "error_type": "RuntimeError"})
 
     def test_create_conversation_does_not_leak_internal_error_as_422(self):
-        with patch.object(api, "ensure_conversation",
+        from core.api import conversations_api
+        with patch.object(conversations_api, "ensure_conversation",
                           side_effect=RuntimeError("database password is private")):
             with self.assertRaises(HTTPException) as error:
-                api.create_conversation(Mock(id="00000000-0000-0000-0000-000000000001", project_id=None))
+                conversations_api.create_conversation(Mock(id="00000000-0000-0000-0000-000000000001", project_id=None))
             self.assertEqual(error.exception.status_code, 500)
             self.assertNotIn("private", error.exception.detail)
 
@@ -128,10 +129,10 @@ class AuditEasyFixesTests(unittest.TestCase):
             self.assertNotIn("/private", error.exception.detail)
 
     def test_notification_worker_reports_cycle_failure_without_private_data(self):
-        from core.notifications import NotificationWorker
+        from core.domain.notifications import NotificationWorker
         notification = NotificationWorker()
         notification._stop.wait = Mock(side_effect=[False, True])
-        with patch("core.notifications.deliver_calendar_reminders",
+        with patch("core.domain.notifications.deliver_calendar_reminders",
                    side_effect=OSError("/private/calendar/data")):
             notification._run()
         health = notification.health()
@@ -139,16 +140,21 @@ class AuditEasyFixesTests(unittest.TestCase):
         self.assertIsNotNone(health["last_attempt"])
         self.assertNotIn("/private", str(health))
         notification._stop.wait.side_effect = [False, True]
-        with patch("core.notifications.deliver_calendar_reminders"):
+        with patch("core.domain.notifications.deliver_calendar_reminders"):
             notification._run()
         self.assertIsNone(notification.health()["last_error_type"])
         self.assertIsNotNone(notification.health()["last_success"])
 
     def test_runtime_routes_have_no_duplicate_http_method_path_pairs(self):
         from fastapi.routing import APIRoute
-        pairs = [(method, route.path) for route in api.app.routes
+
+        from core.tool_inventory import flatten_routes
+        # app.routes keeps each included router as one entry: flatten, or the check
+        # would only see the few endpoints still declared directly on the app.
+        pairs = [(method, route.path) for route in flatten_routes(api.app.routes)
                  if isinstance(route, APIRoute)
                  for method in route.methods]
+        self.assertGreater(len(pairs), 150)
         self.assertEqual(len(pairs), len(set(pairs)))
 
     def test_programmer_io_error_is_unavailable_not_validation(self):

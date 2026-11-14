@@ -1,10 +1,10 @@
 """Persist the opt-in project mount in an already installed host updater."""
 import argparse
 import json
-from pathlib import Path
-import tempfile
 import os
+import tempfile
 import uuid
+from pathlib import Path
 
 
 def configure(updater_root, project_root):

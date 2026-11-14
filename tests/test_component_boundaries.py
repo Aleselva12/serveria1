@@ -4,9 +4,12 @@ These tests fail with the broken hop instead of merely asserting HTTP 200.
 They run in CI and complement the production 5-minute structural checks.
 """
 import unittest
+from datetime import UTC
 from unittest.mock import patch
-from core import project_contracts, project_checks
+
+from core import project_contracts
 from core.health_catalog import CATALOG, COMPONENTS
+from core.verify import project_checks
 
 
 class CatalogTests(unittest.TestCase):
@@ -36,7 +39,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(status, "pass", detail)
 
     def test_orchestration_router_is_complete(self):
-        from core.orchestration_api import router
+        from core.api.orchestration_api import router
         expected = {
             ("/api/v1/runtime/capabilities", "GET"),
             ("/api/v1/runtime/coordinator", "GET"),
@@ -54,9 +57,10 @@ class CatalogTests(unittest.TestCase):
 
     def test_chat_to_specialist_graph_exchange_with_mocked_agent(self):
         """Exercise the compiled supervisor graph and ToolNode, without Ollama."""
-        import graph as supervisor
         from langchain_core.messages import AIMessage, HumanMessage
         from langchain_core.tools import tool
+
+        import graph as supervisor
         invoked = []
 
         @tool
@@ -76,7 +80,7 @@ class CatalogTests(unittest.TestCase):
              patch.object(supervisor,"ensure_runtime_active"), \
              patch.object(supervisor,"_runtime_system_prompt",
                           return_value=("Prompt di test","",[],["search_agent_tool"])), \
-             patch("core.library_preflight.preload",return_value=""), \
+             patch("core.domain.library_preflight.preload",return_value=""), \
              patch.dict(supervisor.tool_node.tools_by_name,{"search_agent_tool":search_agent_tool}):
             result = supervisor.graph.invoke({
                 "messages":[HumanMessage("Cerca ordine di prova")],
@@ -106,13 +110,13 @@ class CatalogTests(unittest.TestCase):
 
     def test_parallel_workers_do_not_replay_a_recent_periodic_cycle(self):
         from contextlib import contextmanager
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         class Query:
             def __init__(self, statement): self.statement=statement
             def fetchone(self):
                 if "pg_try_advisory_lock" in self.statement: return (True,)
-                if "MAX(observed_at)" in self.statement: return (datetime.now(timezone.utc),)
+                if "MAX(observed_at)" in self.statement: return (datetime.now(UTC),)
                 return (True,)
 
         class Database:
@@ -123,7 +127,7 @@ class CatalogTests(unittest.TestCase):
             yield Database()
 
         with (
-            patch("core.database.DATABASE_URL", "postgresql://test"),
+            patch("core.infra.database.DATABASE_URL", "postgresql://test"),
             patch("psycopg.connect", side_effect=connect),
             patch.object(project_checks, "run_once") as run_once,
         ):
@@ -132,7 +136,7 @@ class CatalogTests(unittest.TestCase):
         run_once.assert_not_called()
 
     def test_registry_is_not_silently_persisted_when_database_unreachable(self):
-        with patch("core.database.db_connection",side_effect=OSError("private database error")):
+        with patch("core.infra.database.db_connection",side_effect=OSError("private database error")):
             result=project_checks.health_dashboard()
         self.assertEqual(result["historyStore"],"unavailable")
         self.assertEqual(set(result["components"]),set(COMPONENTS))

@@ -2,7 +2,7 @@
 
 `database/schema.sql` è il baseline `0001_baseline`. Dall'introduzione del
 registro `cora_schema_migrations` il baseline e le migrazioni applicate sono
-immutabili: per cambiare schema aggiungere `0002_nome.sql`, poi `0003_nome.sql`.
+immutabili: per cambiare schema aggiungere il successivo file numerato, per esempio `0011_nome.sql`.
 I file sono ordinati e applicati con checksum SHA-256 in un'unica transazione
 protetta da advisory lock PostgreSQL. Un file modificato o una versione presente
 nel DB ma assente nel codice interrompe l'avvio.
@@ -29,7 +29,10 @@ un target vuoto con la versione corrispondente.
 | 0006 | Proposte di note commerciali Word |
 | 0007 | Risultati append-only dei controlli salute/progetto |
 | 0008 | Corpus di esempi del router shadow locale |
+| 0009 | Esecuzioni dei collaudi una tantum della Roadmap |
+| 0010 | Valutazioni delle priorità della Roadmap |
+| 0011 | Esito `warn` (funziona con avvisi) nei risultati salute |
 
-L’esecutore è `core/database.py` dalla radice del repository. Normalizza CRLF in LF prima del checksum; rifiuta versioni duplicate, inserimenti precedenti all’ultima applicata, checksum cambiati e schema più nuovo del codice. Si attiva alla prima connessione che richiede lo schema, non è un comando di deploy separato.
+L’esecutore è `core/infra/database.py` dalla radice del repository. Normalizza CRLF in LF prima del checksum; rifiuta versioni duplicate, inserimenti precedenti all’ultima applicata, checksum cambiati e schema più nuovo del codice. Si attiva alla prima connessione che richiede lo schema, non è un comando di deploy separato.
 
 Il test di contratto è `tests/test_database_migration_contract.py`; i test PostgreSQL e il trial updater richiedono istanze sacrificabili. L’[audit del 25 ottobre](../../docs/README_AUDIT_20261025.md) resta una fotografia storica e non prova quali migrazioni siano oggi applicate sul Debian: per quello usare il commit attivo dell'updater e `cora_schema_migrations` sul database reale.

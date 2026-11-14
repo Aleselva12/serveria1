@@ -1,6 +1,8 @@
 import io
 import unittest
+
 from docx import Document
+
 from core.library_tools import _document_bytes, digest
 
 
@@ -24,8 +26,9 @@ class DocumentEditingUnitTests(unittest.TestCase):
         self.assertEqual(updated.tables[0].cell(0, 0).text, 'Ordine 123')
 
     def test_full_document_read_in_chunks(self):
-        from core import library_tools
         from unittest.mock import patch
+
+        from core import library_tools
         with patch.object(library_tools, 'source_file') as source:
             import tempfile
             from pathlib import Path

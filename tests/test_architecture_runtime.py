@@ -1,21 +1,23 @@
+import os
 import tempfile
 import unittest
 import uuid
-import os
 from pathlib import Path
 from unittest.mock import patch
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from langchain_core.runnables import RunnableLambda
-from core import execution_traces as traces
-from core.architecture_api import router, architecture_graph
+
+from core.api.architecture_api import architecture_graph, router
+from core.infra import execution_traces as traces
 
 
 class RuntimeTests(unittest.TestCase):
     def setUp(self):
         self.export = patch.dict(os.environ,{'CORA_DIAGNOSTIC_JSONL_EXPORT':'true'})
         self.export.start()
-        self.database = patch('core.execution_traces.database_configured',return_value=False)
+        self.database = patch('core.infra.execution_traces.database_configured',return_value=False)
         self.database.start()
         self.temp = tempfile.TemporaryDirectory()
         self.patch = patch.object(traces, 'TRACE_FILE', Path(self.temp.name) / 'traces.jsonl')

@@ -28,6 +28,7 @@ function statusOf(definition:HealthCheckDefinition, evidence?:HealthResult) {
   if (definition.automated && Date.now() - Date.parse(evidence.at) > 10 * 60 * 1000)
     return {label:"Scaduto",tone:"unknown"};
   if (evidence.status === "pass") return {label:definition.kind === "preflight" ? "Prerequisito OK" : definition.kind === "contract" ? "Contratto OK" : "Test OK",tone:"success"};
+  if (evidence.status === "warn") return {label:"Funziona, da migliorare",tone:"pending"};
   if (evidence.status === "fail") return {label:"Errore",tone:"error"};
   return {label:"Non verificato",tone:"unknown"};
 }

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Iterable
+from collections.abc import Iterable
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -69,10 +69,10 @@ def _parse_reply(text: str) -> tuple[str, float | None]:
     text = text.strip()
     try:
         data = json.loads(text)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as error:
         start, end = text.find("{"), text.rfind("}")
         if start < 0 or end <= start:
-            raise ValueError("ShadowRouterInvalidJSON")
+            raise ValueError("ShadowRouterInvalidJSON") from error
         data = json.loads(text[start:end + 1])
     route = str(data.get("route", "")).strip().lower()
     if route not in ROUTE_LABELS:
@@ -111,7 +111,7 @@ def record_example(*, request_text: str, primary: str, thread_id: str, run_id: s
     except Exception as error:
         error_type = type(error).__name__
     try:
-        from core.database import db_connection
+        from core.infra.database import db_connection
         with db_connection() as conn:
             conn.execute(
                 """INSERT INTO shadow_router_examples
@@ -127,7 +127,7 @@ def record_example(*, request_text: str, primary: str, thread_id: str, run_id: s
 
 def stats() -> dict:
     """Progress metrics; agreement with principal routing is only a provisional proxy."""
-    from core.database import db_connection
+    from core.infra.database import db_connection
     with db_connection() as conn:
         row = conn.execute(
             """SELECT COUNT(*) AS examples,

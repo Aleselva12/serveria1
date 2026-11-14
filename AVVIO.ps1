@@ -203,7 +203,7 @@ if ($LASTEXITCODE -ne 0) {
         }
     }
     & $VenvPython -c "import logging,os; logging.disable(logging.CRITICAL); os.environ['CORA_DB_POOL_TIMEOUT']='2'; from core.database import database_status; raise SystemExit(0 if database_status().get('reachable') else 1)"
-    if ($LASTEXITCODE -ne 0) { Fail "PostgreSQL non raggiungibile. Avvialo e verifica CORA_DATABASE_URL in .env. Per la prima installazione: docker compose -f docker-compose.database.yml up -d" }
+    if ($LASTEXITCODE -ne 0) { Fail "PostgreSQL non raggiungibile. Avvialo e verifica CORA_DATABASE_URL in .env. Per la prima installazione: docker compose -f compose.database.yml up -d" }
 }
 & $VenvPython -m core.auth --ensure-owner
 if ($LASTEXITCODE -ne 0) { Fail "Configurazione account non riuscita." }

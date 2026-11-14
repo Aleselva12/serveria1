@@ -2,6 +2,7 @@
 import argparse
 import fcntl
 from pathlib import Path
+
 from updater.engine import Engine
 
 

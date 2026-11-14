@@ -35,3 +35,7 @@ Riferimenti Google: https://developers.google.com/workspace/gmail/api/guides/lis
 - Backend: `tests.test_mail`, `tests.test_google_calendar`, `tests.test_calendar`: 34 test, esito OK, 7 saltati per prerequisiti del relativo ambiente.
 - Verifica estesa con `tests.test_google_calendar_web_auth`: 45 test, 7 saltati e 2 fallimenti nei test Calendar preesistenti che confrontano mode Unix 0600 con i permessi riportati da Windows (0666). Nessuna modifica ai test Calendar per mascherare questa differenza; verificare i permessi anche sull’host Linux di produzione.
 - Nessuna prova OAuth/Gmail reale, inferenza worker reale, distribuzione o test visivo sul browser del server: mancano le credenziali e le autorizzazioni reali degli account. I test dei provider usano simulazioni.
+
+## Integrazione con main del 15 novembre 2026
+
+Risolti i conflitti in api.py e deploy/deploy.env.example preservando la riorganizzazione di main. Mail risiede ora in core/api/mail_api.py e core/domain/mail*.py. Verifica dopo integrazione: 235 test frontend passati, build produzione riuscita; suite backend Mail/Calendar 34 test OK con 7 saltati.

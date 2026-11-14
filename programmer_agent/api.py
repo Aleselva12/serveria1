@@ -1,13 +1,16 @@
 """Owner-only programmer endpoints; global AuthMiddleware protects this router."""
 from __future__ import annotations
+
 import json
 import shutil
 from uuid import UUID
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
-from core.runtime import runtime, checkpoint, publish_text
-from programmer_agent import workspace as ws
+
+from core.runtime import checkpoint, publish_text, runtime
 from programmer_agent import knowledge
+from programmer_agent import workspace as ws
 
 router = APIRouter(prefix="/api/v1/programmer", tags=["Programmer"])
 
@@ -124,7 +127,7 @@ def import_graph(workspace_id: UUID, data: GraphImport):
 @router.post("/workspaces/{workspace_id}/drafts", status_code=201)
 def import_draft(workspace_id: UUID, data: DraftImport):
     """Explicit owner import into the existing graphical editor; never execution."""
-    from core.automation_drafts import save_draft
+    from core.domain.automation_drafts import save_draft
     from core.tool_inventory import inventory
     identifier = str(workspace_id)
     path = call(ws.file_path, identifier, data.path)
@@ -138,9 +141,9 @@ def import_draft(workspace_id: UUID, data: DraftImport):
 
 
 def execute_programmer(request: ProgrammerRequest, run) -> dict:
-    from core.chat_store import ensure_conversation, save_message
     from core.context_budget import prepare_context
-    from core.execution_traces import ExecutionTrace
+    from core.domain.chat_store import ensure_conversation, save_message
+    from core.infra.execution_traces import ExecutionTrace
     from core.models import get_model_name
     from core.runtime_context import bind_runtime
     from programmer_agent.programmer_graph import graph

@@ -4,11 +4,12 @@ Requires the owner to have fast-forwarded the trusted checkout to main first.
 Uses only the updater's fixed authenticated API, never host shell endpoints.
 """
 from __future__ import annotations
+
 import argparse
 import json
-from pathlib import Path
 import re
 import time
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 

@@ -8,12 +8,11 @@ from unittest.mock import patch
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from core import machines_api as machines
+from core.api import machines_api as machines
 
 
 class MachinesTests(unittest.TestCase):
     def test_worker_probe_does_not_promote_invalid_health_responses(self):
-        from types import SimpleNamespace
         from unittest.mock import Mock
         valid = 'desktop.tail7b83c3.ts.net'
         class Response:

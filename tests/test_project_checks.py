@@ -1,9 +1,11 @@
 """Project check tests: never need running services or real data."""
 import unittest
 from unittest.mock import patch
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from core import project_checks as pc
+
+from core.verify import project_checks as pc
 
 
 class ProjectChecksTests(unittest.TestCase):

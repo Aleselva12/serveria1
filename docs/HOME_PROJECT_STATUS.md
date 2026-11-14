@@ -32,7 +32,7 @@ valutare, non un modello installato).
   funzioni mancanti e problemi già noti. Non significa che il prodotto sia rotto.
 - **Funzionamento**: rimane **Da verificare** finché non esiste un collaudo
   funzionale del flusso completo, datato e riferito alla versione installata.
-- **Ambiente / prerequisiti**: `core/project_checks.py` esegue ogni 300 secondi,
+- **Ambiente / prerequisiti**: `core/verify/project_checks.py` esegue ogni 300 secondi,
   nel processo API, quattro prove di prerequisiti e un test funzionale sintetico: SELECT 1 su
   PostgreSQL SENZA migrazioni, lettura della cartella IA, disponibilità dichiarata
   del motore Audio e lettura del catalogo Ollama; più una trasformazione Word
@@ -71,7 +71,7 @@ rappresentati senza inferire l'effettiva inferenza GPU dai soli collegamenti HTT
 diventa «Salute del sistema e collaudi». Riutilizza il controllo HTTP già esistente
 (`GET /api/v1/system/status`) e un catalogo di test separato:
 `core/health_catalog.py` è l'unica fonte delle definizioni/ID, usata da
-`core/project_checks.py`, Home, Macchine, pagina Programma e gestione gestionali.
+`core/verify/project_checks.py`, Home, Macchine, pagina Programma e gestione gestionali.
 Le viste possono fare letture della stessa API, ma non duplicano l'esecuzione
 dei test. La Home mobile mostra le verifiche accanto allo stato dei servizi.
 

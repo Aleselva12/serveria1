@@ -1,20 +1,20 @@
 import os
 import unittest
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
 import psycopg
-from psycopg.rows import dict_row
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from psycopg.rows import dict_row
 
-from core import calendar as store
-from core import notifications
-from core.calendar_api import router
+from core.api.calendar_api import router
 from core.calendar_tools import calendar_tools_for
+from core.domain import calendar as store
+from core.domain import notifications
 from core.permissions import check_permission, validate_permission_configuration
 
 DATA = dict(title="Cliente", start="2026-10-02T09:00:00+02:00", end="2026-10-02T10:00:00+02:00", all_day=False, notes="Preventivo")
@@ -49,7 +49,7 @@ class CalendarValidationTests(unittest.TestCase):
         for tool in tools.values():
             self.assertNotIn("actor",tool.args)
             self.assertNotIn("user_approved",tool.args)
-        with patch.object(store,"propose_event",return_value={"status":"pending","id":str(uuid4())}) as proposal, patch("core.operation_journal.begin",return_value=None):
+        with patch.object(store,"propose_event",return_value={"status":"pending","id":str(uuid4())}) as proposal, patch("core.infra.operation_journal.begin",return_value=None):
             result = tools["calendar_create_event"].invoke(DATA)
             self.assertEqual(result["status"],"pending")
             self.assertEqual(proposal.call_args.args[:2],("email_quotes_agent","create"))
@@ -149,7 +149,7 @@ class CalendarPostgresTests(unittest.TestCase):
 
 
     def test_calendar_reminder_delivers_once_for_same_schedule(self):
-        now=datetime.now(timezone.utc)
+        now=datetime.now(UTC)
         event=store.write_event("create",data={
             "title":"Promemoria push",
             "start":now+timedelta(minutes=10),

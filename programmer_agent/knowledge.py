@@ -1,7 +1,9 @@
 """Bundled skills/templates and bounded Graphify graph queries."""
 from __future__ import annotations
+
 import json
 from pathlib import Path
+
 from programmer_agent import workspace as ws
 
 BASE = Path(__file__).resolve().parent

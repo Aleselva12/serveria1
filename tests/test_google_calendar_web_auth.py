@@ -7,8 +7,9 @@ from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlsplit
 
 from google.auth.exceptions import RefreshError
-from core import google_calendar as provider
-from core import google_calendar_web_auth as oauth
+
+from core.domain import google_calendar as provider
+from core.domain import google_calendar_web_auth as oauth
 
 
 class CalendarWebAuthTests(unittest.TestCase):
@@ -121,7 +122,8 @@ class CalendarWebAuthApiTests(unittest.TestCase):
     def test_start_and_finish_require_owner_and_hide_setup_details(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
-        from core.calendar_api import router
+
+        from core.api.calendar_api import router
         app = FastAPI(); app.include_router(router)
         with patch.dict(os.environ, {"CORA_OWNER_TOKEN":"owner"}), TestClient(app) as client:
             for path in ("start", "finish"):

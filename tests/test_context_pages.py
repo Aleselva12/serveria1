@@ -1,6 +1,6 @@
 import unittest
 
-from core.context_pages import resolve_context_pages, selected_tool_names, preload_context, routing_text
+from core.context_pages import preload_context, resolve_context_pages, routing_text, selected_tool_names
 
 
 class ContextPageTests(unittest.TestCase):
@@ -47,7 +47,7 @@ class ContextPageTests(unittest.TestCase):
         selected = resolve_context_pages("Cosa sai di me?")
         self.assertIn("owner_context", [page.id for page in selected])
         self.assertEqual(selected_tool_names(selected), [])
-        with patch("core.system_context.get_system_context", return_value={"content":"Owner facts","version":1}):
+        with patch("core.domain.system_context.get_system_context", return_value={"content":"Owner facts","version":1}):
             data, providers = preload_context(selected)
         self.assertEqual(providers, ["owner_context"])
         self.assertIn("Owner facts", data)

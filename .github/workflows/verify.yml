@@ -3,12 +3,86 @@ on: [push, pull_request]
 permissions:
   contents: read
 jobs:
+  syntax:
+    # Fails in seconds on unparsable sources, before any dependency or service
+    # starts: a SyntaxError otherwise surfaces as a collection error inside the
+    # full suite, where its cause is hard to read.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Compile every tracked Python source
+        run: git ls-files -z '*.py' | xargs -0 python -m py_compile
+  lint:
+    # Report-only for now: findings appear as annotations without blocking the PR.
+    # Turn off continue-on-error once the backlog has been worked through.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: python -m pip install ruff==0.16.9
+      - name: Ruff (report only)
+        continue-on-error: true
+        # GitHub keeps only about ten annotations per step, so --output-format=github
+        # alone hides the real total. Print the per-rule counts first: that line is
+        # the one to watch, and it stays readable however many findings there are.
+        run: |
+          ruff check --statistics . || true
+          ruff check --output-format=github .
+  security-audit:
+    # Report-only like lint: known vulnerabilities in dependencies and images show
+    # up in the log without blocking a release. The installed server is checked
+    # separately by the dependency_audit collaudo.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pip-audit==2.7.3
+      - name: pip-audit (Python lock files)
+        run: |
+          status=0
+          for lock in requirements-deploy.lock requirements-dev.lock terminal_service/requirements.lock; do
+            echo "::group::$lock"
+            pip-audit --disable-pip --require-hashes -r "$lock" || status=1
+            echo "::endgroup::"
+          done
+          exit $status
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: npm audit (frontend, high and critical)
+        working-directory: frontend
+        run: npm audit --package-lock-only --omit=dev --audit-level=high
+      - name: Build images for scanning
+        if: always()
+        run: |
+          docker build --target api -t cora-api:audit .
+          docker build --target web -t cora-web:audit .
+      - name: Trivy (images, high and critical with a fix available)
+        if: always()
+        run: |
+          status=0
+          for image in cora-api:audit cora-web:audit; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.58.1 \
+              image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress "$image" || status=1
+          done
+          exit $status
   personal-terminal:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - run: python -m pip install --require-hashes -r terminal_service/requirements.lock
@@ -18,14 +92,14 @@ jobs:
   windows-regressions:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - run: python -m pip install -r requirements-test.txt
+      - run: python -m pip install --require-hashes -r requirements-dev.lock
       - run: python -c "import subprocess,sys; from core.desktop_updates import WINDOWS_TESTS; subprocess.run([sys.executable,'-m','unittest',*WINDOWS_TESTS],check=True)"
       - run: npm ci && npm test && npm run build
         working-directory: frontend
@@ -54,25 +128,28 @@ jobs:
       CORA_CALENDAR_TEST_DATABASE_URL: postgresql://cora:test_password@localhost:5432/cora_test
       CORA_EMBEDDING_MODEL: ''
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: python -m pip install -r requirements-test.txt
+      - run: python -m pip install --require-hashes -r requirements-dev.lock
+      # age serves only the backup test, which skips itself when the binary is missing.
+      # A mirror outage must show up as a warning, not as a red suite that never ran.
+      - name: Install age (optional)
+        continue-on-error: true
+        run: sudo apt-get update -qq && sudo apt-get install -y age
       - run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y age
-          python -c "from core.database import db_connection; c = db_connection(); c.__enter__(); c.__exit__(None, None, None)"
+          python -c "from core.infra.database import db_connection; c = db_connection(); c.__enter__(); c.__exit__(None, None, None)"
           python -m unittest discover -s tests -v
           python smoke_check.py
       - name: Node verification regression report
         run: python -m deploy.verify_nodes --checks memory_regression calendar_regression orchestration_regression files_regression --output node-verification-ci.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: node-verification-ci
@@ -91,17 +168,22 @@ jobs:
       CORA_DISPOSABLE_DEPLOY_TEST: 'yes'
       CORA_CI_API_TARGET: ${{ matrix.target }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - run: sudo apt-get update -qq && sudo apt-get install -y age
-      - run: python deploy/ci_verify.py
+      # Required here, unlike in verify: deploy/ci_disposable_deployment.py ends by calling
+      # updater.ci_release_rollback.verify, which runs age-keygen with check=True and no
+      # skip guard. Non-blocking, a mirror outage would surface as FileNotFoundError
+      # inside the script, after the images are built and the services are up.
+      - name: Install age (required by updater/ci_release_rollback.py)
+        run: sudo apt-get update -qq && sudo apt-get install -y age
+      - run: python deploy/ci_disposable_deployment.py
   windows-audio:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - shell: pwsh
