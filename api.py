@@ -14,6 +14,7 @@ from core.api.architecture_api import router as architecture_router
 from core.api.audio_api import router as audio_router
 from core.api.automation_api import router as automation_router
 from core.api.calendar_api import router as calendar_router
+from core.api.mail_api import router as mail_router
 from core.api.conversations_api import router as conversations_router
 from core.api.machines_api import router as machines_router
 from core.api.managed_apps_api import router as managed_apps_router
@@ -122,6 +123,7 @@ app.include_router(library_router)
 app.include_router(attachments_router)
 app.include_router(audio_router)
 app.include_router(calendar_router)
+app.include_router(mail_router)
 app.include_router(notifications_router)
 app.include_router(architecture_router)
 app.include_router(automation_router)
