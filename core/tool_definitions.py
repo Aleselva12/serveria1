@@ -31,7 +31,7 @@ def _signature(fn):
     defaults += list(fn.args.kw_defaults)
     return [dict(name=a.arg, type=ast.unparse(a.annotation) if a.annotation else "Non dichiarato",
                  required=d is None, default=ast.unparse(d) if d is not None else None)
-            for a, d in zip(args, defaults)]
+            for a, d in zip(args, defaults, strict=False)]
 
 
 def _flow(entry, fn):

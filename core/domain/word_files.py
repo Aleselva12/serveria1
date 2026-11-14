@@ -149,7 +149,7 @@ def replace_paragraph(paragraph, text):
         elif mode in {'replace', 'insert'}:
             index = positions[start] if start < len(positions) else positions[-1] if positions else 0
             output[index] += text[new_start:new_end]
-    for run, value in zip(runs, output):
+    for run, value in zip(runs, output, strict=False):
         for child in list(run):
             if child.tag != tag('rPr'):
                 run.remove(child)

@@ -249,7 +249,7 @@ def make_router(prefix: str, label: str, root_provider=roots, *, allow_upload=Tr
                 raise HTTPException(400, "Il percorso non è una cartella.")
             entries = []
             for child in target.iterdir():
-                if child.name.casefold() in RESERVED or not query.casefold() in child.name.casefold():
+                if child.name.casefold() in RESERVED or query.casefold() not in child.name.casefold():
                     continue
                 try:
                     entries.append(node(base, child, root["writable"]))

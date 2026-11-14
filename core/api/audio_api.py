@@ -149,7 +149,7 @@ def transcribe(ident: uuid.UUID, body: TranscriptionRequest):
         for number, name in enumerate(row['speaker_names'], 1):
             if name:
                 import re
-                transcript = re.sub(r'(^\[[0-9:]+\] )Interlocutore '+str(number)+':', lambda match: match.group(1)+name+':', transcript, flags=re.MULTILINE)
+                transcript = re.sub(r'(^\[[0-9:]+\] )Interlocutore '+str(number)+':', lambda match, name=name: match.group(1)+name+':', transcript, flags=re.MULTILINE)
         with db_connection() as conn:
             saved = conn.execute('''UPDATE audio_records SET transcript=%s,machine_result=%s,version=version+1
                 WHERE id=%s AND version=%s AND archived=FALSE AND transcript IS NULL RETURNING id''',

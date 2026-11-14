@@ -294,7 +294,7 @@ def create_event(data: dict, *, request_id: str | None = None) -> dict:
             or (existing.get("description") or "") != body["description"]
             or any(boundary(existing.get(key) or {}) != boundary(body[key]) for key in ("start", "end"))
             or reminder(existing.get("reminders") or {}) != reminder(body["reminders"])):
-            raise ValueError("Chiave richiesta già usata per un evento diverso.")
+            raise ValueError("Chiave richiesta già usata per un evento diverso.") from None
         normalized = normalize(existing)
         from core.verification_usage import calendar_write
         calendar_write("create", normalized)

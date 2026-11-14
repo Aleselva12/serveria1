@@ -31,9 +31,9 @@ class CallbackApp:
     def __call__(self, environ, start_response):
         self.last_request_uri = request_uri(environ)
         body = (
-            "Google Calendar collegato a Cora. "
-            "Puoi chiudere questa scheda e tornare al terminale."
-        ).encode("utf-8")
+            b"Google Calendar collegato a Cora. "
+            b"Puoi chiudere questa scheda e tornare al terminale."
+        )
         start_response(
             "200 OK",
             [

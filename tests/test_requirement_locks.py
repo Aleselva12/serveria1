@@ -30,7 +30,7 @@ def input_names(path):
         if line.startswith("-r "):
             names |= input_names(line[3:].strip())
             continue
-        names.add(normalize(re.split(r"[\[<>=!~;\s]", line, 1)[0]))
+        names.add(normalize(re.split(r"[\[<>=!~;\s]", line, maxsplit=1)[0]))
     return names
 
 
