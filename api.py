@@ -32,6 +32,7 @@ from core.memory import delete_memory, memory_stats, save_memory, search_memorie
 from core.system_context import get_system_context, update_system_context
 from core.working_memory import clear_working_memory, list_working_memory, set_working_memory
 from core.calendar_api import router as calendar_router
+from core.mail_api import router as mail_router
 from core.notifications import router as notifications_router, worker as notification_worker
 from core.models import get_default_model_name, get_model_name, list_ollama_models, save_runtime_model, RuntimeSettingsError
 from core.runtime_profile import validate_runtime_profile, runtime_mode
@@ -119,6 +120,7 @@ app.include_router(library_router)
 app.include_router(attachments_router)
 app.include_router(audio_router)
 app.include_router(calendar_router)
+app.include_router(mail_router)
 app.include_router(notifications_router)
 app.include_router(architecture_router)
 app.include_router(automation_router)

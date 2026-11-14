@@ -1,0 +1,38 @@
+import assert from "node:assert/strict";
+import {test} from "node:test";
+import {readFile} from "node:fs/promises";
+import {createRequire} from "node:module";
+import {pathToFileURL} from "node:url";
+import ts from "typescript";
+import React from "react";
+import {create,act} from "react-test-renderer";
+const require=createRequire(import.meta.url);
+globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+let calls=[], resolveDetail;
+const message={account:"a",id:"m",email:"a@example.com",subject:"Account A message",sender:"sender",timestamp:12345,snippet:"preview",body:"body"};
+globalThis.__mailRequest=async(path,body)=>{
+ calls.push({path,body});
+ if(path==="/accounts")return {accounts:[],webAuth:{available:false}};
+ if(path.includes("/accounts/a/messages/"))return new Promise(r=>{resolveDetail=r;});
+ if(path==="/summary")return {status:"unavailable",summary:null,notice:"Worker OFF",coverage:"20 messages"};
+ return {messages:path.includes("selection=b")?[]:[message],errors:{},next:{}};
+};
+let source=await readFile(new URL("../src/components/Mail.tsx",import.meta.url),"utf8");
+source=source.replace(/import \{ mailRequest[^;]+;/,"const mailRequest=globalThis.__mailRequest;").replace('import "./Mail.css";',"");
+source=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+source=source.replaceAll('"react"',JSON.stringify(pathToFileURL(require.resolve("react")).href)).replaceAll('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve("react/jsx-runtime")).href));
+const {default:Mail}=await import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
+const flush=()=>new Promise(r=>setImmediate(r));
+test("Mail scopes summaries, survives offline worker and suppresses stale account details",async()=>{
+ let view;await act(async()=>{view=create(React.createElement(Mail));await flush();});
+ const buttons=()=>view.root.findAllByType("button");
+ await act(async()=>{await buttons().find(b=>b.children.includes("Riepilogo IA dell’ambito")).props.onClick();});
+ assert.deepEqual(calls.find(c=>c.path==="/summary").body,{selection:"all",scope:"inbox"});
+ assert.match(JSON.stringify(view.toJSON()),/Worker OFF/);
+ await act(async()=>{buttons().find(b=>b.props["aria-pressed"]!==undefined).props.onClick();await flush();});
+ await act(async()=>{view.root.findAllByType("select")[0].props.onChange({target:{value:"b"}});await flush();});
+ await act(async()=>{resolveDetail({...message,subject:"STALE SECRET FROM A"});await flush();});
+ assert.doesNotMatch(JSON.stringify(view.toJSON()),/STALE SECRET FROM A/);
+ assert.ok(calls.some(c=>c.path.includes("selection=b")));
+ await act(async()=>view.unmount());
+});

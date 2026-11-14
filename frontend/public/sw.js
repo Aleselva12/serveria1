@@ -17,7 +17,7 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
   // OAuth return pages must reach the network; never replace them with the app shell.
-  if (url.pathname.startsWith("/google-calendar-callback.")) return;
+  if (url.pathname.startsWith("/google-calendar-callback.") || url.pathname.startsWith("/google-mail-callback.")) return;
   if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/backend/")) return;
   if (request.mode === "navigate") {
     event.respondWith(fetch(request).catch(() => caches.match("/") ));

@@ -41,6 +41,7 @@ import MobileHome from "./components/MobileHome";
 import MobilePhotos from "./components/MobilePhotos";
 import Programmer from "./components/Programmer";
 import ProgrammerNextPlaceholder from "./components/ProgrammerNextPlaceholder";
+import Mail from "./components/Mail";
 import Calendar from "./components/Calendar";
 import FileManager from "./components/FileManager";
 import Architecture from "./components/Architecture";
@@ -65,6 +66,7 @@ type Page =
   | "machines"
   | "code"
   | "programmer-next"
+  | "mail"
   | "calendar"
   | "files"
   | "audio"
@@ -73,7 +75,7 @@ type Page =
   | "settings"
   | "memory-management";
 const validPages: ReadonlySet<Page> = new Set([
-  "home", "chat", "photos", "architecture", "machines", "code", "calendar",
+  "home", "chat", "photos", "architecture", "machines", "code", "calendar", "mail",
   "files", "audio", "activity", "updates", "settings", "memory-management", "programmer-next", "homepage-schema-albero",
 ]);
 function isPage(value: string): value is Page {
@@ -91,6 +93,7 @@ const primary: { id: Page; label: string }[] = [
   { id: "architecture", label: "Architettura" },
   { id: "code", label: "Programma" },
   { id: "calendar", label: "Calendario" },
+  { id: "mail", label: "Mail" },
   { id: "files", label: "File" },
   { id: "machines", label: "Macchine" },
   { id: "audio", label: "Audio" },
@@ -106,6 +109,7 @@ const mobilePrimary: { id: Page; label: string; icon: typeof House }[] = [
   { id: "files", label: "File", icon: Files },
   { id: "audio", label: "Audio", icon: FileAudio },
   { id: "calendar", label: "Agenda", icon: CalendarDays },
+  { id: "mail", label: "Mail", icon: FileText },
 ];
 const uid = () => crypto.randomUUID();
 export default function App({ authMode = "password" }: { authMode?: string } = {}) {
@@ -613,6 +617,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
           {page === "homepage-schema-albero" && <Suspense fallback={<p>Apertura schema…</p>}><TreeHome /></Suspense>}
           {page === "programmer-next" && <ProgrammerNextPlaceholder />}
           {page === "calendar" && <Calendar />}
+          {page === "mail" && <Mail />}
           {page === "files" && <FileManager />}
           {page === "audio" && <Audio />}
           {page === "activity" && (
