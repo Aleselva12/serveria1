@@ -58,7 +58,8 @@ def library_excerpt(content, query, max_chars):
     """Bound only read-only source data, with an explicit incomplete-source marker."""
     if len(content) <= max_chars:
         return content
-    normalize = lambda text: ''.join(c for c in unicodedata.normalize('NFKD', text.casefold()) if not unicodedata.combining(c))
+    def normalize(text):
+        return ''.join(c for c in unicodedata.normalize('NFKD', text.casefold()) if not unicodedata.combining(c))
     terms = set(re.findall(r'[\w]{4,}', normalize(query))) - {'leggi','ultime','ultimo','dentro','libreria','documento','cliente','riprova','quello','questo','scritto','profilo'}
     # Keep source identity/hash and rank windows by distinct query terms. Never
     # infer that a partial window contains the latest entry in the whole file.

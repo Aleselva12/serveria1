@@ -134,7 +134,7 @@ def database_status() -> dict:
             "database": row["database"],
             "pgvector": bool(row["pgvector"]),
         }
-    except Exception as error:
+    except Exception:
         return {
             "configured": True,
             "reachable": False,

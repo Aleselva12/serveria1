@@ -75,7 +75,7 @@ class UsageEvidenceTests(unittest.TestCase):
             conn = MagicMock()
             current = row("unknown", "Account test non configurato", now)
             proof = row(proof_status, "Uso reale: scrittura riletta", now-timedelta(seconds=age))
-            conn.execute.side_effect = [MagicMock(fetchall=lambda:[current]), MagicMock(fetchall=lambda:[]), MagicMock(fetchall=lambda:[proof])]
+            conn.execute.side_effect = [MagicMock(fetchall=lambda current=current:[current]), MagicMock(fetchall=lambda:[]), MagicMock(fetchall=lambda proof=proof:[proof])]
             with patch("core.infra.database.db_connection") as db, patch.object(project_checks,"_release",return_value="a"*40), patch.object(project_checks,"_environment",return_value="debian-api"):
                 db.return_value.__enter__.return_value = conn
                 result = project_checks.health_dashboard()["latest"]["calendar_e2e"]

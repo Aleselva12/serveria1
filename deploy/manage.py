@@ -191,5 +191,5 @@ def main():
 if __name__=='__main__':
     try:main()
     except (ValueError,OSError,subprocess.CalledProcessError) as error:
-        print('Operazione non riuscita:',error,file=sys.stderr);raise SystemExit(1)
+        print('Operazione non riuscita:',error,file=sys.stderr);raise SystemExit(1) from error
 

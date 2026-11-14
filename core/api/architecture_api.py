@@ -182,7 +182,7 @@ def agents_catalog():
     last_replies = observations()
     machines = {m['id']: m['name'] for m in _read()}
     owners = dict(zip(('supervisor', 'programmer_agent', 'structure_agent', 'local_research_agent', 'audio_agent', 'email_quotes_agent'),
-                      (row[3] for row in SOURCES)))
+                      (row[3] for row in SOURCES), strict=False))
     tools = inventory()
     runtime = component_runtime_status()['components']
     registry = get_registry()

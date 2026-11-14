@@ -129,4 +129,4 @@ if __name__ == '__main__':
     except (ValueError, KeyError, subprocess.CalledProcessError) as error:
         # Do not print subprocess output: resolved Compose configs contain secrets.
         raise SystemExit(str(error) if not isinstance(error, subprocess.CalledProcessError)
-                         else 'Verifica fallita. Controlla Docker, Tailscale e l’account proprietario sul server.')
+                         else 'Verifica fallita. Controlla Docker, Tailscale e l’account proprietario sul server.') from error

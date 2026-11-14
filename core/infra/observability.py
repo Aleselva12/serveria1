@@ -28,7 +28,7 @@ PAYLOAD_FIELDS = {
 }
 SAFE_LOG_FIELDS = {'memory_id','message_id','user_message_id','assistant_message_id','episode_id','run_id','task_id',
                    'version','assertion','action','memory_type','result_count','query_chars','message_chars',
-                   'content_chars','message_count','embedding_dimensions','semantic_search','error_type','query_chars'}
+                   'content_chars','message_count','embedding_dimensions','semantic_search','error_type'}
 
 
 def metadata_event(event):

@@ -261,4 +261,4 @@ if __name__ == "__main__":
         setup_if_needed() if args.ensure_owner else interactive_provision()
     except Exception as error:
         print("Configurazione non riuscita:", error)
-        raise SystemExit(1)
+        raise SystemExit(1) from error

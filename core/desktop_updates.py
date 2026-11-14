@@ -188,7 +188,8 @@ def prepare():
         phase = "ready"
         # State stays at its original path. The owner switches only after stopping Cora
         # and backing up PostgreSQL; never activate code from a background HTTP worker.
-        quote = lambda p: "'" + str(p).replace("'", "''") + "'"
+        def quote(p):
+            return "'" + str(p).replace("'", "''") + "'"
         script = "$ErrorActionPreference = 'Stop'\n"
         script += "if (Get-NetTCPConnection -LocalPort 8000,5173 -State Listen -ErrorAction SilentlyContinue) { throw 'Chiudi Cora prima di continuare.' }\n"
         script += f"Copy-Item -LiteralPath {quote(ROOT / '.env')} -Destination {quote(candidate / '.env')}\n"

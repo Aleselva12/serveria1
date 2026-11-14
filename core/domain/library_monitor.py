@@ -29,8 +29,8 @@ def _read():
         data = json.loads(path.read_text(encoding='utf-8'))
         return {key: data.get(key, default) for key,default in
                 [('folders',[]), ('snapshot',{}), ('events',[]), ('last_scan',None)]}
-    except (ValueError, TypeError, OSError):
-        raise RuntimeError('Registro Library Monitor non leggibile; non verrà sovrascritto.')
+    except (ValueError, TypeError, OSError) as error:
+        raise RuntimeError('Registro Library Monitor non leggibile; non verrà sovrascritto.') from error
 
 def _save(data):
     path = _state_path()

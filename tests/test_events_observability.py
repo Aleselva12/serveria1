@@ -211,7 +211,7 @@ class EventPostgresTests(unittest.TestCase):
     def test_timestamp_ties_paginate_without_skipping_and_expired_cursor_is_explicit(self):
         recorder=DiagnosticArchive();root=create_run(thread_id='paging');id=str(root['id'])
         timestamp=datetime.now(UTC).isoformat()
-        for i in range(5):recorder.record(ComponentEvent(type='run.state',source='test',run_id=id,timestamp=timestamp,payload={'status':'running'}).model_dump())
+        for _i in range(5):recorder.record(ComponentEvent(type='run.state',source='test',run_id=id,timestamp=timestamp,payload={'status':'running'}).model_dump())
         self.assertTrue(recorder.flush())
         first=read_diagnostics(run_id=id,limit=2);second=read_diagnostics(run_id=id,limit=2,before=first['next_before']);third=read_diagnostics(run_id=id,limit=2,before=second['next_before'])
         self.assertEqual(len({e['id'] for page in [first,second,third] for e in page['events']}),5)
