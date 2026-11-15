@@ -5,7 +5,15 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core.domain.automation_drafts import VersionConflict, get_draft, list_drafts, save_draft, validate_graph
+from core.domain.automation_drafts import (
+    VersionConflict,
+    delete_draft,
+    duplicate_draft,
+    get_draft,
+    list_drafts,
+    save_draft,
+    validate_graph,
+)
 
 
 def graph():
@@ -62,6 +70,36 @@ class DraftTests(unittest.TestCase):
         draft = graph()
         draft["nodes"][0]["x"] = float("nan")
         with self.assertRaises(ValueError): validate_graph(draft)
+
+    def test_schema_warnings_flag_missing_unknown_and_uncontracted_tools(self):
+        schema = {"calculator": {"type": "object", "properties": {"expression": {"type": "string"}, "precision": {"type": "integer"}}, "required": ["expression", "precision"]}}
+        draft = graph()
+        draft["nodes"][1]["config"] = {"expression": "2+2", "extra": 1}
+        warnings = validate_graph(draft, {"calculator"}, schema)["warnings"]
+        self.assertIn("Calcolatrice: manca il parametro obbligatorio «precision».", warnings)
+        self.assertIn("Calcolatrice: il parametro «extra» non è previsto dal tool.", warnings)
+        self.assertNotIn("expression", " ".join(w for w in warnings if "manca" in w))
+        warnings = validate_graph(graph(), {"calculator"}, {})["warnings"]
+        self.assertEqual(warnings, ["Calcolatrice: il tool non ha un contratto eseguibile; potrà restare solo nella bozza."])
+        self.assertEqual(validate_graph(graph(), {"calculator"})["warnings"], [])
+
+    def test_delete_requires_current_version_and_duplicate_creates_new_draft(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            saved = save_draft(graph(), root=root, tool_ids={"calculator"})
+            clone = duplicate_draft(saved["id"], root, {"calculator"})
+            self.assertNotEqual(clone["id"], saved["id"])
+            self.assertEqual(clone["version"], 1)
+            self.assertEqual(clone["title"], "Copia di Bozza prova")
+            self.assertEqual(clone["nodes"], saved["nodes"])
+            with self.assertRaises(VersionConflict):
+                delete_draft(saved["id"], 2, root)
+            delete_draft(saved["id"], 1, root)
+            self.assertEqual([row["id"] for row in list_drafts(root)], [clone["id"]])
+            with self.assertRaises(FileNotFoundError):
+                delete_draft(saved["id"], 1, root)
+            with self.assertRaises(ValueError):
+                delete_draft("../x", 1, root)
 
     def test_identifier_cannot_escape_draft_folder(self):
         with tempfile.TemporaryDirectory() as tmp, self.assertRaises(ValueError):

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from core.access import owner_dependency
@@ -33,9 +33,31 @@ def _run(fn):
         raise HTTPException(503, "Archivio delle bozze non disponibile.") from error
 
 
+def _catalog(request):
+    """Tool ids accepted in drafts and the input schema of those with an execution contract."""
+    tool_ids, schemas = set(), {}
+    for entry in inventory(request.app.routes)["entries"]:
+        if entry["kind"] == "planned":
+            continue
+        tool_ids.add(entry["id"])
+        capabilities = entry.get("capabilities") or []
+        if capabilities:
+            schemas[entry["id"]] = capabilities[0].get("input_schema") or {}
+    return tool_ids, schemas
+
+
 @router.get("")
 def list_drafts():
     return _run(store.list_drafts)
+
+
+# Declared before /{draft_id} routes so "validate" is never read as an id.
+@router.post("/validate")
+def validate_draft(body: DraftInput, request: Request):
+    """Check a graph without saving it. Structural errors return 400, gaps return warnings."""
+    tool_ids, schemas = _catalog(request)
+    result = _run(lambda: store.validate_graph(body.model_dump(), tool_ids, schemas))
+    return {"warnings": result["warnings"]}
 
 
 @router.get("/{draft_id}")
@@ -44,8 +66,8 @@ def get_draft(draft_id: str):
 
 
 def _save(body, request, draft_id=None):
-    tool_ids = {e["id"] for e in inventory(request.app.routes)["entries"] if e["kind"] != "planned"}
-    return _run(lambda: store.save_draft(body.model_dump(), draft_id, body.version, tool_ids=tool_ids))
+    tool_ids, schemas = _catalog(request)
+    return _run(lambda: store.save_draft(body.model_dump(), draft_id, body.version, tool_ids=tool_ids, tool_schemas=schemas))
 
 
 @router.post("", status_code=201)
@@ -56,3 +78,14 @@ def create_draft(body: DraftInput, request: Request):
 @router.put("/{draft_id}")
 def update_draft(draft_id: str, body: DraftInput, request: Request):
     return _save(body, request, draft_id)
+
+
+@router.delete("/{draft_id}", status_code=204)
+def delete_draft(draft_id: str, version: int = Query(ge=1)):
+    _run(lambda: store.delete_draft(draft_id, version))
+
+
+@router.post("/{draft_id}/duplicate", status_code=201)
+def duplicate_draft(draft_id: str, request: Request):
+    tool_ids, schemas = _catalog(request)
+    return _run(lambda: store.duplicate_draft(draft_id, tool_ids=tool_ids, tool_schemas=schemas))

@@ -38,3 +38,15 @@ test('malformed definitions and another tool identity are rejected',async()=>{
   globalThis.fetch=async()=>response({...draft,id:'saved',version:1,warnings:[],status:'active'});
   await assert.rejects(toolsApi.saveDraft(draft),e=>e.kind==='invalid');
 });
+
+test('draft delete sends the seen version, accepts 204 and validate reads warnings',async()=>{
+  globalThis.fetch=async(url,init)=>{
+    assert.equal(url,'/backend/tools/drafts/abc?version=3');assert.equal(init.method,'DELETE');
+    return new Response(null,{status:204});
+  };
+  assert.equal(await toolsApi.deleteDraft('abc',3),undefined);
+  globalThis.fetch=async(url,init)=>{assert.equal(url,'/backend/tools/drafts/validate');assert.equal(init.method,'POST');return response({warnings:['manca uscita']});};
+  assert.deepEqual(await toolsApi.validateDraft(draft),['manca uscita']);
+  globalThis.fetch=async()=>response({warnings:'no'});
+  await assert.rejects(toolsApi.validateDraft(draft),e=>e.kind==='invalid');
+});

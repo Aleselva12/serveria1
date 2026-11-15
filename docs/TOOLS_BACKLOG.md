@@ -15,7 +15,7 @@ L’elenco delle intenzioni di integrazione vive in `core/tool_backlog.py`. Le A
 
 ## Automazioni grafiche: solo bozze
 
-Editor, posizioni, connessioni, configurazioni e salvataggio sono implementati. Restano da implementare: esecutore, mapping dei dati fra nodi, condizioni eseguibili, pianificazione e assegnazione agli agenti. Nessuna bozza viene attivata o eseguita dalla selezione nella UI.
+Editor, posizioni, connessioni, configurazioni e salvataggio sono implementati. L’editor elenca le bozze all’apertura, le duplica e le elimina (con controllo di versione), verifica il flusso mentre lo si disegna (`POST /tools/drafts/validate`, senza salvare), genera il modulo dei parametri dallo schema del contratto e mostra effetto e policy dei permessi del tool. La validazione segnala parametri obbligatori mancanti, parametri non previsti e tool senza contratto eseguibile. Restano da implementare: esecutore, mapping dei dati fra nodi, condizioni eseguibili, pianificazione e assegnazione agli agenti. Nessuna bozza viene attivata o eseguita dalla selezione nella UI.
 
 ## Chat e selezione manuale
 

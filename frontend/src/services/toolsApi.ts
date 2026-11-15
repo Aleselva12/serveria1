@@ -28,6 +28,7 @@ async function request(path: string, token = "", init: RequestInit = {}) {
       try { const body = await response.json(); if (typeof body.detail === "string") detail = body.detail; } catch { /* proxy error */ }
       throw new ApiError(detail, "http", response.status);
     }
+    if (response.status === 204) return null;
     if (!response.headers.get("content-type")?.includes("application/json"))
       throw new ApiError("Risposta tools non valida.", "invalid");
     return await response.json();
@@ -57,6 +58,24 @@ export const toolsApi = {
     const d = await request("/tools/drafts/" + encodeURIComponent(id), token);
     if (!flowValid(d) || d.id !== id || d.status !== "draft" || typeof d.title !== "string" || typeof d.description !== "string" || !Number.isInteger(d.version))
       throw new ApiError("Bozza non valida.", "invalid");
+    return d;
+  },
+  async validateDraft(draft: AutomationDraft): Promise<string[]> {
+    const d = await request("/tools/drafts/validate", "", {
+      method: "POST",
+      body: JSON.stringify({ title: draft.title, description: draft.description, nodes: draft.nodes, edges: draft.edges }),
+    });
+    if (!d || !Array.isArray(d.warnings) || !d.warnings.every((w: unknown) => typeof w === "string"))
+      throw new ApiError("Risposta di verifica non valida.", "invalid");
+    return d.warnings;
+  },
+  async deleteDraft(id: string, version: number): Promise<void> {
+    await request("/tools/drafts/" + encodeURIComponent(id) + "?version=" + version, "", { method: "DELETE" });
+  },
+  async duplicateDraft(id: string): Promise<AutomationDraft> {
+    const d = await request("/tools/drafts/" + encodeURIComponent(id) + "/duplicate", "", { method: "POST" });
+    if (!flowValid(d) || typeof d.id !== "string" || d.status !== "draft" || d.version !== 1 || typeof d.title !== "string" || typeof d.updated_at !== "string")
+      throw new ApiError("Risposta duplicazione non valida: ricarica le bozze.", "invalid");
     return d;
   },
   async saveDraft(draft: AutomationDraft, token = ""): Promise<AutomationDraft> {
