@@ -4,7 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 from core.access import require_owner
-from core.domain import mail, mail_web_auth
+from core.domain import mail, mail_summary_jobs, mail_web_auth
 from core.api.calendar_api import GoogleAuthFinish
 
 def mail_owner(request: Request, response: Response):
@@ -64,7 +64,13 @@ class Summary(BaseModel):
 
 @router.post("/summary")
 def summary(body: Summary):
-    return safe(mail.summarize, body.selection, body.scope)
+    """Queue a background summary; it may take a long time on the server's CPU."""
+    return safe(mail_summary_jobs.enqueue, body.selection, body.scope)
+
+
+@router.get("/summary/latest")
+def summary_latest():
+    return mail_summary_jobs.latest()
 
 
 @router.get("/automation-template")
