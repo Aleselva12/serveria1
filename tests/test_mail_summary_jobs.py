@@ -13,9 +13,11 @@ class MailSummaryJobsTest(unittest.TestCase):
         self.dir = patch.object(mail, "directory", return_value=Path(self.tmp.name))
         self.dir.start()
         jobs._PENDING = None
+        self.assertTrue(jobs._acquire_runner_lock())
 
     def tearDown(self):
         jobs._PENDING = None
+        jobs._release_runner_lock()
         self.dir.stop()
         self.tmp.cleanup()
 
@@ -48,6 +50,26 @@ class MailSummaryJobsTest(unittest.TestCase):
             jobs._write(jobs._nightly_path(), {"day": "2026-11-16"})
             self.assertFalse(jobs._nightly_due(datetime(2026, 11, 16, 9, 0, tzinfo=mail.ROME)))
             self.assertTrue(jobs._nightly_due(datetime(2026, 11, 17, 3, 5, tzinfo=mail.ROME)))
+
+    def test_nightly_not_started_by_daytime_restart(self):
+        with patch.dict("os.environ", {"CORA_MAIL_SUMMARY_TIME": "03:00", "CORA_MAIL_SUMMARY_WINDOW_HOURS": "4"}):
+            self.assertTrue(jobs._nightly_due(datetime(2026, 11, 16, 6, 59, tzinfo=mail.ROME)))
+            self.assertFalse(jobs._nightly_due(datetime(2026, 11, 16, 7, 0, tzinfo=mail.ROME)))
+            self.assertFalse(jobs._nightly_due(datetime(2026, 11, 16, 22, 46, tzinfo=mail.ROME)))
+
+    def test_second_process_cannot_run_or_recover_jobs(self):
+        jobs._write(jobs._latest_path(), {"status": "running", "selection": "all", "scope": "yesterday"})
+        held, jobs._RUNNER_LOCK = jobs._RUNNER_LOCK, None
+        try:
+            # Same lock file opened again behaves like the verification process in the container.
+            self.assertFalse(jobs._acquire_runner_lock())
+            jobs.start()
+            self.assertIsNone(jobs._THREAD if jobs._THREAD and jobs._THREAD.is_alive() else None)
+            self.assertEqual(jobs.latest()["job"]["status"], "running")
+            with self.assertRaises(ValueError):
+                jobs.enqueue("all", "inbox")
+        finally:
+            jobs._RUNNER_LOCK = held
 
     def test_interrupted_running_job_is_marked_failed(self):
         jobs._write(jobs._latest_path(), {"status": "running", "selection": "all", "scope": "inbox"})
