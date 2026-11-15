@@ -17,9 +17,12 @@ class HomeUpdaterBridgeTests(unittest.TestCase):
             self.assertEqual(updates.prepare_server()["status"], "queued")
         create.assert_called_once()
         commit.assert_called_once_with("workspace-1", "Prepare current main for deployment")
-        request.assert_called_once_with("POST", "/jobs", {
+        # The GitHub comparison is read first, so divergence is refused before any workspace exists.
+        self.assertEqual(request.call_args_list[0].args, ("GET", "/host/github"))
+        self.assertEqual(request.call_args_list[-1].args, ("POST", "/jobs", {
             "kind": "prepare", "workspace_id": "workspace-1", "commit": "a" * 40
-        })
+        }))
+        self.assertEqual(request.call_count, 2)
 
     def test_unconfigured_updater_never_creates_workspace(self):
         with patch.object(updates, "desktop", return_value=False), \

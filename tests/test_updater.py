@@ -306,6 +306,60 @@ class UpdaterTests(unittest.TestCase):
         self.assertEqual((self.engine.workspaces/created['id']/'files/app.py').read_text(),'value=2\n')
         self.assertEqual(self.engine.current()['commit'],self.base_commit)
 
+    def test_github_status_counts_ahead_behind_and_lists_unpublished_releases(self):
+        remote,branch=self.remote_fixture()
+        with patch.object(self.engine,'remote',return_value=str(remote)):
+            state=self.engine.github_status()
+            self.assertEqual((state['state'],state['ahead'],state['behind'],state['pending']),('aligned',0,0,[]))
+            ready=self.ready();ready['status']='applied';self.engine.save(ready)
+            atomic(self.engine.root/'current.json',{'commit':ready['commit']})
+            state=self.engine.github_status()
+            self.assertEqual((state['state'],state['ahead'],state['behind']),('ahead',1,0))
+            self.assertEqual([(p['release_id'],p['active'],p['published']) for p in state['pending']],[(ready['id'],True,None)])
+            row=self.engine.submit('publish',commit=ready['commit'],release_id=ready['id'])
+            self.engine.execute(self.engine.load(row['id']))
+            published=self.engine.github_status()['pending'][0]['published']
+            self.assertIn('/compare/',published['compare_url'])
+            # A squash-like commit on GitHub makes the histories diverge.
+            other=Path(self.temp.name)/'other';subprocess.run(['git','clone','-q',str(remote),str(other)],check=True)
+            (other/'app.py').write_text('value=3\n')
+            subprocess.run(['git','-c','user.name=T','-c','user.email=t@localhost','commit','-qam','Squash'],cwd=other,check=True)
+            subprocess.run(['git','push','-q','origin','HEAD:'+branch],cwd=other,check=True)
+            state=self.engine.github_status()
+            self.assertEqual((state['state'],state['ahead'],state['behind']),('diverged',1,1))
+            with self.assertRaisesRegex(ValueError,'divergono'):self.engine.fetch_source()
+            # Once the branch is merged, the server is simply behind and no longer pending.
+            subprocess.run(['git','-C',str(other),'fetch','-q','origin','refs/heads/cora/'+self.workspace['id']+':merged'],check=True)
+            subprocess.run(['git','-c','user.name=T','-c','user.email=t@localhost','merge','-q','--no-edit','-X','ours','merged'],cwd=other,check=True)
+            subprocess.run(['git','push','-q','origin','HEAD:'+branch],cwd=other,check=True)
+            state=self.engine.github_status()
+            self.assertEqual((state['state'],state['ahead'],state['pending']),('behind',0,[]))
+
+    def test_publish_refuses_credential_like_files(self):
+        remote,branch=self.remote_fixture()
+        (self.files/'api_token.txt').write_text('not for github\n')
+        commit=self.engine.commit_workspace(self.workspace['id'],'Leak')['commit']
+        row=self.engine.submit('prepare',self.workspace['id'],commit)
+        full=self.engine.load(row['id']);full['status']='ready';self.engine.save(full)
+        with patch.object(self.engine,'remote',return_value=str(remote)):
+            job=self.engine.submit('publish',commit=commit,release_id=row['id'])
+            self.engine.execute(self.engine.load(job['id']))
+        result=self.engine.load(job['id'])
+        self.assertEqual(result['status'],'failed');self.assertIn('api_token.txt',result['error'])
+        refs=subprocess.check_output(['git','--git-dir='+str(remote),'for-each-ref','refs/heads/cora/'],text=True)
+        self.assertEqual(refs,'')
+
+    def test_private_service_exposes_github_comparison(self):
+        server=ThreadingHTTPServer(('127.0.0.1',0),handler(self.engine,'private-token'))
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        try:
+            with patch.object(self.engine,'github_status',return_value={'configured':False}) as status, \
+                 httpx.Client(base_url='http://127.0.0.1:'+str(server.server_port),trust_env=False) as client:
+                self.assertEqual(client.get('/host/github').status_code,401)
+                response=client.get('/host/github',headers={'Authorization':'Bearer private-token'})
+                self.assertEqual(response.json(),{'configured':False});status.assert_called_once()
+        finally:server.shutdown();server.server_close();thread.join()
+
     def test_unverified_commit_cannot_be_published(self):
         self.engine.config['github_repository']='owner/project'
         commit=self.change();row=self.engine.submit('prepare',self.workspace['id'],commit)

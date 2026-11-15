@@ -65,6 +65,34 @@ def status():
     return state
 
 
+DIVERGED = ("La versione attiva sul server e GitHub divergono: invia le modifiche a GitHub, "
+            "unisci la pull request con un merge commit e poi aggiorna Cora.")
+
+
+def github_state(releases):
+    """GitHub comparison from the host updater; None when the updater predates it."""
+    try:
+        return releases.request("GET", "/host/github", timeout=90)
+    except ValueError as exc:
+        if str(exc) == "Operazione non disponibile.":
+            return None
+        raise
+
+
+@router.get("/server/github")
+def github_server():
+    if desktop():
+        raise HTTPException(409, "Questa operazione richiede Debian.")
+    from programmer_agent import releases
+    try:
+        state = github_state(releases)
+    except (ValueError, OSError):
+        return {"available": False, "reason": "Confronto con GitHub non riuscito: controlla la rete o la chiave SSH del server."}
+    if state is None:
+        return {"available": False, "reason": "L'updater host è di una versione precedente: il confronto con GitHub sarà disponibile dopo il prossimo aggiornamento."}
+    return {"available": True, **state}
+
+
 @router.post("/server/prepare", status_code=202)
 def prepare_server():
     if desktop():
@@ -74,6 +102,12 @@ def prepare_server():
         state = releases.status()
         if not state.get("available"):
             raise HTTPException(503, "Updater Debian non configurato. Segui updater/README.md.")
+        try:
+            github = github_state(releases)
+        except ValueError:
+            github = None  # fetch_source in the updater still refuses divergence
+        if github and github.get("state") == "diverged":
+            raise HTTPException(409, DIVERGED)
         workspace = releases.create("Aggiornamento Cora dal branch main")
         saved = releases.commit(workspace["id"], "Prepare current main for deployment")
         return releases.request("POST", "/jobs", {"kind": "prepare", "workspace_id": workspace["id"], "commit": saved["commit"]})
@@ -101,6 +135,24 @@ def apply_server(data: ApplyServerRequest):
         return releases.request("POST", "/jobs", {"kind": "apply", "release_id": data.release_id, "commit": data.expected_commit})
     except ValueError as exc:
         raise HTTPException(409, "Richiesta di aggiornamento non valida.") from exc
+    except OSError as exc:
+        raise HTTPException(503, "Updater Debian non raggiungibile. Controlla il servizio host.") from exc
+
+
+@router.post("/server/publish", status_code=202)
+def publish_server(data: ApplyServerRequest):
+    """Push a verified server release to its own GitHub branch (no force, never main)."""
+    if desktop():
+        raise HTTPException(409, "Questa operazione richiede Debian.")
+    from programmer_agent import releases
+    try:
+        release = releases.request("GET", "/jobs/" + data.release_id)
+        if (release.get("kind") != "prepare" or release.get("status") not in {"ready", "applied", "rolled_back"}
+                or release.get("commit") != data.expected_commit):
+            raise HTTPException(409, "Pubblica solo rilasci verificati con il commit atteso.")
+        return releases.request("POST", "/jobs", {"kind": "publish", "release_id": data.release_id, "commit": data.expected_commit})
+    except ValueError as exc:
+        raise HTTPException(409, "Pubblicazione non accettata: " + str(exc)[:200]) from exc
     except OSError as exc:
         raise HTTPException(503, "Updater Debian non raggiungibile. Controlla il servizio host.") from exc
 
