@@ -4,11 +4,12 @@ The summary can take tens of minutes on a CPU-only server, so it never runs insi
 HTTP request. The page queues a job and reads the latest result; a nightly run
 summarizes yesterday's mail for all accounts while nobody is using Cora.
 """
+import fcntl
 import json
 import os
 import tempfile
 import threading
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 
 from core.domain import mail
 
@@ -18,6 +19,7 @@ _WAKE = threading.Event()
 _STOP = threading.Event()
 _THREAD = None
 _PENDING = None
+_RUNNER_LOCK = None  # open file holding the cross-process runner lock
 
 
 def _directory():
@@ -30,6 +32,17 @@ def _latest_path():
 
 def _nightly_path():
     return _directory() / "nightly.json"
+
+
+def _runner_lock_path():
+    return _directory() / "runner.lock"
+
+
+def nightly_window_hours():
+    try:
+        return max(1, min(23, int(os.getenv("CORA_MAIL_SUMMARY_WINDOW_HOURS", "4"))))
+    except ValueError:
+        return 4
 
 
 def nightly_time():
@@ -78,6 +91,8 @@ def latest():
 def enqueue(selection, scope, trigger="manual"):
     """Queue one summary. A running or already queued job is never duplicated."""
     global _PENDING
+    if _RUNNER_LOCK is None:
+        raise ValueError("Riepilogo non disponibile: il servizio in background non è attivo in questo processo.")
     if selection != "all":
         mail.account_email(selection)
     with _LOCK:
@@ -126,8 +141,13 @@ def _notify(record):
 
 
 def _nightly_due(now_local):
+    """Due once per day, only inside the night window (default 03:00-07:00).
+
+    A restart during the day must not start a long CPU-bound summary while Cora is in use.
+    """
     hour, minute = nightly_time()
-    if (now_local.hour, now_local.minute) < (hour, minute):
+    start = now_local.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if not start <= now_local < start + timedelta(hours=nightly_window_hours()):
         return False
     done = _read(_nightly_path()) or {}
     return done.get("day") != now_local.date().isoformat()
@@ -166,9 +186,43 @@ def _recover_interrupted():
         _write(_latest_path(), current)
 
 
+def _acquire_runner_lock():
+    """Only one process per state directory runs jobs.
+
+    Post-update verification and tests can import the app inside the live container;
+    without this lock they would mark the real running job as interrupted or start a
+    second summary on the same Ollama.
+    """
+    global _RUNNER_LOCK
+    try:
+        _directory().mkdir(parents=True, exist_ok=True, mode=0o700)
+        handle = open(_runner_lock_path(), "a+")
+    except OSError:
+        return False
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        handle.close()
+        return False
+    _RUNNER_LOCK = handle
+    return True
+
+
+def _release_runner_lock():
+    global _RUNNER_LOCK
+    if _RUNNER_LOCK is not None:
+        try:
+            fcntl.flock(_RUNNER_LOCK, fcntl.LOCK_UN)
+        finally:
+            _RUNNER_LOCK.close()
+            _RUNNER_LOCK = None
+
+
 def start():
     global _THREAD
     if _THREAD and _THREAD.is_alive():
+        return
+    if _RUNNER_LOCK is None and not _acquire_runner_lock():
         return
     try:
         _recover_interrupted()
@@ -184,3 +238,5 @@ def stop():
     _WAKE.set()
     if _THREAD:
         _THREAD.join(timeout=2)
+    if not (_THREAD and _THREAD.is_alive()):
+        _release_runner_lock()
