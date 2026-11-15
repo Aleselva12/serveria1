@@ -36,6 +36,7 @@ def handler(engine, token, apps=None):
                     if parts==['host','components']:
                         from updater.components import inspect as components
                         return self.reply(200,components(engine))
+                    if parts==['host','github']: return self.reply(200,engine.github_status())
                     if parts==['managed-apps'] and apps is not None: return self.reply(200,apps.status())
                     if len(parts)==2 and parts[0]=='jobs': return self.reply(200,engine.public(engine.load(parts[1])))
                 elif self.command=='POST':

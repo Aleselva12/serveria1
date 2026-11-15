@@ -123,3 +123,60 @@ test('dedicated Updates page starts open and keeps old release un-installable', 
    assert.equal(Boolean(button(r,'Installa versione verificata')),false);
  }finally{if(r)await act(async()=>r.unmount());}
 });
+
+const serverFetch=(github,calls=[],jobs=[])=>async(path,init={})=>{
+ calls.push([path,init.method||'GET',init.body]);
+ if(path.endsWith('/server/github'))return {ok:true,json:async()=>github};
+ return {ok:true,json:async()=>({platform:'server',available:true,active_commit:'b'.repeat(40),jobs})};
+};
+
+test('update page shows two sections with active vs GitHub commit and distance',async()=>{
+ let r;
+ globalThis.__updateFetch=serverFetch({available:true,configured:true,branch:'main',active_commit:'b'.repeat(40),
+   github_commit:'c'.repeat(40),ahead:0,behind:3,state:'behind',pending:[]});
+ try{
+  await act(async()=>{r=create(React.createElement(Panel,{standalone:true}));});
+  const all=text(r.toJSON());
+  assert.match(all,/Aggiorna Cora/);assert.match(all,/Invia modifiche a GitHub/);
+  assert.match(all,/bbbbbbbbbbbb/);assert.match(all,/cccccccccccc/);
+  assert.match(all,/indietro di 3 commit/);
+  assert.match(all,/Nessuna modifica del server da inviare/);
+  assert.equal(button(r,'Prepara aggiornamento da GitHub').props.disabled,false);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('divergence blocks the update with a clear message',async()=>{
+ let r;
+ globalThis.__updateFetch=serverFetch({available:true,configured:true,github_commit:'c'.repeat(40),ahead:1,behind:2,state:'diverged',pending:[]});
+ try{
+  await act(async()=>{r=create(React.createElement(Panel,{standalone:true}));});
+  assert.match(text(r.toJSON()),/divergono/);
+  assert.match(text(r.toJSON()),/finché la pull request/);
+  assert.equal(button(r,'Prepara aggiornamento da GitHub').props.disabled,true);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('server commits are published only after confirmation and then offer the compare link',async()=>{
+ const oldWindow=globalThis.window;let r,calls=[],answer=false;
+ globalThis.window={confirm:()=>answer};
+ const item={release_id:'12345678-1234-1234-1234-123456789abc',workspace_id:'w1',commit:'d'.repeat(40),status:'applied',active:true,published:null};
+ let github={available:true,configured:true,github_commit:'c'.repeat(40),ahead:1,behind:0,state:'ahead',pending:[item]};
+ globalThis.__updateFetch=async(...args)=>serverFetch(github,calls)(...args);
+ try{
+  await act(async()=>{r=create(React.createElement(Panel,{standalone:true}));});
+  assert.match(text(r.toJSON()),/avanti di 1 commit/);
+  assert.equal(r.root.findAllByType('a').length,0);
+  await act(async()=>button(r,'Invia a GitHub').props.onClick());
+  assert.equal(calls.filter(c=>c[1]==='POST').length,0);
+  answer=true;
+  await act(async()=>button(r,'Invia a GitHub').props.onClick());
+  const post=calls.filter(c=>c[1]==='POST');
+  assert.equal(post.length,1);assert.equal(post[0][0],'/backend/api/v1/system/update/server/publish');
+  assert.deepEqual(JSON.parse(post[0][2]),{release_id:item.release_id,expected_commit:item.commit});
+  github={...github,pending:[{...item,published:{branch:'cora/w1',compare_url:'https://github.com/o/r/compare/main...cora%2Fw1?expand=1'}}]};
+  await act(async()=>button(r,'Controlla GitHub').props.onClick());
+  const link=r.root.findAllByType('a').find(a=>text(a).includes('Apri PR su GitHub'));
+  assert.equal(link.props.href,'https://github.com/o/r/compare/main...cora%2Fw1?expand=1');
+  assert.equal(link.props.rel,'noopener noreferrer');
+ }finally{globalThis.window=oldWindow;if(r)await act(async()=>r.unmount());}
+});

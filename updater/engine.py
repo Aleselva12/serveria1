@@ -129,7 +129,7 @@ class Engine:
     def save(self, row):
         row['updated_at'] = now(); atomic(self.path(row['id'])/'job.json', row)
     def public(self, row):
-        keys = ('id','workspace_id','kind','status','phase','commit','base_commit','created_at','updated_at','error','error_stage','error_detail','cleanup_error','checks','rollback','backup_valid','previous_commit','branch','compare_url','updater_handoff')
+        keys = ('id','workspace_id','kind','status','phase','commit','base_commit','created_at','updated_at','error','error_stage','error_detail','cleanup_error','checks','rollback','backup_valid','previous_commit','branch','compare_url','updater_handoff','release_id')
         return {key: row[key] for key in keys if key in row}
     def list_jobs(self):
         return sorted([self.public(json.loads(p.read_text())) for p in self.jobs.glob('*/job.json')], key=lambda r:r['created_at'], reverse=True)[:100]
@@ -172,21 +172,74 @@ class Engine:
             raise ValueError('Repository GitHub non configurata sul servizio host.')
         return 'git@github.com:'+repo+'.git'
 
-    def fetch_source(self):
-        base=self.current()['commit']
-        if not self.config.get('github_repository'):return base
+    def fetch_upstream(self):
         branch=self.config.get('github_branch','main')
         self.git('check-ref-format','refs/heads/'+branch)
         self.git('fetch','--no-tags',self.remote(),'+refs/heads/'+branch+':refs/remotes/github/base')
-        upstream=self.git('rev-parse','refs/remotes/github/base')
+        return self.git('rev-parse','refs/remotes/github/base')
+
+    def fetch_source(self):
+        base=self.current()['commit']
+        if not self.config.get('github_repository'):return base
+        upstream=self.fetch_upstream()
         common=self.git('merge-base',base,upstream)
         if common==base:return upstream
         if common==upstream:return base
         raise ValueError('GitHub e versione attiva divergono. Integra il branch Cora su GitHub prima di creare un nuovo workspace.')
 
+    def is_ancestor(self, older, newer):
+        try: self.git('merge-base','--is-ancestor',older,newer); return True
+        except CommandFailure as error:
+            if error.returncode==1: return False
+            raise
+
+    def github_status(self):
+        """Compare the active version with GitHub and list verified, unpublished releases."""
+        active=self.current()['commit']
+        result={'configured':bool(self.config.get('github_repository')),'active_commit':active,
+                'repository':self.config.get('github_repository',''),'branch':self.config.get('github_branch','main')}
+        if not result['configured']: return result
+        upstream=self.fetch_upstream()
+        behind,ahead=(int(x) for x in self.git('rev-list','--left-right','--count',upstream+'...'+active).split())
+        result.update(github_commit=upstream,ahead=ahead,behind=behind,
+                      state='aligned' if not ahead and not behind else 'ahead' if not behind else 'behind' if not ahead else 'diverged')
+        jobs=[self.load(entry['id']) for entry in self.list_jobs()]
+        published={}
+        for job in jobs:
+            if job['kind']=='publish' and job.get('compare_url'):
+                published.setdefault((job.get('release_id'),job['commit']),{'branch':job.get('branch'),'compare_url':job['compare_url'],'job_id':job['id']})
+        pending=[]
+        seen=set()
+        for job in jobs:
+            if job['kind']!='prepare' or job['status'] not in {'ready','applied','rolled_back'} or job['commit'] in seen: continue
+            try:
+                if self.is_ancestor(job['commit'],upstream): continue
+            except CommandFailure: continue
+            seen.add(job['commit'])
+            pending.append({'release_id':job['id'],'workspace_id':job['workspace_id'],'commit':job['commit'],'status':job['status'],
+                            'active':job['commit']==active,'created_at':job['created_at'],
+                            'published':published.get((job['id'],job['commit']))})
+            if len(pending)>=10: break
+        result['pending']=pending
+        return result
+
+    def publish_guard(self, commit):
+        """Refuse to push files that look like host configuration or credentials."""
+        upstream=self.fetch_upstream()
+        changed=self.git('diff','--name-only','--no-renames',self.git('merge-base',upstream,commit),commit).splitlines()
+        for name in changed:
+            source_name(name)
+            lower=Path(name).name.lower()
+            if lower.endswith('.example'): continue
+            if (lower in {'deploy.env','compose.json','bridge.token','images.json','current.json'}
+                    or any(word in lower for word in ('credential','secret','token'))
+                    or lower.endswith(('.pem','.key','.p12')) or lower.startswith(('id_rsa','id_ed25519'))):
+                raise ValueError('File riservato non pubblicabile su GitHub: '+name)
+
     def publish(self, row):
         self.phase(row,'publishing')
         branch='cora/'+row['workspace_id']
+        self.publish_guard(row['commit'])
         # No force push: concurrent changes on GitHub cause a failure, never data loss.
         self.git('push',self.remote(),row['commit']+':refs/heads/'+branch)
         remote=self.git('ls-remote',self.remote(),'refs/heads/'+branch).split()
