@@ -97,6 +97,9 @@ async def lifespan(app):
         cleanup.callback(runtime.shutdown)
         cleanup.callback(notification_worker.stop)
         notification_worker.start()
+        from core.domain import mail_summary_jobs
+        cleanup.callback(mail_summary_jobs.stop)
+        mail_summary_jobs.start()
         yield
 
 

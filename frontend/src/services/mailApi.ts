@@ -9,7 +9,7 @@ export async function mailRequest<T>(path: string, body?: unknown): Promise<T> {
     method: body === undefined ? "GET" : "POST",
     headers: { Accept: "application/json", ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
     body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(path === "/summary" ? 330000 : 45000),
+    signal: AbortSignal.timeout(45000),
   });
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Mail non disponibile");

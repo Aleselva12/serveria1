@@ -120,6 +120,24 @@ class MailTests(unittest.TestCase):
         self.assertEqual(result["summary"], "Summary")
         self.assertNotIn("tools", generate.call_args.args[2])
 
+    def test_summary_local_binding_uses_server_ollama_without_tools(self):
+        from core import agent_models
+        listing = {"messages": [{"id": "m", "subject": "Fattura"}], "errors": {}, "next": {}}
+        with patch.object(mail, "messages", return_value=listing), patch.object(agent_models, "binding", return_value={"machine_id": "local", "model": "qwen3:8b"}), patch.object(agent_models, "chat_on_worker") as worker, patch.object(mail, "_chat_on_local_ollama", return_value={"message": {"content": "Riepilogo"}, "done": True}) as local:
+            result = mail.summarize("all", "inbox")
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["summary"], "Riepilogo")
+        worker.assert_not_called()
+        self.assertEqual(local.call_args.args[0], "qwen3:8b")
+
+    def test_summary_local_ollama_failure_is_controlled(self):
+        from core import agent_models
+        listing = {"messages": [{"id": "m"}], "errors": {}, "next": {}}
+        with patch.object(mail, "messages", return_value=listing), patch.object(agent_models, "binding", return_value={"machine_id": "local", "model": "qwen3:8b"}), patch.object(mail, "_chat_on_local_ollama", side_effect=TimeoutError()):
+            result = mail.summarize("a", "inbox")
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIsNone(result["summary"])
+
     def test_template_is_inert(self):
         template = mail.automation_template("all")
         self.assertFalse(template["enabled"])

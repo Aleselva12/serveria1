@@ -14,7 +14,8 @@ globalThis.__mailRequest=async(path,body)=>{
  calls.push({path,body});
  if(path==="/accounts")return {accounts:[],webAuth:{available:false}};
  if(path.includes("/accounts/a/messages/"))return new Promise(r=>{resolveDetail=r;});
- if(path==="/summary")return {status:"unavailable",summary:null,notice:"Worker OFF",coverage:"20 messages"};
+ if(path==="/summary/latest")return {job:null,pending:null,nightly:{time:"03:00",timezone:"Europe/Rome"}};
+ if(path==="/summary")return {accepted:true,job:{status:"unavailable",selection:"all",scope:"inbox",trigger:"manual",summary:null,notice:"Worker OFF",coverage:"20 messages",finished_at:"2026-11-15T03:10:00Z"},pending:null,nightly:{time:"03:00",timezone:"Europe/Rome"}};
  return {messages:path.includes("selection=b")?[]:[message],errors:{},next:{}};
 };
 let source=await readFile(new URL("../src/components/Mail.tsx",import.meta.url),"utf8");
