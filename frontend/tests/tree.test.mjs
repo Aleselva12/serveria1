@@ -82,10 +82,15 @@ test('roadmap references current Home goals and shares orchestrator structural e
  const ordered=[...projectStatus.nextWork].sort((a,b)=>a.order-b.order);
  assert.equal(new Set(ordered.map(w=>w.id)).size,ordered.length);
  assert.deepEqual(ordered.map(w=>w.id),projectStatus.nextWork.map(w=>w.id));
- assert.equal(projectStatus.nextWork.find(w=>w.id==='W1').status,'COMPLETATO · 04/11/2026');
- assert.equal(projectStatus.nextWork.find(w=>w.id==='W2').status,'PROSSIMO LAVORO');
+ // Owner's sequence of 16/11/2026: exactly one current work item, W1 page reorganisation.
+ assert.deepEqual(ordered.filter(w=>w.status==='PROSSIMO LAVORO').map(w=>w.id),['W1']);
+ assert.equal(projectStatus.nextWork.find(w=>w.id==='W1').title,'Riordino pagine Attività, Menu e Impostazioni');
+ assert.match(projectStatus.goals.find(g=>g.id==='ARCH-ORCHESTRATOR').state,/COMPLETATO/);
+ const ui=readFileSync(new URL('../src/tree/TreeHome.tsx',import.meta.url),'utf8');
+ const targets=Object.fromEntries([...ui.match(/workTargets[^=]*=\{([^}]*)\}/)[1].matchAll(/(W\d+):"([^"]+)"/g)].map(m=>[m[1],m[2]]));
+ for(const w of ordered) assert.ok(nodes.some(n=>n.id===targets[w.id]),'Work item '+w.id+' must jump to an existing node');
  for(const id of ['T1','T2','T3','T4','T5','T6','T10','T11'])
-   assert.ok(checks[id]?.includes('orchestrator_v1_contract'),'Missing W1 structural evidence on '+id);
+   assert.ok(checks[id]?.includes('orchestrator_v1_contract'),'Missing orchestrator V1 structural evidence on '+id);
 });
 
 test('documented issues have one owner and star-level views can find descendant issues',()=>{

@@ -3165,7 +3165,7 @@
         "present": {
           "statement": "Editor, validazione ed esecuzione manuale con prova a vuoto e conferme; pianificazione da realizzare",
           "source": "architecture-v2",
-          "runtimeVerified": true
+          "runtimeVerified": false
         },
         "future": [
           "Pianificazione e avvio da eventi delle automazioni"
