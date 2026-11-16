@@ -45,7 +45,12 @@ globalThis.__toolsApi = {
   validateDraft: async () => validation(),
   duplicateDraft: async id => { duplicated = id; return {...stored,id:'copy',title:'Copia di '+stored.title,version:1,updated_at:'2026-10-03T20:00:00Z'}; },
   deleteDraft: async (id, version) => { deleted = {id,version}; stored = null; },
+  listRuns: async () => runHistory,
+  startRun: async (...args) => { started = args; return startResult(...args); },
+  getRun: async id => runById(id),
+  cancelRun: async id => ({...runById(id),status:'cancelled'}),
 };
+let runHistory = [], started, startResult = () => { throw Error('not configured'); }, runById = () => { throw Error('missing'); };
 globalThis.__Canvas = await compile('../src/components/ToolFlowCanvas.tsx');
 const Editor = await compile('../src/components/AutomationEditor.tsx', [
   ['import ToolFlowCanvas from "./ToolFlowCanvas";','const ToolFlowCanvas=globalThis.__Canvas;'],
@@ -81,7 +86,7 @@ test('direct interface APIs are separate and integration gaps remain actionable'
  assert.equal(sections[1].findAllByType('strong').filter(n=>n.children.includes('GET /auth/session')).length,1);
  assert.equal(sections[0].findAllByType('strong').filter(n=>n.children.includes('GET /auth/session')).length,0);
  assert.equal(sections[0].findAllByType('strong').filter(n=>n.children.includes('GET /api/v1/server/files/children')).length,1);
- assert.ok(JSON.stringify(r.toJSON()).includes('solo bozze'));
+ assert.ok(JSON.stringify(r.toJSON()).includes('eseguibili solo a mano'));
  await unmount(r);response=previous;
 });
 
@@ -164,7 +169,9 @@ test('catalog shows versioned execution contracts and conditional permissions wi
   const r=await mount(Tools);await choose(r,0);
   const text=JSON.stringify(r.toJSON());
   for(const value of ['Contratti eseguibili','supervisor.calculator','versione ','Solo nel ramo che lo richiede','nessun ritentativo automatico']) assert.ok(text.includes(value),value);
-  assert.equal(r.root.findAllByType('button').filter(b=>b.children.includes('Esegui')).length,0);
+  // The catalog viewer never runs a tool directly; only the automation editor has run buttons.
+  const viewer=r.root.findByProps({className:'tool-viewer'});
+  assert.equal(viewer.findAllByType('button').filter(b=>b.children.includes('Esegui')).length,0);
   await unmount(r);
 });
 
@@ -220,5 +227,76 @@ test('tool parameters render as a form from the contract schema and show permiss
   for(const value of ['EFFETTO E PERMESSI','Calcolo','Automatico','Bloccato','solo nel ramo che lo richiede','Espressione']) assert.ok(out.includes(value),value);
   await act(async()=>r.root.findByProps({'aria-label':'Tool del nodo'}).props.onChange({target:{value:'upload'}}));
   assert.ok(text(r).includes('Nessun contratto eseguibile'));
+  await unmount(r);
+});
+
+const savedFlow = () => ({id:'saved',version:4,updated_at:'2026-10-02T20:00:00Z',warnings:[],title:'Flusso',description:'',status:'draft',
+  nodes:[{id:'in',kind:'trigger',label:'Avvio',x:10,y:10,config:{}},
+         {id:'calc',kind:'tool',label:'Calcola',x:200,y:10,tool_id:'calculator',config:{value:'{{input.numero}}'}},
+         {id:'check',kind:'condition',label:'Grande?',x:400,y:10,config:{left:'{{calc.total}}',op:'gt',right:'10'}},
+         {id:'out',kind:'output',label:'Fine',x:600,y:10,config:{}}],
+  edges:[{id:'a',source:'in',target:'calc',label:'successo'},{id:'b',source:'calc',target:'check',label:'successo'},
+         {id:'c',source:'check',target:'out',label:'sì'},{id:'d',source:'check',target:'out',label:'no'}]});
+const runOf = (status, nodes={}) => ({id:'run1',draft_id:'saved',draft_version:4,title:'Flusso',mode:'dry_run',status,created_at:'2026-10-03T10:00:00Z',
+  started_at:null,finished_at:null,error:null,input:{numero:5},nodes:{in:{status:'done',kind:'trigger',label:'Avvio'},calc:{status:'pending',kind:'tool',label:'Calcola'},
+  check:{status:'pending',kind:'condition',label:'Grande?'},out:{status:'pending',kind:'output',label:'Fine'},...nodes}});
+
+test('a saved draft runs as dry run with launch inputs and shows node progress',async()=>{
+  stored=savedFlow();runHistory=[];validation=async()=>[];
+  let current=runOf('running');
+  startResult=()=>current;runById=()=>current;
+  const r=await mount(Editor,{entries:fixture.entries});
+  await act(async()=>r.root.findByProps({'aria-label':'Apri Flusso'}).props.onClick());
+  const dry=()=>r.root.findAllByType('button').find(b=>b.children.includes('Prova a vuoto'));
+  assert.equal(dry().props.disabled,false);
+  await act(async()=>r.root.findByProps({'aria-label':'Valore di avvio numero'}).props.onChange({target:{value:'5'}}));
+  await act(async()=>dry().props.onClick());
+  assert.deepEqual(started,['saved',4,'dry_run',{numero:5}]);
+  assert.ok(text(r).includes('In esecuzione'));
+  assert.equal(dry().props.disabled,true);
+  current=runOf('succeeded',{calc:{status:'done',kind:'tool',label:'Calcola',result:{total:42},input:{value:5},duration_ms:12},
+    check:{status:'done',kind:'condition',label:'Grande?',outcome:'sì'},out:{status:'done',kind:'output',label:'Fine'}});
+  await wait(1700);
+  assert.ok(text(r).includes('Completata'));
+  const step=r.root.findAll(n=>typeof n.props.className==='string'&&n.props.className.includes('flow-step')&&n.props.className.includes('run-done'));
+  assert.ok(step.length>=3);
+  await act(async()=>r.root.findByProps({'aria-label':'Passaggio: Calcola'}).props.onClick());
+  assert.ok(text(r).includes('ULTIMA ESECUZIONE'));
+  assert.ok(text(r).includes('42'));
+  await unmount(r);
+});
+
+test('run rejection lists problems and live run asks confirmation; unsaved drafts cannot run',async()=>{
+  stored=savedFlow();runHistory=[{...runOf('failed'),error:'Calcola: errore'}];
+  startResult=()=>{throw Object.assign(Error('Il flusso non può essere eseguito.'),{problems:['Manca il valore di avvio «numero».']});};
+  let asked='';globalThis.window.confirm=m=>{asked=m;return true;};
+  const r=await mount(Editor,{entries:fixture.entries});
+  const run=()=>r.root.findAllByType('button').find(b=>b.children.includes('Esegui'));
+  assert.equal(run().props.disabled,true);
+  await act(async()=>r.root.findByProps({'aria-label':'Apri Flusso'}).props.onClick());
+  assert.ok(text(r).includes('Esecuzioni precedenti'));
+  await act(async()=>run().props.onClick());
+  assert.ok(asked.includes('Eseguire davvero'));
+  assert.ok(text(r).includes('Manca il valore di avvio «numero».'));
+  await act(async()=>r.root.findByProps({'aria-label':'Descrizione automazione'}).props.onChange({target:{value:'cambiata'}}));
+  assert.equal(run().props.disabled,true);
+  globalThis.window.confirm=()=>true;
+  await unmount(r);
+});
+
+test('condition form and reference picker write references into the configuration',async()=>{
+  stored=savedFlow();runHistory=[];
+  const r=await mount(Editor,{entries:fixture.entries});
+  await act(async()=>r.root.findByProps({'aria-label':'Apri Flusso'}).props.onClick());
+  await act(async()=>r.root.findByProps({'aria-label':'Passaggio: Grande?'}).props.onClick());
+  await act(async()=>r.root.findByProps({'aria-label':'Condizione: confronto'}).props.onChange({target:{value:'empty'}}));
+  assert.deepEqual(JSON.parse(r.root.findByProps({'aria-label':'Configurazione nodo'}).props.value),{left:'{{calc.total}}',op:'empty'});
+  assert.equal(r.root.findAllByProps({'aria-label':'Condizione: termine'}).length,0);
+  const picker=r.root.findByProps({'aria-label':'Riferimento per il valore'});
+  const values=picker.findAllByType('option').map(o=>o.props.value);
+  assert.ok(values.includes('{{calc}}'));assert.ok(values.includes('{{input.numero}}'));
+  assert.ok(!values.includes('{{out}}'));
+  await act(async()=>picker.props.onChange({target:{value:'{{input.numero}}'}}));
+  assert.equal(JSON.parse(r.root.findByProps({'aria-label':'Configurazione nodo'}).props.value).left,'{{input.numero}}');
   await unmount(r);
 });

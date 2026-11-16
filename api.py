@@ -13,6 +13,7 @@ from core.api.architecture_api import architecture_graph
 from core.api.architecture_api import router as architecture_router
 from core.api.audio_api import router as audio_router
 from core.api.automation_api import router as automation_router
+from core.api.automation_api import runs_router as automation_runs_router
 from core.api.calendar_api import router as calendar_router
 from core.api.mail_api import router as mail_router
 from core.api.conversations_api import router as conversations_router
@@ -100,6 +101,9 @@ async def lifespan(app):
         from core.domain import mail_summary_jobs
         cleanup.callback(mail_summary_jobs.stop)
         mail_summary_jobs.start()
+        from core.domain import automation_runs
+        cleanup.callback(automation_runs.stop)
+        automation_runs.start()
         yield
 
 
@@ -130,6 +134,7 @@ app.include_router(mail_router)
 app.include_router(notifications_router)
 app.include_router(architecture_router)
 app.include_router(automation_router)
+app.include_router(automation_runs_router)
 app.include_router(programmer_router)
 # Formerly inline in this file; included here so the route order is unchanged.
 app.include_router(system_router)
