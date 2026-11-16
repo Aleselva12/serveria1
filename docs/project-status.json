@@ -1,6 +1,6 @@
 {
-  "updatedAt": "04/11/2026",
-  "basis": "Decisioni del proprietario, riscontro statico del codice e pipeline CI su main. W1 è chiuso come base architetturale/repository; il funzionamento della versione installata sul Debian resta monitorato separatamente dai controlli operativi.",
+  "updatedAt": "16/11/2026",
+  "basis": "Decisioni del proprietario, riscontro statico del codice e pipeline CI su main. Sequenza operativa ridefinita dal proprietario il 16/11/2026: riordino delle pagine, automazioni pianificate, monitor delle funzionalità. W1 Orchestratore base V1 resta completato (04/11/2026); Nextcloud AIO è già gestito dall'updater, Immich no.",
   "categories": [
     {
       "id": "M1",
@@ -212,8 +212,8 @@
       "id": "PROGRAMMER",
       "category": "M2",
       "label": "Programmatore: lavoro completo e verifiche",
-      "state": "LAVORO 3 · Dopo aggiornamenti",
-      "detail": "Riprendere l'agente programmatore dopo upgrade hardware e dopo lavoro 1 (orchestratore) e lavoro 2 (aggiornamenti Immich/Nextcloud). Esiste già una pagina Programma operativa: nuova pagina segnaposto separata per la futura tranche.",
+      "state": "Dopo upgrade hardware",
+      "detail": "Riprendere l'agente programmatore dopo l'upgrade hardware. Esiste già una pagina Programma operativa: nuova pagina segnaposto separata per la futura tranche.",
       "development": "In costruzione",
       "verification": [
         "Richiesta completa con tool, test e risposta finale",
@@ -232,7 +232,7 @@
       "id": "AUTO-QUALITY",
       "category": "M2",
       "label": "Monitor automatico e ripetuto delle funzionalità",
-      "state": "Prioritario: discussione prossima",
+      "state": "LAVORO 3 · Dopo automazioni pianificate",
       "detail": "Cicli periodici di controlli in backend approvati, indipendenti dalla Home. Mantenere catalogo e storico unici, ampliare i test isolati per ogni programma e collegare versione installata, errori e avvisi senza duplicare le esecuzioni.",
       "development": "In costruzione",
       "verification": [
@@ -255,6 +255,13 @@
       "observations": [
         "Confermati cicli di verifica periodici anche senza la Home aperta; utilità e approfondimenti da discutere."
       ]
+    },
+    {
+      "id": "UI-PAGES",
+      "category": "M3",
+      "label": "Riordino delle pagine Attività, Menu e Impostazioni",
+      "state": "LAVORO 1 · Prossimo",
+      "detail": "Le pagine Attività, Menu e Impostazioni risultano confuse, con pezzi mancanti e sezioni costruite male. Inventariare contenuti e funzioni, concordare una nuova struttura e riordinarle senza perdere funzioni."
     },
     {
       "id": "WORK-APPS",
@@ -444,37 +451,34 @@
     {
       "id": "W1",
       "order": 1,
-      "title": "Orchestratore: base V1",
-      "status": "COMPLETATO · 04/11/2026",
-      "category": "M1",
-      "description": "Prima base architetturale dell'orchestrazione completata e verificata in repository. Comprende routing supervisor/LangGraph, Capability Registry operativo, System Coordinator, bus/runtime/state, permessi, decisioni standard sugli errori, Larva v0, contratti di contesto e tracciabilità in Attività. Il Debian verifica periodicamente la struttura tramite orchestrator_v1_contract quando la versione è installata.",
+      "title": "Riordino pagine Attività, Menu e Impostazioni",
+      "status": "PROSSIMO LAVORO",
+      "category": "M3",
+      "description": "Fare l'inventario di sezioni e funzioni delle tre pagine (cosa c'è, cosa è duplicato, cosa manca), proporre al proprietario una nuova struttura e poi riorganizzarle perché siano più chiare e facili da gestire.",
       "notes": [
-        "Chiusura riferita alla base V1 architetturale e alla repository; i collaudi dei servizi reali restano nelle rispettive voci M2.",
-        "Il router specializzato resta in shadow mode e non controlla il routing reale.",
-        "Context Manager progressivo completo e Plan strutturato/persistente appartengono alla fase 2.",
-        "Scheduler multi-worker, failover e code persistenti appartengono alla fase 2.",
-        "Nessuna modifica automatica ai profili ON/OFF dei worker."
+        "Prima l'inventario e la proposta, discussa con il proprietario; nessuna modifica al codice prima dell'accordo sulla struttura.",
+        "Nessuna funzione esistente va persa nel riordino: ogni sezione attuale deve avere una collocazione."
       ]
     },
     {
       "id": "W2",
       "order": 2,
-      "title": "Aggiornamenti Immich e Nextcloud dalla Home",
-      "status": "PROSSIMO LAVORO",
-      "category": "M2",
-      "description": "Permettere verifica versioni e aggiornamenti di Immich e Nextcloud dall'interfaccia via gestore host protetto; con conferma, backup, controllo post-update e gestione errore.",
+      "title": "Automazioni pianificate",
+      "status": "Dopo W1",
+      "category": "M4",
+      "description": "Fase 3 di AUTO-EXEC: avvio pianificato e da eventi delle automazioni, con gli stessi permessi e conferme dell'esecuzione manuale.",
       "notes": [
-        "Aprire i servizi da link Browser URL già supportati.",
-        "L'updater attuale gestisce Cora e Magazzino Tele, NON gli aggiornamenti Immich/Nextcloud."
+        "L'esecuzione manuale è collaudata sul server dal 16/11/2026.",
+        "Annullare un'esecuzione deve poter ritirare anche la richiesta ancora aperta in Attività."
       ]
     },
     {
       "id": "W3",
       "order": 3,
-      "title": "Agente programmatore: ripresa del lavoro",
-      "status": "Dopo W2 e upgrade hardware",
+      "title": "Monitor automatico delle funzionalità",
+      "status": "Dopo W2",
       "category": "M2",
-      "description": "Riprendere test end-to-end dell'agente, tool e misurazioni con hardware migliorato. La vecchia pagina Programma rimane attiva; nuovo segnaposto per il lavoro futuro.",
+      "description": "AUTO-QUALITY: cicli periodici di controlli in backend con storico unico, test isolati per servizio e notifiche sulle transizioni OK → errore → ripristino.",
       "notes": []
     }
   ]

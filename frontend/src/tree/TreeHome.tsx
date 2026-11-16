@@ -22,7 +22,7 @@ import "./tree.css";
 type Relation = {from:string;to:string;kind:string;note:string;status?:string};
 type Source = {nodes:Node[];relations:Relation[];revision:string;nextWork:string[]};
 const source=planSource as Source;
-const workTargets:Record<string,string>={W1:"T1",W2:"R5.2",W3:"G1"};
+const workTargets:Record<string,string>={W1:"T12",W2:"T13",W3:"T11"};
 const nodes:Node[]=source.nodes;
 const byId=new Map(nodes.map(n=>[n.id,n]));
 const childIndex=new Map<string,Node[]>();
