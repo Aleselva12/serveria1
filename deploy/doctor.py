@@ -37,7 +37,7 @@ def inspect():
     try:
         from core.domain.server_files import roots
         directories=[(r['id'],Path(r['path']),r['writable']) for r in roots()]
-        for name in ('CORA_KNOWLEDGE_ROOT','CORA_AUDIO_ROOT','CORA_TRANSCRIPT_ROOT','CORA_STRUCTURE_WORKSPACE','CORA_AUTOMATION_ROOT','CORA_QUOTE_ROOT'):
+        for name in ('CORA_KNOWLEDGE_ROOT','CORA_AUDIO_ROOT','CORA_TRANSCRIPT_ROOT','CORA_STRUCTURE_WORKSPACE','CORA_AUTOMATION_ROOT','CORA_AUTOMATION_RUNS_ROOT','CORA_QUOTE_ROOT'):
             if os.getenv(name):directories.append((name,Path(os.environ[name]),True))
         paths=[{'id':name,'ok':path.is_dir() and os.access(path,os.R_OK|(os.W_OK if writable else 0))} for name,path,writable in directories]
         checks['storage']={'ok':all(p['ok'] for p in paths),'resources':paths}

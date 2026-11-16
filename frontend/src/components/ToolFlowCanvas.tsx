@@ -5,12 +5,16 @@ import type { FlowNode, ToolFlow } from "../types/contracts";
 
 const icons = { trigger: Play, condition: GitBranch, tool: Wrench, output: ArrowRight };
 const labels = { trigger: "Ingresso", condition: "Condizione", tool: "Operazione", output: "Uscita" };
-export default function ToolFlowCanvas({ flow, selected, onSelect, editable = false, onMove, onConnect, pending, onRemoveEdge }: {
+const runLabels: Record<string, string> = { pending: "In attesa", done: "Eseguito", skipped: "Saltato", simulated: "Simulato",
+  waiting_approval: "Da confermare", failed: "Errore", rejected: "Rifiutato", cancelled: "Annullato" };
+export default function ToolFlowCanvas({ flow, selected, onSelect, editable = false, onMove, onConnect, pending, onRemoveEdge, statuses }: {
   flow: ToolFlow; selected: string; onSelect: (id: string) => void; editable?: boolean;
   onMove?: (id: string, x: number, y: number) => void;
   onConnect?: (id: string, direction: "in" | "out", label?: string) => void;
   pending?: { source: string; label: string } | null;
   onRemoveEdge?: (id: string) => void;
+  /** Run state per node id, shown as a coloured border and a label. */
+  statuses?: Record<string, string>;
 }) {
   const [zoom, setZoom] = useState(1);
   const arrowId = useId().replaceAll(":", "");
@@ -51,12 +55,12 @@ export default function ToolFlowCanvas({ flow, selected, onSelect, editable = fa
           const span = Math.max(60, Math.abs(bx - ax) / 2);
           return <g key={e.id}><path d={`M ${ax} ${ay} C ${ax + span} ${ay} ${bx - span} ${by} ${bx} ${by}`} strokeDasharray={e.dashed ? "6 5" : undefined} markerEnd={`url(#${arrowId})`} /><text x={(ax + bx) / 2} y={(ay + by) / 2 - 10} textAnchor="middle">{e.label}</text></g>;
         })}</svg>
-      {flow.nodes.map(n => { const Icon = icons[n.kind]; return <div key={n.id} className={`flow-step ${n.kind} ${selected === n.id ? "selected" : ""}`} style={{ left: n.x, top: n.y }}>
+      {flow.nodes.map(n => { const Icon = icons[n.kind]; return <div key={n.id} className={`flow-step ${n.kind} ${selected === n.id ? "selected" : ""} ${statuses?.[n.id] ? "run-" + statuses[n.id] : ""}`} style={{ left: n.x, top: n.y }}>
         {n.kind !== "trigger" && <button className="flow-port input" aria-label={`Collega in ingresso: ${n.label}`} disabled={!editable} onClick={() => onConnect?.(n.id, "in")} />}
         <button className="flow-step-body" aria-pressed={selected === n.id} aria-label={`Passaggio: ${n.label}`} onClick={() => onSelect(n.id)} onPointerDown={e => start(e, n)} onPointerMove={move}
           onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }}
           onKeyDown={e => { const offsets: Record<string, [number, number]> = { ArrowLeft: [-20, 0], ArrowRight: [20, 0], ArrowUp: [0, -20], ArrowDown: [0, 20] }; const d = offsets[e.key]; if (editable && d) { e.preventDefault(); onMove?.(n.id, Math.min(10000, Math.max(0, n.x + d[0])), Math.min(10000, Math.max(0, n.y + d[1]))); } }}>
-          <span className="flow-step-icon"><Icon size={24} /></span><span><small>{labels[n.kind]}</small><strong>{n.label}</strong></span></button>
+          <span className="flow-step-icon"><Icon size={24} /></span><span><small>{labels[n.kind]}{statuses?.[n.id] && <em className="flow-run-state"> · {runLabels[statuses[n.id]] || statuses[n.id]}</em>}</small><strong>{n.label}</strong></span></button>
         {n.kind !== "output" && <button className="flow-port output" aria-label={`Collega in uscita: ${n.label}`} disabled={!editable} onClick={() => onConnect?.(n.id, "out", n.kind === "condition" ? "sì" : "successo")} />}
         {n.kind === "condition" && editable && <button className="flow-port output branch-no" aria-label={`Collega ramo no: ${n.label}`} onClick={() => onConnect?.(n.id, "out", "no")} />}
       </div>; })}

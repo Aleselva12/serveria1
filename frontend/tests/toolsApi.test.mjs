@@ -50,3 +50,13 @@ test('draft delete sends the seen version, accepts 204 and validate reads warnin
   globalThis.fetch=async()=>response({warnings:'no'});
   await assert.rejects(toolsApi.validateDraft(draft),e=>e.kind==='invalid');
 });
+
+test('run rejection keeps every problem and run responses are validated',async()=>{
+  globalThis.fetch=async()=>response({detail:{message:'Il flusso non può essere eseguito.',problems:['A: scegli un tool.','Manca «x».']}},422);
+  await assert.rejects(toolsApi.startRun('d',1,'dry_run',{}),e=>e.status===422&&e.problems.length===2&&e.message.includes('non può'));
+  globalThis.fetch=async(url,init)=>{assert.equal(url,'/backend/tools/drafts/d/runs');assert.deepEqual(JSON.parse(init.body),{version:1,mode:'live',input:{a:1}});
+    return response({id:'r',draft_id:'d',draft_version:1,mode:'live',status:'queued',created_at:'x',nodes:{n:{status:'pending',label:'N',kind:'trigger'}}},201);};
+  assert.equal((await toolsApi.startRun('d',1,'live',{a:1})).status,'queued');
+  globalThis.fetch=async()=>response({id:'r',draft_id:'d',draft_version:1,mode:'live',status:'exploded',created_at:'x',nodes:{}});
+  await assert.rejects(toolsApi.getRun('r'),e=>e.kind==='invalid');
+});

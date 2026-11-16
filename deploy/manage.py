@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ENV = ROOT / 'deploy.env'
 COMPOSE_FILES = ()
 DIRECTORIES = ('chat_attachments','knowledge','library_originals','audio/_transcripts','quotes','logs','models',
-               'chat-transcripts','structure_workspace','automation_drafts','gmail','files')
+               'chat-transcripts','structure_workspace','automation_drafts','automation_runs','gmail','files')
 
 
 def compose(*args, **kwargs):

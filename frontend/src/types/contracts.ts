@@ -33,6 +33,18 @@ export type AutomationDraft = ToolFlow & {
   updated_at?: string; status: "draft"; warnings?: string[];
 };
 export type DraftSummary = { id: string; title: string; version: number; updated_at: string; status: "draft" };
+export type RunStatus = "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "rejected" | "cancelled" | "interrupted";
+export type RunNodeState = {
+  status: "pending" | "done" | "skipped" | "simulated" | "waiting_approval" | "failed" | "rejected" | "cancelled";
+  kind: FlowNode["kind"]; label: string; started_at?: string; finished_at?: string; duration_ms?: number;
+  input?: unknown; result?: unknown; error?: string; note?: string; outcome?: string | null;
+  approval_id?: string | null; effect?: string;
+};
+export type RunSummary = {
+  id: string; draft_id: string; draft_version: number; title: string; mode: "dry_run" | "live"; status: RunStatus;
+  created_at: string; started_at: string | null; finished_at: string | null; error: string | null;
+};
+export type AutomationRun = RunSummary & { input: Record<string, unknown>; nodes: Record<string, RunNodeState> };
 export type ServiceStatus = {
   browserUrl?: string;
   id: string;

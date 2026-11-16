@@ -1,8 +1,11 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from core.access import owner_dependency
 from core.domain import automation_drafts as store
+from core.domain import automation_runs as runs
 from core.tool_inventory import inventory
 
 router = APIRouter(
@@ -10,6 +13,17 @@ router = APIRouter(
     tags=["Automation drafts"],
     dependencies=[Depends(owner_dependency("automation"))],
 )
+runs_router = APIRouter(
+    prefix="/tools/runs",
+    tags=["Automation runs"],
+    dependencies=[Depends(owner_dependency("automation"))],
+)
+
+
+class RunInput(BaseModel):
+    version: int = Field(ge=1)
+    mode: Literal["dry_run", "live"]
+    input: dict = Field(default_factory=dict)
 
 
 class DraftInput(BaseModel):
@@ -23,6 +37,8 @@ class DraftInput(BaseModel):
 def _run(fn):
     try:
         return fn()
+    except runs.RunRejected as error:
+        raise HTTPException(422, {"message": str(error), "problems": error.problems}) from error
     except store.VersionConflict as error:
         raise HTTPException(409, str(error)) from error
     except FileNotFoundError as error:
@@ -89,3 +105,27 @@ def delete_draft(draft_id: str, version: int = Query(ge=1)):
 def duplicate_draft(draft_id: str, request: Request):
     tool_ids, schemas = _catalog(request)
     return _run(lambda: store.duplicate_draft(draft_id, tool_ids=tool_ids, tool_schemas=schemas))
+
+
+@router.post("/{draft_id}/runs", status_code=201)
+def start_run(draft_id: str, body: RunInput, request: Request):
+    """Queue a manual run of the saved version the owner is looking at."""
+    if not runs.runner_active():
+        raise HTTPException(503, "Esecutore non attivo in questo processo.")
+    bindings = runs.bindings_from_inventory(inventory(request.app.routes)["entries"])
+    return _run(lambda: runs.create_run(draft_id, body.version, body.mode, body.input, bindings))
+
+
+@router.get("/{draft_id}/runs")
+def list_runs(draft_id: str):
+    return _run(lambda: (store.get_draft(draft_id), runs.list_runs(draft_id))[1])
+
+
+@runs_router.get("/{run_id}")
+def get_run(run_id: str):
+    return _run(lambda: runs.get_run(run_id))
+
+
+@runs_router.post("/{run_id}/cancel")
+def cancel_run(run_id: str):
+    return _run(lambda: runs.cancel_run(run_id))

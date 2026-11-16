@@ -1,13 +1,60 @@
 import { useEffect, useState } from "react";
-import { Plus, Save, RefreshCw, Copy, Trash2, FolderOpen, CheckCircle2 } from "lucide-react";
+import { Plus, Save, RefreshCw, Copy, Trash2, FolderOpen, CheckCircle2, Play, FlaskConical, Square } from "lucide-react";
 import ToolFlowCanvas from "./ToolFlowCanvas";
 import { toolsApi } from "../services/toolsApi";
-import type { AutomationDraft, DraftSummary, FlowNode, ToolEntry } from "../types/contracts";
+import type { AutomationDraft, AutomationRun, DraftSummary, FlowEdge, FlowNode, RunSummary, ToolEntry } from "../types/contracts";
 
 const uid = () => crypto.randomUUID();
 const kindLabels = { trigger: "Ingresso", tool: "Tool", condition: "Condizione", output: "Uscita" } as const;
 const effectLabels = { read: "Lettura", compute: "Calcolo", write: "Scrittura", delegate: "Delega" } as const;
 const policyLabels: Record<string, string> = { auto: "Automatico", confirm: "Richiede conferma", blocked: "Bloccato" };
+const runStatusLabels: Record<string, string> = { queued: "In coda", running: "In esecuzione", waiting_approval: "In attesa di conferma",
+  succeeded: "Completata", failed: "Non riuscita", rejected: "Rifiutata", cancelled: "Annullata", interrupted: "Interrotta" };
+const nodeStatusLabels: Record<string, string> = { pending: "Non ancora eseguito", done: "Eseguito", skipped: "Saltato: ramo non scelto",
+  simulated: "Simulato: non eseguito", waiting_approval: "In attesa di conferma in Attività", failed: "Errore", rejected: "Rifiutato", cancelled: "Annullato" };
+const operators: [string, string][] = [["eq", "è uguale a"], ["ne", "è diverso da"], ["gt", "è maggiore di"], ["gte", "è maggiore o uguale a"],
+  ["lt", "è minore di"], ["lte", "è minore o uguale a"], ["contains", "contiene"], ["not_contains", "non contiene"], ["empty", "è vuoto"], ["not_empty", "non è vuoto"]];
+const ACTIVE_RUN = ["queued", "running", "waiting_approval"];
+const REF = /\{\{\s*([A-Za-z0-9_\-]+(?:\.[A-Za-z0-9_\-]+)*)\s*\}\}/g;
+const isRef = (value: unknown) => typeof value === "string" && value.includes("{{");
+type RefOption = { value: string; label: string };
+
+function inputNames(nodes: FlowNode[]) {
+  const names: string[] = [];
+  for (const node of nodes) for (const match of JSON.stringify(node.config).matchAll(REF)) {
+    const [root, name] = match[1].split(".");
+    if (root === "input" && name && !names.includes(name)) names.push(name);
+  }
+  return names;
+}
+function ancestorsOf(id: string, edges: FlowEdge[]) {
+  const seen = new Set<string>(), stack = [id];
+  while (stack.length) { const current = stack.pop()!; for (const e of edges) if (e.target === current && !seen.has(e.source)) { seen.add(e.source); stack.push(e.source); } }
+  return seen;
+}
+/** Values a node may reference: launch inputs and the results of the steps before it. */
+function referenceOptions(node: FlowNode, draft: AutomationDraft, entries: ToolEntry[]): RefOption[] {
+  const options: RefOption[] = inputNames(draft.nodes).map(name => ({ value: `{{input.${name}}}`, label: `Valore di avvio: ${name}` }));
+  const before = ancestorsOf(node.id, draft.edges);
+  for (const other of draft.nodes) {
+    if (!before.has(other.id) || other.kind === "trigger" || other.kind === "output") continue;
+    if (other.kind === "condition") { options.push({ value: `{{${other.id}.outcome}}`, label: `${other.label} → esito (sì/no)` }); continue; }
+    options.push({ value: `{{${other.id}}}`, label: `${other.label} → risultato intero` });
+    const output = entries.find(e => e.id === other.tool_id)?.capabilities?.[0]?.output_schema as JsonSchema | undefined;
+    for (const name of Object.keys(output?.properties || {})) options.push({ value: `{{${other.id}.${name}}}`, label: `${other.label} → ${name}` });
+  }
+  return options;
+}
+function parseInput(value: string): unknown {
+  try { return JSON.parse(value); } catch { return value; }
+}
+function RefPicker({ options, onPick, label }: { options: RefOption[]; onPick: (value: string) => void; label: string }) {
+  return <select className="ref-picker" aria-label={label} value="" onChange={e => {
+    if (e.target.value === "__new") { const name = window.prompt("Nome del valore da chiedere all’avvio (lettere, numeri, _):")?.trim(); if (name && /^[A-Za-z0-9_-]+$/.test(name)) onPick(`{{input.${name}}}`); return; }
+    if (e.target.value) onPick(e.target.value);
+  }}><option value="">↳ usa un valore da…</option>{options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}<option value="__new">Nuovo valore di avvio…</option></select>;
+}
+const preview = (value: unknown) => { const text = JSON.stringify(value, null, 2) ?? "—"; return text.length > 4000 ? text.slice(0, 4000) + "\n…" : text; };
 
 function initialDraft(): AutomationDraft {
   const input = uid(), output = uid();
@@ -38,8 +85,8 @@ function fieldType(schema: JsonSchema) {
   const type = Array.isArray(schema.type) ? schema.type.find(t => t !== "null") : schema.type;
   return type === "string" || type === "integer" || type === "number" || type === "boolean" ? type : "complex";
 }
-function ParamForm({ schema, config, disabled, onChange }: {
-  schema: JsonSchema; config: Record<string, unknown>; disabled: boolean; onChange: (config: Record<string, unknown>) => void;
+function ParamForm({ schema, config, disabled, onChange, refs }: {
+  schema: JsonSchema; config: Record<string, unknown>; disabled: boolean; onChange: (config: Record<string, unknown>) => void; refs: RefOption[];
 }) {
   const properties = Object.entries(schema.properties || {});
   function set(name: string, value: unknown) {
@@ -55,7 +102,8 @@ function ParamForm({ schema, config, disabled, onChange }: {
       const label = <span>{field.title || name}{required && <b aria-label="obbligatorio"> *</b>}</span>;
       const aria = "Parametro " + name;
       let input;
-      if (type === "enum") input = <select aria-label={aria} value={value === undefined ? "" : String(value)}
+      if (isRef(value)) input = <input aria-label={aria} className="ref-value" value={value as string} onChange={e => set(name, e.target.value === "" ? undefined : e.target.value)} />;
+      else if (type === "enum") input = <select aria-label={aria} value={value === undefined ? "" : String(value)}
         onChange={e => set(name, e.target.value === "" ? undefined : field.enum!.find(o => String(o) === e.target.value))}>
         <option value="">— non impostato —</option>{field.enum!.map(o => <option key={String(o)} value={String(o)}>{String(o)}</option>)}</select>;
       else if (type === "boolean") input = <select aria-label={aria} value={value === undefined ? "" : String(value)}
@@ -67,7 +115,7 @@ function ParamForm({ schema, config, disabled, onChange }: {
       else if (type === "string") input = <input aria-label={aria} placeholder={placeholder} value={typeof value === "string" ? value : ""}
         onChange={e => set(name, e.target.value === "" ? undefined : e.target.value)} />;
       else input = <code className="param-complex">{value === undefined ? "Valore strutturato: impostalo nel JSON avanzato." : JSON.stringify(value)}</code>;
-      return <label key={name}>{label}{input}{field.description && <small>{field.description}</small>}</label>;
+      return <label key={name}>{label}{input}<RefPicker label={"Riferimento per " + name} options={refs} onPick={ref => set(name, ref)} />{field.description && <small>{field.description}</small>}</label>;
     })}
   </fieldset>;
 }
@@ -85,6 +133,27 @@ function ContractSummary({ entry }: { entry?: ToolEntry }) {
   </div>;
 }
 
+function ConditionForm({ config, disabled, onChange, refs }: {
+  config: Record<string, unknown>; disabled: boolean; onChange: (config: Record<string, unknown>) => void; refs: RefOption[];
+}) {
+  const op = typeof config.op === "string" ? config.op : "eq";
+  const unary = op === "empty" || op === "not_empty";
+  const text = (value: unknown) => value === undefined ? "" : typeof value === "string" ? value : JSON.stringify(value);
+  function set(fields: Record<string, unknown>) {
+    const next = { left: config.left ?? "", op, ...(unary ? {} : { right: config.right ?? "" }), ...fields };
+    if (next.op === "empty" || next.op === "not_empty") delete (next as Record<string, unknown>).right;
+    onChange(next);
+  }
+  return <fieldset className="param-form" disabled={disabled}><legend>Regola della condizione</legend>
+    <label>Valore da controllare<input aria-label="Condizione: valore" placeholder="es. {{…}}" value={text(config.left)} onChange={e => set({ left: e.target.value })} />
+      <RefPicker label="Riferimento per il valore" options={refs} onPick={ref => set({ left: ref })} /></label>
+    <label>Confronto<select aria-label="Condizione: confronto" value={op} onChange={e => set({ op: e.target.value })}>{operators.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+    {!unary && <label>Termine di confronto<input aria-label="Condizione: termine" value={text(config.right)} onChange={e => set({ right: e.target.value })} />
+      <RefPicker label="Riferimento per il termine" options={refs} onPick={ref => set({ right: ref })} /></label>}
+    <small>Se la regola è vera si segue il ramo «sì», altrimenti il ramo «no». I numeri scritti come testo vengono confrontati come numeri.</small>
+  </fieldset>;
+}
+
 export default function AutomationEditor({ entries }: { entries: ToolEntry[] }) {
   const [draft, setDraft] = useState<AutomationDraft>(initialDraft);
   const [selectedId, setSelectedId] = useState("");
@@ -100,12 +169,25 @@ export default function AutomationEditor({ entries }: { entries: ToolEntry[] }) 
   const [warnings, setWarnings] = useState<string[]>([]);
   const [structureError, setStructureError] = useState("");
   const [checkState, setCheckState] = useState<"idle" | "checking" | "done" | "offline">("idle");
+  const [run, setRun] = useState<AutomationRun | null>(null);
+  const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [runInputs, setRunInputs] = useState<Record<string, string>>({});
+  const [runError, setRunError] = useState("");
+  const [runProblems, setRunProblems] = useState<string[]>([]);
   const selected = draft.nodes.find(n => n.id === selectedId);
   const selectedEntry = entries.find(e => e.id === selected?.tool_id);
   const schema = selectedEntry?.capabilities?.[0]?.input_schema as JsonSchema | undefined;
   const hasForm = !!schema?.properties && Object.keys(schema.properties).length > 0;
   const available = entries.filter(e => e.kind !== "planned");
   const groups = [...new Set(available.map(e => e.group))];
+  const refs = selected ? referenceOptions(selected, draft, entries) : [];
+  const launchInputs = inputNames(draft.nodes);
+  const runnable = !!draft.id && !dirty && !structureError && !configError && !busy;
+  const runActive = !!run && ACTIVE_RUN.includes(run.status);
+  const shownRun = run && run.draft_id === draft.id ? run : null;
+  const statuses = shownRun ? Object.fromEntries(Object.entries(shownRun.nodes).map(([id, state]) => [id, state.status])) : undefined;
+  const selectedRunState = shownRun && selected ? shownRun.nodes[selected.id] : undefined;
+  const writers = draft.nodes.filter(n => n.kind === "tool" && ["write", "delegate"].includes(entries.find(e => e.id === n.tool_id)?.capabilities?.[0]?.effect || ""));
 
   // Server-side check while drawing: same rules as saving, nothing is stored.
   const graphKey = JSON.stringify([draft.title, draft.description, draft.nodes, draft.edges]);
@@ -125,6 +207,28 @@ export default function AutomationEditor({ entries }: { entries: ToolEntry[] }) 
   }, [graphKey, configError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { void refresh(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setRunProblems([]); setRunError("");
+    if (!draft.id) { setRuns([]); return; }
+    let cancelled = false;
+    toolsApi.listRuns(draft.id).then(rows => { if (!cancelled) setRuns(rows); }).catch(() => { if (!cancelled) setRuns([]); });
+    return () => { cancelled = true; };
+  }, [draft.id]);
+
+  // Follow an active run: quickly while it executes, slowly while it waits for a confirmation.
+  useEffect(() => {
+    if (!run || !ACTIVE_RUN.includes(run.status)) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      toolsApi.getRun(run.id).then(next => {
+        if (cancelled) return;
+        setRun(next);
+        if (!ACTIVE_RUN.includes(next.status)) setRuns(rows => rows.map(r => r.id === next.id ? { ...r, status: next.status, finished_at: next.finished_at, error: next.error } : r));
+      }).catch(e => { if (!cancelled) setRunError(errorText(e, "Stato dell’esecuzione non disponibile.")); });
+    }, run.status === "waiting_approval" ? 5000 : 1500);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [run]);
 
   function update(fn: (d: AutomationDraft) => AutomationDraft) { setDraft(d => fn(d)); setDirty(true); setNotice(""); }
   function select(id: string) {
@@ -170,7 +274,7 @@ export default function AutomationEditor({ entries }: { entries: ToolEntry[] }) 
       const saved = await toolsApi.saveDraft(draft);
       open(saved);
       setSummaries(rows => [{ id: saved.id!, title: saved.title, version: saved.version!, updated_at: saved.updated_at!, status: "draft" }, ...rows.filter(r => r.id !== saved.id)]);
-      setNotice("Bozza salvata sul server. Non è attiva e non esegue operazioni.");
+      setNotice("Bozza salvata sul server. Non parte da sola: puoi provarla a vuoto o eseguirla a mano.");
     } catch (e) { setError(errorText(e, "Salvataggio non riuscito.")); }
     finally { setBusy(false); }
   }
@@ -210,13 +314,39 @@ export default function AutomationEditor({ entries }: { entries: ToolEntry[] }) 
       if (statusOf(e) === 409 || statusOf(e) === 404) void refresh();
     } finally { setBusy(false); }
   }
+  async function startRun(mode: "dry_run" | "live") {
+    if (!runnable || runActive || !draft.id || !draft.version) return;
+    if (mode === "live" && !window.confirm(writers.length
+      ? `Eseguire davvero l’automazione? Questi passaggi modificano dati: ${writers.map(w => w.label).join(", ")}. Le azioni con conferma verranno chieste in Attività.`
+      : "Eseguire davvero l’automazione? Nessun passaggio dichiara modifiche ai dati.")) return;
+    setRunError(""); setRunProblems([]);
+    try {
+      const input = Object.fromEntries(launchInputs.map(name => [name, parseInput(runInputs[name] ?? "")]));
+      const started = await toolsApi.startRun(draft.id, draft.version, mode, input);
+      setRun(started);
+      setRuns(rows => [started, ...rows]);
+    } catch (e) {
+      setRunError(errorText(e, "Avvio non riuscito."));
+      setRunProblems((e as { problems?: string[] }).problems || []);
+    }
+  }
+  async function cancelRun() {
+    if (!run) return;
+    try { setRun(await toolsApi.cancelRun(run.id)); }
+    catch (e) { setRunError(errorText(e, "Annullamento non riuscito.")); }
+  }
+  async function showRun(id: string) {
+    setRunError("");
+    try { setRun(await toolsApi.getRun(id)); }
+    catch (e) { setRunError(errorText(e, "Esecuzione non disponibile.")); }
+  }
   function reset() {
     if (!confirmDiscard("Creare una nuova bozza?")) return;
     open(initialDraft()); setDirty(true); setError(""); setNotice("");
   }
 
-  return <section className="automation-editor"><div className="draft-heading"><div><span className="tools-badge planned">Bozza · non eseguibile</span>
-    <p>Costruisci i passaggi e i collegamenti. Il flusso viene verificato mentre lo disegni; salva la bozza per riprenderla. L’attivazione dei flussi verrà collegata successivamente.</p></div>
+  return <section className="automation-editor"><div className="draft-heading"><div><span className="tools-badge planned">Bozza · esecuzione manuale</span>
+    <p>Costruisci i passaggi e i collegamenti. Il flusso viene verificato mentre lo disegni; salvalo, provalo a vuoto ed eseguilo a mano. Avvio automatico e pianificazione arriveranno in seguito.</p></div>
     <button className="file-tool" onClick={reset} disabled={busy}>Nuova bozza</button></div>
 
     <section className="draft-library" aria-label="Bozze salvate"><div className="draft-library-head"><h3>Bozze salvate</h3>
@@ -245,7 +375,30 @@ export default function AutomationEditor({ entries }: { entries: ToolEntry[] }) 
       {checkState === "offline" && <small>Verifica automatica non disponibile; il controllo verrà ripetuto al salvataggio.</small>}
     </div>
 
-    <div className="tools-workspace"><ToolFlowCanvas flow={draft} selected={selectedId} onSelect={select} editable={!busy} pending={pending}
+    <section className="run-panel" aria-label="Esecuzione">
+      <div className="run-panel-head"><div><h3>Esecuzione manuale</h3>
+        <p>{runnable ? "La prova a vuoto esegue solo i passaggi che leggono o calcolano; quelli che modificano dati vengono mostrati senza eseguirli." : "Salva la bozza senza errori per poterla eseguire."}</p></div>
+        <div className="run-actions">
+          <button className="file-tool" disabled={!runnable || runActive} onClick={() => void startRun("dry_run")}><FlaskConical size={14} />Prova a vuoto</button>
+          <button className="upload-button" disabled={!runnable || runActive} onClick={() => void startRun("live")}><Play size={14} />Esegui</button>
+          {runActive && <button className="file-tool danger" onClick={() => void cancelRun()}><Square size={14} />Annulla</button>}
+        </div></div>
+      {launchInputs.length > 0 && <div className="run-inputs"><strong>Valori di avvio</strong>{launchInputs.map(name => <label key={name}>{name}
+        <input aria-label={"Valore di avvio " + name} value={runInputs[name] ?? ""} disabled={runActive} onChange={e => setRunInputs(v => ({ ...v, [name]: e.target.value }))} /></label>)}
+        <small>Numeri, true/false e JSON vengono interpretati; il resto resta testo.</small></div>}
+      {runError && <div className="connection-error" role="alert">{runError}{runProblems.length > 0 && <ul>{runProblems.map(p => <li key={p}>{p}</li>)}</ul>}</div>}
+      {shownRun && <div className={"run-status run-" + shownRun.status} role="status">
+        <strong>{shownRun.mode === "dry_run" ? "Prova a vuoto" : "Esecuzione"} · {runStatusLabels[shownRun.status]}</strong>
+        {shownRun.status === "waiting_approval" && <span> Un passaggio attende la tua conferma nella pagina Attività; l’esecuzione riprende da sola.</span>}
+        {shownRun.error && <span> {shownRun.error}</span>}
+        {shownRun.draft_version !== draft.version && <span> Riguarda la versione {shownRun.draft_version} della bozza.</span>}
+      </div>}
+      {runs.length > 0 && <details className="run-history"><summary>Esecuzioni precedenti ({runs.length})</summary><ul>{runs.map(r => <li key={r.id} className={r.id === run?.id ? "current" : undefined}>
+        <span>{formatDate(r.created_at)} · {r.mode === "dry_run" ? "prova" : "reale"} · v{r.draft_version}</span><em className={"run-" + r.status}>{runStatusLabels[r.status]}</em>
+        <button className="text-button" aria-label={"Mostra esecuzione " + formatDate(r.created_at)} onClick={() => void showRun(r.id)}>Mostra</button></li>)}</ul></details>}
+    </section>
+
+    <div className="tools-workspace"><ToolFlowCanvas flow={draft} selected={selectedId} onSelect={select} editable={!busy} pending={pending} statuses={statuses}
       onMove={(id, x, y) => update(d => ({ ...d, nodes: d.nodes.map(n => n.id === id ? { ...n, x, y } : n) }))}
       onConnect={connect} onRemoveEdge={id => update(d => ({ ...d, edges: d.edges.filter(e => e.id !== id) }))} />
       <aside className="tools-detail"><div className="eyebrow">CONFIGURA IL PASSAGGIO</div>{selected ? <><label>Nome nodo<input aria-label="Nome nodo" maxLength={160} disabled={busy} value={selected.label} onChange={e => updateNode({ label: e.target.value })} /></label>
@@ -253,12 +406,19 @@ export default function AutomationEditor({ entries }: { entries: ToolEntry[] }) 
           <option value="">Scegli un tool…</option>{groups.map(g => <optgroup key={g} label={g}>{available.filter(e => e.group === g).map(e => <option key={e.id} value={e.id}>{e.name}{e.capabilities?.length ? "" : " · senza contratto"}</option>)}</optgroup>)}</select></label>
           {selectedEntry && <p>{selectedEntry.description}</p>}
           <ContractSummary entry={selectedEntry} />
-          {hasForm && <ParamForm schema={schema!} config={selected.config} disabled={busy || !!configError} onChange={setConfig} />}
+          {hasForm && <ParamForm schema={schema!} config={selected.config} disabled={busy || !!configError} onChange={setConfig} refs={refs} />}
           {selectedEntry && !hasForm && <small>Parametri: {selectedEntry.parameters.join(", ") || "nessuno dichiarato"}</small>}</>}
-        <details className="draft-advanced" open={!hasForm || !!configError}><summary>{selected.kind === "condition" ? "Regola della condizione (JSON)" : hasForm ? "Configurazione avanzata (JSON)" : "Configurazione del passaggio (JSON)"}</summary>
+        {selected.kind === "condition" && <ConditionForm config={selected.config} disabled={busy || !!configError} onChange={setConfig} refs={refs} />}
+        <details className="draft-advanced" open={(!hasForm && selected.kind !== "condition") || !!configError}><summary>{hasForm || selected.kind === "condition" ? "Configurazione avanzata (JSON)" : "Configurazione del passaggio (JSON)"}</summary>
           <textarea aria-label="Configurazione nodo" rows={8} disabled={busy} value={configText} onChange={e => configure(e.target.value)} /></details>
         {configError && <p role="alert" className="draft-config-error">JSON non valido: {configError}. Correggilo prima di cambiare passaggio o salvare.</p>}
-        <p>{selected.kind === "condition" ? "Usa le due porte di uscita per i rami sì e no. La regola verrà interpretata quando sarà implementato l’esecutore." : "Questa configurazione viene conservata nella bozza; non viene eseguita."}</p>
+        <p>{selected.kind === "condition" ? "Usa le due porte di uscita per i rami sì e no." : "I valori fra {{ }} vengono sostituiti al momento dell’esecuzione con i dati indicati."}</p>
+        {selectedRunState && <div className={"node-run run-" + selectedRunState.status}><div className="eyebrow">ULTIMA ESECUZIONE</div>
+          <p><strong>{nodeStatusLabels[selectedRunState.status] || selectedRunState.status}</strong>{selectedRunState.duration_ms !== undefined && ` · ${Math.round(selectedRunState.duration_ms)} ms`}{selectedRunState.outcome && ` · ramo «${selectedRunState.outcome}»`}</p>
+          {selectedRunState.note && <p>{selectedRunState.note}</p>}{selectedRunState.error && <p className="draft-config-error">{selectedRunState.error}</p>}
+          {selectedRunState.input !== undefined && <details><summary>Dati in ingresso</summary><pre>{preview(selectedRunState.input)}</pre></details>}
+          {selectedRunState.result !== undefined && <details open><summary>Risultato</summary><pre>{preview(selectedRunState.result)}</pre></details>}
+        </div>}
         <button className="text-button" disabled={busy} onClick={() => { update(d => ({ ...d, nodes: d.nodes.filter(n => n.id !== selectedId), edges: d.edges.filter(e => e.source !== selectedId && e.target !== selectedId) })); setSelectedId(""); setConfigError(""); setPending(null); }}>Rimuovi passaggio</button>
       </> : <p>Seleziona un nodo nel flusso per configurarlo.</p>}</aside></div>
   </section>;

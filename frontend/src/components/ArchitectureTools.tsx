@@ -85,7 +85,7 @@ export default function ArchitectureTools() {
         <details className="tool-source-details"><summary>Operazioni chiamate e controlli interni</summary><div><h4>Operazioni nel codice</h4>{definition.operations.length ? <ul>{definition.operations.map(c => <li key={c}>{c}</li>)}</ul> : <p>Nessuna chiamata diretta rilevata.</p>}
           <h4>Controlli espliciti</h4><ul>{[...definition.checks, ...definition.conditions].map((c, i) => <li key={i}>{c}</li>)}</ul></div></details></>}
     </div>
-    <p className="panel-note">Automazioni grafiche: solo bozze. Salvataggio e modifica sono disponibili; esecuzione, pianificazione e collegamento agli agenti sono da implementare.</p>
+    <p className="panel-note">Automazioni grafiche: bozze eseguibili solo a mano, con gli stessi permessi e conferme degli agenti. Avvio automatico, pianificazione e collegamento agli agenti sono da implementare.</p>
     <div hidden={mode !== "draft"}><AutomationEditor entries={entries} /></div>
     {error && <div className="connection-error" role="alert">{error}</div>}
     {data?.errors.length ? <div className="connection-error" role="alert">Inventario parziale: {data.errors.join("; ")}</div> : null}

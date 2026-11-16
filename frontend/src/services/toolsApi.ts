@@ -1,7 +1,21 @@
 import { contractsValid } from "./capabilityContracts";
 import { authenticatedFetch } from "./transport";
 import { apiBaseUrl, ApiError } from "./api";
-import type { AutomationDraft, DraftSummary, ToolDefinition, ToolFlow } from "../types/contracts";
+import type { AutomationDraft, AutomationRun, DraftSummary, RunSummary, ToolDefinition, ToolFlow } from "../types/contracts";
+
+/** A run the server refused to start, with every reason for the owner. */
+export class RunRejectedError extends ApiError {
+  constructor(message: string, public readonly problems: string[]) { super(message, "http", 422); }
+}
+const runStatuses = ["queued", "running", "waiting_approval", "succeeded", "failed", "rejected", "cancelled", "interrupted"];
+function runSummaryValid(r: RunSummary) {
+  return r && typeof r.id === "string" && typeof r.draft_id === "string" && Number.isInteger(r.draft_version) &&
+    (r.mode === "dry_run" || r.mode === "live") && runStatuses.includes(r.status) && typeof r.created_at === "string";
+}
+function runValid(r: AutomationRun) {
+  return runSummaryValid(r) && r.nodes && typeof r.nodes === "object" &&
+    Object.values(r.nodes).every(n => n && typeof n.status === "string" && typeof n.label === "string");
+}
 
 const kinds = ["trigger", "tool", "condition", "output"];
 function flowValid(data: ToolFlow) {
@@ -25,7 +39,15 @@ async function request(path: string, token = "", init: RequestInit = {}) {
       let detail = response.status === 401 || response.status === 403
         ? "Accesso alle bozze negato. Inserisci il token proprietario configurato in CORA_FILES_TOKEN."
         : "Operazione non riuscita (HTTP " + response.status + ").";
-      try { const body = await response.json(); if (typeof body.detail === "string") detail = body.detail; } catch { /* proxy error */ }
+      let problems: string[] | null = null;
+      try {
+        const body = await response.json();
+        if (typeof body.detail === "string") detail = body.detail;
+        else if (body.detail && typeof body.detail.message === "string" && Array.isArray(body.detail.problems)) {
+          detail = body.detail.message; problems = body.detail.problems.filter((p: unknown) => typeof p === "string");
+        }
+      } catch { /* proxy error */ }
+      if (problems) throw new RunRejectedError(detail, problems);
       throw new ApiError(detail, "http", response.status);
     }
     if (response.status === 204) return null;
@@ -76,6 +98,26 @@ export const toolsApi = {
     const d = await request("/tools/drafts/" + encodeURIComponent(id) + "/duplicate", "", { method: "POST" });
     if (!flowValid(d) || typeof d.id !== "string" || d.status !== "draft" || d.version !== 1 || typeof d.title !== "string" || typeof d.updated_at !== "string")
       throw new ApiError("Risposta duplicazione non valida: ricarica le bozze.", "invalid");
+    return d;
+  },
+  async startRun(draftId: string, version: number, mode: "dry_run" | "live", input: Record<string, unknown>): Promise<AutomationRun> {
+    const d = await request("/tools/drafts/" + encodeURIComponent(draftId) + "/runs", "", { method: "POST", body: JSON.stringify({ version, mode, input }) });
+    if (!runValid(d)) throw new ApiError("Risposta di avvio non valida: controlla le esecuzioni prima di ritentare.", "invalid");
+    return d;
+  },
+  async listRuns(draftId: string): Promise<RunSummary[]> {
+    const d = await request("/tools/drafts/" + encodeURIComponent(draftId) + "/runs");
+    if (!Array.isArray(d) || !d.every(runSummaryValid)) throw new ApiError("Elenco esecuzioni non valido.", "invalid");
+    return d;
+  },
+  async getRun(runId: string): Promise<AutomationRun> {
+    const d = await request("/tools/runs/" + encodeURIComponent(runId));
+    if (!runValid(d) || d.id !== runId) throw new ApiError("Esecuzione non valida.", "invalid");
+    return d;
+  },
+  async cancelRun(runId: string): Promise<AutomationRun> {
+    const d = await request("/tools/runs/" + encodeURIComponent(runId) + "/cancel", "", { method: "POST" });
+    if (!runValid(d)) throw new ApiError("Risposta di annullamento non valida.", "invalid");
     return d;
   },
   async saveDraft(draft: AutomationDraft, token = ""): Promise<AutomationDraft> {
