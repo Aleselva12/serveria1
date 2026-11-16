@@ -303,8 +303,8 @@
       "id": "AUTO-EXEC",
       "category": "M4",
       "label": "Eseguire e pianificare le automazioni grafiche",
-      "state": "Da implementare",
-      "detail": "Editor e validazione delle bozze sono presenti. Mancano esecutore, pianificazione, annullamento e gestione controllata degli effetti."
+      "state": "Esecuzione manuale implementata; pianificazione pendente",
+      "detail": "Editor, validazione ed esecuzione manuale sono attivi: prova a vuoto senza effetti, tool di scrittura con le stesse conferme degli agenti in Attività, ripresa dopo approvazione, chiusura su rifiuto e annullamento. Collaudo sul server del 16 novembre 2026. Mancano pianificazione, avvio da eventi e annullamento che ritiri anche la richiesta in Attività."
     },
     {
       "id": "CONTEXT-REGISTRY",
