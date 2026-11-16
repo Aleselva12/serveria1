@@ -34,13 +34,17 @@ const definition = id => ({
     {id:'output',kind:'output',label:'Risultato '+id,x:610,y:120,config:{},detail:'output'},
   ], edges: [{id:'e',source:'input',target:'operation',label:'input'}] },
 });
-let response = async () => fixture, detail = async id => definition(id), saved, stored;
+let response = async () => fixture, detail = async id => definition(id), saved, stored, duplicated, deleted;
+let validation = async () => [];
 globalThis.__inventoryApi = { toolInventory: () => response() };
 globalThis.__toolsApi = {
   definition: id => detail(id),
   saveDraft: async (draft, token) => { saved = {draft,token}; stored = {...draft,id:'saved',version:1,updated_at:'2026-10-02T20:00:00Z',warnings:[]}; return stored; },
   listDrafts: async () => stored ? [{id:stored.id,title:stored.title,version:stored.version,updated_at:stored.updated_at,status:'draft'}] : [],
   loadDraft: async () => stored,
+  validateDraft: async () => validation(),
+  duplicateDraft: async id => { duplicated = id; return {...stored,id:'copy',title:'Copia di '+stored.title,version:1,updated_at:'2026-10-03T20:00:00Z'}; },
+  deleteDraft: async (id, version) => { deleted = {id,version}; stored = null; },
 };
 globalThis.__Canvas = await compile('../src/components/ToolFlowCanvas.tsx');
 const Editor = await compile('../src/components/AutomationEditor.tsx', [
@@ -161,5 +165,60 @@ test('catalog shows versioned execution contracts and conditional permissions wi
   const text=JSON.stringify(r.toJSON());
   for(const value of ['Contratti eseguibili','supervisor.calculator','versione ','Solo nel ramo che lo richiede','nessun ritentativo automatico']) assert.ok(text.includes(value),value);
   assert.equal(r.root.findAllByType('button').filter(b=>b.children.includes('Esegui')).length,0);
+  await unmount(r);
+});
+
+const wait = ms => act(async()=>{await new Promise(r=>setTimeout(r,ms));});
+const text = r => JSON.stringify(r.toJSON());
+test('saved drafts load on open and can be duplicated and deleted',async()=>{
+  stored={...fixtureDraft(),id:'saved',version:2,updated_at:'2026-10-02T20:00:00Z',warnings:[]};
+  const r=await mount(Editor,{entries:fixture.entries});
+  assert.ok(text(r).includes('Bozza esistente'));
+  await act(async()=>r.root.findByProps({'aria-label':'Duplica Bozza esistente'}).props.onClick());
+  assert.equal(duplicated,'saved');
+  assert.ok(text(r).includes('Copia di Bozza esistente'));
+  await act(async()=>r.root.findByProps({'aria-label':'Apri Bozza esistente'}).props.onClick());
+  assert.equal(r.root.findByProps({'aria-label':'Nome automazione'}).props.value,'Bozza esistente');
+  await act(async()=>r.root.findByProps({'aria-label':'Elimina Bozza esistente'}).props.onClick());
+  assert.deepEqual(deleted,{id:'saved',version:2});
+  assert.equal(r.root.findAllByProps({'aria-label':'Apri Bozza esistente'}).length,0);
+  assert.ok(text(r).includes('resta nell’editor come nuova bozza'));
+  await unmount(r);
+});
+function fixtureDraft(){return {title:'Bozza esistente',description:'',status:'draft',nodes:[{id:'in',kind:'trigger',label:'Avvio',x:10,y:10,config:{}}],edges:[]};}
+
+test('live validation shows warnings, structure errors and blocks saving on errors',async()=>{
+  stored=null;validation=async()=>['Risultato: non raggiungibile da un ingresso.'];
+  const r=await mount(Editor,{entries:fixture.entries});await wait(700);
+  assert.ok(text(r).includes('non raggiungibile'));
+  validation=async()=>{throw Object.assign(Error('I cicli non sono supportati.'),{status:400});};
+  await act(async()=>r.root.findByProps({'aria-label':'Descrizione automazione'}).props.onChange({target:{value:'x'}}));await wait(700);
+  assert.ok(text(r).includes('Struttura non valida'));
+  assert.equal(r.root.findAllByType('button').find(b=>b.children.includes('Salva bozza')).props.disabled,true);
+  validation=async()=>[];
+  await act(async()=>r.root.findByProps({'aria-label':'Descrizione automazione'}).props.onChange({target:{value:'xy'}}));await wait(700);
+  assert.ok(text(r).includes('Flusso completo'));
+  await unmount(r);
+});
+
+test('tool parameters render as a form from the contract schema and show permissions',async()=>{
+  const entries=structuredClone(fixture.entries);
+  entries[0].capabilities[0].input_schema={type:'object',required:['expression'],properties:{
+    expression:{type:'string',title:'Espressione',description:'Formula da calcolare'},
+    precision:{anyOf:[{type:'integer'},{type:'null'}],default:2},
+    mode:{enum:['fast','exact']},strict:{type:'boolean'}}};
+  const r=await mount(Editor,{entries});await click(r,'Tool');
+  await act(async()=>r.root.findByProps({'aria-label':'Tool del nodo'}).props.onChange({target:{value:'calculator'}}));
+  await act(async()=>r.root.findByProps({'aria-label':'Parametro expression'}).props.onChange({target:{value:'2+2'}}));
+  await act(async()=>r.root.findByProps({'aria-label':'Parametro precision'}).props.onChange({target:{value:'3'}}));
+  await act(async()=>r.root.findByProps({'aria-label':'Parametro mode'}).props.onChange({target:{value:'exact'}}));
+  await act(async()=>r.root.findByProps({'aria-label':'Parametro strict'}).props.onChange({target:{value:'false'}}));
+  assert.deepEqual(JSON.parse(r.root.findByProps({'aria-label':'Configurazione nodo'}).props.value),{expression:'2+2',precision:3,mode:'exact',strict:false});
+  await act(async()=>r.root.findByProps({'aria-label':'Parametro expression'}).props.onChange({target:{value:''}}));
+  assert.deepEqual(JSON.parse(r.root.findByProps({'aria-label':'Configurazione nodo'}).props.value),{precision:3,mode:'exact',strict:false});
+  const out=text(r);
+  for(const value of ['EFFETTO E PERMESSI','Calcolo','Automatico','Bloccato','solo nel ramo che lo richiede','Espressione']) assert.ok(out.includes(value),value);
+  await act(async()=>r.root.findByProps({'aria-label':'Tool del nodo'}).props.onChange({target:{value:'upload'}}));
+  assert.ok(text(r).includes('Nessun contratto eseguibile'));
   await unmount(r);
 });

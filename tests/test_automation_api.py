@@ -52,6 +52,26 @@ class DraftApiTests(unittest.TestCase):
         body = {**self.body, "nodes": [dict(id="tool", kind="tool", label="Missing", x=50, y=50, config={}, tool_id="absent")]}
         self.assertEqual(self.client.post("/tools/drafts", json=body, headers=self.headers).status_code, 400)
 
+    def test_validate_delete_and_duplicate_routes(self):
+        checked = self.client.post("/tools/drafts/validate", json=self.body, headers=self.headers)
+        self.assertEqual(checked.status_code, 200)
+        self.assertIn("Aggiungi un’uscita al flusso.", checked.json()["warnings"])
+        self.assertEqual(self.client.get("/tools/drafts", headers=self.headers).json(), [])
+        broken = {**self.body, "edges": [dict(id="e", source="start", target="start", label="x")]}
+        self.assertEqual(self.client.post("/tools/drafts/validate", json=broken, headers=self.headers).status_code, 400)
+        self.assertEqual(self.client.post("/tools/drafts/validate", json=self.body).status_code, 401)
+        created = self.client.post("/tools/drafts", json=self.body, headers=self.headers).json()
+        url = "/tools/drafts/" + created["id"]
+        clone = self.client.post(url + "/duplicate", headers=self.headers)
+        self.assertEqual(clone.status_code, 201)
+        self.assertEqual(clone.json()["title"], "Copia di Prova")
+        self.assertEqual(self.client.delete(url + "?version=2", headers=self.headers).status_code, 409)
+        self.assertEqual(self.client.delete(url, headers=self.headers).status_code, 422)
+        self.assertEqual(self.client.delete(url + "?version=1").status_code, 401)
+        self.assertEqual(self.client.delete(url + "?version=1", headers=self.headers).status_code, 204)
+        self.assertEqual(self.client.delete(url + "?version=1", headers=self.headers).status_code, 404)
+        self.assertEqual([row["id"] for row in self.client.get("/tools/drafts", headers=self.headers).json()], [clone.json()["id"]])
+
 
 if __name__ == "__main__":
     unittest.main()

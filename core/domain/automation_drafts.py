@@ -18,7 +18,25 @@ def draft_root():
     return Path(os.getenv("CORA_AUTOMATION_ROOT", str(BASE / "data" / "automation_drafts"))).expanduser().resolve()
 
 
-def validate_graph(data, tool_ids=None):
+def _schema_warnings(label, config, schema):
+    """Advisory checks against a tool's input schema; values are not type-checked yet."""
+    if not isinstance(schema, dict):
+        return []
+    properties = schema.get("properties") or {}
+    warnings = []
+    for name in schema.get("required") or []:
+        if name not in config:
+            warnings.append(f"{label}: manca il parametro obbligatorio «{name}».")
+    if properties:
+        for name in config:
+            if name not in properties:
+                warnings.append(f"{label}: il parametro «{name}» non è previsto dal tool.")
+    return warnings
+
+
+def validate_graph(data, tool_ids=None, tool_schemas=None):
+    """tool_schemas maps executable tool ids to their input schema; tools missing from it
+    have no execution contract and are flagged, since a future runner could not call them."""
     if not isinstance(data, dict):
         raise ValueError("Bozza non valida.")
     title = data.get("title", "")
@@ -53,6 +71,11 @@ def validate_graph(data, tool_ids=None):
                 raise ValueError("Il tool associato non è disponibile nell’inventario.")
             if not tool_id:
                 warnings.append(f"{label}: scegli un tool per completare il passaggio.")
+            elif tool_schemas is not None:
+                if tool_id in tool_schemas:
+                    warnings.extend(_schema_warnings(label.strip(), config, tool_schemas[tool_id]))
+                else:
+                    warnings.append(f"{label.strip()}: il tool non ha un contratto eseguibile; potrà restare solo nella bozza.")
         ids.add(ident)
         clean_nodes.append(dict(id=ident, kind=kind, label=label.strip(), x=node["x"], y=node["y"], config=config, tool_id=tool_id))
     by_id = {n["id"]: n for n in clean_nodes}
@@ -141,8 +164,23 @@ class VersionConflict(Exception):
     pass
 
 
-def save_draft(data, ident=None, expected_version=None, root=None, tool_ids=None):
-    record = validate_graph(data, tool_ids)
+def _write(record, root):
+    root.mkdir(parents=True, exist_ok=True)
+    path = _path(record["id"], root)
+    fd, temp = tempfile.mkstemp(prefix=".draft-", dir=root)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(record, stream, ensure_ascii=False, allow_nan=False)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp, path)
+    finally:
+        if os.path.exists(temp):
+            os.unlink(temp)
+
+
+def save_draft(data, ident=None, expected_version=None, root=None, tool_ids=None, tool_schemas=None):
+    record = validate_graph(data, tool_ids, tool_schemas)
     root = root or draft_root()
     with LOCK:
         version = 1
@@ -154,16 +192,25 @@ def save_draft(data, ident=None, expected_version=None, root=None, tool_ids=None
         else:
             ident = str(uuid.uuid4())
         record.update(id=ident, version=version, updated_at=datetime.now(UTC).isoformat(), status="draft")
-        root.mkdir(parents=True, exist_ok=True)
-        path = _path(ident, root)
-        fd, temp = tempfile.mkstemp(prefix=".draft-", dir=root)
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as stream:
-                json.dump(record, stream, ensure_ascii=False, allow_nan=False)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temp, path)
-        finally:
-            if os.path.exists(temp):
-                os.unlink(temp)
+        _write(record, root)
         return record
+
+
+def delete_draft(ident, expected_version, root=None):
+    """Remove a draft only if the caller saw its latest version."""
+    root = root or draft_root()
+    with LOCK:
+        previous = get_draft(ident, root)
+        if expected_version != previous["version"]:
+            raise VersionConflict("La bozza è cambiata. Ricaricala prima di eliminarla.")
+        _path(ident, root).unlink()
+
+
+def duplicate_draft(ident, root=None, tool_ids=None, tool_schemas=None):
+    """Copy a saved draft as a new version-1 draft; node and edge ids stay valid inside the copy."""
+    root = root or draft_root()
+    with LOCK:
+        source = get_draft(ident, root)
+        clone = {key: source[key] for key in ("title", "description", "nodes", "edges")}
+        clone["title"] = ("Copia di " + source["title"])[:120]
+        return save_draft(clone, root=root, tool_ids=tool_ids, tool_schemas=tool_schemas)
