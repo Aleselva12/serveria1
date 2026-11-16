@@ -8,7 +8,10 @@ permissions:
   contents: read
 jobs:
   sandybridge-build:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest became 26.04, whose glibc is built for x86-64-v3 (AVX2)
+    # and aborts under SandyBridge emulation before Node starts. 24.04 keeps a
+    # baseline glibc, so this job still tests the server CPU and not the runner image.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:
