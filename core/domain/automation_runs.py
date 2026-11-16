@@ -34,8 +34,13 @@ _RUNNER_LOCK = None
 
 
 def run_root():
-    default = drafts.BASE / "data" / "automation_runs"
-    return Path(os.getenv("CORA_AUTOMATION_RUNS_ROOT", str(default))).expanduser().resolve()
+    # Default next to the drafts folder (/state/automation_drafts in Docker), so the
+    # runs persist on the state volume without a compose.yml change, which the host
+    # updater refuses to apply as an ordinary release.
+    configured = os.getenv("CORA_AUTOMATION_RUNS_ROOT", "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    return drafts.draft_root().parent / "automation_runs"
 
 
 def time_limit():

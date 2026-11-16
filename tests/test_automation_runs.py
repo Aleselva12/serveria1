@@ -292,5 +292,17 @@ class RunApiTests(unittest.TestCase):
         self.assertEqual(self.client.get("/tools/runs/not-a-uuid", headers=self.headers).status_code, 400)
 
 
+class RunRootTests(unittest.TestCase):
+    def test_defaults_next_to_drafts_without_compose_change(self):
+        with patch.dict(os.environ, {"CORA_AUTOMATION_ROOT": "/state/automation_drafts"}):
+            os.environ.pop("CORA_AUTOMATION_RUNS_ROOT", None)
+            self.assertEqual(runs.run_root(), Path("/state/automation_runs").resolve())
+        with patch.dict(os.environ, {"CORA_AUTOMATION_RUNS_ROOT": "/tmp/elsewhere"}):
+            self.assertEqual(runs.run_root(), Path("/tmp/elsewhere").resolve())
+        # The host updater refuses releases that change compose.yml: keep the default.
+        compose = (Path(__file__).resolve().parents[1] / "compose.yml").read_text(encoding="utf-8")
+        self.assertNotIn("CORA_AUTOMATION_RUNS_ROOT", compose)
+
+
 if __name__ == "__main__":
     unittest.main()
