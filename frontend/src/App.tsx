@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   ArrowRight,
+  Bell,
   CalendarDays,
   ChevronDown,
   FileAudio,
@@ -35,6 +36,7 @@ import ChatToolPicker from "./components/ChatToolPicker";
 import ConversationSidebar from "./components/ConversationSidebar";
 import { uploadAttachment, attachLibraryFile, type Attachment } from "./services/mediaApi";
 import Home from "./components/Home";
+import NotificationsPage, { HomeNotifications, useInbox } from "./components/Notifications";
 import SystemUpdate from "./components/SystemUpdate";
 import MobileHome from "./components/MobileHome";
 import MobilePhotos from "./components/MobilePhotos";
@@ -72,10 +74,12 @@ type Page =
   | "activity"
   | "updates"
   | "settings"
+  | "notifications"
   | "memory-management";
 const validPages: ReadonlySet<Page> = new Set([
   "home", "chat", "photos", "architecture", "machines", "code", "calendar", "mail",
   "files", "audio", "activity", "updates", "settings", "memory-management", "programmer-next", "homepage-schema-albero",
+  "notifications",
 ]);
 function isPage(value: string): value is Page {
   return validPages.has(value as Page);
@@ -98,6 +102,7 @@ const primary: { id: Page; label: string }[] = [
   { id: "audio", label: "Audio" },
 ];
 const secondary: { id: Page; label: string; icon: typeof FileText }[] = [
+  { id: "notifications", label: "Notifiche", icon: Bell },
   { id: "activity", label: "Attività", icon: Activity },
   { id: "updates", label: "Aggiornamenti", icon: RefreshCw },
   { id: "settings", label: "Impostazioni", icon: Settings },
@@ -117,6 +122,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
     return isPage(requested) ? requested : "home";
   });
   const [menu, setMenu] = useState(false);
+  const unseen = useInbox(false).inbox?.unseen ?? 0;
   const [inspector, setInspector] = useState(false);
   const [connections, setConnections] = useState(false);
   const [mobileUi, setMobileUi] = useState(() => window.matchMedia("(max-width: 620px)").matches);
@@ -411,6 +417,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
                     <button key={item.id} onClick={() => navigate(item.id)}>
                       <item.icon size={17} />
                       {item.label}
+                      {item.id === "notifications" && unseen > 0 && <span className="pill error">{unseen}</span>}
                     </button>
                   ))}
                 </div>
@@ -423,6 +430,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
               {menu && (
                 <div className="dropdown mobile-dropdown">
                   <button onClick={() => navigate("chat")}><span>✦</span> Chat Cora</button>
+                  <button onClick={() => navigate("notifications")}><Bell size={17} /> Notifiche{unseen ? " (" + unseen + ")" : ""}</button>
                   <button onClick={() => navigate("activity")}><Activity size={17} /> Attività</button>
                   <button onClick={() => navigate("machines")}><Server size={17} /> Macchine</button>
                   <button onClick={() => navigate("settings")}><Settings size={17} /> Impostazioni</button>
@@ -463,6 +471,8 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
               />
             )
           )}
+          {page === "home" && <HomeNotifications onOpenAll={() => navigate("notifications")} />}
+          {page === "notifications" && <NotificationsPage />}
           {page === "updates" && (
             <section className="content-page narrow">
               <SystemUpdate standalone />

@@ -78,6 +78,8 @@ def _run(conn, job, settings):
                      row["commit"] or "", row["durationMs"], row["at"]))
                 _save(conn, next_job)
             job.update(next_job)
+            from core.domain.health_alerts import observe
+            observe([row], job.get("trigger", "manual"))
         verify_nodes.execute(SimpleNamespace(checks=job["checks"], persist=False, output=None, settings=settings), on_result=record)
         job["status"] = "failed" if any(r["status"] == "fail" for r in job["results"]) else "completed"
         job["detail"] = "Collaudi terminati. I controlli senza prerequisiti restano non verificati."

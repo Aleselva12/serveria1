@@ -32,6 +32,7 @@ un target vuoto con la versione corrispondente.
 | 0009 | Esecuzioni dei collaudi una tantum della Roadmap |
 | 0010 | Valutazioni delle priorità della Roadmap |
 | 0011 | Esito `warn` (funziona con avvisi) nei risultati salute |
+| 0012 | Notifiche in-app (Home e pagina Notifiche) e stato degli avvisi salute |
 
 L’esecutore è `core/infra/database.py` dalla radice del repository. Normalizza CRLF in LF prima del checksum; rifiuta versioni duplicate, inserimenti precedenti all’ultima applicata, checksum cambiati e schema più nuovo del codice. Si attiva alla prima connessione che richiede lo schema, non è un comando di deploy separato.
 

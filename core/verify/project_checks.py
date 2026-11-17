@@ -138,11 +138,13 @@ def _persist(checks: list[dict]) -> bool:
                   VALUES (%s,%s,%s,'periodic',%s,%s,%s)""",
                   (entry["id"],entry["status"],entry["detail"][:240],_environment(),
                    entry.get("commit", ""),entry.get("durationMs",0)))
-        return True
     except Exception as error:
         from core.infra.logging import report_swallowed_error
         report_swallowed_error("health_results_write", error, component="health_monitor")
         return False
+    from core.domain.health_alerts import observe
+    observe([{**entry, "at": entry.get("checkedAt")} for entry in checks], "periodic")
+    return True
 
 
 def run_once(*, persist: bool = False, due: set[str] | None = None) -> dict:

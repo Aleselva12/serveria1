@@ -1,0 +1,15 @@
+.inbox-list, .home-notifications ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.inbox-item { border: 1px solid var(--line, #e2e2e2); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
+.inbox-item.seen { opacity: .6; }
+.inbox-item p { margin: 0; overflow-wrap: anywhere; }
+.inbox-item-heading, .inbox-item-footer, .home-notifications-heading, .home-notifications-actions,
+.notifications-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.inbox-item-footer, .home-notifications-actions { justify-content: space-between; }
+.notifications-toolbar { margin: 12px 0; }
+.home-notifications { position: fixed; right: 20px; bottom: 20px; width: min(380px, calc(100vw - 32px));
+  max-height: 70vh; overflow: auto; z-index: 40; display: grid; gap: 10px; box-shadow: 0 10px 30px rgb(0 0 0 / .18); }
+.home-notifications-heading strong { flex: 1; }
+@media (max-width: 760px) {
+  /* Above the mobile navigation bar. */
+  .home-notifications { right: 16px; left: 16px; width: auto; bottom: 84px; }
+}
