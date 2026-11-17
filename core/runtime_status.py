@@ -8,7 +8,7 @@ from urllib.error import URLError
 from core.infra.component_bus import component_bus
 from core.infra.database import database_status
 from core.infra.ollama_transport import get_ollama_base_url, urlopen
-from core.models import get_model_name, get_ollama_base_url
+from core.models import get_model_name
 
 
 def _ollama_online() -> bool:

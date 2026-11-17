@@ -9,7 +9,7 @@ import json
 import os
 import tempfile
 import threading
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 
 from core.domain import mail
 
@@ -136,8 +136,10 @@ def _notify(record):
                    "tag": "mail-summary-" + record["finished_at"][:10]}
         for subscription in notifications._active_subscriptions():
             notifications.send_one(subscription, payload, ttl=43200)
-    except Exception:
-        pass
+    except Exception as error:
+        # The summary is saved either way; only the push notice is lost.
+        from core.infra.logging import report_swallowed_error
+        report_swallowed_error("mail_summary_notify", error, component="mail_summary")
 
 
 def _nightly_due(now_local):
@@ -172,8 +174,10 @@ def _loop():
             if job:
                 run_job(job)
                 continue
-        except Exception:
-            pass
+        except Exception as error:
+            # Keep the worker alive; a failure here must not silently stop summaries.
+            from core.infra.logging import report_swallowed_error
+            report_swallowed_error("mail_summary_cycle", error, component="mail_summary")
         _WAKE.wait(60)
         _WAKE.clear()
 

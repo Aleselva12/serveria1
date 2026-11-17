@@ -188,8 +188,9 @@ class Runtime:
                     from psycopg.types.json import Jsonb
                     with db_connection() as conn:
                         conn.execute("UPDATE working_memory SET state=state || %s WHERE thread_id=ANY(%s)", (Jsonb({"status": run.status}), [run.thread_id, *run.component_threads]))
-            except Exception:
-                pass
+            except Exception as error:
+                from core.infra.logging import report_swallowed_error
+                report_swallowed_error("working_memory_status", error, component="runtime")
             with self.lock: self.last_foreground = time.monotonic()
             if acquired: self.slot.release()
             current_run.reset(token)

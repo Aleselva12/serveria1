@@ -7,6 +7,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -132,6 +133,7 @@ LOCAL_SUMMARY_TIMEOUT_SECONDS = int(os.getenv("CORA_MAIL_SUMMARY_TIMEOUT_SECONDS
 def _chat_on_local_ollama(model, messages_payload):
     """Summary on the server's own Ollama when the Email agent is bound to it. No tools."""
     from urllib.request import Request as HttpRequest
+
     from core.infra.ollama_transport import get_ollama_base_url, urlopen
     prompt_chars = sum(len(row["content"]) for row in messages_payload)
     num_ctx = min(16384, max(4096, prompt_chars // 3 + 2048))
@@ -147,8 +149,9 @@ def _chat_on_local_ollama(model, messages_payload):
 
 
 def summarize(selection, scope):
-    from core import agent_models
     from fastapi import HTTPException
+
+    from core import agent_models
     result = messages(selection, scope)
     result.update(status="unavailable", summary=None)
     if not result["messages"]:

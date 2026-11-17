@@ -1,11 +1,14 @@
 """Owner-only Mail API; deliberately no send, modify or scheduling endpoint."""
 import json
 from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
+
 from core.access import require_owner
-from core.domain import mail, mail_summary_jobs, mail_web_auth
 from core.api.calendar_api import GoogleAuthFinish
+from core.domain import mail, mail_summary_jobs, mail_web_auth
+
 
 def mail_owner(request: Request, response: Response):
     require_owner(request, "mail")

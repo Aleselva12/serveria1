@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
 from core import auth
@@ -115,5 +115,5 @@ class CandidateTests(unittest.TestCase):
 
     def test_server_url_rejects_active_content_and_credentials(self):
         for url in ('javascript:alert(1)', 'http://server/', 'https://user:secret@server/'):
-            with patch.dict(os.environ, {'CORA_UPDATE_URL':url}), self.assertRaises(Exception): updates.server_url()
+            with patch.dict(os.environ, {'CORA_UPDATE_URL':url}), self.assertRaises(HTTPException): updates.server_url()
 
