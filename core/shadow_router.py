@@ -110,8 +110,10 @@ def record_example(*, request_text: str, primary: str, thread_id: str, run_id: s
         shadow_route, confidence, model_name = predict(request_text)
     except Exception as error:
         error_type = type(error).__name__
+    from core.infra.database import database_configured, db_connection
+    if not database_configured():
+        return  # nothing to compare against without PostgreSQL; not a failure
     try:
-        from core.infra.database import db_connection
         with db_connection() as conn:
             conn.execute(
                 """INSERT INTO shadow_router_examples
@@ -122,8 +124,10 @@ def record_example(*, request_text: str, primary: str, thread_id: str, run_id: s
                  (shadow_route == primary) if shadow_route is not None else None,
                  model_name, confidence, error_type),
             )
-    except Exception:
-        pass
+    except Exception as error:
+        # Observer only: losing an example must never affect the user's request.
+        from core.infra.logging import report_swallowed_error
+        report_swallowed_error("shadow_router_example", error, component="shadow_router")
 
 def stats() -> dict:
     """Progress metrics; agreement with principal routing is only a provisional proxy."""

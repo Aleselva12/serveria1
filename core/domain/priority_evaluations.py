@@ -23,5 +23,7 @@ def save(evaluation):
             conn.execute("INSERT INTO roadmap_priority_evaluations (id,snapshot) VALUES (%s,%s)",
                          (str(uuid4()), Jsonb(evaluation)))
         return True
-    except Exception:
+    except Exception as error:
+        from core.infra.logging import report_swallowed_error
+        report_swallowed_error("priority_evaluation_save", error, component="roadmap_classifier")
         return False

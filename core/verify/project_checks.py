@@ -131,7 +131,9 @@ def _persist(checks: list[dict]) -> bool:
                   (entry["id"],entry["status"],entry["detail"][:240],_environment(),
                    entry.get("commit", ""),entry.get("durationMs",0)))
         return True
-    except Exception:
+    except Exception as error:
+        from core.infra.logging import report_swallowed_error
+        report_swallowed_error("health_results_write", error, component="health_monitor")
         return False
 
 
@@ -239,8 +241,10 @@ def health_dashboard():
               commit_sha,duration_ms,observed_at FROM project_health_results
               ORDER BY observed_at DESC,id DESC LIMIT 100""").fetchall()
         store = "postgresql"
-    except Exception:
-        pass
+    except Exception as error:
+        # The dashboard falls back to the in-memory results and says so in "store".
+        from core.infra.logging import report_swallowed_error
+        report_swallowed_error("health_results_read", error, component="health_monitor")
 
     def public(row):
         return {"id":row["check_id"],"status":row["status"],"detail":row["detail"],

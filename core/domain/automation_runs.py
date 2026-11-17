@@ -255,10 +255,15 @@ def _loop():
                 for waiting in [r for r in _all() if r["status"] == "waiting_approval"]:
                     try:
                         process(waiting)
-                    except Exception:
-                        continue  # database unavailable: retry at the next poll
-        except Exception:
-            pass
+                    except Exception as error:
+                        # Database unavailable: retry at the next poll, but leave a trace.
+                        from core.infra.logging import report_swallowed_error
+                        report_swallowed_error("automation_approval_poll", error, component="automation_runner")
+                        continue
+        except Exception as error:
+            # Keep the runner alive; a failure here must not silently stop automations.
+            from core.infra.logging import report_swallowed_error
+            report_swallowed_error("automation_runner_cycle", error, component="automation_runner")
         _WAKE.wait(POLL_SECONDS)
         _WAKE.clear()
 

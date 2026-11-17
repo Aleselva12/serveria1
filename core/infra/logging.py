@@ -104,6 +104,36 @@ def logged_operation(
         )
 
 
+_REPORTED: dict[tuple[str, str], tuple[str, float]] = {}
+REPORT_REPEAT_SECONDS = 600
+
+
+def report_swallowed_error(operation: str, error: BaseException, *, component: str) -> bool:
+    """Leave a trace of a failure that a best-effort path deliberately absorbs.
+
+    Metadata only: the error type, never its message (it may carry user content).
+    The same failure repeating in a background loop is reported again only after
+    REPORT_REPEAT_SECONDS, so a service that stays down does not flood the log.
+    Never raises: callers are already on their fallback path.
+    """
+    import logging as std_logging
+    error_type = type(error).__name__
+    key, now = (component, operation), time.monotonic()
+    with _LOCK:
+        previous = _REPORTED.get(key)
+        if previous and previous[0] == error_type and now - previous[1] < REPORT_REPEAT_SECONDS:
+            return False
+        _REPORTED[key] = (error_type, now)
+        if len(_REPORTED) > 500:
+            _REPORTED.clear()
+    std_logging.getLogger("cora." + component).warning("%s non riuscito: %s", operation, error_type)
+    try:
+        log_event(operation, component=component, status="error", data={"error_type": error_type})
+    except Exception:  # the standard log line above already holds the trace
+        pass
+    return True
+
+
 def tail_events(limit: int = 50, event_type: str = "", component: str = "") -> list[dict[str, Any]]:
     """SQL metadata diagnostics only; legacy full-content logs are not reimported."""
     from core.infra.database import db_connection

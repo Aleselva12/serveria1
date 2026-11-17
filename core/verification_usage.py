@@ -40,7 +40,9 @@ def record(check_id, status, detail):
             if len(_last) > 200:
                 _last.clear()
         return True
-    except Exception:
+    except Exception as error:
+        from core.infra.logging import report_swallowed_error
+        report_swallowed_error("verification_usage_record", error, component="health_monitor")
         return False
 
 
