@@ -16,7 +16,7 @@ class PermissionLevel(IntEnum):
     ADMIN = 5
 
 
-class ApprovalPolicy(str, Enum):
+class ApprovalPolicy(str, Enum):  # noqa: UP042 - StrEnum changes str() and persisted values
     AUTO = "auto"
     CONFIRM = "confirm"
     BLOCKED = "blocked"

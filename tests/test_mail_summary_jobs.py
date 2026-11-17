@@ -4,7 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
-from core.domain import mail, mail_summary_jobs as jobs
+from core.domain import mail
+from core.domain import mail_summary_jobs as jobs
 
 
 class MailSummaryJobsTest(unittest.TestCase):

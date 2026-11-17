@@ -15,9 +15,9 @@ from core.api.audio_api import router as audio_router
 from core.api.automation_api import router as automation_router
 from core.api.automation_api import runs_router as automation_runs_router
 from core.api.calendar_api import router as calendar_router
-from core.api.mail_api import router as mail_router
 from core.api.conversations_api import router as conversations_router
 from core.api.machines_api import router as machines_router
+from core.api.mail_api import router as mail_router
 from core.api.managed_apps_api import router as managed_apps_router
 from core.api.memory_api import router as memory_router
 from core.api.orchestration_api import router as orchestration_router

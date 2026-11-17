@@ -5,12 +5,15 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from zoneinfo import ZoneInfo
 from urllib.parse import parse_qs, urlsplit
+from zoneinfo import ZoneInfo
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from core.domain import mail, mail_web_auth as oauth
+
 from core.api.mail_api import router
+from core.domain import mail
+from core.domain import mail_web_auth as oauth
 
 
 class MailTests(unittest.TestCase):

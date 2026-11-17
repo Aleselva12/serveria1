@@ -60,7 +60,8 @@ class LibraryResearchTests(unittest.TestCase):
         for name in ('library_list', 'library_search', 'library_read'):
             self.assertEqual(tool_contract(getattr(tools, name)).effect, 'read')
         with patch('core.permissions.require_permission', side_effect=PermissionError('denied')):
-            with self.assertRaises(Exception):
+            from core.governance import CapabilityExecutionError
+            with self.assertRaises(CapabilityExecutionError):
                 tools.library_search.invoke({'query':'Rossi'})
 
     def test_escape_symlink_and_protected_files_are_rejected(self):
