@@ -9,7 +9,6 @@ import ThinkingPanel, { type ThinkingState } from "./components/ThinkingPanel";
 import { LengthChoice, RunTimer, type ResponseLength } from "./components/RunControls";
 import { usePermanentContext } from "./services/usePermanentContext";
 import { streamChat, runtimeRequest, type LibraryActivity } from "./services/runtimeApi";
-import { authenticatedFetch } from "./services/transport";
 import RuntimePanel from "./components/RuntimePanel";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -112,7 +111,7 @@ const mobilePrimary: { id: Page; label: string; icon: typeof House }[] = [
   { id: "mail", label: "Mail", icon: FileText },
 ];
 const uid = () => crypto.randomUUID();
-export default function App({ authMode = "password" }: { authMode?: string } = {}) {
+export default function App({ authMode = "tailscale" }: { authMode?: string } = {}) {
   const [page, setPage] = useState<Page>(() => {
     const requested = window.location.hash.replace(/^#/, "");
     return isPage(requested) ? requested : "home";
@@ -724,11 +723,7 @@ export default function App({ authMode = "password" }: { authMode?: string } = {
                   <div className="settings-auth-box">
                     <strong>Accesso</strong>
                     {authMode === "desktop" ? <p>Accesso locale automatico: richieste accettate soltanto dal computer che esegue Cora.</p> :
-                     authMode === "tailscale" ? <p>Accesso automatico tramite Tailscale. La revoca del dispositivo resta gestita da Tailscale.</p> :
-                     <><p>Sessione autenticata tramite password.</p><div className="settings-actions">
-                      <button className="text-button" onClick={async()=>{const r=await authenticatedFetch(apiBaseUrl+"/auth/logout",{method:"POST"});if(r.ok)window.dispatchEvent(new Event("cora:unauthorized"));}}>Esci</button>
-                      <button className="text-button danger" onClick={async()=>{const r=await authenticatedFetch(apiBaseUrl+"/auth/logout?all_sessions=true",{method:"POST"});if(r.ok)window.dispatchEvent(new Event("cora:unauthorized"));}}>Disconnetti tutti</button>
-                     </div></>}
+                     <p>Accesso automatico tramite Tailscale. La revoca del dispositivo resta gestita da Tailscale.</p>}
                   </div>
                 </section>
 
