@@ -20,7 +20,8 @@ router = APIRouter(prefix="/api/v1", tags=["Project checks"])
 _LOCK = threading.RLock()
 _STOP = threading.Event()
 _THREAD: threading.Thread | None = None
-_INTERVAL = 300
+_INTERVAL = 300  # shortest period, kept for the dashboard payload
+_TICK = 60  # how often the scheduler looks for due checks
 _LAST: dict | None = None
 
 CHECKS = {key: item["title"] for key,item in CATALOG.items() if item["automated"]}
@@ -104,8 +105,15 @@ _PROBES = {
     "audio_word_contract": project_contracts.audio_word_contract,
     "calendar_contract": project_contracts.calendar_contract,
     "worker_contract": project_contracts.worker_contract,
+    "immich_e2e": lambda: _service_http("immich"),
+    "nextcloud_e2e": lambda: _service_http("nextcloud"),
 }
 assert set(_PROBES) == set(CHECKS), "Automatic catalog and probe implementations differ"
+
+
+def _service_http(identifier):
+    from core.additional_verifications import service_http
+    return service_http(identifier)
 
 
 def _release() -> str:
@@ -137,13 +145,19 @@ def _persist(checks: list[dict]) -> bool:
         return False
 
 
-def run_once(*, persist: bool = False) -> dict:
-    """One bounded cycle of independent probes; each failure identifies a hop."""
+def run_once(*, persist: bool = False, due: set[str] | None = None) -> dict:
+    """One bounded cycle of independent probes; each failure identifies a hop.
+
+    `due` limits the cycle to the checks whose period has elapsed; the snapshot
+    keeps the latest result of the others.
+    """
     global _LAST
     from time import monotonic
     checks = []
     commit = _release()
     for key, probe in _PROBES.items():
+        if due is not None and key not in due:
+            continue
         start = monotonic()
         try:
             status, detail = probe()
@@ -154,10 +168,30 @@ def run_once(*, persist: bool = False) -> dict:
                        "detail":str(detail)[:240], "checkedAt":_now(),
                        "durationMs":int((monotonic()-start)*1000), "commit":commit, "environment":_environment()})
     stored = _persist(checks) if persist else False
-    snap = {"checkedAt":_now(), "intervalSeconds":_INTERVAL,
-            "scope":"preflight_only", "checks":checks, "persisted":stored}
-    with _LOCK: _LAST = snap
+    with _LOCK:
+        merged = {c["id"]: c for c in (_LAST or {}).get("checks", [])}
+        merged.update({c["id"]: c for c in checks})
+        snap = {"checkedAt":_now(), "intervalSeconds":_INTERVAL,
+                "scope":"preflight_only", "checks":[merged[k] for k in _PROBES if k in merged],
+                "persisted":stored}
+        _LAST = snap
     return snap
+
+
+def due_checks(last_seen: dict, now: datetime | None = None) -> set[str]:
+    """Checks whose own period has elapsed since their last periodic result.
+
+    A small margin keeps a check that ran a few seconds early in the previous
+    tick from being skipped for a whole extra period.
+    """
+    now = now or datetime.now(UTC)
+    due = set()
+    for key in _PROBES:
+        interval = CATALOG[key]["intervalSeconds"]
+        last = last_seen.get(key)
+        if last is None or (now - last).total_seconds() >= interval - _TICK / 2:
+            due.add(key)
+    return due
 
 
 def snapshot() -> dict:
@@ -168,43 +202,56 @@ def snapshot() -> dict:
         return {**_LAST, "checks":[dict(c) for c in _LAST["checks"]]}
 
 
+_MEMORY_LAST: dict = {}
+
+
+def _local_cycle(*, persist=False):
+    """Without the database history, keep each check's period in this process."""
+    due = due_checks(_MEMORY_LAST)
+    if not due:
+        return None
+    started = datetime.now(UTC)
+    result = run_once(persist=persist, due=due)
+    _MEMORY_LAST.update(dict.fromkeys(due, started))
+    return result
+
+
 def _scheduled_cycle():
     """PostgreSQL session advisory lock avoids duplicate checks across API workers."""
     from core.infra.database import DATABASE_URL
     if not DATABASE_URL:
-        return run_once()
+        return _local_cycle()
     try:
         import psycopg
         with psycopg.connect(DATABASE_URL, connect_timeout=3, autocommit=True) as db:
             if not db.execute("SELECT pg_try_advisory_lock(709241009)").fetchone()[0]:
                 return None
             try:
-                # The advisory lock serializes live calls. Checking the last
-                # cycle time under that lock also prevents API workers with
-                # staggered startup times from executing duplicate cycles.
+                # The advisory lock serializes live calls. Reading each check's
+                # last periodic result under that lock also prevents API workers
+                # with staggered startup times from executing duplicate cycles.
                 try:
-                    row = db.execute("""SELECT MAX(observed_at) AS last_checked
-                      FROM project_health_results WHERE check_id='database'
-                      AND source='periodic'""").fetchone()
-                    if row and row[0]:
-                        from datetime import timedelta
-                        if datetime.now(UTC) - row[0] < timedelta(seconds=_INTERVAL):
-                            return None
+                    rows = db.execute("""SELECT check_id, MAX(observed_at) AS last_checked
+                      FROM project_health_results WHERE source='periodic'
+                      AND check_id = ANY(%s) GROUP BY check_id""", (list(_PROBES),)).fetchall()
+                    due = due_checks({row[0]: row[1] for row in rows})
                 except Exception:
                     # New schema might not be migrated yet. Try the ordinary
                     # runner, whose persister explicitly reports failure.
-                    pass
-                return run_once(persist=True)
+                    return _local_cycle(persist=True)
+                if not due:
+                    return None
+                return run_once(persist=True, due=due)
             finally:
                 db.execute("SELECT pg_advisory_unlock(709241009)")
     except Exception:
         # Probes stay available, but never claim a durable history.
-        return run_once()
+        return _local_cycle()
 
 
 def _loop():
     _scheduled_cycle()
-    while not _STOP.wait(_INTERVAL):
+    while not _STOP.wait(_TICK):
         _scheduled_cycle()
 
 

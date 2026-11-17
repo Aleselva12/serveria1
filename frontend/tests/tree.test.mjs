@@ -82,9 +82,10 @@ test('roadmap references current Home goals and shares orchestrator structural e
  const ordered=[...projectStatus.nextWork].sort((a,b)=>a.order-b.order);
  assert.equal(new Set(ordered.map(w=>w.id)).size,ordered.length);
  assert.deepEqual(ordered.map(w=>w.id),projectStatus.nextWork.map(w=>w.id));
- // Owner's sequence of 16/11/2026: exactly one current work item, W1 page reorganisation.
- assert.deepEqual(ordered.filter(w=>w.status==='PROSSIMO LAVORO').map(w=>w.id),['W1']);
- assert.equal(projectStatus.nextWork.find(w=>w.id==='W1').title,'Riordino pagine Attività, Menu e Impostazioni');
+ // Owner's sequence of 17/11/2026: exactly one current work item, W3 functionality monitor.
+ assert.deepEqual(ordered.filter(w=>w.status==='PROSSIMO LAVORO').map(w=>w.id),['W3']);
+ assert.equal(projectStatus.nextWork.find(w=>w.id==='W3').title,'Monitor automatico delle funzionalità');
+ assert.deepEqual(ordered.map(w=>w.id),['W3','W1','W2']);
  assert.match(projectStatus.goals.find(g=>g.id==='ARCH-ORCHESTRATOR').state,/COMPLETATO/);
  const ui=readFileSync(new URL('../src/tree/TreeHome.tsx',import.meta.url),'utf8');
  const targets=Object.fromEntries([...ui.match(/workTargets[^=]*=\{([^}]*)\}/)[1].matchAll(/(W\d+):"([^"]+)"/g)].map(m=>[m[1],m[2]]));

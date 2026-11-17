@@ -135,7 +135,12 @@ def _installed_release():
     return release if re.fullmatch(r"[0-9a-f]{40}", release) else ""
 
 
-def _launch(body: Launch | None, trigger: str):
+_DETAILS = {"auto": "Collaudi avviati automaticamente dopo l'installazione.",
+            "nightly": "Collaudo notturno automatico (04:00-05:00).",
+            "manual": "Collaudi avviati sul server."}
+
+
+def _launch(body: Launch | None, trigger: str, checks: list[str] | None = None):
     conn = None
     acquired = False
     try:
@@ -151,11 +156,12 @@ def _launch(body: Launch | None, trigger: str):
         if not acquired:
             raise HTTPException(409, "Un collaudo Ã¨ giÃ  in corso. Attendi il risultato senza avviarne un altro.")
         from psycopg.types.json import Jsonb
-        checks = list(verify_nodes.available_checks())
+        available = list(verify_nodes.available_checks())
+        checks = [key for key in available if checks is None or key in checks]
         job = {"id": str(uuid4()), "status": "running", "createdAt": _now(), "updatedAt": _now(),
                "checks": checks, "targets": body.model_dump(mode="json"), "currentCheck": checks[0] if checks else None,
                "total": len(checks), "completed": 0, "results": [], "trigger": trigger, "release": _installed_release(),
-               "detail": "Collaudi avviati automaticamente dopo l'installazione." if trigger == "auto" else "Collaudi avviati sul server."}
+               "detail": _DETAILS.get(trigger, _DETAILS["manual"])}
         conn.execute("INSERT INTO node_verification_runs (id,snapshot) VALUES (%s,%s)", (job["id"], Jsonb(job)))
         # Return an independent snapshot: the worker may already be recording progress.
         response = {**job, "results": []}
@@ -230,3 +236,82 @@ def start_auto():
 
 def stop_auto():
     _AUTO_STOP.set()
+
+
+# Nightly run of the same suite, once a day inside the owner's window. Machines
+# are tested only when already online: a worker is never woken up for a check.
+NIGHTLY_WINDOW = (4, 5)  # local hours [start, end) in Europe/Rome
+NIGHTLY_TICK_SECONDS = 300
+MACHINE_CHECKS = {"desktopMachineId": "desktop_e2e", "laptopMachineId": "laptop_e2e"}
+_NIGHTLY_STOP = Event()
+_NIGHTLY_LOCK = Lock()
+_NIGHTLY_THREAD = None
+
+
+def _local(now=None):
+    from zoneinfo import ZoneInfo
+    return (now or datetime.now(UTC)).astimezone(ZoneInfo("Europe/Rome"))
+
+
+def _online(machine_id):
+    try:
+        from core.api.machines_api import _find, _probe
+        return _probe(_find(machine_id)["fqdn"])[0]
+    except Exception:
+        return False
+
+
+def nightly_plan(targets, available, online=_online):
+    """Targets and checks for tonight: skip machine checks for offline machines."""
+    reachable = {k: v for k, v in targets.items() if k in MACHINE_CHECKS and v and online(v)}
+    skipped = {check for key, check in MACHINE_CHECKS.items() if key not in reachable}
+    return reachable, [key for key in available if key not in skipped]
+
+
+def nightly_verify(now=None):
+    """Start tonight's run if inside the window and not done yet. Returns the reason."""
+    if os.getenv("CORA_NIGHTLY_VERIFY", "1").strip() == "0":
+        return "disabled"
+    from core.verify.project_checks import _environment
+    if _environment() != "debian-api" or not _installed_release():
+        return "not_installed_release"
+    local = _local(now)
+    if not NIGHTLY_WINDOW[0] <= local.hour < NIGHTLY_WINDOW[1]:
+        return "outside_window"
+    window_start = local.replace(hour=NIGHTLY_WINDOW[0], minute=0, second=0, microsecond=0).astimezone(UTC)
+    with _connection() as conn:
+        if conn.execute("""SELECT 1 FROM node_verification_runs WHERE snapshot->>'trigger'='nightly'
+                AND created_at >= %s LIMIT 1""", (window_start,)).fetchone():
+            return "already_ran"
+        previous = _latest(conn) or {}
+    targets, checks = nightly_plan(previous.get("targets") or {}, list(verify_nodes.available_checks()))
+    try:
+        _launch(Launch(**targets), "nightly", checks)
+        return "started"
+    except HTTPException as error:
+        if error.status_code == 409:
+            return "busy"  # another run holds the lock: retry at the next tick
+        raise
+
+
+def _nightly_loop():
+    while not _NIGHTLY_STOP.wait(NIGHTLY_TICK_SECONDS):
+        try:
+            nightly_verify()
+        except Exception as error:
+            from core.infra.logging import report_swallowed_error
+            report_swallowed_error("nightly_verification", error, component="health_monitor")
+
+
+def start_nightly():
+    global _NIGHTLY_THREAD
+    with _NIGHTLY_LOCK:
+        if _NIGHTLY_THREAD is not None and _NIGHTLY_THREAD.is_alive():
+            return
+        _NIGHTLY_STOP.clear()
+        _NIGHTLY_THREAD = Thread(target=_nightly_loop, name="cora-nightly-verification", daemon=True)
+        _NIGHTLY_THREAD.start()
+
+
+def stop_nightly():
+    _NIGHTLY_STOP.set()
