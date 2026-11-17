@@ -116,11 +116,13 @@ class CatalogTests(unittest.TestCase):
             def __init__(self, statement): self.statement=statement
             def fetchone(self):
                 if "pg_try_advisory_lock" in self.statement: return (True,)
-                if "MAX(observed_at)" in self.statement: return (datetime.now(UTC),)
                 return (True,)
+            def fetchall(self):
+                # Every periodic check has a result from a moment ago.
+                return [(key, datetime.now(UTC)) for key in project_checks._PROBES]
 
         class Database:
-            def execute(self,sql): return Query(sql)
+            def execute(self,sql,params=None): return Query(sql)
 
         @contextmanager
         def connect(*args,**kwargs):

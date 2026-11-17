@@ -6,12 +6,20 @@ never silently executed against real data.
 """
 from __future__ import annotations
 
+# Seconds between runs of the periodic backend probes. Every other check runs in the
+# nightly collaudo (04:00-05:00 Europe/Rome), after each installation or on request.
+PERIODIC_SECONDS = {"5m": 300, "15m": 900}
+# A nightly result must survive until the next night, with margin for a late run.
+NIGHTLY_MAX_AGE = 26 * 3600
+
 
 def entry(id, title, component, kind, stage, frequency, *, depends=(), description=""):
+    interval = PERIODIC_SECONDS.get(frequency)
     return {"id": id, "title": title, "component": component, "kind": kind,
             "stage": stage, "frequency": frequency, "dependsOn": list(depends),
-            "description": description, "automated": frequency == "5m",
-            "maxAgeSeconds": 600 if frequency == "5m" else 86400,
+            "description": description, "automated": interval is not None,
+            "intervalSeconds": interval,
+            "maxAgeSeconds": 2 * interval if interval else NIGHTLY_MAX_AGE,
             # Run once per installed release: valid until the commit changes, not for 24h only.
             "releaseScoped": frequency in ("on_release", "on_change")}
 
@@ -47,8 +55,8 @@ _CATALOG = [
     entry("calendar_e2e", "Google Calendar: scrittura confermata con rilettura", "calendar", "e2e", "Provider Calendar → OAuth test → Google", "on_release",
           depends=("calendar_contract",), description="Provider reale: scrittura confermata con rilettura durante uso normale o account test. Duplicati e approvazioni hanno regressioni separate."),
     entry("files_e2e", "File: upload/download HTTP su campione temporaneo", "files", "synthetic", "API → cartella temporanea → integrità", "on_release"),
-    entry("immich_e2e", "Immich: raggiungibilità HTTP", "immich", "preflight", "API → endpoint configurato; upload escluso", "daily"),
-    entry("nextcloud_e2e", "Nextcloud: raggiungibilità HTTP", "nextcloud", "preflight", "API → endpoint configurato; file reali esclusi", "daily"),
+    entry("immich_e2e", "Immich: raggiungibilità HTTP", "immich", "preflight", "API → endpoint configurato; upload escluso", "15m"),
+    entry("nextcloud_e2e", "Nextcloud: raggiungibilità HTTP", "nextcloud", "preflight", "API → endpoint configurato; file reali esclusi", "15m"),
     entry("magazzino_e2e", "Magazzino: installazione e allowlist isolate", "magazzino_tele", "synthetic", "Manager applicazioni simulato; import escluso", "on_release"),
     entry("preventivi_e2e", "Preventivi: generazione e rilettura PDF sintetico", "preventivi", "synthetic", "Dati → generatore → PDF", "on_release"),
     entry("dependency_audit", "Dipendenze Python: vulnerabilità note (OSV)", "cora", "preflight",

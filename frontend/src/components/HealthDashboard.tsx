@@ -22,10 +22,15 @@ function programUrl(value?: string) {
   } catch { return null; }
 }
 const diagnosticServices = new Set(["fastapi", "ollama", "docker"]);
+export function frequencyLabel(definition:HealthCheckDefinition) {
+  if (definition.automated) return "ogni "+Math.round((definition.intervalSeconds ?? 300) / 60)+" minuti";
+  if (definition.frequency === "to_implement") return "nessun runner";
+  return "ogni notte (04–05) e dopo ogni installazione";
+}
 function statusOf(definition:HealthCheckDefinition, evidence?:HealthResult) {
   if (definition.frequency === "to_implement") return {label:"Da implementare",tone:"unknown"};
   if (!evidence) return {label:"Da verificare",tone:"unknown"};
-  if (definition.automated && Date.now() - Date.parse(evidence.at) > 10 * 60 * 1000)
+  if (definition.automated && Date.now() - Date.parse(evidence.at) > (definition.maxAgeSeconds ?? 600) * 1000)
     return {label:"Scaduto",tone:"unknown"};
   if (evidence.status === "pass") return {label:definition.kind === "preflight" ? "Prerequisito OK" : definition.kind === "contract" ? "Contratto OK" : "Test OK",tone:"success"};
   if (evidence.status === "warn") return {label:"Funziona, da migliorare",tone:"pending"};
@@ -127,7 +132,7 @@ export default function HealthDashboard({
               <div className="home-health-check-heading">
                 <strong>{item.title}</strong><span className={"pill "+result.tone}>{result.label}</span>
               </div>
-              <small>{item.stage} · {item.automated ? "ogni 5 minuti" : (item.frequency === "to_implement" ? "nessun runner" : "collaudo previsto: "+item.frequency)}</small>
+              <small>{item.stage} · {frequencyLabel(item)}</small>
               {item.description && <small>{item.description}</small>}
               {item.dependsOn.length > 0 && <small>Dipende da: {item.dependsOn.join(", ")}</small>}
               <small>Ultimo esito: {time(last?.at)} · {last?.environment || "nessuno"}{last?.commit ? " · "+last.commit.slice(0,10):""}</small>
