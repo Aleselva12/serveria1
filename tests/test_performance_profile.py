@@ -4,9 +4,10 @@ from unittest.mock import patch
 
 from core.models import get_model_keep_alive, performance_configuration
 from core.runtime import Runtime
+from tests.model_isolation import IsolatedModelSettings
 
 
-class PerformanceConfigurationTests(unittest.TestCase):
+class PerformanceConfigurationTests(IsolatedModelSettings):
     def test_effective_profile_is_non_secret_and_role_aware(self):
         with patch.dict(os.environ, {
             "OLLAMA_MODEL": "base-model",

@@ -1,5 +1,4 @@
 import json
-import unittest
 from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -12,9 +11,10 @@ from core.infra.observability import metadata_event
 from core.models import get_chat_model, model_options
 from core.runtime import Run, current_run, publish_thinking
 from deploy import prepare_qwen3
+from tests.model_isolation import IsolatedModelSettings
 
 
-class ModelThinkingTests(unittest.TestCase):
+class ModelThinkingTests(IsolatedModelSettings):
     def test_qwen_profile_overrides_legacy_zero_without_changing_other_families(self):
         for name in ['qwen3:0.6b', 'qwen3:8b']:
             with patch('core.models._default_selection', return_value=(name, 'default')):
