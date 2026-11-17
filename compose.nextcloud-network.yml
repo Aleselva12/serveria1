@@ -1,0 +1,16 @@
+# Optional override: lets the API reach Nextcloud AIO for the reachability check.
+# Nextcloud AIO publishes Apache only on 127.0.0.1:11000 of the host, so
+# host.docker.internal cannot reach it, and Tailscale Serve listens only on
+# tailscale0. Joining the AIO network gives a direct, read-only HTTP path:
+#   CORA_SERVICE_NEXTCLOUD_URL=http://nextcloud-aio-apache:11000/status.php
+# The network must already exist (created by the Nextcloud AIO mastercontainer).
+# Use with: docker compose --env-file deploy.env -f compose.yml -f compose.nextcloud-network.yml ...
+services:
+  api:
+    networks:
+      default: {}
+      nextcloud-aio: {}
+
+networks:
+  nextcloud-aio:
+    external: true

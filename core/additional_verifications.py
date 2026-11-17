@@ -86,10 +86,17 @@ def service_http(identifier):
     parsed = urlsplit(url)
     if parsed.scheme not in {"http", "https"} or parsed.username or parsed.password:
         return "unknown", "Endpoint di controllo non valido"
+    from urllib.error import HTTPError
     try:
-        with build_opener(NoRedirect()).open(Request(url, headers={"Accept": "application/json"}), timeout=5) as response:
+        # No Accept header: a web UI root (Immich "/") answers 406 to a JSON-only request.
+        with build_opener(NoRedirect()).open(Request(url), timeout=5) as response:
             if not 200 <= response.status < 300:
                 return "fail", "Endpoint HTTP del servizio non pronto"
+    except HTTPError as error:
+        # The service answered: say so, instead of reporting it as unreachable.
+        if 300 <= error.code < 400:
+            return "fail", f"Endpoint HTTP risponde con un reindirizzamento ({error.code}): usare l'URL di stato del servizio"
+        return "fail", f"Endpoint HTTP raggiungibile ma risponde {error.code}"
     except Exception:
         return "fail", "Endpoint HTTP del servizio non raggiungibile"
     return "pass", "Endpoint HTTP raggiungibile; caricamento, recupero e integrità dei dati non collaudati"

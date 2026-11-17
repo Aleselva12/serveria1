@@ -371,6 +371,24 @@ si imposta con `CORA_PROJECT_ROOT` in deploy.env. Non abilitarlo su installazion
 che non devono esporre il checkout. Non serve cambiare utente Docker o applicare
 chmod ricorsivi. La Libreria IA continua a usare copie indipendenti.
 
+### Controllo Nextcloud dal backend (opzionale)
+
+Nextcloud AIO pubblica Apache solo su `127.0.0.1:11000` dell'host e Tailscale Serve
+ascolta solo su `tailscale0`: dal container API nessuno dei due è raggiungibile, e il
+collaudo "Nextcloud: raggiungibilità HTTP" fallisce anche con Nextcloud funzionante.
+L'override `compose.nextcloud-network.yml` collega l'API alla rete `nextcloud-aio`
+(già creata dal mastercontainer). In deploy.env:
+
+```sh
+CORA_SERVICE_NEXTCLOUD_URL=http://nextcloud-aio-apache:11000/status.php
+CORA_SERVICE_IMMICH_URL=http://host.docker.internal:2283/api/server/ping
+```
+
+Aggiungere `-f compose.nextcloud-network.yml` ai comandi compose sopra e, alla
+reinstallazione dell'updater, `--compose-file compose.nextcloud-network.yml`: come per
+Calendar, un override va passato alla creazione dello snapshot e aggiungerlo alla
+repository non modifica un'installazione esistente.
+
 Se è già installato l'updater host, il pulsante Aggiorna riusa il suo snapshot
 Compose e occorre aggiungere il mount anche lì. Questo comando modifica soltanto
 la risorsa `project` e il mount `/project`, preservando le altre impostazioni e
