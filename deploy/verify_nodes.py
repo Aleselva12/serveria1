@@ -18,6 +18,7 @@ from uuid import UUID, uuid4
 
 from core.additional_verifications import DIRECT
 from core.additional_verifications import REGRESSIONS as EXTRA_REGRESSIONS
+from core.verify.live_e2e import LIVE
 
 REGRESSIONS = {
     "memory_regression": ("tests.test_memory_context.ContextContractTests", "tests.test_context_contracts"),
@@ -26,7 +27,7 @@ REGRESSIONS = {
     "files_regression": ("tests.test_library_writes", "tests.test_file_editor"),
 }
 REGRESSIONS.update(EXTRA_REGRESSIONS)
-CHECKS = ("memory_e2e", "calendar_e2e", "desktop_e2e", "laptop_e2e", "worker_e2e", "debian_host_e2e", "systemd_host_e2e", "host_admin_e2e", *REGRESSIONS, *DIRECT)
+CHECKS = ("memory_e2e", "calendar_e2e", "desktop_e2e", "laptop_e2e", "worker_e2e", "debian_host_e2e", "systemd_host_e2e", "host_admin_e2e", *LIVE, *REGRESSIONS, *DIRECT)
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -64,6 +65,10 @@ def _action(action, run_id):
     key = "cora-verification-" + token
     if action in DIRECT:
         state, detail = DIRECT[action]()
+        return {"status": state, "detail": detail}
+    if action in LIVE:
+        # Real resources, not synthetic: the child keeps the server environment.
+        state, detail = LIVE[action]()
         return {"status": state, "detail": detail}
     if action in {"debian_host_e2e", "systemd_host_e2e", "host_admin_e2e"}:
         from programmer_agent import releases
