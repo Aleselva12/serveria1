@@ -6,7 +6,7 @@
   {"id":"BKP","label":"5 · Snapshot codice e backup dati privati","state":"Implementato; attivazione host pendente","detail":"Snapshot giornaliero dei commit pubblicati su main in branch snapshots/* se cambiati; backup locali cifrati PostgreSQL, state e configurazione con audit, retention e restore su target vuoto. Installazione updater e audit reale necessari."},
   {"id":"DB-01","label":"6 · Episodio PostgreSQL","state":"Chiuso: causa utente","detail":"Chiuso su dichiarazione del proprietario. Non è un difetto del server e non richiede ulteriore diagnosi."},
   {"id":"LIB-SYNC","label":"7 · Originali e Libreria IA","state":"Rinviato: hardware","detail":"Sincronizzazione, versioni e conflitti rinviati all’upgrade hardware; nessuna sovrascrittura silenziosa."},
-  {"id":"AUTO-EXEC","label":"8 · Automazioni grafiche","state":"Da implementare","detail":"Validazione, esecuzione, pianificazione e annullamento controllati delle bozze."},
+  {"id":"AUTO-EXEC","label":"8 · Automazioni grafiche","state":"Esecuzione manuale implementata; pianificazione pendente","detail":"Validazione, prova a vuoto, esecuzione manuale con conferme in Attività e annullamento collaudati sul server il 16 novembre 2026. Restano pianificazione e avvio da eventi."},
   {"id":"OCR","label":"9 · OCR","state":"Da implementare","detail":"Lettura dei PDF scansionati con limiti espliciti."},
   {"id":"CONTEXT-REGISTRY","label":"10 · Context Registry","state":"Da implementare","detail":"Draft, validazione, approvazione, pubblicazione e versionamento."},
   {"id":"CONTEXT-RESOLVER","label":"11 · Resolver Context Pages","state":"Da migliorare","detail":"Selezione più robusta conservando il determinismo dove necessario."},

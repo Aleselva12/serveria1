@@ -3035,7 +3035,9 @@
           "PWA, Home e accesso ad Atlas"
         ]
       },
-      "roadmapRefs": []
+      "roadmapRefs": [
+        "UI-PAGES"
+      ]
     },
     {
       "id": "T12.p1",
@@ -3148,7 +3150,7 @@
     {
       "id": "T13",
       "title": "T13 · Motore comune automazioni",
-      "note": "Editor e validazione; esecutore generico da realizzare",
+      "note": "Editor, validazione ed esecuzione manuale con prova a vuoto e conferme; pianificazione da realizzare",
       "priority": "unknown",
       "parent": "tronco",
       "earlierNote": "Proposta V2 parziale. Responsabilità, evidenze e collegamenti da confermare.",
@@ -3157,14 +3159,16 @@
       "code": "T13",
       "sourceType": "architecture-v2",
       "timeline": {
-        "past": [],
+        "past": [
+          "Esecuzione manuale collaudata sul server il 16 novembre 2026"
+        ],
         "present": {
-          "statement": "Editor e validazione; esecutore generico da realizzare",
+          "statement": "Editor, validazione ed esecuzione manuale con prova a vuoto e conferme; pianificazione da realizzare",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
         "future": [
-          "Esecuzione reale del workflow dopo editor/validazione"
+          "Pianificazione e avvio da eventi delle automazioni"
         ]
       },
       "roadmapRefs": [

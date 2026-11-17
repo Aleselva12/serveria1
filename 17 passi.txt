@@ -35,8 +35,8 @@ Stato: Rinviato: hardware
 Sincronizzazione, versioni e conflitti rinviati all’upgrade hardware; nessuna sovrascrittura silenziosa.
 
 8 · Automazioni grafiche
-Stato: Da implementare
-Validazione, esecuzione, pianificazione e annullamento controllati delle bozze.
+Stato: Esecuzione manuale implementata; pianificazione pendente
+Validazione, prova a vuoto, esecuzione manuale con conferme in Attività e annullamento collaudati sul server il 16 novembre 2026. Restano pianificazione e avvio da eventi.
 
 9 · OCR
 Stato: Da implementare
