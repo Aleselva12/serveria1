@@ -35,20 +35,56 @@ const authSource=(await readFile(new URL('../src/components/AuthGate.tsx',import
 const compiled=ts.transpileModule('import React from "react";\n'+authSource,{compilerOptions:{jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replaceAll('from "react"','from '+JSON.stringify(pathToFileURL(require.resolve('react')).href));
 globalThis.__sharedPath=sharedDownloadPath;
 const {default:AuthGate}=await import('data:text/javascript;base64,'+Buffer.from(compiled).toString('base64'));
-test('private download stays behind login and survives authentication and expiry',async()=>{
+test('private download stays behind access and survives re-check and expiry',async()=>{
   const previousWindow=globalThis.window; const listeners={};
   globalThis.window={location:{hash:'#/shared/library/'+'a'.repeat(43)},addEventListener:(name,fn)=>listeners[name]=fn,removeEventListener:name=>delete listeners[name]};
-  globalThis.__shareFetch=async url=>({ok:true,json:async()=>({authenticated:url.endsWith('/login')})});
+  let authenticated=false;
+  globalThis.__shareFetch=async()=>({ok:true,json:async()=>({authenticated,mode:'tailscale'})});
   let view;
   try {
     await act(async()=>{view=create(React.createElement(AuthGate));});
     assert.equal(view.root.findAllByProps({id:'download'}).length,0);
-    assert.equal(view.root.findAllByType('form').length,1);
-    await act(async()=>view.root.findByType('form').props.onSubmit({preventDefault(){}}));
+    assert.equal(view.root.findAllByType('input').length,0);
+    authenticated=true;
+    await act(async()=>listeners['cora:unauthorized']());
     assert.equal(view.root.findByProps({id:'download'}).props.href,'/api/v1/library/files/shared/'+'a'.repeat(43));
+    authenticated=false;
     await act(async()=>listeners['cora:unauthorized']());
     assert.equal(view.root.findAllByProps({id:'download'}).length,0);
-    assert.equal(view.root.findAllByType('form').length,1);
+    assert.equal(view.root.findAllByType('form').length,0);
+  } finally {await act(async()=>view?.unmount());globalThis.window=previousWindow;}
+});
+
+test('unreachable backend never shows a password form and keeps an open app on a transient 401',async()=>{
+  const previousWindow=globalThis.window; const listeners={};
+  globalThis.window={location:{hash:''},addEventListener:(name,fn)=>listeners[name]=fn,removeEventListener:name=>delete listeners[name]};
+  let up=false;
+  globalThis.__shareFetch=async()=>{ if(!up) throw new Error('down'); return {ok:true,json:async()=>({authenticated:true,mode:'tailscale'})}; };
+  let view;
+  try {
+    await act(async()=>{view=create(React.createElement(AuthGate));});
+    assert.equal(view.root.findAllByType('form').length,0);
+    assert.equal(view.root.findAllByType('input').length,0);
+    assert.match(JSON.stringify(view.toJSON()),/Cora non risponde/);
+    up=true;
+    const retry=view.root.findAll(node=>node.type==='button'&&JSON.stringify(node.props.children).includes('Riprova ora'))[0];
+    await act(async()=>retry.props.onClick());
+    assert.equal(view.root.findAllByProps({id:'app'}).length,1);
+    up=false;
+    await act(async()=>listeners['cora:unauthorized']());
+    assert.equal(view.root.findAllByProps({id:'app'}).length,1);
+  } finally {await act(async()=>view?.unmount());globalThis.window=previousWindow;}
+});
+
+test('a server without Tailscale or desktop access gets no password form',async()=>{
+  const previousWindow=globalThis.window;
+  globalThis.window={location:{hash:''},addEventListener(){},removeEventListener(){}};
+  globalThis.__shareFetch=async()=>({ok:true,json:async()=>({authenticated:false,mode:'password'})});
+  let view;
+  try {
+    await act(async()=>{view=create(React.createElement(AuthGate));});
+    assert.equal(view.root.findAllByType('input').length,0);
+    assert.match(JSON.stringify(view.toJSON()),/password non è più disponibile/);
   } finally {await act(async()=>view?.unmount());globalThis.window=previousWindow;}
 });
 
