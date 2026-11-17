@@ -27,11 +27,12 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install ruff==0.16.9
-      - name: Ruff (report only)
-        continue-on-error: true
+      - name: Ruff
+        # Blocking since the backlog reached zero (deliberate exceptions carry a
+        # justified noqa): in report-only mode it grew from 4 to 14 findings in
+        # four days, unnoticed.
         # GitHub keeps only about ten annotations per step, so --output-format=github
-        # alone hides the real total. Print the per-rule counts first: that line is
-        # the one to watch, and it stays readable however many findings there are.
+        # alone hides the real total. Print the per-rule counts first.
         run: |
           ruff check --statistics . || true
           ruff check --output-format=github .
