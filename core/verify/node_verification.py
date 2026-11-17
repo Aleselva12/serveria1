@@ -120,7 +120,9 @@ def status():
         test_inventory = inventory()
         return {"run": job,
                 "availableChecks": [{"id": key, "title": CATALOG[key]["title"]} for key in available],
-                "unavailableChecks": [{"id": key, "title": item["title"]} for key, item in CATALOG.items() if key not in available],
+                # External information (CI, updater) is recorded on its own, never run as a collaudo.
+                "unavailableChecks": [{"id": key, "title": item["title"]} for key, item in CATALOG.items()
+                                      if key not in available and item["kind"] != "external"],
                 "testInventory": test_inventory}
     except Exception:
         raise HTTPException(503, "Collaudi non disponibili: verifica il database e l'aggiornamento del server.") from None

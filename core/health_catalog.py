@@ -81,6 +81,11 @@ _CATALOG = [
     entry("files_regression", "File: regressioni", "files", "synthetic", "Test isolati → scrittura e modifica", "on_release"),
     entry("backup_restore", "Backup: integrità e protezioni isolate", "backups", "synthetic", "Fixture archivio → controlli restore; DB reale escluso", "periodic_isolated"),
     entry("updates_rollback", "Updater: rollback e recupero isolati", "backups", "synthetic", "Updater simulato → recupero; rilascio reale escluso", "on_release"),
+    # Information from outside the Debian checks: never colours the map, never alerts.
+    entry("ci_github", "CI GitHub sulla versione installata", "cora", "external", "GitHub Actions → commit installato", "hourly_info",
+          description="Esito dei controlli GitHub del commit attivo. Solo informativo: non è un collaudo sul server."),
+    entry("updater_install", "Updater: ultima installazione o ripristino", "backups", "external", "Updater host → job", "hourly_info",
+          description="Esito dell'ultima installazione o ripristino eseguiti dall'updater. Solo informativo."),
 ]
 
 _CATALOG.append(entry('files_browse_regression', 'File: elenco, filtri e paginazione', 'files', "synthetic", "Fixture isolate → funzioni e API", "on_release", description="Regressioni su dati temporanei; installazione, browser e dati reali esclusi."))

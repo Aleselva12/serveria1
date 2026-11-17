@@ -97,6 +97,9 @@ async def lifespan(app):
         from core.domain import health_alerts
         cleanup.callback(health_alerts.stop)
         health_alerts.start()
+        from core.verify import external_evidence
+        cleanup.callback(external_evidence.stop)
+        external_evidence.start()
         # Runs may enqueue derived writes until their finalization is complete.
         # LIFO cleanup drains runs, then post-processing, before closing the DB.
         cleanup.callback(postprocess.shutdown)
