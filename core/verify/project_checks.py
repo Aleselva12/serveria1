@@ -350,6 +350,18 @@ def current_checks():
     return snapshot()
 
 
+@router.get("/system/health-transitions")
+def health_transitions():
+    """OK -> error -> restored history for the collaudi panel."""
+    from fastapi import HTTPException
+
+    from core.domain.health_alerts import timeline
+    try:
+        return timeline()
+    except Exception:
+        raise HTTPException(503, "Cronologia dei controlli non disponibile: verifica il database.") from None
+
+
 @router.get("/system/health-dashboard")
 def dashboard_endpoint():
     return health_dashboard()

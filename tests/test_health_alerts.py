@@ -168,5 +168,33 @@ class InboxApiTests(unittest.TestCase):
         self.assertEqual(client.post("/api/v1/notifications/inbox/not-a-uuid/seen").status_code, 422)
 
 
+
+class TimelineTests(unittest.TestCase):
+    def test_failing_now_comes_from_the_full_state_and_history_from_notifications(self):
+        conn = MagicMock()
+        conn.execute.return_value.fetchall.side_effect = [
+            [{"check_id": "nextcloud_e2e", "fail_streak": 3, "changed_at": T0, "notified": False}],
+            [{"id": "n1", "created_at": T0, "kind": "failure", "title": "Errore: Nextcloud", "body": "giù",
+              "ref": "nextcloud_e2e", "commit_sha": "abc"}],
+        ]
+        @contextmanager
+        def connect():
+            yield conn
+        with patch("core.infra.database.db_connection", connect):
+            data = ha.timeline()
+        self.assertEqual(data["failing"][0]["title"], "Nextcloud: raggiungibilità HTTP")
+        self.assertEqual((data["failing"][0]["failures"], data["failing"][0]["notified"]), (3, False))
+        self.assertEqual(data["history"][0]["checkId"], "nextcloud_e2e")
+        self.assertIn("source='health'", conn.execute.call_args_list[1].args[0])
+
+    def test_endpoint_reports_an_unavailable_database_as_503(self):
+        from fastapi import HTTPException
+
+        from core.verify import project_checks
+        with patch.object(ha, "timeline", side_effect=OSError("down")):
+            with self.assertRaises(HTTPException) as caught:
+                project_checks.health_transitions()
+        self.assertEqual(caught.exception.status_code, 503)
+
 if __name__ == "__main__":
     unittest.main()

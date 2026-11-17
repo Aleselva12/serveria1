@@ -191,3 +191,21 @@ def start():
 def stop():
     _STOP.set()
     _WAKE.set()
+
+
+def timeline(limit: int = 50) -> dict:
+    """Checks failing right now (complete state, also when the push was throttled)
+    and the recent OK -> error -> restored notifications, newest first."""
+    from core.infra.database import db_connection
+    with db_connection() as conn:
+        failing = conn.execute("""SELECT check_id,fail_streak,changed_at,notified FROM health_alert_state
+            WHERE state='failing' ORDER BY changed_at DESC""").fetchall()
+        history = conn.execute("""SELECT id,created_at,kind,title,body,ref,commit_sha FROM app_notifications
+            WHERE source='health' ORDER BY created_at DESC LIMIT %s""", (limit,)).fetchall()
+    return {
+        "failing": [{"checkId": r["check_id"], "title": CATALOG.get(r["check_id"], {}).get("title", r["check_id"]),
+                     "since": r["changed_at"].isoformat(), "failures": r["fail_streak"], "notified": r["notified"]}
+                    for r in failing],
+        "history": [{"id": str(r["id"]), "at": r["created_at"].isoformat(), "kind": r["kind"], "title": r["title"],
+                     "detail": r["body"], "checkId": r["ref"], "commit": r["commit_sha"]} for r in history],
+    }
