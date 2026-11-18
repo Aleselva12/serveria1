@@ -45,7 +45,6 @@ import { SYSTEM_TABS, systemTabFor, type SystemTab } from "./components/systemTa
 import MobileHome from "./components/MobileHome";
 import MobilePhotos from "./components/MobilePhotos";
 import Programmer from "./components/Programmer";
-import ProgrammerNextPlaceholder from "./components/ProgrammerNextPlaceholder";
 import Mail from "./components/Mail";
 import Calendar from "./components/Calendar";
 import FileManager from "./components/FileManager";
@@ -73,7 +72,6 @@ type Page =
   | "architecture"
   | "machines"
   | "code"
-  | "programmer-next"
   | "mail"
   | "calendar"
   | "files"
@@ -86,7 +84,7 @@ type Page =
   | "memory-management";
 const validPages: ReadonlySet<Page> = new Set([
   "home", "chat", "photos", "architecture", "machines", "code", "calendar", "mail",
-  "files", "audio", "activity", "updates", "settings", "memory-management", "programmer-next", "homepage-schema-albero",
+  "files", "audio", "activity", "updates", "settings", "memory-management", "homepage-schema-albero",
   "notifications", "system",
 ]);
 function isPage(value: string): value is Page {
@@ -673,7 +671,6 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
           {page === "system" && systemTab === "macchine" && <Machines />}
           {page === "code" && <Programmer />}
           {page === "homepage-schema-albero" && <Suspense fallback={<p>Apertura schema…</p>}><TreeHome /></Suspense>}
-          {page === "programmer-next" && <ProgrammerNextPlaceholder />}
           {page === "calendar" && <Calendar />}
           {page === "mail" && <Mail />}
           {page === "files" && <FileManager />}

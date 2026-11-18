@@ -1,4 +1,3 @@
-import HealthDashboard from "./HealthDashboard";
 import ThinkingPanel, { type ThinkingState } from "./ThinkingPanel";
 import { LengthChoice, RunTimer, type ResponseLength } from "./RunControls";
 import { useEffect, useRef, useState } from "react";
@@ -303,9 +302,10 @@ export default function Programmer() {
         </span>
       </div>
       <nav className="programmer-nav" aria-label="Sezioni Programma">
-        {[['work', 'Lavoro e codice'], ['terminal', 'Terminale del server'], ['releases', 'Rilasci'], ['health', 'Diagnostica']].map(([id, label]) =>
+        {[['work', 'Lavoro e codice'], ['terminal', 'Terminale del server'], ['releases', 'Rilasci']].map(([id, label]) =>
           <button key={id} aria-pressed={section === id} disabled={editing !== null && section !== id}
             onClick={() => setSection(id)}>{label}</button>)}
+        <a className="programmer-nav-link" href="#system/salute">Diagnostica in Sistema › Salute</a>
       </nav>
       {section === 'terminal' && <><p className="programmer-section-note">Terminale personale. Il programmatore non può ancora utilizzare questa shell.</p><PersonalTerminal /></>}
       {error && (
@@ -629,7 +629,6 @@ export default function Programmer() {
         }}
       />
       </div>
-      {section === 'health' && <HealthDashboard componentFilter={["cora","worker"]} compact />}
     </section>
   );
 }

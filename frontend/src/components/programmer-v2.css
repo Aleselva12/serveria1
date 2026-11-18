@@ -56,3 +56,4 @@
   .workspace-organize { padding:14px; }
   .workspace-organize label { flex-basis:100%;min-width:0; }
 }
+.programmer-nav-link{align-self:center;margin-left:auto;font-size:13px;color:inherit;opacity:.75}
