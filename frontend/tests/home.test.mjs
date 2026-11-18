@@ -42,7 +42,6 @@ const { default: MobileHome } = await compile('../src/components/MobileHome.tsx'
   [/import PriorityAssessment from .*?;/, 'const PriorityAssessment=()=>null;'],
   [/import \{[^}]+\} from "lucide-react";/, 'const Activity=()=>null, CalendarDays=Activity, FileAudio=Activity, Files=Activity, Images=Activity, MessageCircle=Activity, RefreshCw=Activity, Settings=Activity, Server=Activity;'],
   [/import ProjectRoadmap from .*?;/, 'const ProjectRoadmap=globalThis.__ProjectRoadmap;'],
-  [/import HealthDashboard from .*?;/, 'const HealthDashboard=()=>null;'],
   [/import \{ serviceStatusLabels, serviceSummary \} from .*?;/, 'const { serviceStatusLabels, serviceSummary }=globalThis.__homeStatus;'],
   [/import \{ useHomeMonitoring \} from .*?;/, 'const useHomeMonitoring=globalThis.__useHomeMonitoring;'],
   [/import \{[^}]+\} from "\.\.\/services\/pushNotifications";/, 'const {currentPushState}=globalThis.__push;'],
@@ -124,4 +123,44 @@ test('manual monitoring refresh refetches both sources, clears failed metrics an
   await act(async () => r.unmount());
   refresh();
   assert.equal(metricCalls, 2); assert.equal(serviceCalls, 2);
+});
+
+test('mobile Home lists programs but leaves measurements and checks to Sistema › Salute', async () => {
+  reset(); monitoring.telemetry = { cpu: { percent: 42 }, ram: { percent: 10 }, disks: [] };
+  const opened = [];
+  let r; await act(async () => { r = create(React.createElement(MobileHome, { ...props({ ollama_online: true }), onNavigate: page => opened.push(page) })); });
+  assert.ok(!text(r).includes('42%'));
+  assert.ok(!text(r).includes('Misurazioni di Cora'));
+  const link = r.root.findAll(n => n.type === 'button' && typeof n.props.children === 'string' && n.props.children.includes('Sistema › Salute'))[0];
+  await act(async () => link.props.onClick());
+  assert.deepEqual(opened, ['system']);
+  await act(async () => r.unmount());
+});
+
+globalThis.__homeServices = { serviceSummary: status.serviceSummary };
+const { default: Home } = await compile('../src/components/Home.tsx', [
+  [/import PriorityAssessment from .*?;/, 'const PriorityAssessment=()=>null;'],
+  [/import \{[^}]+\} from "lucide-react";/, 'const ArrowRight=()=>null, ShieldCheck=ArrowRight, Wifi=ArrowRight;'],
+  [/import CurrentCommit from .*?;/, 'const CurrentCommit=()=>null;'],
+  [/import ProjectRoadmap from .*?;/, 'const ProjectRoadmap=()=>"roadmap";'],
+  [/import \{ useHomeMonitoring \} from .*?;/, 'const useHomeMonitoring=globalThis.__useHomeMonitoring;'],
+  [/import \{ serviceSummary \} from .*?;/, 'const { serviceSummary }=globalThis.__homeServices;'],
+]);
+
+test('desktop Home keeps the roadmap, one status line and links; the rest lives in Sistema', async () => {
+  reset(); monitoring.services = [
+    { id: 'immich', label: 'Immich', status: 'ready', checkedAt: '', browserUrl: 'https://foto.example' },
+    { id: 'nextcloud', label: 'Nextcloud', status: 'offline', checkedAt: '', browserUrl: 'javascript:alert(1)' },
+    { id: 'ollama', label: 'Ollama', status: 'ready', checkedAt: '', browserUrl: 'https://ollama.example' },
+  ];
+  const opened = [];
+  let r; await act(async () => { r = create(React.createElement(Home, { health: { ollama_online: true }, checking: false, checkedAt: '',
+    onOpenUpdates: () => opened.push('updates'), onOpenHealth: () => opened.push('health') })); });
+  assert.ok(text(r).includes('2/3 servizi raggiungibili'));
+  assert.ok(text(r).includes('roadmap'));
+  assert.deepEqual(r.root.findAllByType('a').map(a => a.props.href), ['https://foto.example']);
+  assert.ok(!text(r).includes('Gestisci applicazioni'));
+  for (const b of r.root.findAllByType('button')) await act(async () => b.props.onClick());
+  assert.deepEqual(opened, ['health', 'updates']);
+  await act(async () => r.unmount());
 });

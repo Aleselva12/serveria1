@@ -19,7 +19,7 @@ export default function LibraryMonitorFeed({ compact = false }: { compact?: bool
   return <div className={compact ? "system-card secondary-card" : "section-card"}>
     <h2>{compact ? "Novità Libreria IA" : "Library Monitor · Registro variazioni"}</h2>
     <p className="muted">{compact
-      ? "Nuovi file e file non più rilevati nelle cartelle monitorate. Le modifiche ordinarie sono in Attività."
+      ? "Nuovi file e file non più rilevati nelle cartelle monitorate. Le modifiche ordinarie sono in Sistema › Attività tecnica."
       : "Cronologia delle scansioni del filesystem. Le variazioni non sono ancora analisi semantiche."}</p>
     {!data ? <p>{error || "Caricamento monitor…"}</p> : <>
       <p>{data.folders.length} cartelle abilitate · {data.indexed_files} file rilevati

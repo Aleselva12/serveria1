@@ -500,6 +500,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
                 checking={backend.checking}
                 checkedAt={backend.checkedAt}
                 onOpenUpdates={() => navigate("updates")}
+                onOpenHealth={() => navigate("system", "salute")}
               />
             )
           )}

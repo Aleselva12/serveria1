@@ -1,5 +1,4 @@
 import PriorityAssessment from "./PriorityAssessment";
-import HealthDashboard from "./HealthDashboard";
 import {
   Activity,
   CalendarDays,
@@ -16,12 +15,7 @@ import { serviceStatusLabels, serviceSummary } from "../services/homeStatus";
 import type { BackendHealth } from "../types/contracts";
 import { useHomeMonitoring } from "../services/useHomeMonitoring";
 
-type MobilePage = "photos" | "files" | "audio" | "calendar" | "chat" | "activity" | "settings";
-
-const bytes = (value: number) => {
-  if (!Number.isFinite(value) || value <= 0) return "0 GiB";
-  return (value / 1024 ** 3).toFixed(value >= 100 * 1024 ** 3 ? 0 : 1) + " GiB";
-};
+type MobilePage = "photos" | "files" | "audio" | "calendar" | "chat" | "system" | "settings";
 
 export default function MobileHome({
   health,
@@ -36,9 +30,7 @@ export default function MobileHome({
   onNavigate: (page: MobilePage) => void;
   onOpenUpdates: () => void;
 }) {
-  const { telemetry, services, telemetryError, servicesError, refresh } = useHomeMonitoring();
-  const disks = telemetry?.disks ?? [];
-  const disk = disks[0];
+  const { services, servicesError, refresh } = useHomeMonitoring();
   const coreOk = Boolean(health);
   const displayedServices = [...services];
   if (!services.some(service => service.id === "fastapi")) displayedServices.unshift({
@@ -79,15 +71,10 @@ export default function MobileHome({
 
       <div className="mobile-status-card">
         <div className="mobile-section-title">
-          <div><span className="mobile-kicker">STATO</span><h2>Misurazioni di Cora</h2></div>
+          <div><span className="mobile-kicker">STATO</span><h2>Programmi del server</h2></div>
           <Server size={20} />
         </div>
-        <div className="mobile-metrics">
-          <div><span>CPU</span><strong>{telemetry?.cpu.percent == null ? "—" : Math.round(telemetry.cpu.percent) + "%"}</strong></div>
-          <div><span>RAM</span><strong>{telemetry?.ram.percent == null ? "—" : Math.round(telemetry.ram.percent) + "%"}</strong></div>
-          <div><span>Disco</span><strong>{disk ? bytes(disk.totalBytes - disk.usedBytes) : "—"}</strong><small>{disk ? "liberi" : ""}</small></div>
-        </div>
-        {(telemetryError || servicesError) && <p className="mobile-inline-error">{telemetryError || servicesError}</p>}
+        {servicesError && <p className="mobile-inline-error">{servicesError}</p>}
         <div className="mobile-service-list">
           {displayedServices.map((service) => (
             <div className="mobile-service-row" key={service.id}>
@@ -100,7 +87,7 @@ export default function MobileHome({
             </div>
           ))}
         </div>
-        <HealthDashboard compact />
+        <button className="text-button" onClick={() => onNavigate("system")}>Misure, collaudi e diagnostica in Sistema › Salute</button>
       </div>
 
       <PriorityAssessment />
@@ -108,7 +95,7 @@ export default function MobileHome({
 
       <div className="mobile-secondary-links">
         <button onClick={() => onNavigate("chat")}><MessageCircle size={18} /><span>Chat Cora</span></button>
-        <button onClick={() => onNavigate("activity")}><Activity size={18} /><span>Attività</span></button>
+        <button onClick={() => onNavigate("system")}><Activity size={18} /><span>Sistema</span></button>
         <button onClick={() => onNavigate("settings")}><Settings size={18} /><span>Impostazioni e notifiche push</span></button>
       </div>
     </section>
