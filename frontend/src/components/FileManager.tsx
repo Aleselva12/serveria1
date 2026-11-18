@@ -25,6 +25,7 @@ import FileSidebar from "./FileSidebar";
 import FileThumbnail, { FileTypeIcon, fileStyle } from "./FileVisual";
 import "./file-drive.css";
 import FileEditor from "./FileEditor";
+import LibraryMonitorFeed from "./LibraryMonitorFeed";
 import WordDocument from "./WordDocument";
 import { sharePageUrl } from "../services/sharedFiles";
 import { filesApi } from "../services/filesApi";
@@ -987,6 +988,7 @@ function FileBrowser({
               </span>
             )}
           </div>
+          {isLibrary && !inTrash && !path && <LibraryMonitorFeed compact />}
           {isLibrary && !inTrash && path && (
             <div className="settings-row">
               <div>

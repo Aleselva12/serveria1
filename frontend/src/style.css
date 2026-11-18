@@ -4452,3 +4452,9 @@ select:disabled {
 .system-tabs{max-width:1180px;margin:0 auto 18px}
 .system-apps{margin-top:18px}
 .system-apps h2{font-size:17px;margin:0 0 10px}
+.home-quick-services{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.home-quick-service{border:1px solid #e3e3e3;border-radius:999px;padding:6px 12px;font-size:12px;color:#222;text-decoration:none;background:#fafafa}
+.home-quick-service.offline,.home-quick-service.error{border-color:#f0b4ae;color:#b42318}
+.home-update-actions .file-tool svg{vertical-align:-2px;margin-left:4px}
+.server-telemetry{display:grid;gap:14px;margin-bottom:18px}
+.server-telemetry .home-bottom{grid-template-columns:1fr}
