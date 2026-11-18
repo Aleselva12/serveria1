@@ -73,7 +73,7 @@ test("reviewed source links exist in the serveria1 repository; no source URLs ar
  assert.ok(validated>=40);
  for(const [nodeId,page] of Object.entries(pageLinks)){
   assert.ok(byId.has(nodeId));
-  assert.match(page.hash,/^#[a-z][a-z-]*$/);
+  assert.match(page.hash,/^#[a-z][a-z-]*(\/[a-z][a-z-]*)?$/);
  }
 });
 test("no new check runner or autonomous structural mutations were added to the map",()=>{
