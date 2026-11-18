@@ -162,6 +162,27 @@ class MailTests(unittest.TestCase):
         self.assertEqual(result["summarized_count"], 13)
         self.assertEqual(worker.call_count, 3)
 
+
+    def test_yesterday_digest_resumes_completed_batches(self):
+        from core import agent_models
+        rows = [{"id": str(i), "account": "a", "email": mail.ACCOUNTS["a"],
+                 "subject": "Mail", "sender": "Test", "body": "test", "date": ""} for i in range(7)]
+        with patch.object(mail, "_all_summary_messages", return_value=(rows, {})), \
+                patch.object(agent_models, "binding", return_value={"machine_id": "worker", "model": "chosen"}), \
+                patch.object(agent_models, "chat_on_worker", side_effect=[
+                    {"message": {"content": "Primo blocco"}}, TimeoutError("offline"),
+                    {"message": {"content": "Secondo blocco"}}
+                ]) as worker:
+            first = mail.summarize("a", "yesterday")
+            self.assertEqual(first["status"], "partial")
+            self.assertEqual(first["summarized_count"], 5)
+            second = mail.summarize("a", "yesterday")
+        self.assertEqual(second["status"], "ready")
+        self.assertEqual(second["summarized_count"], 7)
+        self.assertEqual(worker.call_count, 3)
+        self.assertIn("Primo blocco", second["summary"])
+        self.assertIn("Secondo blocco", second["summary"])
+
     def test_template_is_inert(self):
         template = mail.automation_template("all")
         self.assertFalse(template["enabled"])
