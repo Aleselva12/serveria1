@@ -242,9 +242,9 @@ def summarize(selection, scope):
         for offset in range(0, len(rows), 5):
             batch = rows[offset:offset + 5]
             payload = [{
-                "account": row["account"], "email": row["email"], "id": row["id"],
-                "subject": row["subject"][:300], "sender": row["sender"][:300],
-                "date": row["date"][:100], "content": (row["body"] or row["snippet"])[:3500],
+                "account": row.get("account", ""), "email": row.get("email", ""), "id": row.get("id", ""),
+                "subject": row.get("subject", "")[:300], "sender": row.get("sender", "")[:300],
+                "date": row.get("date", "")[:100], "content": (row.get("body") or row.get("snippet", ""))[:3500],
             } for row in batch]
             prompts = [
                 {"role": "system", "content": (
