@@ -1,6 +1,6 @@
 # Pagina Mail
 
-Implementazione in sola lettura: Account A `aletessituraselva@gmail.com`, Account B `aleselva97@gmail.com`, vista Tutti. Nessun invio, modifica delle etichette, scheduler o avvio automatico del worker. I token Calendar e Gmail legacy non vengono migrati o sostituiti.
+Implementazione in sola lettura: Account A `aletessituraselva@gmail.com`, Account B `aleselva97@gmail.com`, vista Tutti. Nessun invio o modifica delle etichette e nessun avvio automatico del worker. I token Calendar e Gmail legacy non vengono migrati o sostituiti.
 
 ## Collegamento sul server
 
@@ -17,9 +17,13 @@ Un solo client Google può autorizzare entrambi gli utenti; le autorizzazioni, l
 
 ## Riepiloghi e limiti
 
-Scegli Account A, B o Tutti e l’ambito Posta in arrivo, Non lette o Ricevute ieri. Il riepilogo usa **oggetti e anteprime dei primi 20 messaggi per account**, non i corpi completi né tutti i messaggi paginati. Copertura limitata ed errori parziali sono indicati nell’interfaccia. La lista può caricare altre pagine; ogni messaggio apre dettagli e testo semplice. HTML non eseguito, allegati non scaricati; i messaggi solo HTML mostrano l’anteprima. La lettura non segna la mail come letta.
+La pagina consente Account A, B o Tutti, con Posta in arrivo, Non lette o Ricevute ieri. La **lista interattiva** continua ad avere pagine di 20 messaggi per account; il **riepilogo** invece scorre tutte le pagine Gmail, legge il corpo `text/plain` oppure converte in testo gli HTML (senza eseguire script), e raggruppa le email a blocchi di cinque per l'IA. Ogni blocco include account e message ID, mittente, oggetto e testo (fino a 3.500 caratteri per email). Gli allegati restano esclusi. La conversione e il taglio dei testi lunghi impediscono di considerare il riepilogo una trascrizione integrale delle email.
 
-Assegna manualmente un modello worker all’agente Email attraverso l’infrastruttura Architettura/Macchine esistente. In assenza di assegnazione remota, con worker OFF o errore, la pagina restituisce uno stato controllato e permette di consultare le email. Nessun fallback locale, risveglio del PC o accodamento di inferenze. Gli input email sono trattati come dati non attendibili e il riepilogo non dispone di strumenti d’azione.
+Il riepilogo automatico si **avvia tra le 03:00 e le 04:00 Europe/Rome** (default `CORA_MAIL_SUMMARY_TIME=03:00`, `CORA_MAIL_SUMMARY_WINDOW_HOURS=1`) e riguarda le email del giorno precedente. Si considera completato soltanto quando il job termina in stato `ready` o `empty` senza errori; in caso contrario può riprovare nella stessa finestra, con almeno 10 minuti fra tentativi e non oltre tre tentativi al giorno. Le sintesi dei blocchi già completati sono conservate in checkpoint su volume persistente e recuperate dopo un'interruzione, purché l'elenco ID email della giornata sia invariato. Le notifiche push vengono inviate soltanto quando esiste una sintesi completa (`ready`).
+
+**Limite operativo:** l'avvio viene limitato a quell'ora, ma un'inferenza già in corso può terminare dopo le 04:00, specialmente se il worker è lento. Non è ancora garantita la fine dell'elaborazione entro le 04:00. La pagina mostra conteggi dei messaggi letti e dei messaggi processati; non esiste ancora una verifica formale che ogni voce sia presente nel testo generato dal modello.
+
+L'agente Email usa il modello esplicitamente assegnato in Architettura/Macchine. In assenza di modello, worker offline o errore, il job restituisce uno stato controllato. Non viene risvegliato il desktop e non viene attivato un modello alternativo automaticamente. Gli input email restano dati non attendibili.
 
 ## Contratto per la futura pagina Automazioni
 
