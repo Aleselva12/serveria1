@@ -43,6 +43,10 @@ TARGETED_E2E_NODES = frozenset({
     "T1", "T1.p1", "T1.p1.m1",
     # T11 — safe synthetic/E2E registry completeness
     "T11", "T11.p1", "T11.p2", "T11.p2.m2", "T11.p3", "T11.p4",
+    # Owner decision of 17/11/2026: live E2E for Gmail (read-only), files and Word
+    "C2.p1", "C2.p1.m1", "C2.p1.m2",
+    "B1.p2", "B1.p2.m1", "B1.p2.m2", "B1.p3.m1",
+    "B3.p1", "B3.p1.m2", "C3.p4", "C3.p4.m1",
     # T9 — queues, priorities and scheduling
     "T9", "T9.p2", "T9.p2.m1", "T9.p2.m2",
     "T9.p3", "T9.p3.m1", "T9.p3.m2",
@@ -60,6 +64,9 @@ TARGETED_NEW_E2E = {
     "supervisor_ingress_e2e": ("T1.p1.m1",),
     "t11_registry_live_e2e": ("T11.p1", "T11.p2", "T11.p3"),
     "planner_queue_e2e": ("T9.p2", "T9.p3"),
+    "gmail_read_e2e": ("C2.p1", "C2.p1.m1", "C2.p1.m2"),
+    "files_live_e2e": ("B1.p2", "B1.p2.m1", "B1.p2.m2", "B1.p3.m1"),
+    "word_live_e2e": ("B3.p1", "B3.p1.m2", "C3.p4", "C3.p4.m1"),
 }
 
 
