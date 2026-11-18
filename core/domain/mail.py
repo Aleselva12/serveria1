@@ -2,6 +2,7 @@
 import base64
 import json
 import html
+import hashlib
 from html.parser import HTMLParser
 import os
 import re
@@ -222,6 +223,28 @@ def _all_summary_messages(selection, scope):
     return sorted(rows, key=lambda row: row["timestamp"], reverse=True), errors
 
 
+def _digest_checkpoint(selection, scope, rows):
+    """Stable checkpoint for yesterday's digest; invalidated when message IDs change."""
+    if scope != "yesterday":
+        return None, None
+    day = previous_day()[0].date().isoformat()
+    identity = json.dumps([selection, day, [(row.get("account"), row.get("id")) for row in rows]])
+    fingerprint = hashlib.sha256(identity.encode("utf-8")).hexdigest()
+    return directory() / "summaries" / ("checkpoint-" + selection + "-" + day + ".json"), fingerprint
+
+
+def _save_digest_checkpoint(path, state):
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    fd, name = tempfile.mkstemp(dir=path.parent, prefix=".digest-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(state, stream, ensure_ascii=False)
+        os.replace(name, path)
+    finally:
+        if os.path.exists(name):
+            os.unlink(name)
+
+
 def summarize(selection, scope):
     """Summarize every fetched message in bounded groups, with explicit coverage."""
     from core import agent_models
@@ -238,8 +261,19 @@ def summarize(selection, scope):
         binding = agent_models.binding("email")
         if not binding or binding["machine_id"] == "inherit":
             raise ValueError("Nessun modello email assegnato")
-        summaries = []
-        for offset in range(0, len(rows), 5):
+        checkpoint_path, fingerprint = _digest_checkpoint(selection, scope, rows)
+        checkpoint = {}
+        if checkpoint_path and checkpoint_path.is_file():
+            try:
+                checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                checkpoint = {}
+        if checkpoint.get("fingerprint") != fingerprint:
+            checkpoint = {}
+        summaries = list(checkpoint.get("summaries", []))
+        completed_batches = min(len(rows) // 5 + (bool(len(rows) % 5)), len(summaries))
+        result["summarized_count"] = min(len(rows), completed_batches * 5)
+        for offset in range(completed_batches * 5, len(rows), 5):
             batch = rows[offset:offset + 5]
             payload = [{
                 "account": row.get("account", ""), "email": row.get("email", ""), "id": row.get("id", ""),
@@ -263,6 +297,10 @@ def summarize(selection, scope):
                 raise ValueError("Risposta vuota")
             summaries.append(text)
             result["summarized_count"] += len(batch)
+            if checkpoint_path:
+                _save_digest_checkpoint(checkpoint_path, {"fingerprint": fingerprint, "summaries": summaries})
+        if checkpoint_path:
+            checkpoint_path.unlink(missing_ok=True)
         result["summary"] = "\n\n".join(summaries)
         result["status"] = "partial" if errors else "ready"
     except Exception:
