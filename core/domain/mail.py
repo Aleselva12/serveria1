@@ -87,7 +87,7 @@ class _PlainHTML(HTMLParser):
         if tag in ("script", "style", "head"):
             self.hidden += 1
         elif not self.hidden and tag in ("p", "div", "br", "li", "tr"):
-            self.parts.append("\\n")
+            self.parts.append("\n")
 
     def handle_endtag(self, tag):
         if tag in ("script", "style", "head"):
@@ -114,13 +114,13 @@ def body_text(payload):
             return [decode(part)]
         return [text for child in part.get("parts", []) for text in collect(child, mime)]
 
-    plain = "\\n".join(filter(None, collect(payload, "text/plain")))
+    plain = "\n".join(filter(None, collect(payload, "text/plain")))
     if plain.strip():
         return plain[:12000]
-    markup = "\\n".join(filter(None, collect(payload, "text/html")))
+    markup = "\n".join(filter(None, collect(payload, "text/html")))
     parser = _PlainHTML()
     parser.feed(markup[:100000])
-    return re.sub(r"\\n{3,}", "\\n\\n", html.unescape("".join(parser.parts))).strip()[:12000]
+    return re.sub(r"\n{3,}", "\n\n", html.unescape("".join(parser.parts))).strip()[:12000]
 
 
 def normalize(account, message):
@@ -263,11 +263,11 @@ def summarize(selection, scope):
                 raise ValueError("Risposta vuota")
             summaries.append(text)
             result["summarized_count"] += len(batch)
-        result["summary"] = "\\n\\n".join(summaries)
+        result["summary"] = "\n\n".join(summaries)
         result["status"] = "partial" if errors else "ready"
     except Exception:
         result["status"] = "partial" if result["summarized_count"] or errors else "unavailable"
-        result["summary"] = "\\n\\n".join(summaries) if "summaries" in locals() and summaries else None
+        result["summary"] = "\n\n".join(summaries) if "summaries" in locals() and summaries else None
         result["notice"] = "Riepilogo incompleto: modello non disponibile o errore durante l'elaborazione. Riprovare."
     return result
 
