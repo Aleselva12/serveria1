@@ -34,6 +34,10 @@ def _nightly_path():
     return _directory() / "nightly.json"
 
 
+def _nightly_attempt_path():
+    return _directory() / "nightly-attempt.json"
+
+
 def _runner_lock_path():
     return _directory() / "runner.lock"
 
@@ -125,6 +129,10 @@ def run_job(job):
     with _LOCK:
         _write(_latest_path(), record)
     if job.get("trigger") == "nightly":
+        day = datetime.fromisoformat(started).astimezone(mail.ROME).date().isoformat()
+        previous = _read(_nightly_attempt_path()) or {}
+        count = (previous.get("count", 0) if previous.get("day") == day else 0) + 1
+        _write(_nightly_attempt_path(), {"day": day, "count": count, "finished_at": record["finished_at"]})
         # Do not mark a failed/partial night as completed; allow a retry while
         # the configured 03:00-04:00 Rome window is still open.
         if record["status"] in ("ready", "empty") and not record.get("errors"):
@@ -157,7 +165,19 @@ def _nightly_due(now_local):
     if not start <= now_local < start + timedelta(hours=nightly_window_hours()):
         return False
     done = _read(_nightly_path()) or {}
-    return done.get("day") != now_local.date().isoformat()
+    if done.get("day") == now_local.date().isoformat():
+        return False
+    attempt = _read(_nightly_attempt_path()) or {}
+    if attempt.get("day") == now_local.date().isoformat():
+        if attempt.get("count", 0) >= 3:
+            return False
+        try:
+            last = datetime.fromisoformat(attempt["finished_at"])
+            if _now() - last < timedelta(minutes=10):
+                return False
+        except (ValueError, KeyError, TypeError):
+            pass
+    return True
 
 
 def _take_pending():
