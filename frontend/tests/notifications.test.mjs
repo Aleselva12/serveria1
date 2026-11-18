@@ -12,7 +12,8 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const source = (await readFile(new URL('../src/components/Notifications.tsx', import.meta.url), 'utf8'))
   .replace('import { Bell, Check, X } from "lucide-react";', 'const Bell=()=>null, Check=()=>null, X=()=>null;')
   .replace(/import \{ INBOX_CHANGED[^;]*;/, 'const {INBOX_CHANGED,loadInbox,markAllSeen,markSeen}=globalThis.__inbox;')
-  .replace('import "./notifications.css";', '');
+  .replace('import "./notifications.css";', '')
+  .replace('import DecisionsPanel, { useDecisions } from "./Decisions";', 'const {DecisionsPanel, useDecisions}=globalThis.__decisions;');
 const compiled = ts.transpileModule('import React from "react";\n' + source, {compilerOptions: {jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022}})
   .outputText.replaceAll('from "react"', 'from ' + JSON.stringify(pathToFileURL(require.resolve('react')).href));
 
@@ -27,6 +28,11 @@ globalThis.__inbox = {
   loadInbox: async includeSeen => ({items: store.filter(i => includeSeen || !i.seenAt), unseen: store.filter(i => !i.seenAt).length}),
   markSeen: async id => { store = store.map(i => i.id === id ? {...i, seenAt: 'now'} : i); listeners['cora:inbox-changed']?.(); },
   markAllSeen: async () => { store = store.map(i => ({...i, seenAt: 'now'})); listeners['cora:inbox-changed']?.(); },
+};
+let pending = 0;
+globalThis.__decisions = {
+  useDecisions: () => ({decisions: {pending, approvals: [], uncertain: [], word: [], results: []}, error: ''}),
+  DecisionsPanel: () => React.createElement('p', null, 'pannello decisioni'),
 };
 const {default: NotificationsPage, HomeNotifications} = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
 const text = view => JSON.stringify(view.toJSON());
@@ -71,4 +77,23 @@ test('Notifiche page lists unseen ones and can include the seen history', async 
   await act(async () => button(view, 'Segna tutte viste').props.onClick());
   assert.match(text(view), /Tutto visto/);
   await act(async () => view.unmount());
+});
+
+test('pending decisions keep the Home window open and lead to the Da decidere tab', async () => {
+  store = [];
+  pending = 2;
+  let decisions = 0, view;
+  try {
+    await act(async () => { view = create(React.createElement(HomeNotifications, {onOpenAll() {}, onOpenDecisions: () => decisions++})); });
+    assert.match(text(view), /decisioni in attesa/);
+    assert.doesNotMatch(text(view), /Segna tutte viste/);
+    await act(async () => button(view, 'decisioni in attesa').props.onClick());
+    assert.equal(decisions, 1);
+    await act(async () => view.unmount());
+    await act(async () => { view = create(React.createElement(NotificationsPage, {initialTab: 'decisions'})); });
+    assert.match(text(view), /"Da decidere"," \(2\)"/);
+    assert.match(text(view), /pannello decisioni/);
+    await act(async () => button(view, 'Avvisi').props.onClick());
+    assert.match(text(view), /Nessuna notifica/);
+  } finally { pending = 0; await act(async () => view.unmount()); }
 });

@@ -13,3 +13,13 @@
   /* Above the mobile navigation bar. */
   .home-notifications { right: 16px; left: 16px; width: auto; bottom: 84px; }
 }
+.notifications-tabs { display: flex; gap: 6px; margin: 12px 0 4px; border-bottom: 1px solid var(--line, #e2e2e2); flex-wrap: wrap; }
+.notifications-tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 10px; cursor: pointer; color: inherit; font: inherit; }
+.notifications-tabs button[aria-selected="true"] { border-bottom-color: currentColor; font-weight: 600; }
+.text-button.inline { padding: 0; display: inline; }
+.home-decisions-link { display: flex; align-items: center; gap: 6px; margin: 6px 0; text-align: left; }
+.decisions { display: grid; gap: 12px; }
+.decision-item { border-top: 1px solid var(--line, #e2e2e2); padding-top: 10px; margin-top: 10px; display: grid; gap: 6px; min-width: 0; }
+.decision-item pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.decision-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.decisions textarea { width: 100%; min-height: 60px; box-sizing: border-box; }

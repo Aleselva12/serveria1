@@ -157,6 +157,17 @@ def create_proposal(audio_id: UUID, audio_version: int, selected: dict, date: st
     return _public(proposal)
 
 
+def pending_overview(limit: int = 50) -> list[dict]:
+    """Word notes still waiting for the owner, across all recordings (collaudi excluded)."""
+    with db_connection() as conn:
+        rows = conn.execute("""SELECT p.id, p.audio_id, a.title, p.created_at, p.expires_at
+          FROM commercial_note_proposals p JOIN audio_records a ON a.id=p.audio_id
+          WHERE p.status='pending' AND p.expires_at > NOW() AND a.source_path IS DISTINCT FROM 'collaudo'
+          ORDER BY p.created_at LIMIT %s""", (limit,)).fetchall()
+    return [{"id": str(r["id"]), "audioId": str(r["audio_id"]), "title": r["title"] or "Registrazione",
+             "createdAt": r["created_at"].isoformat(), "expiresAt": r["expires_at"].isoformat()} for r in rows]
+
+
 def proposals(audio_id: UUID) -> list[dict]:
     with db_connection() as conn:
         rows = conn.execute("""SELECT * FROM commercial_note_proposals

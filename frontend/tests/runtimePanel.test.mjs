@@ -63,28 +63,8 @@ test('diagnostic losses are visible without turning canonical success into failu
  } finally {if(r)await act(async()=>r.unmount());telemetry=null;history=[];}
 });
 
-test('uncertain effects require a recorded verification and review never replays an operation',async()=>{
- calls=[];reviewCalls=[];
- unknownEffects=[{id:'uncertain-op',capability_id:'supervisor.write',run_id:'old-run',payload:{file:'note.docx'},status:'uncertain',effect:'write',contract_version:1,error_type:'ProcessInterrupted',review_outcome:null}];
- history=[{id:'old-run',status:'interrupted',target:'supervisor',approval_ids:[]}];
- let r;
- try {
-  await act(async()=>{r=create(React.createElement(Panel));});
-  let button=r.root.findAllByType('button').find(b=>b.children.includes('Effetto verificato'));
-  assert.equal(button.props.disabled,true);
-  assert.ok(JSON.stringify(r.toJSON()).includes('esito incerto'));
-  await act(async()=>r.root.findAllByType('textarea').find(n=>n.props['aria-label']==='Verifica uncertain-op').props.onChange({target:{value:'Ho verificato il file sul server'}}));
-  button=r.root.findAllByType('button').find(b=>b.children.includes('Effetto verificato'));
-  assert.equal(button.props.disabled,false);
-  await act(async()=>button.props.onClick());
-  assert.deepEqual(reviewCalls,[{outcome:'effect_verified',note:'Ho verificato il file sul server'}]);
-  assert.ok(!calls.some(p=>p.includes('/resolve') || p.includes('/chat')));
-  assert.ok(JSON.stringify(r.toJSON()).includes('Nessun effetto da verificare'));
- } finally {if(r)await act(async()=>r.unmount());unknownEffects=[];history=[];}
-});
-
-test('status polling preserves independent sections when approvals fail',async()=>{
-  calls=[];failPaths=['/approvals'];
+test('status polling preserves independent sections when one endpoint fails; decisions live in Notifiche',async()=>{
+  calls=[];failPaths=['/runtime/coordinator'];
   history=[{id:'persistent-run',status:'completed',target:'supervisor',approval_ids:[]}];
   let r;
   try {
@@ -92,7 +72,10 @@ test('status polling preserves independent sections when approvals fail',async()
     const view=JSON.stringify(r.toJSON());
     assert.ok(view.includes('persistent-run'.slice(0,8)));
     assert.ok(view.includes('Aggiornamento parziale'));
-    assert.ok(view.includes('approvazioni'));
+    assert.ok(view.includes('coordinatore B'));
+    assert.ok(view.includes('Notifiche › Da decidere'));
+    assert.ok(!view.includes('Azioni da approvare') && !view.includes('Effetti da verificare'));
+    assert.ok(!calls.includes('/approvals') && !calls.some(p=>p.includes('unresolved=true')));
   } finally {
     if(r)await act(async()=>r.unmount());
     failPaths=[];history=[];
