@@ -53,6 +53,9 @@ import ArchitectureRuntime from "./components/ArchitectureRuntime";
 import MemoryManagement from "./components/MemoryManagement";
 import ModelSettings from "./components/ModelSettings";
 import RuntimeSettingsOverview from "./components/RuntimeSettingsOverview";
+import AgentPermissions from "./components/AgentPermissions";
+import AccountsSettings from "./components/AccountsSettings";
+import { SETTINGS_TABS, isSettingsTab, splitHash, type SettingsTab } from "./components/settingsTabs";
 import { api, apiBaseUrl } from "./services/api";
 import { useBackend } from "./services/useBackend";
 import { useConversations } from "./services/useConversations";
@@ -120,8 +123,12 @@ const mobilePrimary: { id: Page; label: string; icon: typeof House }[] = [
 const uid = () => crypto.randomUUID();
 export default function App({ authMode = "tailscale" }: { authMode?: string } = {}) {
   const [page, setPage] = useState<Page>(() => {
-    const requested = window.location.hash.replace(/^#/, "");
+    const [requested] = splitHash(window.location.hash);
     return isPage(requested) ? requested : "home";
+  });
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>(() => {
+    const [requested, sub] = splitHash(window.location.hash);
+    return requested === "settings" && isSettingsTab(sub) ? sub : "generale";
   });
   const [menu, setMenu] = useState(false);
   // Menu badge: unseen alerts plus decisions waiting for the owner.
@@ -165,8 +172,9 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
   }, []);
   useEffect(() => {
     const syncHash = () => {
-      const requested = window.location.hash.replace(/^#/, "");
+      const [requested, sub] = splitHash(window.location.hash);
       if (isPage(requested)) setPage(requested);
+      if (requested === "settings") setSettingsTab(isSettingsTab(sub) ? sub : "generale");
     };
     window.addEventListener("hashchange", syncHash);
     return () => window.removeEventListener("hashchange", syncHash);
@@ -181,12 +189,13 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
     : backend.checking
       ? "Connessione…"
       : "Collegamento non riuscito";
-  function navigate(next: Page) {
+  function navigate(next: Page, settings: SettingsTab = "generale") {
     setPage(next);
     setMenu(false);
+    if (next === "settings") setSettingsTab(settings);
     const url = next === "home"
       ? window.location.pathname + window.location.search
-      : "#" + next;
+      : "#" + next + (next === "settings" && settings !== "generale" ? "/" + settings : "");
     window.history.replaceState(null, "", url);
   }
   function newChat(projectId: string | null = null) {
@@ -462,7 +471,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
                   health={backend.health}
                   checking={backend.checking}
                   onRefresh={() => void backend.refresh()}
-                  onNavigate={(next) => navigate(next)}
+                  onNavigate={(next) => navigate(next, next === "settings" ? "notifiche" : "generale")}
                   onOpenUpdates={() => navigate("updates")}
                 />
               </div>
@@ -476,7 +485,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
             )
           )}
           {page === "home" && <HomeNotifications onOpenAll={() => { setNotificationsTab("alerts"); navigate("notifications"); }} onOpenDecisions={() => { setNotificationsTab("decisions"); navigate("notifications"); }} />}
-          {page === "notifications" && <NotificationsPage key={notificationsTab} initialTab={notificationsTab} onOpenSettings={() => navigate("settings")} onOpenAudio={() => navigate("audio")} />}
+          {page === "notifications" && <NotificationsPage key={notificationsTab} initialTab={notificationsTab} onOpenSettings={() => navigate("settings", "notifiche")} onOpenAudio={() => navigate("audio")} />}
           {page === "updates" && (
             <section className="content-page narrow">
               <SystemUpdate standalone />
@@ -703,27 +712,31 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
                 <div>
                   <div className="eyebrow">CONFIGURAZIONE</div>
                   <h1>Impostazioni</h1>
-                  <p>Parametri globali di Cora e collegamenti alle aree specialistiche.</p>
+                  <p>Come si comporta Cora. Stato e manutenzione del server sono in Aggiornamenti e Attività.</p>
                 </div>
                 <button className="solid-button" disabled={backend.checking} onClick={() => void backend.refresh()}>
                   <RefreshCw size={15}/> Aggiorna stato
                 </button>
               </div>
 
-              <div className="settings-status-strip">
-                <div><span>Backend</span><strong>{statusLabel}</strong></div>
-                <div><span>Runtime</span><strong>{backend.health?.runtime_mode === "server" ? "Server" : "Dev / isolato"}</strong></div>
-                <div><span>Modello centrale</span><strong>{backend.health?.model || "Non disponibile"}</strong></div>
-                <div><span>Macchina</span><strong>{backend.health?.model_machine || "Non verificata"}</strong></div>
-              </div>
+              <nav className="settings-tabs" role="tablist" aria-label="Sezioni delle impostazioni">
+                {SETTINGS_TABS.map(t => <button key={t.id} role="tab" aria-selected={settingsTab === t.id}
+                  className={settingsTab === t.id ? "active" : ""} onClick={() => navigate("settings", t.id)}>{t.label}</button>)}
+              </nav>
 
-              <div className="settings-grid">
-                <section className="section-card settings-panel">
+              {settingsTab === "generale" && <>
+                <div className="settings-status-strip">
+                  <div><span>Backend</span><strong>{statusLabel}</strong></div>
+                  <div><span>Runtime</span><strong>{backend.health?.runtime_mode === "server" ? "Server" : "Dev / isolato"}</strong></div>
+                  <div><span>Modello centrale</span><strong>{backend.health?.model || "Non disponibile"}</strong></div>
+                  <div><span>Macchina</span><strong>{backend.health?.model_machine || "Non verificata"}</strong></div>
+                </div>
+                <section className="section-card settings-panel settings-wide">
                   <div className="settings-section-head">
                     <div>
-                      <span className="settings-kicker">ACCESSO E SISTEMA</span>
+                      <span className="settings-kicker">ISTANZA</span>
                       <h2>Istanza Cora</h2>
-                      <p>Connessione, modalità di esecuzione e sessione corrente.</p>
+                      <p>Connessione e modalità di esecuzione.</p>
                     </div>
                   </div>
                   <div className="settings-row">
@@ -734,31 +747,75 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
                     <div><strong>Modalità runtime</strong><p>{backend.health?.runtime_mode === "server" ? "Istanza server ufficiale" : "PC di prova con risorse server isolate"}</p></div>
                     <span className={"pill "+(backend.health?.runtime_mode==="server"?"success":"pending")}>{backend.health?.runtime_mode==="server"?"SERVER":"DEV"}</span>
                   </div>
-                  <div className="settings-auth-box">
-                    <strong>Accesso</strong>
-                    {authMode === "desktop" ? <p>Accesso locale automatico: richieste accettate soltanto dal computer che esegue Cora.</p> :
-                     <p>Accesso automatico tramite Tailscale. La revoca del dispositivo resta gestita da Tailscale.</p>}
-                  </div>
                 </section>
-
-                <section className="section-card settings-panel">
+                <section className="section-card settings-panel settings-wide">
+                  <RuntimeSettingsOverview />
+                </section>
+                <section className="section-card settings-panel settings-wide">
                   <div className="settings-section-head">
                     <div>
-                      <span className="settings-kicker">IA</span>
-                      <h2>Modello generale</h2>
-                      <p>Fallback globale per gli agenti senza assegnazione specifica.</p>
+                      <span className="settings-kicker">SISTEMA</span>
+                      <h2>Stato e manutenzione</h2>
+                      <p>Non sono impostazioni: qui si controlla e si aggiorna il server.</p>
                     </div>
-                    <span className={"pill "+(backend.health?.ollama_online?"success":"pending")}>{backend.health?.ollama_online?"Provider raggiungibile":"Provider offline"}</span>
                   </div>
-                  <ModelSettings onChanged={() => void backend.refresh()} />
                   <div className="settings-link-grid">
-                    <button onClick={()=>navigate("architecture")}><strong>Architettura</strong><span>Modelli e configurazione dei singoli agenti</span><ArrowRight size={16}/></button>
-                    <button onClick={()=>navigate("machines")}><strong>Macchine</strong><span>Worker, modelli installati e instradamento</span><ArrowRight size={16}/></button>
+                    <button onClick={()=>navigate("updates")}><strong>Aggiornamenti</strong><span>Versione, updater e applicazioni gestite</span><ArrowRight size={16}/></button>
+                    <button onClick={()=>navigate("activity")}><strong>Attività</strong><span>Run, errori e tracce tecniche</span><ArrowRight size={16}/></button>
                   </div>
                 </section>
-              </div>
+              </>}
 
-              <section className="section-card settings-panel settings-wide" id="settings-notifications">
+              {settingsTab === "modelli" && <section className="section-card settings-panel settings-wide">
+                <div className="settings-section-head">
+                  <div>
+                    <span className="settings-kicker">IA</span>
+                    <h2>Modello generale</h2>
+                    <p>Fallback globale per gli agenti senza assegnazione specifica.</p>
+                  </div>
+                  <span className={"pill "+(backend.health?.ollama_online?"success":"pending")}>{backend.health?.ollama_online?"Provider raggiungibile":"Provider offline"}</span>
+                </div>
+                <ModelSettings onChanged={() => void backend.refresh()} />
+                <div className="settings-link-grid">
+                  <button onClick={()=>navigate("architecture")}><strong>Architettura</strong><span>Modelli e configurazione dei singoli agenti</span><ArrowRight size={16}/></button>
+                  <button onClick={()=>navigate("machines")}><strong>Macchine</strong><span>Worker, modelli installati e instradamento</span><ArrowRight size={16}/></button>
+                </div>
+              </section>}
+
+              {settingsTab === "memoria" && <section className="section-card settings-panel settings-wide">
+                <div className="settings-section-head">
+                  <div>
+                    <span className="settings-kicker">MEMORIA</span>
+                    <h2>Contesto permanente</h2>
+                    <p>Informazioni sul proprietario consultabili da Cora quando servono. Non vengono inserite automaticamente in ogni turno.</p>
+                  </div>
+                  <span className={"pill "+(contextUpdatedAt?"success":"pending")}>{contextUpdatedAt?"Salvato":"Non caricato"}</span>
+                </div>
+                <textarea className="settings-context-textarea" value={permanentContext} onChange={e=>setPermanentContext(e.target.value)} rows={6} placeholder="Poche frasi base comuni a Cora e agli agenti…"/>
+                {contextError&&<div className="connection-error">{contextError}<button className="text-button" disabled={contextSaving} onClick={()=>void reloadPermanentContext()}>Ricarica salvato</button></div>}
+                <div className="settings-memory-actions">
+                  <small>{contextUpdatedAt?"Ultima modifica: "+new Date(contextUpdatedAt).toLocaleString("it-IT")+(contextVersion?" · v"+contextVersion:""):"Contesto non ancora caricato"}</small>
+                  <button className="solid-button" disabled={!backend.health||contextSaving} onClick={()=>void savePermanentContext()}><Save size={15}/>{contextSaving?"Salvataggio…":"Salva"}</button>
+                </div>
+                <div className="settings-mini-stats">
+                  <div><span>Memorie persistenti</span><strong>{backend.health?.memory?.total??0}</strong></div>
+                  <div><span>Motore</span><strong>{backend.health?.memory?.available===false?"Non disponibile":"PostgreSQL + pgvector"}</strong></div>
+                </div>
+                <button className="settings-open-link" onClick={()=>navigate("memory-management")}><span><strong>Gestione Memoria</strong><small>Organizzazione, consultazione e manutenzione</small></span><ArrowRight size={17}/></button>
+              </section>}
+
+              {settingsTab === "account" && <section className="section-card settings-panel settings-wide">
+                <div className="settings-section-head">
+                  <div>
+                    <span className="settings-kicker">ACCOUNT</span>
+                    <h2>Account collegati</h2>
+                    <p>Servizi esterni che Cora usa per conto tuo.</p>
+                  </div>
+                </div>
+                <AccountsSettings onOpenMail={() => navigate("mail")} onOpenCalendar={() => navigate("calendar")} />
+              </section>}
+
+              {settingsTab === "notifiche" && <section className="section-card settings-panel settings-wide" id="settings-notifications">
                 <div className="settings-section-head">
                   <div>
                     <span className="settings-kicker">NOTIFICHE</span>
@@ -768,52 +825,34 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
                 </div>
                 <PushSettings deviceLabel={mobileUi ? "Dispositivo mobile" : "Computer"} />
                 <button className="settings-open-link" onClick={()=>navigate("notifications")}><span><strong>Notifiche</strong><small>Avvisi e decisioni in attesa</small></span><ArrowRight size={17}/></button>
-              </section>
+              </section>}
 
-              <section className="section-card settings-panel settings-wide">
-                <RuntimeSettingsOverview />
-              </section>
-
-              <div className="settings-grid">
-                <section className="section-card settings-panel">
+              {settingsTab === "permessi" && <>
+                <section className="section-card settings-panel settings-wide">
                   <div className="settings-section-head">
                     <div>
-                      <span className="settings-kicker">MEMORIA</span>
-                      <h2>Contesto permanente</h2>
-                      <p>Informazioni sul proprietario consultabili da Cora quando servono. Non vengono inserite automaticamente in ogni turno.</p>
+                      <span className="settings-kicker">ACCESSO</span>
+                      <h2>Chi può aprire Cora</h2>
                     </div>
-                    <span className={"pill "+(contextUpdatedAt?"success":"pending")}>{contextUpdatedAt?"Salvato":"Non caricato"}</span>
                   </div>
-                  <textarea className="settings-context-textarea" value={permanentContext} onChange={e=>setPermanentContext(e.target.value)} rows={6} placeholder="Poche frasi base comuni a Cora e agli agenti…"/>
-                  {contextError&&<div className="connection-error">{contextError}<button className="text-button" disabled={contextSaving} onClick={()=>void reloadPermanentContext()}>Ricarica salvato</button></div>}
-                  <div className="settings-memory-actions">
-                    <small>{contextUpdatedAt?"Ultima modifica: "+new Date(contextUpdatedAt).toLocaleString("it-IT")+(contextVersion?" · v"+contextVersion:""):"Contesto non ancora caricato"}</small>
-                    <button className="solid-button" disabled={!backend.health||contextSaving} onClick={()=>void savePermanentContext()}><Save size={15}/>{contextSaving?"Salvataggio…":"Salva"}</button>
-                  </div>
-                  <div className="settings-mini-stats">
-                    <div><span>Memorie persistenti</span><strong>{backend.health?.memory?.total??0}</strong></div>
-                    <div><span>Motore</span><strong>{backend.health?.memory?.available===false?"Non disponibile":"PostgreSQL + pgvector"}</strong></div>
-                  </div>
-                  <button className="settings-open-link" onClick={()=>navigate("memory-management")}><span><strong>Gestione Memoria</strong><small>Organizzazione, consultazione e manutenzione</small></span><ArrowRight size={17}/></button>
+                  {authMode === "desktop" ? <p>Accesso locale automatico: richieste accettate soltanto dal computer che esegue Cora.</p> :
+                   <p>Accesso automatico tramite Tailscale, senza password. Per togliere l'accesso a un dispositivo lo si revoca da Tailscale.</p>}
                 </section>
-
-                <section className="section-card settings-panel">
+                <section className="section-card settings-panel settings-wide">
                   <div className="settings-section-head">
                     <div>
-                      <span className="settings-kicker">SERVIZI</span>
-                      <h2>Monitoraggio e controllo</h2>
-                      <p>Funzioni operative che hanno una configurazione propria.</p>
+                      <span className="settings-kicker">PERMESSI</span>
+                      <h2>Permessi degli agenti per azione</h2>
                     </div>
                   </div>
-                  <LibraryMonitorSettings />
-                  <div className="settings-link-grid compact">
-                    <button onClick={()=>navigate("activity")}><strong>Attività</strong><span>Run, errori, permessi e decisioni</span><ArrowRight size={16}/></button>
-                    <button onClick={()=>navigate("updates")}><strong>Aggiornamenti</strong><span>Versione, updater e applicazioni gestite</span><ArrowRight size={16}/></button>
-                    <button onClick={()=>navigate("files")}><strong>File</strong><span>Radici, Libreria IA e cartelle monitorate</span><ArrowRight size={16}/></button>
-                    <button onClick={()=>navigate("calendar")}><strong>Calendario</strong><span>Eventi, notifiche e sincronizzazione</span><ArrowRight size={16}/></button>
-                  </div>
+                  <AgentPermissions />
                 </section>
-              </div>
+              </>}
+
+              {settingsTab === "libreria" && <section className="section-card settings-panel settings-wide">
+                <LibraryMonitorSettings />
+                <button className="settings-open-link" onClick={()=>navigate("files")}><span><strong>File › Libreria IA</strong><small>Scegli le cartelle da tenere sotto controllo</small></span><ArrowRight size={17}/></button>
+              </section>}
             </section>
           )}
         </main>
