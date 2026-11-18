@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { mailRequest, type Listing, type Message, type Scope, type Selection } from "../services/mailApi";
 import "./Mail.css";
-type SummaryJob = { status: string; selection: Selection; scope: Scope; trigger: string; summary: string | null; notice?: string; coverage?: string; queued_at?: string; started_at?: string; finished_at?: string | null };
+type SummaryJob = { status: string; selection: Selection; scope: Scope; trigger: string; summary: string | null; notice?: string; coverage?: string; queued_at?: string; started_at?: string; finished_at?: string | null; summarized_count?: number; message_count?: number; errors?: string[] };
 type SummaryState = { accepted?: boolean; job: SummaryJob | null; pending: SummaryJob | null; nightly: { time: string; timezone: string } };
 const scopeLabel: Record<string,string> = { inbox: "Posta in arrivo", unread: "Non lette", yesterday: "Ricevute ieri" };
 const selectionLabel: Record<string,string> = { a: "Account A", b: "Account B", all: "Tutti gli account" };
@@ -9,7 +9,8 @@ const when = (iso?: string | null) => iso ? new Date(iso).toLocaleString("it-IT"
 function summaryText(job: SummaryJob): string {
  if (job.status === "running") return "Riepilogo in corso sul server dalle " + when(job.started_at) + ". Può richiedere molti minuti: puoi chiudere la pagina.";
  const main = job.summary || job.notice || (job.status === "empty" ? "Nessuna email nell’ambito selezionato." : "Nessuna email disponibile: verifica i collegamenti.");
- return [main, job.status === "partial" ? "Riepilogo parziale: alcuni account o messaggi non sono inclusi." : "", job.coverage || ""].filter(Boolean).join("\n\n");
+ const progress = typeof job.message_count === "number" ? `Email recuperate: ${job.message_count} · elaborate: ${job.summarized_count ?? 0} · da riprovare: ${Math.max(0, job.message_count - (job.summarized_count ?? 0))}${job.errors?.length ? ` · account con errori: ${job.errors.join(", ")}` : ""}` : "";
+ return [main, progress, job.status === "partial" ? "Riepilogo parziale: alcuni account o messaggi non sono inclusi." : "", job.coverage || ""].filter(Boolean).join("\n\n");
 }
 type Accounts = { accounts: { id: string; email: string; connected: boolean }[]; webAuth: { available: boolean } };
 export default function Mail() {
@@ -85,6 +86,6 @@ export default function Mail() {
    <ul className="mail-list">{listing?.messages.map(m=><li key={m.account+m.id}><button onClick={()=>open(m)} aria-pressed={detail?.id===m.id&&detail?.account===m.account}><small>{m.email} · {new Date(m.timestamp).toLocaleString("it-IT",{timeZone:"Europe/Rome"})}</small><strong>{m.unread?"• ":""}{m.subject}</strong><span>{m.sender}</span><span>{m.snippet}</span></button></li>)}</ul>
    {listing&&Object.keys(listing.next).length>0&&<button disabled={busy} onClick={more}>Carica altri messaggi</button>}</div>
    <article aria-label="Dettaglio messaggio">{detail?<><h2>{detail.subject}</h2><p>Account: {detail.email}</p><p>Da: {detail.sender}</p><p>A: {detail.to}</p>{detail.cc&&<p>Cc: {detail.cc}</p>}<p>{detail.date}</p><pre>{detail.body||detail.snippet||"Contenuto testuale non disponibile."}</pre><p>HTML e allegati sono consultabili in Gmail.</p></>:<p>Seleziona un messaggio per leggerne i dettagli.</p>}</article></div>
-  <aside><h2>Riepilogo notturno</h2><p>Ogni notte alle {summary?.nightly.time||"03:00"} (Europe/Rome) il server riassume le email ricevute il giorno prima su tutti gli account. Il risultato compare qui e, se le notifiche sono attive, ricevi un avviso. Nessuna email viene inviata o modificata.</p><button onClick={template}>Scarica bozza per Automazioni</button></aside>
+  <aside><h2>Riepilogo notturno</h2><p>Ogni notte, con avvio tra le 03:00 e le 04:00 (Europe/Rome), il server riassume le email ricevute il giorno prima su tutti gli account. Il risultato compare qui e, se le notifiche sono attive, ricevi un avviso. Nessuna email viene inviata o modificata.</p><button onClick={template}>Scarica bozza per Automazioni</button></aside>
  </section>;
 }
