@@ -166,7 +166,7 @@ class MailTests(unittest.TestCase):
         template = mail.automation_template("all")
         self.assertFalse(template["enabled"])
         self.assertIsNone(template["delivery"])
-        self.assertEqual(template["schedule"], {"time": "03:00", "timezone": "Europe/Rome"})
+        self.assertEqual(template["schedule"], {"time": "08:00", "timezone": "Europe/Rome"})
         self.assertEqual(template["scope"], "yesterday")
 
 
