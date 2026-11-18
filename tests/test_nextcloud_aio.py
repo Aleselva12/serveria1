@@ -23,6 +23,25 @@ class NextcloudTests(unittest.TestCase):
         self.assertEqual(self.scripts,[False,True])
         self.assertEqual(NextcloudAIO(self.tmp.name).job['status'],'completed')
         self.assertEqual(self.aio.job['backupFinishedAt'],'new')
+    def test_slow_restart_after_backup_is_awaited_not_flagged(self):
+        # 18/11/2026: AIO took minutes to restart (34 -> 35 upgrade) and the job was wrongly flagged.
+        answers=iter([False]*40+[True]*10)
+        self.aio.ready.side_effect=lambda:next(answers)
+        self.aio.version.side_effect=[{'versionstring':'34.0.5'},{'versionstring':'35.0.2'},{'versionstring':'35.0.2'}]
+        self.aio.execute()
+        self.assertEqual(self.aio.job['status'],'completed')
+        self.assertEqual(self.aio.job['beforeVersion'],'34.0.5')
+        self.assertEqual(self.aio.job['versionAfterBackup'],'35.0.2')
+        self.assertEqual(self.aio.ready.call_count,42)  # 41 after the backup, 1 final
+        self.assertEqual(self.scripts,[False,True])
+    def test_readiness_errors_while_restarting_are_retried(self):
+        answers=iter([RuntimeError('container down'),ValueError('bad json'),True,True])
+        def ready():
+            value=next(answers)
+            if isinstance(value,Exception):raise value
+            return value
+        self.aio.ready.side_effect=ready
+        self.assertTrue(self.aio.wait_ready())
     def test_zero_exit_without_new_backup_never_updates(self):
         self.aio.script.side_effect=lambda update:self.scripts.append(update)
         self.aio.execute()
