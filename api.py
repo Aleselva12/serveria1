@@ -16,6 +16,7 @@ from core.api.automation_api import router as automation_router
 from core.api.automation_api import runs_router as automation_runs_router
 from core.api.calendar_api import router as calendar_router
 from core.api.conversations_api import router as conversations_router
+from core.api.inbox_api import router as inbox_router
 from core.api.machines_api import router as machines_router
 from core.api.mail_api import router as mail_router
 from core.api.managed_apps_api import router as managed_apps_router
@@ -93,6 +94,12 @@ async def lifespan(app):
         node_verification.start_auto()
         cleanup.callback(node_verification.stop_nightly)
         node_verification.start_nightly()
+        from core.domain import health_alerts
+        cleanup.callback(health_alerts.stop)
+        health_alerts.start()
+        from core.verify import external_evidence
+        cleanup.callback(external_evidence.stop)
+        external_evidence.start()
         # Runs may enqueue derived writes until their finalization is complete.
         # LIFO cleanup drains runs, then post-processing, before closing the DB.
         cleanup.callback(postprocess.shutdown)
@@ -133,6 +140,7 @@ app.include_router(attachments_router)
 app.include_router(audio_router)
 app.include_router(calendar_router)
 app.include_router(mail_router)
+app.include_router(inbox_router)
 app.include_router(notifications_router)
 app.include_router(architecture_router)
 app.include_router(automation_router)

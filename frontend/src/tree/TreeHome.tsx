@@ -14,6 +14,7 @@ import { checks, type Node } from "./model";
 import { closure } from "./closure";
 import atlasEvidence from "./atlas-evidence.json";
 import NodeVerificationPanel from "./NodeVerificationPanel";
+import HealthTimeline from "./HealthTimeline";
 import Constellation from "./Constellation";
 import RoadmapPriorities from "./RoadmapPriorities";
 import {codeLinks,pageLinks,sourceUrl} from "./codeLinks";
@@ -359,6 +360,7 @@ export default function TreeHome(){
     </div>
     <RoadmapPriorities stars={stars} onOpen={jump}/>
     <NodeVerificationPanel onResults={refreshVerification}/>
+    <HealthTimeline/>
     <button type="button" onClick={refreshVerification}>Aggiorna albero</button>
 
     <footer className="rm2-footer"><CircleHelp size={14}/>{source.revision} · struttura da qwe · stato lavori da project-status · risultati test dal registro unico, senza eseguirli due volte. <a href="#home">Torna alla Home</a></footer>

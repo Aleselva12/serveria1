@@ -25,6 +25,7 @@ const diagnosticServices = new Set(["fastapi", "ollama", "docker"]);
 export function frequencyLabel(definition:HealthCheckDefinition) {
   if (definition.automated) return "ogni "+Math.round((definition.intervalSeconds ?? 300) / 60)+" minuti";
   if (definition.frequency === "to_implement") return "nessun runner";
+  if (definition.frequency === "hourly_info") return "ogni ora · solo informativo";
   return "ogni notte (04–05) e dopo ogni installazione";
 }
 function statusOf(definition:HealthCheckDefinition, evidence?:HealthResult) {
@@ -32,7 +33,7 @@ function statusOf(definition:HealthCheckDefinition, evidence?:HealthResult) {
   if (!evidence) return {label:"Da verificare",tone:"unknown"};
   if (definition.automated && Date.now() - Date.parse(evidence.at) > (definition.maxAgeSeconds ?? 600) * 1000)
     return {label:"Scaduto",tone:"unknown"};
-  if (evidence.status === "pass") return {label:definition.kind === "preflight" ? "Prerequisito OK" : definition.kind === "contract" ? "Contratto OK" : "Test OK",tone:"success"};
+  if (evidence.status === "pass") return {label:definition.kind === "preflight" ? "Prerequisito OK" : definition.kind === "contract" ? "Contratto OK" : definition.kind === "external" ? "OK (informativo)" : "Test OK",tone:"success"};
   if (evidence.status === "warn") return {label:"Funziona, da migliorare",tone:"pending"};
   if (evidence.status === "fail") return {label:"Errore",tone:"error"};
   return {label:"Non verificato",tone:"unknown"};

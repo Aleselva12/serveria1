@@ -78,6 +78,8 @@ def _run(conn, job, settings):
                      row["commit"] or "", row["durationMs"], row["at"]))
                 _save(conn, next_job)
             job.update(next_job)
+            from core.domain.health_alerts import observe
+            observe([row], job.get("trigger", "manual"))
         verify_nodes.execute(SimpleNamespace(checks=job["checks"], persist=False, output=None, settings=settings), on_result=record)
         job["status"] = "failed" if any(r["status"] == "fail" for r in job["results"]) else "completed"
         job["detail"] = "Collaudi terminati. I controlli senza prerequisiti restano non verificati."
@@ -118,7 +120,9 @@ def status():
         test_inventory = inventory()
         return {"run": job,
                 "availableChecks": [{"id": key, "title": CATALOG[key]["title"]} for key in available],
-                "unavailableChecks": [{"id": key, "title": item["title"]} for key, item in CATALOG.items() if key not in available],
+                # External information (CI, updater) is recorded on its own, never run as a collaudo.
+                "unavailableChecks": [{"id": key, "title": item["title"]} for key, item in CATALOG.items()
+                                      if key not in available and item["kind"] != "external"],
                 "testInventory": test_inventory}
     except Exception:
         raise HTTPException(503, "Collaudi non disponibili: verifica il database e l'aggiornamento del server.") from None

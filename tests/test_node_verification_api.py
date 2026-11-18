@@ -35,7 +35,7 @@ class NodeVerificationAPITests(unittest.TestCase):
             self.assertEqual(response.json()["unavailableChecks"], [])
             ids = [row["id"] for row in response.json()["availableChecks"]]
             self.assertEqual(len(ids), len(set(ids)))
-            self.assertEqual(set(ids), set(service.CATALOG))
+            self.assertEqual(set(ids), {k for k, item in service.CATALOG.items() if item["kind"] != "external"})
             self.assertTrue({"word_document_regression", "capability_permissions_regression", "file_preview_regression", "test_inventory_regression", "evidence_provenance_regression"} <= set(ids))
             inventory = response.json()["testInventory"]
             self.assertEqual(inventory["total"], inventory["runnerLinked"] + inventory["repositoryOnly"])

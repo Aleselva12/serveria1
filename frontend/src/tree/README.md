@@ -68,7 +68,8 @@ nell'ultimo collaudo. Non riparte se per quel commit esiste già un collaudo
 ## Colori e descrizioni della verifica
 
 La pagina mostra, in ordine: sequenza operativa, albero, analisi dei prossimi passi,
-collaudi e comando di aggiornamento. “Aggiorna albero” rilegge registro e versione,
+collaudi, cronologia dei controlli (OK → errore → ripristinato, `HealthTimeline.tsx`)
+e comando di aggiornamento. “Aggiorna albero” rilegge registro e versione,
 senza avviare test o inferenza; il pannello collaudi aggiorna gli stessi dati ad ogni
 avanzamento. Le descrizioni della verifica usano la stessa funzione dei colori.
 La nota statica è separata sotto “Descrizione di progetto”.

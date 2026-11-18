@@ -14,7 +14,9 @@ class UsageEvidenceTests(unittest.TestCase):
         from core.health_catalog import CATALOG
         from deploy.verify_nodes import available_checks
         self.assertEqual(len(available_checks()), len(set(available_checks())))
-        self.assertEqual(set(available_checks()), set(CATALOG))
+        # Every check is runnable by the collaudo, except external information (CI, updater).
+        self.assertEqual(set(available_checks()), {k for k, item in CATALOG.items() if item["kind"] != "external"})
+        self.assertEqual({k for k, item in CATALOG.items() if item["kind"] == "external"}, {"ci_github", "updater_install"})
         self.assertEqual(CATALOG["gmail_e2e"]["kind"], "synthetic")
         self.assertEqual(CATALOG["immich_e2e"]["kind"], "preflight")
         self.assertEqual(CATALOG["backup_restore"]["kind"], "synthetic")
