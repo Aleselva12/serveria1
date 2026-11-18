@@ -33,17 +33,17 @@ let s=await readFile(new URL('../src/components/RuntimePanel.tsx',import.meta.ur
 let c=ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText.replace(/from "react\/jsx-runtime"/g,'from '+external('react/jsx-runtime')).replace(/from "react"/g,'from '+external('react')).replace('import { runtimeRequest } from "../services/runtimeApi";','const runtimeRequest=globalThis.__panelRequest;');
 c=c.replace(/from ['"]\.\/ActivityExplorer['"]/g,'from '+JSON.stringify(explorerUrl));
 const Panel=(await import('data:text/javascript;base64,'+Buffer.from(c).toString('base64'))).default;
-test('polling loads lightweight permissions once, skips hidden tabs and reloads after policy changes',async()=>{
+test('polling skips hidden tabs and no longer loads agent permissions (moved to Impostazioni)',async()=>{
  const original=globalThis.setInterval,clear=globalThis.clearInterval,doc=globalThis.document;let tick,r;
  globalThis.setInterval=f=>{tick=f;return 42;};globalThis.clearInterval=()=>{};globalThis.document={hidden:false};
  try {
+  calls=[];
   await act(async()=>{r=create(React.createElement(Panel));});
   await act(async()=>tick());
-  assert.equal(calls.filter(p=>p==='/permissions').length,1);assert.ok(!calls.includes('/runtime/registry'));assert.ok(calls.includes('/runtime/coordinator'));assert.ok(calls.includes('/runtime/capabilities'));
+  assert.ok(!calls.includes('/permissions'));assert.ok(!calls.includes('/runtime/registry'));assert.ok(calls.includes('/runtime/coordinator'));assert.ok(calls.includes('/runtime/capabilities'));
   globalThis.document.hidden=true;const count=calls.length;await act(async()=>tick());assert.equal(calls.length,count);
-  globalThis.document.hidden=false;
-  await act(async()=>r.root.findAllByType('select').find(s=>s.props['aria-label']==='supervisor calculate').props.onChange({target:{value:'confirm'}}));
-  assert.equal(calls.filter(p=>p==='/permissions').length,2);assert.equal(r.root.findAllByType('select').find(s=>s.props['aria-label']==='supervisor calculate').props.value,'confirm');
+  assert.equal(r.root.findAllByType('select').length,0);
+  assert.ok(JSON.stringify(r.toJSON()).includes('Impostazioni › Accesso e permessi'));
  } finally {if(r)await act(async()=>r.unmount());globalThis.setInterval=original;globalThis.clearInterval=clear;globalThis.document=doc;}
 });
 

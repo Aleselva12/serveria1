@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { runtimeRequest, type RunSnapshot, type CapabilityOperation } from "../services/runtimeApi";
 import ActivityExplorer from './ActivityExplorer';
-type Rule = { actor:string; action:string; policy:string; scope:string };
 type Event = import('./activityEvidence').TraceEvent;
 type Diagnostics = {pending:number;dropped:number;last_error:string|null;retention_days:number;worker_alive:boolean;accepted?:number;persisted?:number;write_failures?:number};
 type CoordinatorSnapshot = { mode:string; ownership_validation:{valid:boolean;count:number;duplicate_concerns:string[]}; runtime:{accepting_runs:boolean;active_runs:number;worker_slots:number}; component_bus:{components:Record<string,{status?:string;last_decision?:string;error_type?:string;last_duration_ms?:number}>;transport:string}; event_bus:{transport:string;sequence:number;authoritative_history:boolean}; permissions:{rules:number;policies:Record<string,number>;validation:{valid:boolean}}; guarantees:Record<string,boolean>; larva?:{version:number;mode:string;status:string;issues:{severity:string;code:string}[];actions_taken:string[]} };
@@ -29,7 +28,6 @@ export default function RuntimePanel() {
   const detailPending = useRef(false);
   const loadingEvents = useRef(false);
   const [pool,setPool] = useState<Record<string,unknown>>({});
-  const [rules,setRules] = useState<Rule[]>([]);
   const [error,setError] = useState("");
   const [detailError,setDetailError] = useState("");
   const [busy,setBusy] = useState(false);
@@ -71,23 +69,19 @@ export default function RuntimePanel() {
     }
     return rows.sort((a,b)=>b.ms-a.ms).slice(0,8);
   })();
-  const rulesLoaded = useRef(false);
-  const rulesRevision = useRef(0);
   const refreshQueued = useRef(false);
   async function refresh(force = false) {
     if (refreshing.current) { if (force) refreshQueued.current = true; return; }
-    const revision = rulesRevision.current;
     refreshing.current = true;
     try {
       // Independent views must not freeze when any single status endpoint fails.
       const results = await Promise.allSettled([
         runtimeRequest<{runs:RunSnapshot[];pool:Record<string,unknown>;accepting_runs?:boolean;traces?:{write_error:string|null;diagnostics?:Diagnostics}}>("/runtime"),
-        rulesLoaded.current ? Promise.resolve(null) : runtimeRequest<{rules:Rule[]}>("/permissions"),
         runtimeRequest<RunSnapshot[]>("/runtime/runs?limit=30"),
         runtimeRequest<CoordinatorSnapshot>("/runtime/coordinator"),
         runtimeRequest<OperationalRegistry>("/runtime/capabilities"),
       ] as const);
-      const [runtimeResult,registryResult,historyResult,coordinatorResult,capabilityResult] = results;
+      const [runtimeResult,historyResult,coordinatorResult,capabilityResult] = results;
       if (runtimeResult.status === "fulfilled") {
         const runtime = runtimeResult.value;
         setAccepting(runtime.accepting_runs !== false);
@@ -95,14 +89,11 @@ export default function RuntimePanel() {
         setDiagnostics(runtime.traces?.diagnostics ?? null);
         setRuns(runtime.runs); setPool(runtime.pool);
       }
-      if (registryResult.status === "fulfilled" && registryResult.value && revision === rulesRevision.current) {
-        setRules(registryResult.value.rules); rulesLoaded.current = true;
-      }
       if (historyResult.status === "fulfilled") setHistory(historyResult.value);
       if (coordinatorResult.status === "fulfilled") setCoordinator(coordinatorResult.value);
       if (capabilityResult.status === "fulfilled") setCapabilities(capabilityResult.value);
       const failed = results.flatMap((result,index) => result.status === "rejected"
-        ? [["runtime","permessi","run recenti","coordinatore B","capability registry"][index]] : []);
+        ? [["runtime","run recenti","coordinatore B","capability registry"][index]] : []);
       setError(failed.length ? "Aggiornamento parziale: " + failed.join(", ") + ". Alcuni dati sono precedenti all’ultimo controllo." : "");
     } catch (e) { setError(e instanceof Error ? e.message : "Runtime non disponibile."); }
     finally { refreshing.current = false; if (refreshQueued.current) { refreshQueued.current = false; void refresh(); } }
@@ -117,7 +108,6 @@ export default function RuntimePanel() {
     setBusy(true);
     try {
       const result = await runtimeRequest<{status?:string;error_type?:string}>(path,{method,body:body ? JSON.stringify(body) : undefined});
-      if (method === "PUT") { rulesLoaded.current = false; rulesRevision.current++; }
       await refresh(true);
       if (result.status === "failed") setError("Azione non completata: " + result.error_type + ". Controlla il risultato prima di riprovare.");
     } catch(e) { setError(e instanceof Error ? e.message : "Operazione non riuscita."); }
@@ -189,7 +179,7 @@ export default function RuntimePanel() {
       {history.map(r=><div key={r.id}><strong>{r.status}</strong> · {r.target} · {r.id.slice(0,8)} <button onClick={()=>void inspectRun(r.id)}>Vedi operazioni</button>{r.approval_ids?.length ? <p>Proposte: {r.approval_ids.join(", ")}</p> : null}</div>)}
       {selectedRun && <details open><summary>Operazioni del run {selectedRun.slice(0,8)}</summary>{!operations.length && <p>Nessuna operazione registrata in questa vista.</p>}{operations.map(o=><div key={o.id}><strong>{o.capability_id} · {o.status}</strong><p>{o.effect} · versione {o.contract_version}</p>{o.review_outcome && <p>Verifica: {o.review_outcome === "effect_verified" ? "effetto riscontrato" : "assenza di effetto riscontrata"} · {o.reviewed_by} · {o.review_note}</p>}<pre>{JSON.stringify({parametri:o.payload,risultato:o.result},null,2)}</pre></div>)}</details>}
     </article>
-    <article className="section-card"><details><summary>Permessi degli agenti per azione</summary><p>Automatico, richiedi conferma o bloccato. Le capability prive di un percorso verificato restano bloccate.</p>{rules.map(r=><label className="settings-row" key={r.actor+r.action}><span>{r.actor} · {r.action}<small>{r.scope}</small></span><select aria-label={r.actor+" "+r.action} disabled={busy} value={r.policy} onChange={e=>void act("/runtime/policies","PUT",{actor:r.actor,action:r.action,policy:e.target.value})}><option value="auto">Automatico</option><option value="confirm">Richiedi conferma</option><option value="blocked">Bloccato</option></select></label>)}</details></article>
+    <p className="muted">I permessi degli agenti per azione sono in <a href="#settings/permessi">Impostazioni › Accesso e permessi</a>.</p>
     </details>
   </div>;
 }
