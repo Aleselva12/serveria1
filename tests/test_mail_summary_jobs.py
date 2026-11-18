@@ -52,10 +52,22 @@ class MailSummaryJobsTest(unittest.TestCase):
             self.assertFalse(jobs._nightly_due(datetime(2026, 11, 16, 9, 0, tzinfo=mail.ROME)))
             self.assertTrue(jobs._nightly_due(datetime(2026, 11, 17, 3, 5, tzinfo=mail.ROME)))
 
+    def test_nightly_only_between_three_and_four(self):
+        with patch.dict("os.environ", {"CORA_MAIL_SUMMARY_TIME": "03:00", "CORA_MAIL_SUMMARY_WINDOW_HOURS": "1"}):
+            self.assertTrue(jobs._nightly_due(datetime(2026, 11, 16, 3, 59, tzinfo=mail.ROME)))
+            self.assertFalse(jobs._nightly_due(datetime(2026, 11, 16, 4, 0, tzinfo=mail.ROME)))
+
+    def test_partial_summary_does_not_notify_or_mark_night_done(self):
+        with patch.object(mail, "summarize", return_value={"status": "partial", "summary": "Parziale", "messages": [{}], "errors": {"b": "offline"}}), \
+                patch.object(jobs, "_notify") as notify:
+            jobs.run_job({"selection": "all", "scope": "yesterday", "trigger": "nightly"})
+        self.assertIsNone(jobs._read(jobs._nightly_path()))
+        notify.assert_not_called()
+
     def test_nightly_not_started_by_daytime_restart(self):
-        with patch.dict("os.environ", {"CORA_MAIL_SUMMARY_TIME": "03:00", "CORA_MAIL_SUMMARY_WINDOW_HOURS": "4"}):
-            self.assertTrue(jobs._nightly_due(datetime(2026, 11, 16, 6, 59, tzinfo=mail.ROME)))
-            self.assertFalse(jobs._nightly_due(datetime(2026, 11, 16, 7, 0, tzinfo=mail.ROME)))
+        with patch.dict("os.environ", {"CORA_MAIL_SUMMARY_TIME": "03:00", "CORA_MAIL_SUMMARY_WINDOW_HOURS": "1"}):
+            self.assertTrue(jobs._nightly_due(datetime(2026, 11, 16, 3, 59, tzinfo=mail.ROME)))
+            self.assertFalse(jobs._nightly_due(datetime(2026, 11, 16, 4, 0, tzinfo=mail.ROME)))
             self.assertFalse(jobs._nightly_due(datetime(2026, 11, 16, 22, 46, tzinfo=mail.ROME)))
 
     def test_second_process_cannot_run_or_recover_jobs(self):
