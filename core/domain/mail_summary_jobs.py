@@ -40,9 +40,9 @@ def _runner_lock_path():
 
 def nightly_window_hours():
     try:
-        return max(1, min(23, int(os.getenv("CORA_MAIL_SUMMARY_WINDOW_HOURS", "4"))))
+        return max(1, min(23, int(os.getenv("CORA_MAIL_SUMMARY_WINDOW_HOURS", "1"))))
     except ValueError:
-        return 4
+        return 1
 
 
 def nightly_time():
@@ -124,7 +124,12 @@ def run_job(job):
     record["finished_at"] = _now().isoformat()
     with _LOCK:
         _write(_latest_path(), record)
-    if record["status"] in ("ready", "partial"):
+    if job.get("trigger") == "nightly":
+        # Do not mark a failed/partial night as completed; allow a retry while
+        # the configured 03:00-04:00 Rome window is still open.
+        if record["status"] in ("ready", "empty") and not record.get("errors"):
+            _write(_nightly_path(), {"day": datetime.fromisoformat(started).astimezone(mail.ROME).date().isoformat()})
+    if record["status"] == "ready" and record.get("summary"):
         _notify(record)
     return record
 
@@ -143,7 +148,7 @@ def _notify(record):
 
 
 def _nightly_due(now_local):
-    """Due once per day, only inside the night window (default 03:00-07:00).
+    """Due once per day, only inside the night window (default 03:00-04:00).
 
     A restart during the day must not start a long CPU-bound summary while Cora is in use.
     """
@@ -168,8 +173,7 @@ def _loop():
             now_local = _now().astimezone(mail.ROME)
             if _nightly_due(now_local) and any(mail.token_path(key).is_file() for key in mail.ACCOUNTS):
                 # A manual job already queued delays the nightly run to the next pass.
-                if enqueue("all", "yesterday", trigger="nightly")["accepted"]:
-                    _write(_nightly_path(), {"day": now_local.date().isoformat()})
+                enqueue("all", "yesterday", trigger="nightly")
             job = _take_pending()
             if job:
                 run_job(job)
