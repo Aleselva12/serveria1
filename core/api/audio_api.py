@@ -254,6 +254,12 @@ def commercial_customers(ident: uuid.UUID, query: str):
         raise HTTPException(422, str(error)) from error
 
 
+@router.get('/commercial/pending')
+def commercial_pending():
+    from core.domain import commercial_notes
+    return {"items": commercial_notes.pending_overview()}
+
+
 @router.get('/{ident}/commercial/proposals')
 def commercial_proposals(ident: uuid.UUID):
     from core.domain import commercial_notes

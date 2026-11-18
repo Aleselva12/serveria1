@@ -36,7 +36,9 @@ import ChatToolPicker from "./components/ChatToolPicker";
 import ConversationSidebar from "./components/ConversationSidebar";
 import { uploadAttachment, attachLibraryFile, type Attachment } from "./services/mediaApi";
 import Home from "./components/Home";
-import NotificationsPage, { HomeNotifications, useInbox } from "./components/Notifications";
+import NotificationsPage, { HomeNotifications, useInbox, type NotificationsTab } from "./components/Notifications";
+import { useDecisions } from "./components/Decisions";
+import PushSettings from "./components/PushSettings";
 import SystemUpdate from "./components/SystemUpdate";
 import MobileHome from "./components/MobileHome";
 import MobilePhotos from "./components/MobilePhotos";
@@ -122,7 +124,9 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
     return isPage(requested) ? requested : "home";
   });
   const [menu, setMenu] = useState(false);
-  const unseen = useInbox(false).inbox?.unseen ?? 0;
+  // Menu badge: unseen alerts plus decisions waiting for the owner.
+  const unseen = (useInbox(false).inbox?.unseen ?? 0) + (useDecisions().decisions?.pending ?? 0);
+  const [notificationsTab, setNotificationsTab] = useState<NotificationsTab>("alerts");
   const [inspector, setInspector] = useState(false);
   const [connections, setConnections] = useState(false);
   const [mobileUi, setMobileUi] = useState(() => window.matchMedia("(max-width: 620px)").matches);
@@ -471,8 +475,8 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
               />
             )
           )}
-          {page === "home" && <HomeNotifications onOpenAll={() => navigate("notifications")} />}
-          {page === "notifications" && <NotificationsPage />}
+          {page === "home" && <HomeNotifications onOpenAll={() => { setNotificationsTab("alerts"); navigate("notifications"); }} onOpenDecisions={() => { setNotificationsTab("decisions"); navigate("notifications"); }} />}
+          {page === "notifications" && <NotificationsPage key={notificationsTab} initialTab={notificationsTab} onOpenSettings={() => navigate("settings")} onOpenAudio={() => navigate("audio")} />}
           {page === "updates" && (
             <section className="content-page narrow">
               <SystemUpdate standalone />
@@ -753,6 +757,18 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
                   </div>
                 </section>
               </div>
+
+              <section className="section-card settings-panel settings-wide" id="settings-notifications">
+                <div className="settings-section-head">
+                  <div>
+                    <span className="settings-kicker">NOTIFICHE</span>
+                    <h2>Notifiche push</h2>
+                    <p>Promemoria del calendario e avvisi di Cora su questo telefono o PC. Ogni dispositivo si attiva da sé.</p>
+                  </div>
+                </div>
+                <PushSettings deviceLabel={mobileUi ? "Dispositivo mobile" : "Computer"} />
+                <button className="settings-open-link" onClick={()=>navigate("notifications")}><span><strong>Notifiche</strong><small>Avvisi e decisioni in attesa</small></span><ArrowRight size={17}/></button>
+              </section>
 
               <section className="section-card settings-panel settings-wide">
                 <RuntimeSettingsOverview />

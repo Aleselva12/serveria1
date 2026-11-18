@@ -1,6 +1,5 @@
 import PriorityAssessment from "./PriorityAssessment";
 import HealthDashboard from "./HealthDashboard";
-import { useEffect, useState } from "react";
 import {
   Activity,
   CalendarDays,
@@ -16,13 +15,6 @@ import ProjectRoadmap from "./ProjectRoadmap";
 import { serviceStatusLabels, serviceSummary } from "../services/homeStatus";
 import type { BackendHealth } from "../types/contracts";
 import { useHomeMonitoring } from "../services/useHomeMonitoring";
-import {
-  currentPushState,
-  disablePushNotifications,
-  enablePushNotifications,
-  sendTestPush,
-  type PushState,
-} from "../services/pushNotifications";
 
 type MobilePage = "photos" | "files" | "audio" | "calendar" | "chat" | "activity" | "settings";
 
@@ -45,13 +37,6 @@ export default function MobileHome({
   onOpenUpdates: () => void;
 }) {
   const { telemetry, services, telemetryError, servicesError, refresh } = useHomeMonitoring();
-  const [pushState, setPushState] = useState<PushState>({
-    supported: false,
-    permission: typeof Notification === "undefined" ? "unsupported" : Notification.permission,
-    subscribed: false,
-  });
-  const [pushBusy, setPushBusy] = useState(false);
-  const [pushMessage, setPushMessage] = useState("");
   const disks = telemetry?.disks ?? [];
   const disk = disks[0];
   const coreOk = Boolean(health);
@@ -62,29 +47,6 @@ export default function MobileHome({
   if (!services.some(service => service.id === "ollama")) displayedServices.push({
     id: "ollama", label: "Ollama locale", status: health ? health.ollama_online ? "ready" : "offline" : "unknown", checkedAt: "",
   });
-
-  useEffect(() => {
-    let live = true;
-    void currentPushState().then((state) => {
-      if (live) setPushState(state);
-    }).catch(() => undefined);
-    return () => { live = false; };
-  }, []);
-
-  async function pushAction(action: () => Promise<PushState | void>, success: string) {
-    if (pushBusy) return;
-    setPushBusy(true);
-    setPushMessage("");
-    try {
-      const state = await action();
-      if (state) setPushState(state);
-      setPushMessage(success);
-    } catch (error) {
-      setPushMessage(error instanceof Error ? error.message : "Operazione notifiche non riuscita.");
-    } finally {
-      setPushBusy(false);
-    }
-  }
 
   return (
     <section className="mobile-home">
@@ -141,57 +103,13 @@ export default function MobileHome({
         <HealthDashboard compact />
       </div>
 
-      <div className="mobile-status-card">
-        <div className="mobile-section-title">
-          <div><span className="mobile-kicker">TELEFONO</span><h2>Notifiche</h2></div>
-        </div>
-        <p className="mobile-card-copy">
-          {!pushState.supported
-            ? "Web Push richiede la PWA installata e aperta tramite HTTPS."
-            : pushState.subscribed
-              ? "Questo dispositivo è registrato. Gli appuntamenti con promemoria possono arrivare anche quando Cora non è aperta."
-              : pushState.permission === "denied"
-                ? "Notifiche bloccate nelle impostazioni del telefono."
-                : "Registra questo dispositivo per ricevere i promemoria del calendario."}
-        </p>
-        {pushMessage && <p className="mobile-inline-status" role="status">{pushMessage}</p>}
-        <div className="mobile-push-actions">
-          {!pushState.subscribed ? (
-            <button
-              className="mobile-secondary-button"
-              disabled={pushBusy || !pushState.supported || pushState.permission === "denied"}
-              onClick={() => void pushAction(() => enablePushNotifications("Dispositivo mobile"), "Notifiche calendario attivate su questo dispositivo.")}
-            >
-              {pushBusy ? "Attivazione…" : "Attiva notifiche calendario"}
-            </button>
-          ) : (
-            <>
-              <button
-                className="mobile-secondary-button"
-                disabled={pushBusy}
-                onClick={() => void pushAction(async () => { await sendTestPush(); }, "Notifica di prova inviata.")}
-              >
-                Invia notifica di prova
-              </button>
-              <button
-                className="mobile-text-button"
-                disabled={pushBusy}
-                onClick={() => void pushAction(() => disablePushNotifications(), "Notifiche disattivate su questo dispositivo.")}
-              >
-                Disattiva su questo dispositivo
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
       <PriorityAssessment />
       <ProjectRoadmap />
 
       <div className="mobile-secondary-links">
         <button onClick={() => onNavigate("chat")}><MessageCircle size={18} /><span>Chat Cora</span></button>
         <button onClick={() => onNavigate("activity")}><Activity size={18} /><span>Attività</span></button>
-        <button onClick={() => onNavigate("settings")}><Settings size={18} /><span>Impostazioni</span></button>
+        <button onClick={() => onNavigate("settings")}><Settings size={18} /><span>Impostazioni e notifiche push</span></button>
       </div>
     </section>
   );

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { runtimeRequest, type RunSnapshot, type CapabilityOperation } from "../services/runtimeApi";
 import ActivityExplorer from './ActivityExplorer';
-type Approval = { contract_version?:number|null; capability_id?:string|null; id:string; actor:string; action:string; payload:unknown; actions?:string[]; status:string; result?:unknown; error_type?:string };
 type Rule = { actor:string; action:string; policy:string; scope:string };
 type Event = import('./activityEvidence').TraceEvent;
 type Diagnostics = {pending:number;dropped:number;last_error:string|null;retention_days:number;worker_alive:boolean;accepted?:number;persisted?:number;write_failures?:number};
@@ -11,12 +10,10 @@ type OperationalRegistry = { version:number; source:string; count:number; availa
 export default function RuntimePanel() {
   const [runs,setRuns] = useState<RunSnapshot[]>([]);
   const [history,setHistory] = useState<RunSnapshot[]>([]);
-  const [uncertain,setUncertain] = useState<CapabilityOperation[]>([]);
   const [operations,setOperations] = useState<CapabilityOperation[]>([]);
   const [selectedRun,setSelectedRun] = useState("");
   const [live,setLive] = useState(true);
   const [detailLoading,setDetailLoading] = useState(false);
-  const [notes,setNotes] = useState<Record<string,string>>({});
   const [traceError,setTraceError] = useState<string|null>(null);
   const [diagnostics,setDiagnostics] = useState<Diagnostics|null>(null);
   const [coordinator,setCoordinator] = useState<CoordinatorSnapshot|null>(null);
@@ -32,9 +29,6 @@ export default function RuntimePanel() {
   const detailPending = useRef(false);
   const loadingEvents = useRef(false);
   const [pool,setPool] = useState<Record<string,unknown>>({});
-  const [generic,setGeneric] = useState<Approval[]>([]);
-  const [results,setResults] = useState<Approval[]>([]);
-  const [calendar,setCalendar] = useState<Approval[]>([]);
   const [rules,setRules] = useState<Rule[]>([]);
   const [error,setError] = useState("");
   const [detailError,setDetailError] = useState("");
@@ -88,14 +82,12 @@ export default function RuntimePanel() {
       // Independent views must not freeze when any single status endpoint fails.
       const results = await Promise.allSettled([
         runtimeRequest<{runs:RunSnapshot[];pool:Record<string,unknown>;accepting_runs?:boolean;traces?:{write_error:string|null;diagnostics?:Diagnostics}}>("/runtime"),
-        runtimeRequest<{generic:Approval[];calendar:Approval[];history:Approval[]}>("/approvals"),
         rulesLoaded.current ? Promise.resolve(null) : runtimeRequest<{rules:Rule[]}>("/permissions"),
         runtimeRequest<RunSnapshot[]>("/runtime/runs?limit=30"),
-        runtimeRequest<CapabilityOperation[]>("/runtime/operations?unresolved=true&limit=50"),
         runtimeRequest<CoordinatorSnapshot>("/runtime/coordinator"),
         runtimeRequest<OperationalRegistry>("/runtime/capabilities"),
       ] as const);
-      const [runtimeResult,approvalsResult,registryResult,historyResult,uncertainResult,coordinatorResult,capabilityResult] = results;
+      const [runtimeResult,registryResult,historyResult,coordinatorResult,capabilityResult] = results;
       if (runtimeResult.status === "fulfilled") {
         const runtime = runtimeResult.value;
         setAccepting(runtime.accepting_runs !== false);
@@ -103,19 +95,14 @@ export default function RuntimePanel() {
         setDiagnostics(runtime.traces?.diagnostics ?? null);
         setRuns(runtime.runs); setPool(runtime.pool);
       }
-      if (approvalsResult.status === "fulfilled") {
-        setGeneric(approvalsResult.value.generic); setCalendar(approvalsResult.value.calendar);
-        setResults(approvalsResult.value.history);
-      }
       if (registryResult.status === "fulfilled" && registryResult.value && revision === rulesRevision.current) {
         setRules(registryResult.value.rules); rulesLoaded.current = true;
       }
       if (historyResult.status === "fulfilled") setHistory(historyResult.value);
-      if (uncertainResult.status === "fulfilled") setUncertain(uncertainResult.value);
       if (coordinatorResult.status === "fulfilled") setCoordinator(coordinatorResult.value);
       if (capabilityResult.status === "fulfilled") setCapabilities(capabilityResult.value);
       const failed = results.flatMap((result,index) => result.status === "rejected"
-        ? [["runtime","approvazioni","permessi","run recenti","effetti incerti","coordinatore B","capability registry"][index]] : []);
+        ? [["runtime","permessi","run recenti","coordinatore B","capability registry"][index]] : []);
       setError(failed.length ? "Aggiornamento parziale: " + failed.join(", ") + ". Alcuni dati sono precedenti all’ultimo controllo." : "");
     } catch (e) { setError(e instanceof Error ? e.message : "Runtime non disponibile."); }
     finally { refreshing.current = false; if (refreshQueued.current) { refreshQueued.current = false; void refresh(); } }
@@ -186,7 +173,8 @@ export default function RuntimePanel() {
     {error && <p role="alert">{error}</p>}
     {traceError && <p role="status">Tracce tecniche non aggiornate: {traceError}. Gli esiti persistenti sono nella sezione Run.</p>}
     <ActivityExplorer runs={explorerRuns} selected={selectedSnapshot} selectedId={selectedRun} events={[...technical,...events.filter(e=>!technical.some(t=>t.id===e.id))]} operations={operations} onSelect={id=>void inspectRun(id)} loading={detailLoading} error={[detailError, error, operations.length===100 ? "Limite di 100 operazioni raggiunto: questa vista può essere parziale." : "", diagnostics && (diagnostics.dropped>0 || (diagnostics.write_failures ?? 0)>0) ? "L’archivio diagnostico segnala perdite o errori nel processo: il percorso potrebbe essere incompleto." : ""].filter(Boolean).join(" ")} older={Boolean(olderCursor)} onOlder={()=>{changeLive(false);void loadEvents(true);}} live={live} onLive={changeLive} onRefresh={()=>{void refresh();if(selectedRun)void inspectRun(selectedRun,true);}} />
-    <details className="runtime-secondary"><summary>Controlli operativi, approvazioni e diagnostica</summary>
+    <p className="muted">Approvazioni, note Word ed effetti da verificare sono in <a href="#notifications">Notifiche › Da decidere</a>.</p>
+    <details className="runtime-secondary"><summary>Controlli operativi e diagnostica</summary>
     {coordinator && <article className="section-card"><h2>Coordinamento interno · Gruppo B</h2><p>Vista read-only: non esegue tool, non instrada richieste e non modifica worker o permessi.</p><p>Ownership stato: {coordinator.ownership_validation.valid ? 'coerente' : 'da verificare'} · {coordinator.ownership_validation.count} categorie · run attivi {coordinator.runtime.active_runs} · slot esecuzione {coordinator.runtime.worker_slots}.</p><p>Event Bus: {coordinator.event_bus.transport} · sequenza {coordinator.event_bus.sequence} · storico autorevole: {coordinator.event_bus.authoritative_history ? 'sì' : 'no'} · regole permessi {coordinator.permissions.rules}.</p><details><summary>Component Bus · {Object.keys(coordinator.component_bus.components).length} componenti osservati</summary>{Object.entries(coordinator.component_bus.components).map(([name,state])=><p key={name}><strong>{name}</strong> · {state.status || 'unknown'}{state.last_decision ? ' · '+state.last_decision : ''}{typeof state.last_duration_ms === 'number' ? ' · '+Math.round(state.last_duration_ms)+' ms' : ''}{state.error_type ? ' · '+state.error_type : ''}</p>)}</details>{coordinator.larva && <p>Larva-system v{coordinator.larva.version}: <strong>{coordinator.larva.status}</strong>{coordinator.larva.issues.length ? ' · ' + coordinator.larva.issues.map(i=>i.code).join(', ') : ' · nessuna anomalia oggettiva rilevata'}.</p>}{(!coordinator.ownership_validation.valid || !coordinator.permissions.validation.valid) && <p role="alert">Configurazione interna incoerente: controlla ownership e permessi prima di automatizzare scheduling o recovery.</p>}</article>}
     {capabilities && <article className="section-card"><h2>Capability Registry operativo</h2><p>{capabilities.available}/{capabilities.count} capability disponibili ora. La vista deriva dai contratti eseguibili reali, non da placeholder.</p><details><summary>Mostra capability</summary>{capabilities.capabilities.map(c=><div key={c.id}><strong>{c.id}</strong> · {c.runtime.status} · {c.effect} · retry {c.retry}<p>{c.description}</p><p>Componente: {c.component} · input richiesti: {c.required_inputs.join(', ') || 'nessuno'} · approval: {c.approval}</p><p>Permessi: {c.permissions.map(p=>p.action+':'+p.policy).join(' · ') || '—'}{c.inference ? ' · modello '+c.inference.model+' @ '+c.inference.machine_id : ''}</p></div>)}</details></article>}
     {diagnostics && <article className="section-card"><h2>Osservabilità</h2><p>Solo metadati · diagnostica {diagnostics.retention_days} giorni · eventi critici transazionali, senza esecuzione automatica.</p><p>Diagnostica ricevuta: {diagnostics.accepted ?? "—"} · archiviata: {diagnostics.persisted ?? "—"} · errori di scrittura: {diagnostics.write_failures ?? "—"}.</p><p>Diagnostica in coda: {diagnostics.pending} · eventi persi in questo processo: {diagnostics.dropped} · archiviatore {diagnostics.worker_alive ? 'attivo' : 'non attivo'}.</p>{(diagnostics.last_error || diagnostics.dropped>0 || (diagnostics.write_failures ?? 0)>0) && <p role="status">Diagnostica incompleta: {diagnostics.last_error || (diagnostics.dropped>0 ? 'coda satura' : 'errori archivio precedenti')}. Questo non cambia gli esiti di run e operazioni.</p>}</article>}
@@ -197,23 +185,10 @@ export default function RuntimePanel() {
       <details><summary>Pool PostgreSQL</summary><pre>{JSON.stringify(pool,null,2)}</pre></details>
     </article>
     {selectedRun && <article className="section-card"><h2>Eventi del run {selectedRun.slice(0,8)}</h2><details open><summary>Percorso orchestrazione</summary><p><strong>Stato finale</strong> · {selectedSnapshot?.status || '—'}{causal.route ? ' · route '+causal.route : ''}</p><p><strong>Context pages</strong> · {causal.pages.join(', ') || 'nessuna'}</p><p><strong>Tool esposti</strong> · {causal.tools.join(', ') || 'nessuno'}</p>{causal.observations.length ? causal.observations.map((o,i)=><p key={'inference:'+i}><strong>Inferenza {String(o.role || 'modello')}</strong> · richiesto {String(o.requested_model || '—')} · riportato {String(o.reported_model || 'non osservato')} · macchina {String(o.machine_id || '—')} · corrispondenza {o.matches_requested === true ? 'sì' : o.matches_requested === false ? 'no' : 'non verificabile'}</p>) : <p>Nessuna prova provider/modello registrata per questo run.</p>}</details>{decisionEvents.length > 0 && <details open><summary>Decisioni orchestrazione · {decisionEvents.length}</summary>{decisionEvents.map(e=><p key={'decision:'+e.id}><strong>{String(e.payload.decision)}</strong> · {e.type} · {String(e.payload.capability || e.payload.capability_id || '—')}{e.payload.error_type ? ' · '+String(e.payload.error_type) : ''}</p>)}</details>}{timingRows.length > 0 && <details open><summary>Tempi principali · top {timingRows.length}</summary>{timingRows.map(row=><p key={row.label}><strong>{row.label}</strong> · {row.ms >= 1000 ? (row.ms/1000).toFixed(2) + ' s' : Math.round(row.ms) + ' ms'}</p>)}</details>}{detailError && <p role="alert">{detailError}</p>}<p>Gli eventi critici sono fatti persistenti, non istruzioni. Il campione tecnico è best-effort e può essere incompleto o scaduto.</p><details open><summary>Eventi critici · primi {events.length} caricati</summary>{events.map(e=><div key={e.id}><strong>{e.type}</strong> · #{e.sequence} · {e.source}<small> · run componente {e.component_run_id?.slice(0,8) || '—'}</small><pre>{JSON.stringify(e.payload,null,2)}</pre></div>)}<button disabled={busy} onClick={()=>void loadEvents()}>Carica eventi successivi</button></details><details><summary>Diagnostica tecnica · {technical.length} eventi caricati</summary>{technical.map(e=><div key={e.id}><strong>{e.type}</strong> · {e.source} · {new Date(e.timestamp).toLocaleTimeString('it-IT')}<small> · componente {e.component_run_id?.slice(0,8) || '—'} · span {e.span_id?.slice(0,8) || '—'}</small><pre>{JSON.stringify(e.payload,null,2)}</pre></div>)}{olderCursor && <button onClick={()=>void loadEvents(true)}>Carica diagnostica precedente</button>}</details></article>}
-    <article className="section-card"><h2>Effetti da verificare</h2><p>Un esito incerto può includere effetti già prodotti. Verifica il servizio o il file interessato prima di ripetere l’operazione. Registrare la verifica non esegue né ripete azioni.</p>
-      {!uncertain.length && <p>Nessun effetto da verificare.</p>}
-      {uncertain.map(o=><div key={o.id}><strong>{o.capability_id} · esito incerto</strong><p>Operazione {o.id} · run {o.run_id || "senza run"}</p><pre>{JSON.stringify(o.payload,null,2)}</pre>{o.error_type && <p>{o.error_type}</p>}
-        <label>Verifica effettuata<textarea aria-label={"Verifica " + o.id} maxLength={2000} value={notes[o.id] || ""} onChange={e=>setNotes(n=>({...n,[o.id]:e.target.value}))}/></label>
-        <button disabled={busy || !notes[o.id]?.trim()} onClick={()=>void act("/runtime/operations/"+o.id+"/review","POST",{outcome:"effect_verified",note:notes[o.id]})}>Effetto verificato</button>
-        <button disabled={busy || !notes[o.id]?.trim()} onClick={()=>void act("/runtime/operations/"+o.id+"/review","POST",{outcome:"no_effect_verified",note:notes[o.id]})}>Nessun effetto verificato</button>
-      </div>)}
-    </article>
     <article className="section-card"><h2>Run persistenti recenti</h2><p>Ultimi 30 run. Lo stato del run e l’esito delle singole operazioni sono distinti.</p>
       {history.map(r=><div key={r.id}><strong>{r.status}</strong> · {r.target} · {r.id.slice(0,8)} <button onClick={()=>void inspectRun(r.id)}>Vedi operazioni</button>{r.approval_ids?.length ? <p>Proposte: {r.approval_ids.join(", ")}</p> : null}</div>)}
       {selectedRun && <details open><summary>Operazioni del run {selectedRun.slice(0,8)}</summary>{!operations.length && <p>Nessuna operazione registrata in questa vista.</p>}{operations.map(o=><div key={o.id}><strong>{o.capability_id} · {o.status}</strong><p>{o.effect} · versione {o.contract_version}</p>{o.review_outcome && <p>Verifica: {o.review_outcome === "effect_verified" ? "effetto riscontrato" : "assenza di effetto riscontrata"} · {o.reviewed_by} · {o.review_note}</p>}<pre>{JSON.stringify({parametri:o.payload,risultato:o.result},null,2)}</pre></div>)}</details>}
     </article>
-    <article className="section-card"><h2>Azioni da approvare</h2><p>La conferma riguarda esclusivamente l'azione e i parametri mostrati. Per la Libreria IA controlla percorso e contenuto prima/dopo: un file cambiato dopo la lettura richiede una nuova proposta. Il cestino conserva il file ed è ripristinabile dalla pagina File.</p>
-      {!generic.length && !calendar.length && <p>Nessuna proposta in attesa.</p>}
-      {[...generic.map(a=>({...a,kind:"generic"})),...calendar.map(a=>({...a,kind:"calendar"}))].map(a=><div key={a.kind+a.id}><strong>{a.actor} · {a.action}</strong>{a.actions && <p>Permessi richiesti: {a.actions.join(", ")}</p>}<pre>{JSON.stringify(a.payload,null,2)}</pre>{a.kind === "generic" && a.contract_version === null && <p>Proposta precedente ai contratti: chiedi all’agente una nuova proposta per confermarla.</p>}<button disabled={busy || (a.kind === "generic" && a.contract_version === null)} onClick={()=>void act("/approvals/"+(a.kind==="calendar" ? "calendar/" : "")+a.id+"/resolve","POST",{approve:true})}>Approva questa azione</button><button disabled={busy} onClick={()=>void act("/approvals/"+(a.kind==="calendar" ? "calendar/" : "")+a.id+"/resolve","POST",{approve:false})}>Rifiuta</button></div>)}
-    </article>
-    {results.length > 0 && <article className="section-card"><details><summary>Esiti delle proposte</summary>{results.map(a=><div key={a.id}><strong>{a.actor} · {a.action} · {a.status}</strong>{["executing","uncertain"].includes(a.status) && <p>Non ripetere la proposta: controlla le operazioni e l’effetto nel servizio interessato.</p>}{a.error_type && <p>{a.error_type}</p>}<pre>{typeof a.result === "string" ? a.result : JSON.stringify(a.result,null,2)}</pre></div>)}</details></article>}
     <article className="section-card"><details><summary>Permessi degli agenti per azione</summary><p>Automatico, richiedi conferma o bloccato. Le capability prive di un percorso verificato restano bloccate.</p>{rules.map(r=><label className="settings-row" key={r.actor+r.action}><span>{r.actor} · {r.action}<small>{r.scope}</small></span><select aria-label={r.actor+" "+r.action} disabled={busy} value={r.policy} onChange={e=>void act("/runtime/policies","PUT",{actor:r.actor,action:r.action,policy:e.target.value})}><option value="auto">Automatico</option><option value="confirm">Richiedi conferma</option><option value="blocked">Bloccato</option></select></label>)}</details></article>
     </details>
   </div>;
