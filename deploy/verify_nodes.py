@@ -31,11 +31,25 @@ CHECKS = ("memory_e2e", "calendar_e2e", "desktop_e2e", "laptop_e2e", "worker_e2e
 ROOT = Path(__file__).resolve().parents[1]
 
 
+# Regression suites are unit tests: they must see the same clean environment as CI.
+# Inherited server variables (database URL, credentials, model and auth settings)
+# made them read real data and write stray notifications into the live database.
+_CLEAN_ENV = ("PATH", "HOME", "LANG", "LANGUAGE", "TZ", "TMPDIR", "VIRTUAL_ENV",
+              "PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONUNBUFFERED", "PYTHONHASHSEED")
+
+
+def _child_env(action, settings=None):
+    if action in REGRESSIONS:
+        base = {k: v for k, v in os.environ.items() if k in _CLEAN_ENV or k.startswith("LC_")}
+        return {**base, "CORA_EMBEDDING_MODEL": "", "CORA_VERIFICATION_SYNTHETIC": "1"}
+    return {**os.environ, **(settings or {}), "CORA_EMBEDDING_MODEL": "",
+            "CORA_VERIFICATION_SYNTHETIC": "1" if action in DIRECT or action == "worker_e2e" else os.getenv("CORA_VERIFICATION_SYNTHETIC", "0")}
+
+
 def _child(action, run_id, timeout=90, settings=None):
     result = subprocess.run([sys.executable, "-m", "deploy.verify_nodes",
                              "--action", action, "--run-id", run_id], cwd=ROOT,
-                            env={**os.environ, **(settings or {}), "CORA_EMBEDDING_MODEL": "",
-                                 "CORA_VERIFICATION_SYNTHETIC": "1" if action in REGRESSIONS or action in DIRECT or action == "worker_e2e" else os.getenv("CORA_VERIFICATION_SYNTHETIC", "0")},
+                            env=_child_env(action, settings),
                             capture_output=True, text=True, timeout=timeout)
     # Library logging must not enter public evidence or expose credentials.
     for line in reversed(result.stdout.splitlines()):
