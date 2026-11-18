@@ -4449,3 +4449,6 @@ select:disabled {
   margin: 8px 0;
   font-size: 13px;
 }
+.system-tabs{max-width:1180px;margin:0 auto 18px}
+.system-apps{margin-top:18px}
+.system-apps h2{font-size:17px;margin:0 0 10px}

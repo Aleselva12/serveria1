@@ -73,11 +73,11 @@ export const codeLinks:Record<string,SourceLink[]>={
  "G1":[local("frontend/src/components/Programmer.tsx","Interfaccia programmatore")],
 };
 const pages:Record<string,{hash:string;label:string}>={
- "R1.1":{hash:"#home",label:"Apri Home"},"R3.2":{hash:"#machines",label:"Apri Macchine"},
- "R5.2":{hash:"#updates",label:"Apri Aggiornamenti"},
+ "R1.1":{hash:"#home",label:"Apri Home"},"R3.2":{hash:"#system/macchine",label:"Apri Sistema › Macchine"},
+ "R5.2":{hash:"#system/aggiornamenti",label:"Apri Sistema › Aggiornamenti"},
  T7:{hash:"#memory-management",label:"Apri Gestione Memoria"},
  T8:{hash:"#architecture",label:"Apri Architettura"},
- T10:{hash:"#activity",label:"Apri Attività"},
+ T10:{hash:"#system/attivita",label:"Apri Sistema › Attività tecnica"},
  T11:{hash:"#home",label:"Apri monitoraggio Home"},
  A1:{hash:"#chat",label:"Apri Chat"},
  B1:{hash:"#files",label:"Apri File"},
@@ -85,7 +85,7 @@ const pages:Record<string,{hash:string;label:string}>={
  B3:{hash:"#files",label:"Apri File"},
  C1:{hash:"#calendar",label:"Apri Calendario"},
  C3:{hash:"#audio",label:"Apri Audio"},
- worker:{hash:"#machines",label:"Apri Macchine"},
+ worker:{hash:"#system/macchine",label:"Apri Sistema › Macchine"},
  G1:{hash:"#code",label:"Apri Programma"},
 };
 export const pageLinks=pages;

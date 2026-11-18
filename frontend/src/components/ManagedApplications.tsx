@@ -4,8 +4,8 @@ import { apiBaseUrl } from "../services/api";
 import { authenticatedFetch } from "../services/transport";
 type App = { id:string; name:string; repository:string; recoveryUrl?:string; installed:boolean; configured?:boolean; running?:boolean; commit?:string|null; url?:string|null; job?:{status:string;action?:string;phase?:string;message?:string} };
 type Catalog = { available:boolean; apps:App[] };
-export default function ManagedApplications() {
- const [open,setOpen]=useState(false);
+export default function ManagedApplications({defaultOpen=false}:{defaultOpen?:boolean}={}) {
+ const [open,setOpen]=useState(defaultOpen);
  const [data,setData]=useState<Catalog|null>(null);
  const [error,setError]=useState("");
  const [busy,setBusy]=useState(false);

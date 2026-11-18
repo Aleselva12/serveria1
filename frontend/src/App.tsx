@@ -12,7 +12,6 @@ import { streamChat, runtimeRequest, type LibraryActivity } from "./services/run
 import RuntimePanel from "./components/RuntimePanel";
 import { useEffect, useRef, useState } from "react";
 import {
-  Activity,
   ArrowRight,
   Bell,
   CalendarDays,
@@ -40,6 +39,9 @@ import NotificationsPage, { HomeNotifications, useInbox, type NotificationsTab }
 import { useDecisions } from "./components/Decisions";
 import PushSettings from "./components/PushSettings";
 import SystemUpdate from "./components/SystemUpdate";
+import SystemHealth from "./components/SystemHealth";
+import ManagedApplications from "./components/ManagedApplications";
+import { SYSTEM_TABS, systemTabFor, type SystemTab } from "./components/systemTabs";
 import MobileHome from "./components/MobileHome";
 import MobilePhotos from "./components/MobilePhotos";
 import Programmer from "./components/Programmer";
@@ -79,12 +81,13 @@ type Page =
   | "activity"
   | "updates"
   | "settings"
+  | "system"
   | "notifications"
   | "memory-management";
 const validPages: ReadonlySet<Page> = new Set([
   "home", "chat", "photos", "architecture", "machines", "code", "calendar", "mail",
   "files", "audio", "activity", "updates", "settings", "memory-management", "programmer-next", "homepage-schema-albero",
-  "notifications",
+  "notifications", "system",
 ]);
 function isPage(value: string): value is Page {
   return validPages.has(value as Page);
@@ -103,13 +106,11 @@ const primary: { id: Page; label: string }[] = [
   { id: "calendar", label: "Calendario" },
   { id: "mail", label: "Mail" },
   { id: "files", label: "File" },
-  { id: "machines", label: "Macchine" },
   { id: "audio", label: "Audio" },
 ];
 const secondary: { id: Page; label: string; icon: typeof FileText }[] = [
   { id: "notifications", label: "Notifiche", icon: Bell },
-  { id: "activity", label: "Attività", icon: Activity },
-  { id: "updates", label: "Aggiornamenti", icon: RefreshCw },
+  { id: "system", label: "Sistema", icon: Server },
   { id: "settings", label: "Impostazioni", icon: Settings },
 ];
 const mobilePrimary: { id: Page; label: string; icon: typeof House }[] = [
@@ -123,8 +124,13 @@ const mobilePrimary: { id: Page; label: string; icon: typeof House }[] = [
 const uid = () => crypto.randomUUID();
 export default function App({ authMode = "tailscale" }: { authMode?: string } = {}) {
   const [page, setPage] = useState<Page>(() => {
-    const [requested] = splitHash(window.location.hash);
+    const [requested, sub] = splitHash(window.location.hash);
+    if (systemTabFor(requested, sub)) return "system";
     return isPage(requested) ? requested : "home";
+  });
+  const [systemTab, setSystemTab] = useState<SystemTab>(() => {
+    const [requested, sub] = splitHash(window.location.hash);
+    return systemTabFor(requested, sub) ?? "salute";
   });
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(() => {
     const [requested, sub] = splitHash(window.location.hash);
@@ -173,6 +179,8 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
   useEffect(() => {
     const syncHash = () => {
       const [requested, sub] = splitHash(window.location.hash);
+      const system = systemTabFor(requested, sub);
+      if (system) { setPage("system"); setSystemTab(system); return; }
       if (isPage(requested)) setPage(requested);
       if (requested === "settings") setSettingsTab(isSettingsTab(sub) ? sub : "generale");
     };
@@ -189,13 +197,25 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
     : backend.checking
       ? "Connessione…"
       : "Collegamento non riuscito";
-  function navigate(next: Page, settings: SettingsTab = "generale") {
-    setPage(next);
+  // Updates, machines and activity are Sistema tabs: their old ids still navigate there.
+  function navigate(next: Page, sub?: string) {
+    const system = systemTabFor(next, sub);
+    const target: Page = system ? "system" : next;
+    let suffix = "";
+    setPage(target);
     setMenu(false);
-    if (next === "settings") setSettingsTab(settings);
-    const url = next === "home"
+    if (target === "settings") {
+      const tab: SettingsTab = isSettingsTab(sub) ? sub : "generale";
+      setSettingsTab(tab);
+      if (tab !== "generale") suffix = "/" + tab;
+    }
+    if (system) {
+      setSystemTab(system);
+      if (system !== "salute") suffix = "/" + system;
+    }
+    const url = target === "home"
       ? window.location.pathname + window.location.search
-      : "#" + next + (next === "settings" && settings !== "generale" ? "/" + settings : "");
+      : "#" + target + suffix;
     window.history.replaceState(null, "", url);
   }
   function newChat(projectId: string | null = null) {
@@ -444,8 +464,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
                 <div className="dropdown mobile-dropdown">
                   <button onClick={() => navigate("chat")}><span>✦</span> Chat Cora</button>
                   <button onClick={() => navigate("notifications")}><Bell size={17} /> Notifiche{unseen ? " (" + unseen + ")" : ""}</button>
-                  <button onClick={() => navigate("activity")}><Activity size={17} /> Attività</button>
-                  <button onClick={() => navigate("machines")}><Server size={17} /> Macchine</button>
+                  <button onClick={() => navigate("system")}><Server size={17} /> Sistema</button>
                   <button onClick={() => navigate("settings")}><Settings size={17} /> Impostazioni</button>
                 </div>
               )}
@@ -453,7 +472,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
           </div>
         </header>
         <main className={"main " + (page === "chat" ? "chat-main" : "")}>
-          {backend.error && page !== "updates" && (
+          {backend.error && !(page === "system" && systemTab === "aggiornamenti") && (
             <div className="connection-error" role="alert">
               <span>{backend.error}</span>
               <button
@@ -486,9 +505,25 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
           )}
           {page === "home" && <HomeNotifications onOpenAll={() => { setNotificationsTab("alerts"); navigate("notifications"); }} onOpenDecisions={() => { setNotificationsTab("decisions"); navigate("notifications"); }} />}
           {page === "notifications" && <NotificationsPage key={notificationsTab} initialTab={notificationsTab} onOpenSettings={() => navigate("settings", "notifiche")} onOpenAudio={() => navigate("audio")} />}
-          {page === "updates" && (
+          {page === "system" && (
+            <nav className="settings-tabs system-tabs" role="tablist" aria-label="Sezioni di Sistema">
+              {SYSTEM_TABS.map(t => <button key={t.id} role="tab" aria-selected={systemTab === t.id}
+                className={systemTab === t.id ? "active" : ""} onClick={() => navigate("system", t.id)}>{t.label}</button>)}
+            </nav>
+          )}
+          {page === "system" && systemTab === "salute" && (
+            <section className="content-page">
+              <div className="page-heading"><div><div className="eyebrow">SISTEMA</div><h1>Salute</h1><p>Controlli automatici e stato di ogni servizio del server.</p></div></div>
+              <SystemHealth />
+            </section>
+          )}
+          {page === "system" && systemTab === "aggiornamenti" && (
             <section className="content-page narrow">
               <SystemUpdate standalone />
+              <div className="system-card system-apps">
+                <h2>Applicazioni gestite</h2>
+                <ManagedApplications defaultOpen />
+              </div>
             </section>
           )}
           {page === "photos" && <MobilePhotos />}
@@ -634,7 +669,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
               )}
             </>
           )}
-          {page === "machines" && <Machines />}
+          {page === "system" && systemTab === "macchine" && <Machines />}
           {page === "code" && <Programmer />}
           {page === "homepage-schema-albero" && <Suspense fallback={<p>Apertura schema…</p>}><TreeHome /></Suspense>}
           {page === "programmer-next" && <ProgrammerNextPlaceholder />}
@@ -642,12 +677,12 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
           {page === "mail" && <Mail />}
           {page === "files" && <FileManager />}
           {page === "audio" && <Audio />}
-          {page === "activity" && (
+          {page === "system" && systemTab === "attivita" && (
             <section className="content-page activity-page">
               <div className="page-heading">
                 <div>
                   <div className="eyebrow">TRASPARENZA</div>
-                  <h1>Attività</h1>
+                  <h1>Attività tecnica</h1>
                   <p>
                     Attività recenti della sessione e tracce tecniche persistenti
                     delle esecuzioni di Cora.
@@ -712,7 +747,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
                 <div>
                   <div className="eyebrow">CONFIGURAZIONE</div>
                   <h1>Impostazioni</h1>
-                  <p>Come si comporta Cora. Stato e manutenzione del server sono in Aggiornamenti e Attività.</p>
+                  <p>Come si comporta Cora. Stato e manutenzione del server sono in Sistema.</p>
                 </div>
                 <button className="solid-button" disabled={backend.checking} onClick={() => void backend.refresh()}>
                   <RefreshCw size={15}/> Aggiorna stato
@@ -760,8 +795,8 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
                     </div>
                   </div>
                   <div className="settings-link-grid">
-                    <button onClick={()=>navigate("updates")}><strong>Aggiornamenti</strong><span>Versione, updater e applicazioni gestite</span><ArrowRight size={16}/></button>
-                    <button onClick={()=>navigate("activity")}><strong>Attività</strong><span>Run, errori e tracce tecniche</span><ArrowRight size={16}/></button>
+                    <button onClick={()=>navigate("system", "aggiornamenti")}><strong>Sistema › Aggiornamenti</strong><span>Versione, updater e applicazioni gestite</span><ArrowRight size={16}/></button>
+                    <button onClick={()=>navigate("system", "attivita")}><strong>Sistema › Attività tecnica</strong><span>Run, errori e tracce tecniche</span><ArrowRight size={16}/></button>
                   </div>
                 </section>
               </>}
@@ -778,7 +813,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
                 <ModelSettings onChanged={() => void backend.refresh()} />
                 <div className="settings-link-grid">
                   <button onClick={()=>navigate("architecture")}><strong>Architettura</strong><span>Modelli e configurazione dei singoli agenti</span><ArrowRight size={16}/></button>
-                  <button onClick={()=>navigate("machines")}><strong>Macchine</strong><span>Worker, modelli installati e instradamento</span><ArrowRight size={16}/></button>
+                  <button onClick={()=>navigate("system", "macchine")}><strong>Sistema › Macchine</strong><span>Worker, modelli installati e instradamento</span><ArrowRight size={16}/></button>
                 </div>
               </section>}
 
