@@ -10,6 +10,9 @@ from updater.engine import atomic
 MASTER='nextcloud-aio-mastercontainer'
 BACKUP='nextcloud-aio-borgbackup'
 NEXTCLOUD='nextcloud-aio-nextcloud'
+# AIO restarts every container after a backup and may pull new images (a major
+# upgrade migrates the database on start): allow up to 10 minutes, polling every 2 s.
+READY_ATTEMPTS=300
 RECOVERY='Controllare AIO e il backup prima di altre operazioni. Ripristino dal pannello AIO; nessun downgrade automatico.'
 
 
@@ -61,6 +64,14 @@ class NextcloudAIO:
         except (RuntimeError,OSError,ValueError,subprocess.TimeoutExpired):pass
         return result
 
+    def wait_ready(self):
+        for _ in range(READY_ATTEMPTS):
+            try:
+                if self.ready():return True
+            except (RuntimeError,ValueError,OSError,subprocess.TimeoutExpired):pass
+            self.sleep(2)
+        return False
+
     def preflight(self):
         if not self.ready():raise ValueError('Nextcloud AIO non pronto: verificare il pannello AIO.')
         if self.inspect(BACKUP)['state'].get('Running'):raise ValueError('Backup o ripristino AIO già in corso.')
@@ -79,13 +90,14 @@ class NextcloudAIO:
             self.save(status='running',phase='preflight',message='Verifica prerequisiti AIO')
             self.preflight()
             before=self.version();old_backup=self.inspect(BACKUP)['state'].get('FinishedAt')
-            self.save(phase='backup',beforeVersion=before.get('versionstring'),message='Backup AIO prima dell’aggiornamento')
+            self.save(phase='backup',beforeVersion=before.get('versionstring'),message='Backup AIO e riavvio dei container (AIO può già applicare immagini nuove)')
             self.script(False)
             state=self.inspect(BACKUP)['state']
             if state.get('Running') or state.get('ExitCode')!=0 or not state.get('FinishedAt') or state['FinishedAt']==old_backup:
                 raise RuntimeError('Backup non verificato')
-            if not self.ready():raise RuntimeError('AIO non pronto dopo il backup')
-            self.save(phase='update',backupFinishedAt=state['FinishedAt'],message='Aggiornamento tramite AIO')
+            self.save(phase='restart',backupFinishedAt=state['FinishedAt'],message='Backup completato; attesa della ripartenza di Nextcloud')
+            if not self.wait_ready():raise RuntimeError('AIO non pronto dopo il backup')
+            self.save(phase='update',versionAfterBackup=self.version().get('versionstring'),message='Aggiornamento tramite AIO')
             old_master=self.inspect(MASTER)['id']
             interrupted=False
             try:self.script(True)
@@ -104,12 +116,7 @@ class NextcloudAIO:
                 self.save(phase='resume_after_master_update',message='Nuovo mastercontainer pronto; completamento aggiornamento')
                 self.script(True)
             self.save(phase='verify',message='Verifica stato e migrazioni Nextcloud')
-            for _ in range(60):
-                try:
-                    if self.ready():break
-                except (RuntimeError,ValueError):pass
-                self.sleep(2)
-            else:raise RuntimeError('Health finale non riuscita')
+            if not self.wait_ready():raise RuntimeError('Health finale non riuscita')
             self.save(status='completed',phase='ready',afterVersion=self.version().get('versionstring'),message='Backup e aggiornamento AIO completati')
         except Exception:
             self.save(status='recovery_required',message=RECOVERY)
