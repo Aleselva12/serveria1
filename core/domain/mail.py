@@ -314,6 +314,6 @@ def automation_template(selection):
     if selection != "all":
         account_email(selection)
     return {"kind": "mail.daily_summary", "version": 1, "enabled": False, "delivery": None,
-            "schedule": {"time": "03:00", "timezone": "Europe/Rome"},
+            "schedule": {"time": "08:00", "timezone": "Europe/Rome"},
             "selection": selection, "scope": "yesterday", "operation": "POST /api/v1/mail/summary",
             "requires_explicit_activation": True}
