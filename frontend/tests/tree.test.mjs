@@ -14,13 +14,13 @@ const last=source.indexOf('type Props=');
 assert.ok(first>=0&&last>first);
 const {layout,trunkLayout,trunkFlows}=await import(mod(source.slice(first,last)));
 
-test('all original 515 nodes survive alongside seven planned T14 nodes',()=>{
+test('all original nodes survive alongside T14 and the agreed memory design',()=>{
  const ids=new Set(nodes.map(n=>n.id));
  assert.equal(ids.size,nodes.length);
- assert.equal(nodes.length,522);
+ assert.equal(nodes.length,539);
  assert.equal(nodes.filter(n=>n.classification==='star').length,46);
- assert.equal(nodes.filter(n=>n.classification==='planet').length,153);
- assert.equal(nodes.filter(n=>n.classification==='moon').length,308);
+ assert.equal(nodes.filter(n=>n.classification==='planet').length,158);
+ assert.equal(nodes.filter(n=>n.classification==='moon').length,320);
  assert.ok(relations.length>=37,'Baseline conceptual relations must survive');
  assert.equal(new Set(relations.map(r=>[r.from,r.to,r.kind].join('|'))).size,relations.length,'Duplicate semantic relations');
  for(const id of [...Object.keys(checks),...nodes.map(n=>n.parent).filter(Boolean),...relations.flatMap(r=>[r.from,r.to])])
@@ -139,7 +139,7 @@ test('V3 schema preserves 515 canonical nodes and 19 uniquely owned legacy issue
  const {legacyIssues,validateAtlasOverlay}=await import(mod(model));
  const issues=legacyIssues(nodes);
  assert.equal(snapshot.v3.schemaVersion,3);
- assert.equal(nodes.length,522);
+ assert.equal(nodes.length,539);
  assert.equal(issues.length,19);
  assert.deepEqual(snapshot.v3.issues.map(({id,ownerNodeId,title,source})=>({id,ownerNodeId,title,source})),issues.map(({id,ownerNodeId,title,source})=>({id,ownerNodeId,title,source})));
  assert.equal(new Set(issues.map(i=>i.id)).size,19);
@@ -185,7 +185,7 @@ test('V3 ownership review classifies all 46 stars with T14 as planned',()=>{
  const ids=new Set(nodes.map(n=>n.id));
  for(const item of snapshot.v3.responsibilityReview.decisions)
   for(const id of item.nodes)assert.ok(ids.has(id),'Unknown boundary review node '+id);
- assert.equal(nodes.length,522);
+ assert.equal(nodes.length,539);
 });
 
 test('V3 glance projection covers each canonical star exactly once without rewriting the tree',()=>{
@@ -211,7 +211,7 @@ test('V3 evolution keeps planned stars visible without promoting proposed trunk 
  assert.ok(view.futureStarCandidates.every(x=>!nodes.some(n=>n.id===x.id)),'Proposed candidate prematurely promoted');
  assert.equal(nodes.find(n=>n.id==='T14')?.status,'planned');
  assert.ok(view.transitionRules.some(x=>x.includes('history')));
- assert.equal(nodes.length,522);
+ assert.equal(nodes.length,539);
 });
 
 test('T14 is a planned common approval responsibility without duplicated existing nodes',()=>{

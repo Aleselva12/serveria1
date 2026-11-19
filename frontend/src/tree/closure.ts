@@ -1,5 +1,7 @@
 // Acceptance criteria are targets; displaying one does not certify a run.
 export const closure:Record<string,string>={
+ T7:'Su fixture: salva, ritrova da un nuovo processo, correggi e rileggi senza perdere versioni/fonti. Collaudare separatamente contesto proprietario, episodi e TTL; la nuova biblioteca resta futura.',
+ 'T7.p9':'Da costruire: dall’indice aprire una scheda pertinente, seguire un collegamento e raggiungere la fonte originale, rispettando ambito e budget.',
  C1:'Un appuntamento di prova compare una sola volta in Cora e nel calendario Google collegato, e la notifica arriva sul telefono.',
  C1c:'Una notifica dell’appuntamento di prova arriva sul telefono all’orario previsto.',
  'C1c.m2':'Confermare la ricezione sul telefono, associando evento, orario previsto e orario di ricezione.',

@@ -1,5 +1,20 @@
 # Roadmap ad albero Cora
 
+## Memoria — revisione 19 novembre 2026
+
+T7.p1–p4 descrivono gli archivi già presenti con controlli sintetici distinti
+per contesto proprietario, memorie persistenti, episodi e stato temporaneo.
+I limiti dei test sono dichiarati nel catalogo; memory_e2e prova soltanto una nota
+scritta/riletta da processi diversi. I risultati CI non certificano il Debian.
+Il collegamento automatico degli episodi ai run è futuro, non una funzione
+certificata dall'esistenza della tabella episodes.
+
+T7.p6–p10 e le dodici nuove lune mostrano le decisioni ancora da costruire:
+registro letterale, rielaborato, simbolico, biblioteca navigabile e memorie brevi.
+Sono planned/idea, senza test associati a implementazioni inesistenti. T6 resta
+responsabile del recupero. Il Custode T7.p5 è distinto dalle revisioni già presenti.
+Vedere docs/MEMORY_DESIGN.md e docs/MEMORY_REVIEW_2026-11-19.md.
+
 ## Fonte strutturale
 
 La fonte autorevole della **struttura** è ora **questa repository ServerIA**, nel file

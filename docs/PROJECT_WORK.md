@@ -300,3 +300,16 @@ di prestazioni o assenza di swap. Non eseguito sul server da questa sessione.
 Da fare: installare la PR, eseguire preparazione sul server senza richieste attive,
 collaudare somma.py + unittest con 8B, verificare thinking, RAM/swap, tempi e stop.
 PRG-01/PERF-01 restano aperti; nessuna capacità reale del nuovo modello attestata.
+
+
+## Memoria — decisioni e verifica del 19 novembre 2026
+
+Tranche corrente: collaudare gli archivi esistenti e aggiornare T7/T6 senza
+implementare ancora la nuova memoria. Quattro suite isolate coprono gli archivi
+attuali; i nodi futuri descrivono registro letterale, rielaborato, simbolico,
+biblioteca navigabile e memorie brevi. Nessuna pretesa di certificazione del
+Debian da test locali/CI.
+
+Decisioni: [MEMORY_DESIGN.md](MEMORY_DESIGN.md).
+Evidenze e limiti: [MEMORY_REVIEW_2026-11-19.md](MEMORY_REVIEW_2026-11-19.md).
+La fase successiva implementerà il ciclo salva/ritrova/correggi con ambiti e fonti.
