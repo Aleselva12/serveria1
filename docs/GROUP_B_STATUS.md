@@ -38,11 +38,18 @@ implementato da ciò che è parziale o richiede una decisione architetturale.
 - il Context Manager globale non esiste ancora come contratto unico;
 - il Context Manager del Programmatore è sperimentale e opt-in.
 
-**Da decidere**
-- registro letterale vs registro rielaborato;
-- contratto input/output del Context Manager;
-- politica di espansione progressiva e limiti;
-- quale componente può richiedere altro contesto.
+**Decisioni del proprietario — 19 novembre 2026; implementazione successiva**
+- registro letterale di evidenze originali, distinto da resoconti rielaborati;
+- memoria simbolica con fonti, versioni, validità e relazioni;
+- biblioteca di schede navigabili e memorie brevi curate;
+- PostgreSQL autorevole, Markdown come vista/esportazione;
+- T6 coordina indice, ricerca, apertura, collegamenti e fonti entro budget;
+- i contratti ContextRequest/ContextPacket esistono, il servizio uniforme resta parziale.
+
+Vedere [MEMORY_DESIGN.md](MEMORY_DESIGN.md) e
+[MEMORY_REVIEW_2026-11-19.md](MEMORY_REVIEW_2026-11-19.md).
+Restano da definire dettaglio dei tool, limiti di espansione, retention del registro
+e l'eventuale ordinamento sperimentale con pesi gravitazionali.
 
 ## B3 — Controllo e sicurezza
 

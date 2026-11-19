@@ -1,13 +1,13 @@
 """Read-only, independently authorized Gmail mailboxes. No scheduler or sending."""
 import base64
-import json
-import html
 import hashlib
-from html.parser import HTMLParser
+import html
+import json
 import os
 import re
 import tempfile
 from datetime import datetime, timedelta
+from html.parser import HTMLParser
 from pathlib import Path
 from zoneinfo import ZoneInfo
 

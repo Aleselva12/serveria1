@@ -15,7 +15,9 @@ Collaudo backend finale mirato: 69 test, 55 superati e 14 saltati per assenza
 locale di PostgreSQL sacrificabile (10 preesistenti e 4 nuovi SQL). Nessun errore.
 Cinque controlli eseguiti dal runner una tantum: tutti pass, 24 test isolati
 complessivi senza skip. Suite frontend completa: 269 test superati, nessuno saltato.
-La build TypeScript/Vite viene verificata prima della pubblicazione della PR.
+Build TypeScript/Vite superata. Suite backend completa: 862 test, 787 superati
+e 75 saltati per prerequisiti assenti; nessun errore. Ruff superato dopo
+riordino degli import preesistenti in core/domain/mail.py, senza cambio funzionale.
 
 È stato tentato l'avvio di PostgreSQL+pgvector temporaneo tramite pgserver
 (strumento del solo ambiente di collaudo, nessuna dipendenza del progetto aggiunta).
@@ -23,6 +25,24 @@ L'ambiente vieta la creazione di socket: integrazione SQL non eseguita localment
 I test SQL richiedono esplicitamente un database sacrificabile; la CI esistente
 fornisce PostgreSQL+pgvector e le due variabili CORA_DATABASE_URL e
 CORA_RUNTIME_TEST_DATABASE_URL. Un test saltato non è un successo SQL.
+
+### Evidenza CI PostgreSQL
+
+Sul commit `55a50448244a1701d59eb51589fc65f7fc6b6ab2`, job verify
+[135945291233](https://github.com/Aleselva12/serveria1/actions/runs/44633293711/job/135945291233):
+862 test eseguiti, 860 superati e 2 saltati; tutte le dieci prove preesistenti
+MemoryPostgresTests e le quattro nuove MemoryStoresPostgresTests superate,
+nessuno skip in questi due gruppi. Superati anche frontend completo (269 test),
+report del runner e build. La ricerca vettoriale usa vettori controllati: non
+certifica il modello embedding locale o risposte LLM sul Debian.
+
+La matrice generale ha rilevato un errore preesistente di ordine import Mail,
+corretto senza cambi funzionali (33 test Mail/connector/job superati), e un audit
+immagine web fallito su Nginx 1.30.6-r1: sei segnalazioni high/critical con fix
+1.30.7-r0. Dockerfile e dipendenze immagine non sono modificati da questa tranche.
+Il successo dei collaudi memoria non equivale a una CI generale tutta verde;
+questa segnalazione rimane visibile nella PR. Nessun audit è stato disabilitato.
+
 
 ## Risultati dell'esame del codice
 
