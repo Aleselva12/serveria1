@@ -1,6 +1,27 @@
 """Reviewed isolated suites and their explicitly bounded tree coverage."""
 
-SUITES = {'automation_draft_regression': {'title': 'Automazioni: bozze, validazione e versioni',
+SUITES = {
+ 'memory_owner_regression': {
+     'title': 'Memoria: contesto proprietario e revisioni', 'component': 'cora',
+     'tests': ('tests.test_memory_stores.OwnerContextTests', 'tests.test_owner_context_pages'),
+     'nodes': ['T7.p1', 'T7.p1.m1', 'T7.p1.m2'],
+     'scope': 'Contesto proprietario selettivo, conflitti e revisioni con database simulato; persistenza reale e qualità delle risposte escluse.'},
+ 'memory_semantic_regression': {
+     'title': 'Memoria: ricerca, fonti e classificazione', 'component': 'cora',
+     'tests': ('tests.test_memory_stores.SemanticMemoryTests',),
+     'nodes': ['T7.p2', 'T7.p2.m1', 'T7.p2.m2'],
+     'scope': 'Validazione, revisioni/fonti, ricerca lessicale e contratto vettoriale con database simulato; PostgreSQL, Ollama e pertinenza reale esclusi.'},
+ 'memory_episodes_regression': {
+     'title': 'Memoria: episodi e riferimenti', 'component': 'cora',
+     'tests': ('tests.test_memory_stores.EpisodeTests',),
+     'nodes': ['T7.p3', 'T7.p3.m1'],
+     'scope': 'Creazione, riferimenti a conversazione/agente e lettura episodi con database simulato; estrazione automatica e collegamento ai run esclusi.'},
+ 'memory_working_regression': {
+     'title': 'Memoria: stato temporaneo e scadenza', 'component': 'cora',
+     'tests': ('tests.test_working_memory_store.WorkingMemoryTests',),
+     'nodes': ['T7.p4', 'T7.p4.m1', 'T7.p4.m2'],
+     'scope': 'Upsert per agente/conversazione, TTL e pulizia con database simulato; utilizzo autonomo da parte degli agenti e persistenza reale esclusi.'},
+ 'automation_draft_regression': {'title': 'Automazioni: bozze, validazione e versioni',
                                  'component': 'cora',
                                  'tests': ('tests.test_automation_drafts.DraftTests',
                                            'tests.test_automation_api.DraftApiTests'),

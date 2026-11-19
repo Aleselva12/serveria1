@@ -16,6 +16,10 @@ export function severity(n:Node,nodes:Node[],failures:Set<string>):string {
 }
 /** References only the pre-existing shared health catalog; never runs checks from the map. */
 export const checks:Record<string,string[]>={
+  "T7.p1":["memory_owner_regression"],"T7.p1.m1":["memory_owner_regression"],"T7.p1.m2":["memory_owner_regression"],
+  "T7.p2":["memory_semantic_regression","memory_e2e"],"T7.p2.m1":["memory_semantic_regression","memory_e2e"],"T7.p2.m2":["memory_semantic_regression"],
+  "T7.p3":["memory_episodes_regression"],"T7.p3.m1":["memory_episodes_regression"],
+  "T7.p4":["memory_working_regression"],"T7.p4.m1":["memory_working_regression"],"T7.p4.m2":["memory_working_regression"],
   "R4.1":["debian_host_e2e","systemd_host_e2e","host_admin_e2e"],
   "R4.1.p1":["host_ops_regression","debian_host_e2e"],"R4.1.p1.m1":["debian_host_e2e"],"R4.1.p1.m2":["debian_host_e2e"],
   "R4.1.p2":["host_ops_regression","systemd_host_e2e"],"R4.1.p2.m1":["systemd_host_e2e"],"R4.1.p2.m2":["systemd_host_e2e"],
@@ -167,7 +171,7 @@ export const checks:Record<string,string[]>={
   "C2":["gmail_contract","gmail_e2e"],
   "worker":["worker_contract","worker_e2e"],"T8":["worker_contract","worker_e2e"],
   "installare":["worker_contract"],"assegnare":["worker_chat_regression","worker_e2e"],
-  "T7":["memory_regression","memory_e2e"],"B1":["files_regression","files_e2e"],"C3.p4":["audio_e2e","word_live_e2e"],
+  "T7":["memory_regression","memory_e2e","memory_owner_regression","memory_semantic_regression","memory_episodes_regression","memory_working_regression"],"B1":["files_regression","files_e2e"],"C3.p4":["audio_e2e","word_live_e2e"],
   "immich":["immich_e2e"],"nextcloud":["nextcloud_e2e"],"magazzino":["magazzino_e2e"],
   "D4":["preventivi_e2e"],"R5.1":["backup_restore"],"R5.2":["updates_rollback"],
   "R5.2.p2":["dependency_audit","release_update_regression"],"R4.2.p2":["dependency_audit","backend_lifecycle_regression"],"R5.1.p1":["backup_regression"],"R5.2.p3":["managed_apps_regression"],"nextcloud.p4":["managed_apps_regression"],"T2.p3":["chat_tools_regression"],"A1.p1":["chat_context_regression"],"A2.p1":["conversation_history_regression"],"A2.p2":["conversation_history_regression"],"C2.p4":["documents_regression"],"C1.p6":["calendar_auth_regression"],"C3.p1":["audio_ui_regression"],"R3.1.p1":["models_config_regression"],"G1.p2":["programmer_agent_regression"],"T12.p2":["architecture_regression"],"T10.p1":["architecture_regression"],"R6.2.p2":["security_audit_regression"],"T12.p1":["roadmap_priority_regression"],

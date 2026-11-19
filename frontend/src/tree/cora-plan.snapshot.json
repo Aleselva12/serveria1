@@ -2196,8 +2196,8 @@
           "runtimeVerified": false
         },
         "future": [
-          "Context Manager progressivo e differenza letterale/rielaborato",
-          "Completare in futuro il Context Manager progressivo e i controlli di qualità della cronologia: non è un errore dimostrato dalle prove odierne."
+          "Context Manager progressivo: consulta indice T7, cerca schede, segue collegamenti e approfondisce fonti entro budget.",
+          "Recupero limitato per ambito; originali e sintesi distinti, conflitti e informazioni mancanti espliciti. Nessun nuovo permesso derivato dalla memoria."
         ]
       },
       "roadmapRefs": [
@@ -2245,7 +2245,7 @@
       "priority": "unknown",
       "classification": "planet",
       "status": "partial",
-      "note": "",
+      "note": "Budget e selezione esistenti; navigazione progressiva della biblioteca T7 ancora da costruire.",
       "parent": "T6"
     },
     {
@@ -2304,7 +2304,7 @@
     {
       "id": "T7",
       "title": "T7 · Memoria",
-      "note": "Quattro livelli e revisioni ancora da collaudare nell’uso",
+      "note": "Base esistente: contesto proprietario, memorie versionate, episodi e stato temporaneo. Progetto deciso: registro letterale, rielaborato, simbolico e biblioteca navigabile; implementazione successiva.",
       "priority": "unknown",
       "parent": "tronco",
       "earlierNote": "Proposta V2 parziale. Responsabilità, evidenze e collegamenti da confermare.",
@@ -2315,12 +2315,15 @@
       "timeline": {
         "past": [],
         "present": {
-          "statement": "Quattro livelli e revisioni ancora da collaudare nell’uso",
+          "statement": "Archivi e API presenti; controlli isolati distinti per i quattro livelli. Episodi e working memory non risultano alimentati automaticamente dagli agenti. Contenuti privati del server non ispezionati.",
           "source": "architecture-v2",
           "runtimeVerified": false
         },
         "future": [
-          "Consolidamento governato; Mente saggia/Custode solo idea"
+          "Decisione del 19/11: biblioteca di schede versionate, indice e collegamenti con fonti originali; PostgreSQL resta fonte autorevole.",
+          "Registro letterale di richieste, risultati ed esiti verificati; nessuna deduzione di successo dalla sola richiesta.",
+          "Registro rielaborato derivato e memoria simbolica con provenienza; pesi gravitazionali solo sperimentazione successiva.",
+          "Memorie brevi curate e caricate per ambito; il recupero non concede autorizzazioni."
         ]
       },
       "knownIssues": [
@@ -2329,115 +2332,219 @@
       "roadmapRefs": [
         "RUNTIME-MEMORY",
         "CONTEXT-REGISTRY"
+      ],
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "Base esistente: contesto proprietario, memorie versionate, episodi e stato temporaneo. Progetto deciso: registro letterale, rielaborato, simbolico e biblioteca navigabile; implementazione successiva. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
       ]
     },
     {
       "id": "T7.p1",
-      "title": "Permanente",
+      "title": "Contesto del proprietario",
       "priority": "unknown",
       "classification": "planet",
-      "status": "partial",
-      "note": "",
-      "parent": "T7"
+      "status": "present",
+      "note": "Un testo globale versionato, consultato selettivamente; non ancora una raccolta di schede.",
+      "parent": "T7",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "Un testo globale versionato, consultato selettivamente; non ancora una raccolta di schede. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T7.p1.m1",
-      "title": "Identità",
+      "title": "Profilo su richiesta",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
-      "note": "",
-      "parent": "T7.p1"
+      "status": "present",
+      "note": "Preload selettivo della pagina owner_context, non inserimento in ogni prompt.",
+      "parent": "T7.p1",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "Preload selettivo della pagina owner_context, non inserimento in ogni prompt. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T7.p1.m2",
-      "title": "Revisione",
+      "title": "Revisioni del contesto",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
-      "note": "",
-      "parent": "T7.p1"
+      "status": "present",
+      "note": "Versioni e rifiuto delle modifiche obsolete; nessuna mappa dei ricordi.",
+      "parent": "T7.p1",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "Versioni e rifiuto delle modifiche obsolete; nessuna mappa dei ricordi. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T7.p2",
-      "title": "Semantica",
+      "title": "Memorie persistenti",
       "priority": "unknown",
       "classification": "planet",
-      "status": "partial",
-      "note": "",
-      "parent": "T7"
+      "status": "present",
+      "note": "Fatti, preferenze, persone, progetti e decisioni con ricerca e revisioni; manca la biblioteca navigabile.",
+      "parent": "T7",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "Fatti, preferenze, persone, progetti e decisioni con ricerca e revisioni; manca la biblioteca navigabile. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T7.p2.m1",
-      "title": "Conoscenza",
+      "title": "Ricerca lessicale e vettoriale",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
-      "note": "",
-      "parent": "T7.p2"
+      "status": "present",
+      "note": "Ricerca ibrida; fallback lessicale senza embedding. La qualità del modello embedding locale resta da collaudare.",
+      "parent": "T7.p2",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "Ricerca ibrida; fallback lessicale senza embedding. La qualità del modello embedding locale resta da collaudare. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T7.p2.m2",
-      "title": "Provenienza",
+      "title": "Fonti, versioni e classificazione",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
-      "note": "",
-      "parent": "T7.p2"
+      "status": "present",
+      "note": "Fonti e revisioni; distinzione user_statement/observation/inference; protezione delle correzioni proprietario.",
+      "parent": "T7.p2",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "Fonti e revisioni; distinzione user_statement/observation/inference; protezione delle correzioni proprietario. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T7.p3",
-      "title": "Episodica",
+      "title": "Archivio degli episodi",
       "priority": "unknown",
       "classification": "planet",
       "status": "partial",
-      "note": "",
-      "parent": "T7"
+      "note": "Creazione e lista disponibili; non risulta un flusso di estrazione automatica dagli agenti.",
+      "parent": "T7",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "Creazione e lista disponibili; non risulta un flusso di estrazione automatica dagli agenti. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T7.p3.m1",
-      "title": "Eventi e passaggi",
+      "title": "Creazione e lettura episodi",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
-      "note": "",
-      "parent": "T7.p3"
+      "status": "present",
+      "note": "Salvataggio di riassunto, conversazione, agente e metadati. Non è un registro letterale.",
+      "parent": "T7.p3",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "Salvataggio di riassunto, conversazione, agente e metadati. Non è un registro letterale. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T7.p3.m2",
-      "title": "Collegamento ai run",
+      "title": "Collegamento automatico ai run",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
-      "note": "",
-      "parent": "T7.p3"
+      "status": "planned",
+      "note": "Da costruire: alimentazione automatica degli episodi e collegamenti espliciti agli eventi/run; oggi esiste il riferimento alla conversazione.",
+      "parent": "T7.p3",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "Da costruire: alimentazione automatica degli episodi e collegamenti espliciti agli eventi/run; oggi esiste il riferimento alla conversazione. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T7.p4",
-      "title": "Di lavoro",
+      "title": "Memoria temporanea",
       "priority": "unknown",
       "classification": "planet",
       "status": "partial",
-      "note": "",
-      "parent": "T7"
+      "note": "API di stato per agente/conversazione e TTL; utilizzo automatico nei task non dimostrato.",
+      "parent": "T7",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "API di stato per agente/conversazione e TTL; utilizzo automatico nei task non dimostrato. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T7.p4.m1",
-      "title": "Task correnti",
+      "title": "Stato per agente e conversazione",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
-      "note": "",
-      "parent": "T7.p4"
+      "status": "present",
+      "note": "Upsert e cancellazione dello stato JSON per coppia agente/conversazione; non certifica la ripresa di un piano.",
+      "parent": "T7.p4",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "Upsert e cancellazione dello stato JSON per coppia agente/conversazione; non certifica la ripresa di un piano. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T7.p4.m2",
-      "title": "Scadenza",
+      "title": "Scadenza e pulizia",
       "priority": "unknown",
       "classification": "moon",
-      "status": "partial",
-      "note": "",
-      "parent": "T7.p4"
+      "status": "present",
+      "note": "TTL predefinito 120 minuti, minimo un minuto; le righe scadute vengono eliminate alla lettura della lista.",
+      "parent": "T7.p4",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "TTL predefinito 120 minuti, minimo un minuto; le righe scadute vengono eliminate alla lettura della lista. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T7.p5",
@@ -2459,12 +2566,20 @@
     },
     {
       "id": "T7.p5.m2",
-      "title": "Versionamento governato",
+      "title": "Revisione autonoma futura",
       "priority": "unknown",
       "classification": "moon",
       "status": "planned",
-      "note": "",
-      "parent": "T7.p5"
+      "note": "Il versionamento delle memorie esiste già in T7.p2.m2; il Custode che propone e consolida revisioni resta futuro.",
+      "parent": "T7.p5",
+      "observations": [
+        {
+          "type": "code_review",
+          "observedAt": "2026-11-19",
+          "commit": "52621159f66740f99447d9632fcbafbd90532714",
+          "text": "Il versionamento delle memorie esiste già in T7.p2.m2; il Custode che propone e consolida revisioni resta futuro. Collaudi e limiti: docs/MEMORY_REVIEW_2026-11-19.md. Nessuna certificazione del Debian installato."
+        }
+      ]
     },
     {
       "id": "T8",
@@ -5840,9 +5955,281 @@
       "classification": "moon",
       "status": "planned",
       "priority": "unknown"
+    },
+    {
+      "id": "T7.p6",
+      "title": "Registro letterale",
+      "parent": "T7",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Obiettivo: archivio consultabile delle evidenze originali. Chat, journal ed eventi sono basi esistenti, non ancora un registro unificato completo.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Obiettivo: archivio consultabile delle evidenze originali. Chat, journal ed eventi sono basi esistenti, non ancora un registro unificato completo."
+        }
+      ]
+    },
+    {
+      "id": "T7.p6.m1",
+      "title": "Originali e provenienza",
+      "parent": "T7.p6",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Messaggi, richieste e risultati conservati con ID, tempi, fonte e collegamento al run; contenuti sensibili e retention da definire.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Messaggi, richieste e risultati conservati con ID, tempi, fonte e collegamento al run; contenuti sensibili e retention da definire."
+        }
+      ]
+    },
+    {
+      "id": "T7.p6.m2",
+      "title": "Richiesta, esito e verifica",
+      "parent": "T7.p6",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Distinguere intenzione, tentativo, risultato osservato e conferma; correzioni come annotazioni successive, mai successo presunto.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Distinguere intenzione, tentativo, risultato osservato e conferma; correzioni come annotazioni successive, mai successo presunto."
+        }
+      ]
+    },
+    {
+      "id": "T7.p7",
+      "title": "Registro rielaborato",
+      "parent": "T7",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Resoconti derivati leggibili di eventi e attività; fase successiva al registro letterale.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Resoconti derivati leggibili di eventi e attività; fase successiva al registro letterale."
+        }
+      ]
+    },
+    {
+      "id": "T7.p7.m1",
+      "title": "Diario derivato",
+      "parent": "T7.p7",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Sintesi narrative di attività e conversazioni, separate dagli originali e rigenerabili.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Sintesi narrative di attività e conversazioni, separate dagli originali e rigenerabili."
+        }
+      ]
+    },
+    {
+      "id": "T7.p7.m2",
+      "title": "Rinvio alle evidenze",
+      "parent": "T7.p7",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Ogni sintesi rimanda a fonti/versioni e dichiara limiti e incertezze; non sostituisce la prova originale.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Ogni sintesi rimanda a fonti/versioni e dichiara limiti e incertezze; non sostituisce la prova originale."
+        }
+      ]
+    },
+    {
+      "id": "T7.p8",
+      "title": "Memoria simbolica",
+      "parent": "T7",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Entità, fatti e relazioni strutturati: rappresentazione rielaborata con provenienza, non sinonimo di embeddings.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Entità, fatti e relazioni strutturati: rappresentazione rielaborata con provenienza, non sinonimo di embeddings."
+        }
+      ]
+    },
+    {
+      "id": "T7.p8.m1",
+      "title": "Entità e relazioni",
+      "parent": "T7.p8",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Persone, progetti e decisioni collegati da relazioni tipizzate e attraversabili.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Persone, progetti e decisioni collegati da relazioni tipizzate e attraversabili."
+        }
+      ]
+    },
+    {
+      "id": "T7.p8.m2",
+      "title": "Validità e contraddizioni",
+      "parent": "T7.p8",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Fonte, versione, ambito e validità temporale; deduzioni distinte dai fatti e conflitti espliciti.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Fonte, versione, ambito e validità temporale; deduzioni distinte dai fatti e conflitti espliciti."
+        }
+      ]
+    },
+    {
+      "id": "T7.p8.m3",
+      "title": "Pesi gravitazionali",
+      "parent": "T7.p8",
+      "classification": "moon",
+      "status": "idea",
+      "priority": "unknown",
+      "note": "Idea successiva: ordinamento per pertinenza, importanza e collegamenti; frequenza e centralità non dimostrano verità.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Idea successiva: ordinamento per pertinenza, importanza e collegamenti; frequenza e centralità non dimostrano verità."
+        }
+      ]
+    },
+    {
+      "id": "T7.p9",
+      "title": "Biblioteca navigabile",
+      "parent": "T7",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Schede versionate, indice gerarchico e collegamenti; PostgreSQL autorevole, Markdown come vista/esportazione senza doppia scrittura indipendente.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Schede versionate, indice gerarchico e collegamenti; PostgreSQL autorevole, Markdown come vista/esportazione senza doppia scrittura indipendente."
+        }
+      ]
+    },
+    {
+      "id": "T7.p9.m1",
+      "title": "Schede e ambiti",
+      "parent": "T7.p9",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Titolo, descrizione breve, contenuto, fonti, versione; ambiti globale/azienda/progetto/attività.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Titolo, descrizione breve, contenuto, fonti, versione; ambiti globale/azienda/progetto/attività."
+        }
+      ]
+    },
+    {
+      "id": "T7.p9.m2",
+      "title": "Indice e collegamenti",
+      "parent": "T7.p9",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Indice leggero e collegamenti fra schede; esplorazione senza caricare tutta la memoria nel prompt.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Indice leggero e collegamenti fra schede; esplorazione senza caricare tutta la memoria nel prompt."
+        }
+      ]
+    },
+    {
+      "id": "T7.p9.m3",
+      "title": "Strumenti di navigazione",
+      "parent": "T7.p9",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Indice, ricerca, apertura, collegamenti e fonte originale; limiti e permessi applicati dal codice con T6.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Indice, ricerca, apertura, collegamenti e fonte originale; limiti e permessi applicati dal codice con T6."
+        }
+      ]
+    },
+    {
+      "id": "T7.p10",
+      "title": "Memorie brevi curate",
+      "parent": "T7",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Preferenze, fatti e regole concise con fonte e ambito; candidati iniziali da inserire nella fase di implementazione.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Preferenze, fatti e regole concise con fonte e ambito; candidati iniziali da inserire nella fase di implementazione."
+        }
+      ]
+    },
+    {
+      "id": "T7.p10.m1",
+      "title": "Nucleo e schede tematiche",
+      "parent": "T7.p10",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Poche indicazioni universali; altre caricate per tema. Esempi: uso remoto Tailscale, fatti/ipotesi distinti, implementazione separata dal collaudo.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Poche indicazioni universali; altre caricate per tema. Esempi: uso remoto Tailscale, fatti/ipotesi distinti, implementazione separata dal collaudo."
+        }
+      ]
+    },
+    {
+      "id": "T7.p10.m2",
+      "title": "Revisione e autorità",
+      "parent": "T7.p10",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Modifiche versionate e correzioni esplicite; memoria recuperata e documenti non concedono permessi.",
+      "observations": [
+        {
+          "type": "design_decision",
+          "observedAt": "2026-11-19",
+          "text": "Decisione di progetto; non prova implementazione. Modifiche versionate e correzioni esplicite; memoria recuperata e documenti non concedono permessi."
+        }
+      ]
     }
   ],
-  "revision_note": "V2 completa, 45 stelle con pianeti e lune; colori dichiarati e non dedotti dal codice, test o priorità. Conservate identità del piano iniziale e contributi docs/MEMORIA_CORA.md. | ServerIA autorevole; qwe legacy. Criticità localizzate sui nodi operativi e relazioni semantiche esplicite (proposte, non prove runtime).",
+  "revision_note": "2026-11-19: T7 distingue archivi esistenti, collaudi circoscritti e nuova architettura di memoria decisa. Conservati ID storici; aggiunti 5 pianeti e 12 lune future. Nessuna implementazione della nuova memoria o prova del Debian implicita.",
   "revision": "CORA-V3-2026-11-10-M2-R4-HOST-E2E",
   "legend": {
     "unknown": "Da valutare",
@@ -6301,6 +6688,30 @@
       "note": "Le decisioni approvate devono essere collegate agli effetti e agli stati dei run",
       "status": "proposed",
       "provenance": "architecture-v3"
+    },
+    {
+      "from": "T6",
+      "to": "T7.p9",
+      "kind": "uses",
+      "note": "Il Context Manager consulterà la biblioteca; relazione progettata, non prova di integrazione.",
+      "status": "proposed",
+      "provenance": "owner-decision-2026-11-19"
+    },
+    {
+      "from": "T7.p8",
+      "to": "T7.p6",
+      "kind": "uses",
+      "note": "Conoscenza simbolica derivata con riferimenti alle evidenze letterali.",
+      "status": "proposed",
+      "provenance": "owner-decision-2026-11-19"
+    },
+    {
+      "from": "T7.p7",
+      "to": "T7.p6",
+      "kind": "uses",
+      "note": "Resoconti rielaborati derivati dagli originali.",
+      "status": "proposed",
+      "provenance": "owner-decision-2026-11-19"
     }
   ],
   "visibility": {
