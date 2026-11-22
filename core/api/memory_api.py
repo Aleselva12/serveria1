@@ -16,12 +16,20 @@ from core.domain.memory import (
     search_memories,
 )
 from core.domain.memory_library import (
-    CardCreate, CardEdit, CardState, Scope, StarterDrafts,
-    export_cards, get_card, import_drafts, list_cards, list_scopes, save_card,
+    CardCreate,
+    CardEdit,
+    CardState,
+    Scope,
+    StarterDrafts,
+    export_cards,
+    get_card,
+    import_drafts,
+    list_cards,
+    list_scopes,
+    save_card,
 )
 from core.domain.system_context import get_system_context, update_system_context
 from core.domain.working_memory import clear_working_memory, list_working_memory, set_working_memory
-
 from core.infra.domain_events import read as read_domain_events
 from core.infra.run_lifecycle import get_run, list_runs
 
