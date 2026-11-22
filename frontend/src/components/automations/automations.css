@@ -239,3 +239,37 @@
 @media (max-width: 620px) { .app-automations .main { padding-bottom: 76px; } }
 @media (max-width: 1150px) { .auto-live-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .auto-page *, .auto-page .react-flow__edge path { animation: none !important; } }
+
+/* Simpler page (W2): areas, plain inputs, collapsed extras */
+.auto-lead { color: var(--ops-muted); font-size: 12px; line-height: 1.7; margin-top: 8px !important; max-width: 640px; }
+.auto-lead b { color: var(--ops-text); font-weight: 500; }
+.auto-areas { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 4px; }
+.auto-page .auto-areas .source-button { padding: 5px 9px; font-size: 10px; border: 1px solid var(--ops-border); border-radius: 12px; color: var(--ops-muted); }
+.auto-page .auto-areas .source-button.on { background: var(--ops-accent); border-color: var(--ops-accent); color: var(--ops-bg); }
+.auto-page .auto-tech-link { display: block; width: 100%; text-align: left; margin-top: 10px; padding: 8px 2px; font-size: 9px; color: var(--ops-muted); border-top: 1px dashed var(--ops-border); }
+.auto-page .auto-tech-link.on { color: var(--ops-accent); }
+.auto-tool-list small { white-space: normal; line-height: 1.4; }
+.auto-steps { margin: 12px 0 0; padding-left: 18px; line-height: 1.8; font-size: 11px; color: var(--ops-muted); }
+.auto-steps b { color: var(--ops-text); font-weight: 500; }
+.auto-inputs { display: grid; gap: 10px; }
+.auto-inputs label { display: block; font-size: 10px; color: var(--ops-muted); }
+.auto-page .auto-inputs input { display: block; width: 100%; margin-top: 5px; padding: 9px; }
+.auto-extra { margin-top: 14px; border-top: 1px solid var(--ops-border); padding-top: 10px; }
+.auto-extra summary, .auto-tech summary { cursor: pointer; font-size: 10px; color: var(--ops-muted); }
+.auto-extra summary:hover, .auto-tech summary:hover { color: var(--ops-accent); }
+.auto-tech { margin-top: 28px; border-top: 1px dashed var(--ops-border); padding-top: 18px; }
+.auto-tech .auto-catalog-grid { margin-top: 16px; }
+.auto-effect-badge b { color: var(--fx); font-weight: 500; }
+.auto-catalog-grid article { min-height: 0; }
+.auto-catalog-grid p { flex: 1; }
+.auto-ref-explain { display: block; margin-top: 5px; font-size: 9px; line-height: 1.5; color: var(--ops-cyan); }
+.auto-block-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin-bottom: 8px; }
+.auto-page .auto-block { display: flex; align-items: flex-start; gap: 12px; text-align: left; padding: 14px; border: 1px solid var(--ops-border); border-left: 3px solid var(--fx); border-radius: 6px; background: var(--ops-panel); }
+.auto-page .auto-block:hover { border-color: var(--fx); }
+.auto-block > svg:first-child { color: var(--fx); flex-shrink: 0; margin-top: 2px; }
+.auto-block > svg:last-child { margin-left: auto; flex-shrink: 0; color: var(--ops-accent); }
+.auto-block span { min-width: 0; }
+.auto-block strong { display: block; font-size: 12px; font-weight: 500; }
+.auto-block small { display: block; margin-top: 4px; font-size: 10px; line-height: 1.5; color: var(--ops-muted); }
+.auto-block em { display: block; margin-top: 6px; font: normal 8px var(--font-heading); color: var(--fx); text-transform: uppercase; }
+.auto-tech .auto-block-grid { margin-top: 16px; }

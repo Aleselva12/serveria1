@@ -1,11 +1,13 @@
 // Pure helpers of the Automazioni page: tool catalog, canvas <-> draft conversion,
 // run overlay, schedules and recipes. No React and no I/O, so tests can import it.
 import type { AutomationRun, FlowEdge, FlowNode, RunNodeState, ToolEntry } from "../../types/contracts";
+import { AREAS, guideFor, type Area } from "./toolGuide";
 
 export type Effect = "read" | "compute" | "write" | "delegate" | "none";
 export type Kind = FlowNode["kind"];
 export type CatalogTool = {
-  id: string; name: string; description: string; group: string; effect: Effect;
+  id: string; name: string; title: string; hint: string; area: Area; essential: boolean;
+  description: string; group: string; effect: Effect;
   executable: boolean; connected: boolean; required: string[];
   properties: Record<string, { type?: string; description?: string; enum?: unknown[]; default?: unknown }>;
 };
@@ -19,13 +21,13 @@ export type CanvasEdge = { id: string; source: string; target: string; label?: u
 export type Schedule = { enabled: boolean; time: string; days: number[]; mode: "dry_run" | "live" };
 
 export const EFFECTS: Record<Effect, { label: string; hint: string }> = {
-  read: { label: "Legge", hint: "Consulta dati senza modificarli: sicuro da provare." },
-  compute: { label: "Calcola", hint: "Elabora i dati ricevuti, non modifica nulla." },
-  write: { label: "Scrive", hint: "Modifica dati: nella prova a vuoto non parte, dal vivo chiede conferma se previsto." },
-  delegate: { label: "Delega", hint: "Affida il compito a un agente specializzato: nella prova a vuoto non parte." },
+  read: { label: "Legge", hint: "Guarda soltanto, non cambia nulla: sicuro da provare." },
+  compute: { label: "Calcola", hint: "Elabora i dati che riceve, non cambia nulla." },
+  write: { label: "Modifica", hint: "Cambia o crea qualcosa: nella prova non parte, dal vivo ti chiede conferma quando serve." },
+  delegate: { label: "Assistente", hint: "Affida il compito a un assistente di Cora: nella prova non parte." },
   none: { label: "Base", hint: "Blocco di struttura del flusso." },
 };
-export const KIND_LABEL: Record<Kind, string> = { trigger: "Avvio", tool: "Tool", condition: "Condizione", output: "Risultato" };
+export const KIND_LABEL: Record<Kind, string> = { trigger: "Avvio", tool: "Azione", condition: "Scelta sì/no", output: "Risultato" };
 export const OPERATORS: { id: string; label: string; unary?: boolean }[] = [
   { id: "eq", label: "è uguale a" }, { id: "ne", label: "è diverso da" },
   { id: "gt", label: "è maggiore di" }, { id: "gte", label: "è almeno" },
@@ -39,18 +41,20 @@ export const STATUS_LABEL: Record<NodeStatus, string> = {
   waiting_approval: "Attende conferma", failed: "Non riuscito", rejected: "Rifiutato", cancelled: "Annullato",
 };
 
-/** Tools a draft may reference: the server rejects planned entries in drafts. */
+/** Tools a flow can run: only entries with an execution contract (no planned items, no raw API routes). */
 export function catalogFrom(entries: ToolEntry[]): CatalogTool[] {
-  return entries.filter(e => e.kind !== "planned").map((e): CatalogTool => {
+  return entries.filter(e => e.kind !== "planned" && e.capabilities?.length).map((e): CatalogTool => {
+    const guide = guideFor(e.name);
     const contract = e.capabilities?.[0];
     const schema = (contract?.input_schema ?? {}) as { required?: unknown; properties?: unknown };
     return {
-      id: e.id, name: e.name, description: e.description || e.detail || "", group: e.group || "Altro",
+      id: e.id, name: e.name, title: guide.title, hint: guide.hint, area: guide.area, essential: !!guide.essential,
+      description: e.description || e.detail || "", group: e.group || "Altro",
       effect: contract ? contract.effect : "none" as Effect, executable: !!contract, connected: e.status === "connected" || e.status === "direct",
       required: Array.isArray(schema.required) ? schema.required.filter((r): r is string => typeof r === "string") : [],
       properties: schema.properties && typeof schema.properties === "object" ? schema.properties as CatalogTool["properties"] : {},
     };
-  }).sort((a, b) => a.group.localeCompare(b.group, "it") || a.name.localeCompare(b.name, "it"));
+  }).sort((a, b) => AREAS.indexOf(a.area) - AREAS.indexOf(b.area) || Number(b.essential) - Number(a.essential) || a.title.localeCompare(b.title, "it"));
 }
 
 export function prettyName(name: string) {
@@ -68,8 +72,8 @@ function subtitleFor(kind: Kind, tool: CatalogTool | undefined, config: Record<s
     return op ? `${String(config.left ?? "?")} ${op.label}${op.unary ? "" : " " + String(config.right ?? "?")}` : "Regola da completare";
   }
   if (kind === "output") return "Raccoglie i risultati";
-  if (!tool) return "Scegli un tool";
-  return tool.group + " · " + EFFECTS[tool.effect].label;
+  if (!tool) return "Scegli cosa deve fare";
+  return tool.hint;
 }
 
 export function nodeData(node: Pick<FlowNode, "kind" | "label" | "config" | "tool_id">, catalog: CatalogTool[]): CanvasData {
@@ -193,7 +197,7 @@ export const RECIPES: Recipe[] = [
   {
     id: "salute", name: "Salute del server", description: "Lo stato di Cora in un colpo d'occhio.", category: "SISTEMA",
     steps: [
-      { id: "avvio", kind: "trigger", label: "Ogni mattina", config: { schedule: { enabled: false, time: "07:30", days: [0, 1, 2, 3, 4, 5, 6], mode: "dry_run" } } },
+      { id: "avvio", kind: "trigger", label: "Avvio", config: { schedule: { enabled: false, time: "07:30", days: [0, 1, 2, 3, 4, 5, 6], mode: "dry_run" } } },
       { id: "stato", kind: "tool", label: "Stato del sistema", tool: "tools.py:system_status_tool" },
       { id: "eventi", kind: "tool", label: "Eventi recenti", tool: "tools.py:recent_system_events_tool" },
       { id: "fine", kind: "output", label: "Rapporto" },
@@ -273,4 +277,14 @@ export function emptyDraft() {
     ],
     edges: [] as FlowEdge[],
   };
+}
+
+/** Plain reading of the {{...}} references in a value, e.g. "il risultato di «Calcolatrice»". */
+export function explainRefs(value: unknown, labels: Record<string, string>) {
+  if (typeof value !== "string") return "";
+  const parts = [...value.matchAll(/\{\{\s*([A-Za-z0-9_-]+)((?:\.[A-Za-z0-9_-]+)*)\s*\}\}/g)].map(([, root, path]) => {
+    const field = path ? " (campo " + path.slice(1).replace(/\./g, " › ") + ")" : "";
+    return root === "input" ? `il valore «${path.slice(1) || "?"}» che inserisci alla partenza` : `il risultato di «${labels[root] ?? root}»${field}`;
+  });
+  return parts.length ? "Usa " + [...new Set(parts)].join(", ") : "";
 }

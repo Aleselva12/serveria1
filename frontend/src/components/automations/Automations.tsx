@@ -10,7 +10,7 @@ import "@fontsource/work-sans/600.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "./automations.css";
 import {
-  Activity, AlertTriangle, ArrowLeft, Ban, BookOpen, Bot, Calculator, CheckCircle2, CircleDot, Clock, Copy, Download,
+  Activity, AlertTriangle, ArrowLeft, Ban, BookOpen, Bot, Calculator, CheckCircle2, CircleDot, Copy, Download,
   Eye, FilePlus2, Flag, GitBranch, Layers, Loader2, Maximize, Orbit, PenLine, Play, Plus, Radar, Save, Search, Settings2,
   ShieldCheck, Sparkles, Square, Trash2, Workflow, X, Zap, ZoomIn, ZoomOut,
 } from "lucide-react";
@@ -19,10 +19,11 @@ import { RunRejectedError, toolsApi } from "../../services/toolsApi";
 import type { AutomationRun, DraftSummary, RunSummary, ToolEntry } from "../../types/contracts";
 import {
   DAYS, EFFECTS, KIND_LABEL, OPERATORS, RECIPES, STATUS_LABEL, carriedEdges, catalogFrom, describeSchedule, edgeLabelFor,
-  emptyDraft, fromCanvas, inputNames, nextRun, nodeData, overlayRun, prettyName, recipeDraft, scheduleOf, toCanvas, traceOf,
+  emptyDraft, explainRefs, fromCanvas, inputNames, nextRun, nodeData, overlayRun, recipeDraft, scheduleOf, toCanvas, traceOf,
   uniqueId, type CanvasData, type CatalogTool, type Effect, type Kind, type Schedule,
 } from "./model";
 import LiveServer from "./LiveServer";
+import { AREAS, paramLabel, type Area } from "./toolGuide";
 
 type FlowNodeT = Node<CanvasData, "cora">;
 type Tab = "editor" | "runs" | "tools" | "live";
@@ -77,20 +78,19 @@ function Editor() {
   const [selected, setSelected] = useState("");
   const [nodeTab, setNodeTab] = useState<"Parametri" | "Input" | "Output">("Parametri");
   const [search, setSearch] = useState("");
-  const [group, setGroup] = useState("Tutti");
+  const [area, setArea] = useState<"Essenziali" | Area>("Essenziali");
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [problems, setProblems] = useState<string[]>([]);
   const [run, setRun] = useState<AutomationRun | null>(null);
   const [runs, setRuns] = useState<RunSummary[]>([]);
-  const [input, setInput] = useState("{}");
+  const [input, setInput] = useState<Record<string, string>>({});
   const [confirmLive, setConfirmLive] = useState(false);
   const [lastField, setLastField] = useState<string | null>(null);
   const poll = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const node = nodes.find(n => n.id === selected);
-  const groups = useMemo(() => ["Tutti", ...new Set(catalog.map(t => t.group))], [catalog]);
   const trigger = nodes.find(n => n.data.kind === "trigger");
   const schedule = scheduleOf(trigger?.data.config);
   const names = useMemo(() => inputNames(nodes), [nodes]);
@@ -107,12 +107,9 @@ function Editor() {
 
   // Keep the test input in step with the {{input.x}} names the flow uses.
   useEffect(() => {
-    setInput(text => {
-      let value: Record<string, unknown> = {};
-      try { value = JSON.parse(text); } catch { return text; }
+    setInput(value => {
       const defaults = (trigger?.data.config.input ?? {}) as Record<string, unknown>;
-      const next = Object.fromEntries(names.map(n => [n, value[n] ?? defaults[n] ?? ""]));
-      return JSON.stringify(next, null, 2);
+      return Object.fromEntries(names.map(n => [n, value[n] ?? String(defaults[n] ?? "")]));
     });
   }, [names.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -214,10 +211,10 @@ function Editor() {
   function addNode(kind: Kind, tool?: CatalogTool) {
     const id = uniqueId(tool ? tool.name.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 30) || "tool" : kind, nodes.map(n => n.id));
     const right = Math.max(40, ...nodes.map(n => n.position.x));
-    const data = nodeData({ kind, label: tool ? prettyName(tool.name) : KIND_LABEL[kind], config: kind === "condition" ? { left: "", op: "not_empty" } : {}, tool_id: tool?.id ?? null }, catalog);
+    const data = nodeData({ kind, label: tool ? tool.title : KIND_LABEL[kind], config: kind === "condition" ? { left: "", op: "not_empty" } : {}, tool_id: tool?.id ?? null }, catalog);
     setNodes(ns => [...ns.map(n => ({ ...n, selected: false })), { id, type: "cora", position: { x: right + 60, y: 300 + (ns.length % 3) * 40 }, data, selected: true }]);
     setSelected(id); setCatalogOpen(false); setTab("editor"); setDirty(true); setNodeTab("Parametri");
-    setNotice((tool ? prettyName(tool.name) : KIND_LABEL[kind]) + " aggiunto: collegalo trascinando dal pallino destro di un altro nodo");
+    setNotice("«" + (tool ? tool.title : KIND_LABEL[kind]) + "» aggiunto: collegalo trascinando dal pallino a destra di un altro blocco al suo pallino a sinistra");
     setTimeout(() => void flow.fitView({ padding: .22 }), 60);
   }
 
@@ -246,15 +243,14 @@ function Editor() {
 
   async function execute(mode: "dry_run" | "live") {
     setConfirmLive(false);
-    let values: Record<string, unknown>;
-    try { values = JSON.parse(input); } catch { setNotice("Valori di prova non validi: correggi il JSON prima di avviare."); return; }
+    const values = input;
     const target = dirty || !current.id ? await save() : current;
     if (!target?.id || !target.version) return;
     setBusy(true); setProblems([]);
     try {
       const started = await toolsApi.startRun(target.id, target.version, mode, values);
       setRun(started); setTab("editor");
-      setNotice(mode === "dry_run" ? "Prova a vuoto avviata · i tool che scrivono non partono" : "Esecuzione dal vivo avviata");
+      setNotice(mode === "dry_run" ? "Prova avviata · i blocchi che modificano dati non partono" : "Esecuzione vera avviata");
       watch(started.id);
     } catch (e) {
       if (e instanceof RunRejectedError) { setProblems(e.problems); setNotice(e.message + " Vedi la traccia."); }
@@ -311,8 +307,11 @@ function Editor() {
     setConfig(node.id, { ...node.data.config, [lastField]: String(node.data.config[lastField] ?? "") + ref });
   }
 
-  const visibleTools = catalog.filter(t => (group === "Tutti" || t.group === group) &&
-    `${t.name} ${prettyName(t.name)} ${t.description} ${t.group}`.toLowerCase().includes(search.toLowerCase()));
+  const q = search.trim().toLowerCase();
+  const visibleTools = q
+    ? catalog.filter(t => `${t.title} ${t.hint} ${t.area} ${t.name}`.toLowerCase().includes(q))
+    : catalog.filter(t => area === "Essenziali" ? t.essential : t.area === area);
+  const areaCount = (a: Area) => catalog.filter(t => t.area === a).length;
   const runNode = node && run ? run.nodes[node.id] : undefined;
   const trace = traceOf(run);
   const upstream = useMemo(() => {
@@ -326,18 +325,24 @@ function Editor() {
   }, [node, nodes, edges]);
 
   const library = <>
-    <div className="auto-search"><Search size={15} /><input aria-label="Cerca tool" placeholder={`Cerca fra ${catalog.length} tool…`} value={search} onChange={e => setSearch(e.target.value)} /></div>
-    <select aria-label="Gruppo tool" value={group} onChange={e => setGroup(e.target.value)}>{groups.map(g => <option key={g}>{g}</option>)}</select>
+    <div className="auto-search"><Search size={15} /><input aria-label="Cerca un blocco" placeholder="Cerca: mail, calendario, documenti…" value={search} onChange={e => setSearch(e.target.value)} /></div>
+    {!q && <div className="auto-areas" role="tablist" aria-label="Aree">
+      {(["Essenziali", ...AREAS.filter(a => a !== "Strumenti tecnici" && areaCount(a))] as ("Essenziali" | Area)[]).map(a =>
+        <button key={a} role="tab" aria-selected={area === a} className={`source-button ${area === a ? "on" : ""}`} onClick={() => setArea(a)}>{a}</button>)}
+    </div>}
     <div className="auto-base-blocks">
       {(["trigger", "condition", "output"] as Kind[]).map(k => { const I = kindIcon[k]; return <button className="source-button" key={k} onClick={() => addNode(k)}><I size={14} />{KIND_LABEL[k]}</button>; })}
     </div>
     <div className="auto-tool-list">
       {visibleTools.map(t => { const I = effectIcon[t.effect]; return (
-        <button className={`source-button effect-${t.effect} ${t.executable ? "" : "locked"}`} key={t.id} onClick={() => addNode("tool", t)} title={t.description || t.name}>
-          <I size={16} /><span><strong>{prettyName(t.name)}</strong><small>{t.group} · {t.executable ? EFFECTS[t.effect].label : "senza contratto"}</small></span><Plus size={13} />
+        <button className={`source-button effect-${t.effect}`} key={t.id} onClick={() => addNode("tool", t)} title={EFFECTS[t.effect].hint}>
+          <I size={16} /><span><strong>{t.title}</strong><small>{t.hint}</small></span><Plus size={13} />
         </button>); })}
-      {!visibleTools.length && <p className="auto-empty">{catalog.length ? "Nessun tool trovato." : "Catalogo non disponibile."}</p>}
+      {!visibleTools.length && <p className="auto-empty">{catalog.length ? "Nessun blocco trovato." : "Blocchi non disponibili: il server non risponde."}</p>}
     </div>
+    {!q && areaCount("Strumenti tecnici") > 0 && <button className={`source-button auto-tech-link ${area === "Strumenti tecnici" ? "on" : ""}`}
+      onClick={() => setArea(area === "Strumenti tecnici" ? "Essenziali" : "Strumenti tecnici")}>
+      {area === "Strumenti tecnici" ? "← Torna agli essenziali" : `Strumenti tecnici (${areaCount("Strumenti tecnici")}) per programmazione e diagnosi`}</button>}
   </>;
 
   const counts = { read: 0, compute: 0, write: 0, delegate: 0, none: 0 } as Record<Effect, number>;
@@ -345,32 +350,32 @@ function Editor() {
 
   return <div className="auto-workspace">
     <aside className="auto-sidebar">
-      <div className="auto-sidebar-title"><Workflow size={17} /><strong>Control room</strong><span>CORA</span></div>
-      <div className="auto-side-label">I TUOI FLUSSI <span>{String(drafts.length).padStart(2, "0")}</span></div>
+      <div className="auto-sidebar-title"><Workflow size={17} /><strong>Automazioni</strong></div>
+      <div className="auto-side-label">I MIEI FLUSSI <span>{String(drafts.length).padStart(2, "0")}</span></div>
       {drafts.map(d => <button className={`source-button auto-flow-item ${current.id === d.id ? "selected" : ""}`} key={d.id} disabled={running} onClick={() => void openDraft(d.id)}>
         <Workflow size={15} /><span>{d.title}<small>V{d.version} · {new Date(d.updated_at).toLocaleDateString("it-IT")}</small></span>
       </button>)}
-      {!drafts.length && <p className="auto-empty">Nessun flusso salvato: parti da una ricetta.</p>}
+      {!drafts.length && <p className="auto-empty">Nessun flusso salvato: parti da un esempio qui sotto.</p>}
       <button className="source-button auto-flow-item auto-new" disabled={running} onClick={newFlow}><FilePlus2 size={15} /><span>Nuovo flusso</span></button>
-      <div className="auto-side-label">RICETTE <span>{String(RECIPES.length).padStart(2, "0")}</span></div>
+      <div className="auto-side-label">ESEMPI DA CUI PARTIRE <span>{String(RECIPES.length).padStart(2, "0")}</span></div>
       {RECIPES.map((r, i) => <button className="source-button auto-flow-item" key={r.id} disabled={running} onClick={() => openRecipe(i)} title={r.description}>
         <BookOpen size={15} /><span>{r.name}<small>{r.category}</small></span>
       </button>)}
-      <div className="auto-side-label">LIBRERIA NODI <span>{catalog.length}</span></div>
+      <div className="auto-side-label">BLOCCHI DA AGGIUNGERE</div>
       {library}
-      <div className="auto-sidebar-foot"><ShieldCheck size={16} /><span>Prova a vuoto sicura<small>I tool che scrivono partono solo dal vivo, con conferma in Attività.</small></span></div>
+      <div className="auto-sidebar-foot"><ShieldCheck size={16} /><span>Provare è sicuro<small>«Prova» non modifica nulla. Solo «Esegui davvero» agisce, e chiede conferma per le modifiche.</small></span></div>
     </aside>
 
     <main className="auto-main">
       <div className="auto-titlebar">
-        <div><span className="ops-overline">WORKSPACE / AUTOMAZIONI E TOOL</span><h1>Automazioni<span>.</span></h1></div>
-        <div className="auto-effect-legend">{(["read", "compute", "write", "delegate"] as Effect[]).map(e => { const I = effectIcon[e]; return <span key={e} className={`effect-${e}`} title={EFFECTS[e].hint}><I size={12} />{EFFECTS[e].label} <b>{counts[e]}</b></span>; })}</div>
+        <div><h1>Automazioni<span>.</span></h1><p className="auto-lead">Metti in fila dei blocchi: un <b>avvio</b>, una o più <b>azioni</b>, un <b>risultato</b>. Premi <b>Prova</b> per vedere cosa succederebbe, senza toccare nulla.</p></div>
+        <div className="auto-effect-legend">{(["read", "compute", "write", "delegate"] as Effect[]).map(e => { const I = effectIcon[e]; return <span key={e} className={`effect-${e}`} title={EFFECTS[e].hint}><I size={12} />{EFFECTS[e].label}</span>; })}</div>
       </div>
 
       <div className="auto-flowbar">
         <div>
           <input aria-label="Nome del flusso" value={current.title} maxLength={120} onChange={e => { setCurrent(c => ({ ...c, title: e.target.value })); setDirty(true); }} />
-          <small><span className={`ops-live-dot ${dirty ? "warn" : ""}`} />{dirty ? "MODIFICHE NON SALVATE" : current.version ? "SALVATO · V" + current.version : "BOZZA"}<span> / {nodes.length} nodi · {edges.length} collegamenti{warnings.length ? ` · ${warnings.length} avvisi` : ""}</span></small>
+          <small><span className={`ops-live-dot ${dirty ? "warn" : ""}`} />{dirty ? "MODIFICHE NON SALVATE" : current.version ? "SALVATO" : "NUOVO"}<span> · {nodes.length} blocchi{warnings.length ? ` · ${warnings.length} cose da sistemare` : ""}</span></small>
         </div>
         <div className="auto-actions">
           <button className="source-button" title="Esporta JSON" aria-label="Esporta JSON" onClick={exportFlow}><Download size={16} /></button>
@@ -378,20 +383,20 @@ function Editor() {
           <button className="source-button" title="Elimina flusso" aria-label="Elimina flusso" disabled={!current.id || busy || running} onClick={() => void remove()}><Trash2 size={16} /></button>
           <button className="source-button" title="Salva" aria-label="Salva" disabled={busy} onClick={() => void save()}><Save size={16} /></button>
           <button className={`source-button auto-switch ${schedule?.enabled ? "on" : ""}`} role="switch" aria-checked={!!schedule?.enabled} aria-label="Pianificazione" onClick={toggleSchedule}><i /></button>
-          <span>{schedule?.enabled ? describeSchedule(schedule) : "Solo manuale"}</span>
+          <span>{schedule?.enabled ? "Parte da solo: " + describeSchedule(schedule).toLowerCase() : "Parte solo a mano"}</span>
         </div>
       </div>
 
       <div className="auto-tabs" role="tablist" aria-label="Viste automazioni">
-        {([["editor", "Editor", Workflow], ["runs", "Esecuzioni", Activity], ["tools", "Tool & connessioni", Layers], ["live", "Server vivo", Orbit]] as const).map(([id, label, I]) =>
+        {([["editor", "Flusso", Workflow], ["runs", "Storico", Activity], ["tools", "Tutti i blocchi", Layers], ["live", "Server vivo", Orbit]] as const).map(([id, label, I]) =>
           <button className="source-button" key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}><I size={14} />{label}{id === "runs" && <small>{runs.length}</small>}</button>)}
-        <span>{running ? "ESECUZIONE IN CORSO" : schedule?.enabled ? "PROSSIMA: " + (nextRun(schedule)?.toLocaleString("it-IT", { weekday: "short", hour: "2-digit", minute: "2-digit" }) ?? "—") : "AVVIO MANUALE"}</span>
+        <span>{running ? "IN CORSO…" : schedule?.enabled ? "PROSSIMO AVVIO: " + (nextRun(schedule)?.toLocaleString("it-IT", { weekday: "short", hour: "2-digit", minute: "2-digit" }) ?? "—") : "AVVIO MANUALE"}</span>
       </div>
 
       {tab === "editor" && <>
         <div className="auto-editor">
           <div className="auto-canvas">
-            <div className="auto-canvas-label"><span>01 / MAPPA DEL FLUSSO</span><span>{run ? (run.mode === "live" ? "DAL VIVO · " : "PROVA A VUOTO · ") + runLabel[run.status].toUpperCase() : "PRONTO"}</span></div>
+            <div className="auto-canvas-label"><span>IL FLUSSO · TRASCINA PER SPOSTARE, COLLEGA I PALLINI</span><span>{run ? (run.mode === "live" ? "ESECUZIONE VERA · " : "PROVA · ") + runLabel[run.status].toUpperCase() : ""}</span></div>
             {!loaded && <div className="auto-loading"><Loader2 className="spin" /> Caricamento…</div>}
             <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect}
               onNodeClick={(_, n) => { setSelected(n.id); setLastField(null); }} onPaneClick={() => setSelected("")}
@@ -410,27 +415,27 @@ function Editor() {
               {running
                 ? <button className="source-button auto-execute" onClick={() => void stop()}><Square size={15} />Ferma</button>
                 : <>
-                  <button className="source-button auto-live-run" disabled={busy} onClick={() => setConfirmLive(true)} title="Esegue davvero i tool"><Zap size={14} />Dal vivo</button>
-                  <button className="source-button auto-execute" disabled={busy} onClick={() => void execute("dry_run")}>{busy ? <Loader2 size={15} className="spin" /> : <Play size={15} />}Prova a vuoto</button>
+                  <button className="source-button auto-live-run" disabled={busy} onClick={() => setConfirmLive(true)} title="Esegue davvero le azioni"><Zap size={14} />Esegui davvero</button>
+                  <button className="source-button auto-execute" disabled={busy} onClick={() => void execute("dry_run")}>{busy ? <Loader2 size={15} className="spin" /> : <Play size={15} />}Prova</button>
                 </>}
             </div>
           </div>
 
           <aside className="auto-inspector">
-            <div className="auto-side-label">CONFIGURAZIONE NODO <Settings2 size={13} /></div>
+            <div className="auto-side-label">BLOCCO SELEZIONATO <Settings2 size={13} /></div>
             {node ? <>
               <div className={`auto-inspector-icon effect-${node.data.effect}`}>{(() => { const I = iconFor(node.data); return <I size={22} />; })()}</div>
               <input className="auto-node-name" aria-label="Nome nodo" value={node.data.label} maxLength={160} onChange={e => updateNode(node.id, { label: e.target.value })} />
-              <p>{node.data.kind === "tool" ? EFFECTS[node.data.effect].hint : KIND_LABEL[node.data.kind] + " · " + node.data.subtitle}</p>
-              <div className="auto-node-tabs">{(["Parametri", "Input", "Output"] as const).map(t => <button className={`source-button ${nodeTab === t ? "selected" : ""}`} onClick={() => setNodeTab(t)} key={t}>{t}</button>)}</div>
-              {nodeTab === "Parametri" ? <Inspector node={node} catalog={catalog} names={names} upstream={upstream}
+              <p>{node.data.kind === "tool" ? (node.data.toolId ? EFFECTS[node.data.effect].hint : "Scegli qui sotto cosa deve fare questo blocco.") : KIND_LABEL[node.data.kind] + " · " + node.data.subtitle}</p>
+              <div className="auto-node-tabs">{(["Parametri", "Input", "Output"] as const).map(t => <button className={`source-button ${nodeTab === t ? "selected" : ""}`} onClick={() => setNodeTab(t)} key={t}>{t === "Parametri" ? "Impostazioni" : t === "Input" ? "Cosa entra" : "Cosa esce"}</button>)}</div>
+              {nodeTab === "Parametri" ? <Inspector node={node} catalog={catalog} names={names} upstream={upstream} labels={Object.fromEntries(nodes.map(n => [n.id, n.data.label]))}
                 onConfig={c => setConfig(node.id, c)} onTool={id => {
                   const tool = catalog.find(t => t.id === id);
-                  updateNode(node.id, { toolId: id || null, label: tool && (node.data.label === KIND_LABEL.tool || !node.data.toolId) ? prettyName(tool.name) : node.data.label });
+                  updateNode(node.id, { toolId: id || null, label: tool && (node.data.label === KIND_LABEL.tool || !node.data.toolId) ? tool.title : node.data.label });
                 }} onField={setLastField} onRef={insertRef} />
                 : <pre className="auto-json">{runNode
                   ? JSON.stringify(nodeTab === "Input" ? runNode.input ?? (node.data.kind === "trigger" ? run?.input : null) ?? null : runNode.result ?? runNode.error ?? runNode.note ?? null, null, 2)
-                  : "Nessuna esecuzione mostrata.\nAvvia una prova a vuoto per vedere\ncosa entra ed esce da questo nodo."}</pre>}
+                  : "Ancora niente da mostrare.\nPremi «Prova» per vedere cosa entra\ne cosa esce da questo blocco."}</pre>}
               <div className="auto-node-actions">
                 <button className="source-button" disabled={running} onClick={() => {
                   const id = uniqueId(node.id.replace(/-\d+$/, ""), nodes.map(n => n.id));
@@ -442,8 +447,8 @@ function Editor() {
                 }}><Trash2 size={14} /></button>
               </div>
             </> : <div className="auto-empty auto-hint">
-              <p>Seleziona un nodo sulla mappa per configurarlo.</p>
-              <p><b>Come si gioca:</b> aggiungi tool dalla libreria, collegali trascinando dal pallino destro al sinistro, poi premi <b>Prova a vuoto</b>.</p>
+              <p>Clicca un blocco del flusso per vederlo e cambiarlo.</p>
+              <ol className="auto-steps"><li>Scegli un <b>esempio</b> o aggiungi <b>blocchi</b> dalla colonna a sinistra.</li><li><b>Collega</b> i blocchi trascinando dal pallino a destra a quello a sinistra.</li><li>Premi <b>Prova</b>: vedrai ogni passaggio illuminarsi.</li></ol>
               {warnings.length > 0 && <ul className="auto-warnings">{warnings.map(w => <li key={w}><AlertTriangle size={12} />{w}</li>)}</ul>}
             </div>}
           </aside>
@@ -451,11 +456,13 @@ function Editor() {
 
         <div className="auto-bottom">
           <section>
-            <div className="auto-side-label">VALORI DI PROVA <span>{names.length ? names.map(n => "input." + n).join(" · ") : "NESSUNO RICHIESTO"}</span></div>
-            <textarea aria-label="Valori di prova JSON" value={input} onChange={e => setInput(e.target.value)} spellCheck={false} />
+            <div className="auto-side-label">VALORI PER LA PROVA</div>
+            {names.length ? <div className="auto-inputs">{names.map(n => <label key={n}>{paramLabel(n)}
+              <input value={input[n] ?? ""} onChange={e => setInput(v => ({ ...v, [n]: e.target.value }))} placeholder={"valore di «" + n + "»"} /></label>)}</div>
+              : <p className="auto-note">Questo flusso non ha bisogno di valori iniziali: premi <b>Prova</b>.</p>}
           </section>
           <section>
-            <div className="auto-side-label">TRACCIA DI ESECUZIONE <span>{problems.length ? problems.length + " PROBLEMI" : String(trace.length).padStart(2, "0") + " PASSAGGI"}</span></div>
+            <div className="auto-side-label">COSA È SUCCESSO <span>{problems.length ? problems.length + " DA SISTEMARE" : trace.length ? trace.length + " PASSAGGI" : ""}</span></div>
             <div className="auto-log-list">
               {problems.length > 0 ? problems.map(p => <div key={p} className="status-failed"><AlertTriangle size={13} /><strong>{p}</strong></div>)
                 : trace.length ? trace.map((l, i) => { const I = statusIcon(l.status); return (
@@ -463,44 +470,39 @@ function Editor() {
                     <I size={13} className={l.status === "running" ? "spin" : ""} /><span>{String(i + 1).padStart(2, "0")}</span><strong>{l.label}</strong>
                     <small>{STATUS_LABEL[l.status]}{l.duration ? ` · ${Math.round(l.duration)} ms` : ""}{l.note ? " · " + l.note : ""}</small>
                   </div>); })
-                : <div className="auto-log-empty"><Activity size={23} /><span>In attesa della prima prova</span><small>Ogni passaggio comparirà qui, con input ed esito</small></div>}
+                : <div className="auto-log-empty"><Activity size={23} /><span>Ancora nessuna prova</span><small>Qui comparirà ogni passaggio, con il suo esito</small></div>}
             </div>
           </section>
         </div>
       </>}
 
       {tab === "runs" && <section className="auto-content">
-        <div className="auto-content-head"><h2>Esecuzioni</h2><span>{current.id ? "ULTIME 50 DI QUESTO FLUSSO" : "SALVA IL FLUSSO PER ESEGUIRLO"}</span></div>
+        <div className="auto-content-head"><h2>Storico</h2><span>{current.id ? "LE ULTIME VOLTE CHE QUESTO FLUSSO È PARTITO" : "SALVA IL FLUSSO PER PROVARLO"}</span></div>
         {runs.length ? <div className="auto-run-table">{runs.map(r => { const I = statusIcon(r.status); return (
           <article key={r.id} className={"status-" + r.status} onClick={() => void openRun(r.id)}>
-            <I size={18} /><strong>{runLabel[r.status]}</strong><span>{r.mode === "live" ? "Dal vivo" : "Prova a vuoto"} · v{r.draft_version}</span>
+            <I size={18} /><strong>{runLabel[r.status]}</strong><span>{r.mode === "live" ? "Esecuzione vera" : "Prova"}{(r as { origin?: string }).origin === "schedule" ? " · partita da sola" : ""}</span>
             <time>{new Date(r.created_at).toLocaleString("it-IT")}</time><small>{r.error ?? "Apri sulla mappa"}</small>
           </article>); })}</div>
-          : <div className="auto-empty-state"><Activity size={36} /><h3>Nessuna esecuzione, ancora.</h3><button className="source-button" onClick={() => setTab("editor")}><ArrowLeft size={14} />Torna al flusso</button></div>}
+          : <div className="auto-empty-state"><Activity size={36} /><h3>Questo flusso non è ancora partito.</h3><button className="source-button" onClick={() => setTab("editor")}><ArrowLeft size={14} />Torna al flusso</button></div>}
       </section>}
 
       {tab === "tools" && <section className="auto-content">
-        <div className="auto-content-head"><h2>Tool & connessioni</h2><span>{catalog.length} TOOL · {catalog.filter(t => t.executable).length} ESEGUIBILI · {planned.length} IN ARRIVO</span></div>
-        {groups.filter(g => g !== "Tutti").map(g => <div key={g} className="auto-catalog-group">
-          <div className="auto-side-label">{g.toUpperCase()} <span>{catalog.filter(t => t.group === g).length}</span></div>
-          <div className="auto-catalog-grid">{catalog.filter(t => t.group === g).map(t => { const I = effectIcon[t.effect]; return (
-            <article key={t.id} className={`effect-${t.effect}`}>
-              <I size={22} /><span className="ops-overline">{EFFECTS[t.effect].label.toUpperCase()}</span>
-              <h3>{prettyName(t.name)}</h3><p>{t.description || "Nessuna descrizione."}</p>
-              <div><small>{t.executable ? (t.connected ? "COLLEGATO" : "NON COLLEGATO") : "SENZA CONTRATTO"}{t.required.length ? " · " + t.required.length + " PARAMETRI" : ""}</small>
-                <button className="source-button" aria-label={`Aggiungi ${t.name}`} title="Aggiungi al flusso" onClick={() => addNode("tool", t)}><Plus size={17} /></button></div>
-            </article>); })}</div>
+        <div className="auto-content-head"><h2>Tutti i blocchi</h2><span>{catalog.length} AZIONI CHE CORA SA FARE</span></div>
+        {AREAS.filter(a => a !== "Strumenti tecnici" && areaCount(a)).map(a => <div key={a} className="auto-catalog-group">
+          <div className="auto-side-label">{a.toUpperCase()} <span>{areaCount(a)}</span></div>
+          <div className="auto-block-grid">{catalog.filter(t => t.area === a).map(t => <BlockCard key={t.id} tool={t} onAdd={() => addNode("tool", t)} />)}</div>
         </div>)}
-        {planned.length > 0 && <div className="auto-catalog-group">
-          <div className="auto-side-label">IN ARRIVO <span>{planned.length}</span></div>
-          <div className="auto-future-grid">{planned.map(p => <article key={p.id}><Clock size={22} /><small>{p.group.toUpperCase()}</small><h3>{prettyName(p.name)}</h3><p>{p.description || p.detail}</p><span><Sparkles size={11} />NON ANCORA DISPONIBILE</span></article>)}</div>
-        </div>}
+        {areaCount("Strumenti tecnici") > 0 && <details className="auto-catalog-group auto-tech">
+          <summary>Strumenti tecnici ({areaCount("Strumenti tecnici")}) · programmazione, struttura e diagnosi</summary>
+          <div className="auto-block-grid">{catalog.filter(t => t.area === "Strumenti tecnici").map(t => <BlockCard key={t.id} tool={t} onAdd={() => addNode("tool", t)} />)}</div>
+        </details>}
+        {planned.length > 0 && <p className="auto-note">In arrivo: {planned.map(p => p.name.replace(/_/g, " ")).join(" · ")}</p>}
       </section>}
 
       {tab === "live" && <LiveServer catalog={catalog} usedTools={nodes.filter(n => n.data.toolId).map(n => n.data.toolId!)} run={run}
-        drafts={drafts.length} scheduled={schedule?.enabled ? 1 : 0} onAdd={t => addNode("tool", t)} />}
+        drafts={drafts.length} onAdd={t => addNode("tool", t)} />}
 
-      <div className="auto-status" role="status"><span className={`ops-live-dot ${running ? "pulse" : ""}`} />{notice || "Pronto · la prova a vuoto non modifica nulla"}<span>CORA / MOTORE AUTOMAZIONI</span></div>
+      <div className="auto-status" role="status"><span className={`ops-live-dot ${running ? "pulse" : ""}`} />{notice || "Pronto · «Prova» non modifica nulla"}</div>
     </main>
 
     {catalogOpen && <div className="ops-modal-backdrop" onClick={() => setCatalogOpen(false)}>
@@ -511,30 +513,30 @@ function Editor() {
     </div>}
 
     {confirmLive && <div className="ops-modal-backdrop" onClick={() => setConfirmLive(false)}>
-      <section className="ops-modal" role="dialog" aria-modal="true" aria-label="Esecuzione dal vivo" onClick={e => e.stopPropagation()}>
-        <Zap size={22} /><h2>Eseguire dal vivo?</h2>
-        <p>I tool partono davvero. Quelli che modificano dati e richiedono conferma si fermano in <b>Notifiche › Da decidere</b> finché non approvi.</p>
+      <section className="ops-modal" role="dialog" aria-modal="true" aria-label="Esecuzione vera" onClick={e => e.stopPropagation()}>
+        <Zap size={22} /><h2>Eseguire davvero?</h2>
+        <p>Questa volta le azioni partono sul serio. Quelle che modificano qualcosa e chiedono conferma si fermano in <b>Notifiche › Da decidere</b> finché non approvi.</p>
         {nodes.filter(n => n.data.kind === "tool" && (n.data.effect === "write" || n.data.effect === "delegate")).map(n =>
           <div className="ops-modal-item" key={n.id}><PenLine size={15} />{n.data.label}<small>{EFFECTS[n.data.effect].label}</small></div>)}
         <div className="auto-modal-actions">
           <button className="source-button" onClick={() => setConfirmLive(false)}>Annulla</button>
-          <button className="source-button auto-execute static" onClick={() => void execute("live")}><Radar size={15} />Esegui dal vivo</button>
+          <button className="source-button auto-execute static" onClick={() => void execute("live")}><Radar size={15} />Sì, esegui</button>
         </div>
       </section>
     </div>}
   </div>;
 }
 
-function Inspector({ node, catalog, names, upstream, onConfig, onTool, onField, onRef }: {
-  node: FlowNodeT; catalog: CatalogTool[]; names: string[]; upstream: FlowNodeT[];
+function Inspector({ node, catalog, names, upstream, labels, onConfig, onTool, onField, onRef }: {
+  node: FlowNodeT; catalog: CatalogTool[]; names: string[]; upstream: FlowNodeT[]; labels: Record<string, string>;
   onConfig: (c: Record<string, unknown>) => void; onTool: (id: string) => void; onField: (f: string | null) => void; onRef: (r: string) => void;
 }) {
   const config = node.data.config;
   const refs = <div className="auto-refs">
-    <small>Riferimenti utilizzabili</small>
+    <small>Usa il risultato di un blocco precedente</small>
     <div>{upstream.map(u => <button className="source-button" key={u.id} onClick={() => onRef(`{{${u.id}}}`)} title={"Risultato di " + u.data.label}>{u.data.label}</button>)}
-      {names.map(n => <button className="source-button input" key={n} onClick={() => onRef(`{{input.${n}}}`)}>input.{n}</button>)}
-      <button className="source-button input" onClick={() => onRef("{{input.}}")} title="Nuovo valore di avvio: completa il nome">+ input</button></div>
+      {names.map(n => <button className="source-button input" key={n} onClick={() => onRef(`{{input.${n}}}`)} title="Valore che inserisci alla partenza">{paramLabel(n)}</button>)}
+      <button className="source-button input" onClick={() => onRef("{{input.nuovo}}")} title="Un valore da chiedere alla partenza: rinomina «nuovo» come preferisci">+ valore da chiedere</button></div>
   </div>;
 
   if (node.data.kind === "trigger") {
@@ -551,8 +553,8 @@ function Inspector({ node, catalog, names, upstream, onConfig, onTool, onField, 
         <p className="auto-note">{s.enabled && next ? "Prossimo avvio: " + next.toLocaleString("it-IT", { weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "Senza pianificazione si avvia solo a mano."}</p>
       </div>
       {names.length > 0 && <>
-        <div className="auto-side-label sub">VALORI PER L'AVVIO AUTOMATICO</div>
-        {names.map(n => <label key={n}>input.{n}<input value={String(defaults[n] ?? "")} onChange={e => onConfig({ ...config, input: { ...defaults, [n]: e.target.value } })} /></label>)}
+        <div className="auto-side-label sub">VALORI QUANDO PARTE DA SOLO</div>
+        {names.map(n => <label key={n}>{paramLabel(n)}<input value={String(defaults[n] ?? "")} onChange={e => onConfig({ ...config, input: { ...defaults, [n]: e.target.value } })} /></label>)}
       </>}
     </>;
   }
@@ -560,7 +562,8 @@ function Inspector({ node, catalog, names, upstream, onConfig, onTool, onField, 
   if (node.data.kind === "condition") {
     const op = OPERATORS.find(o => o.id === config.op);
     return <>
-      <label>Valore da controllare<input value={String(config.left ?? "")} placeholder="{{nodo}} oppure {{nodo.campo}}" onFocus={() => onField("left")} onChange={e => onConfig({ ...config, left: e.target.value })} /></label>
+      <label>Cosa controllare<input value={String(config.left ?? "")} placeholder="clicca un blocco qui sotto" onFocus={() => onField("left")} onChange={e => onConfig({ ...config, left: e.target.value })} />
+        {explainRefs(config.left, labels) && <small className="auto-ref-explain">{explainRefs(config.left, labels)}</small>}</label>
       <label>Regola<select value={String(config.op ?? "")} onChange={e => onConfig({ ...config, op: e.target.value })}>{OPERATORS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
       {!op?.unary && <label>Confronta con<input value={String(config.right ?? "")} onFocus={() => onField("right")} onChange={e => onConfig({ ...config, right: e.target.value })} /></label>}
       <p className="auto-note">Collega due uscite: la prima diventa il ramo <b>sì</b>, la seconda il ramo <b>no</b>.</p>
@@ -571,8 +574,10 @@ function Inspector({ node, catalog, names, upstream, onConfig, onTool, onField, 
   if (node.data.kind === "output") return <p className="auto-note">Raccoglie i risultati dei passaggi collegati. In un flusso possono esserci più risultati, uno per ramo.</p>;
 
   const tool = catalog.find(t => t.id === node.data.toolId);
-  const groups = [...new Set(catalog.map(t => t.group))];
   const fields = tool ? [...new Set([...Object.keys(tool.properties), ...Object.keys(config)])] : Object.keys(config);
+  // Fixed split: a field never moves while the owner types in it.
+  const main = fields.filter(f => !tool || tool.required.includes(f) || !(f in tool.properties));
+  const extra = fields.filter(f => !main.includes(f));
   const setField = (name: string, raw: string | boolean) => {
     const type = tool?.properties[name]?.type;
     let value: unknown = raw;
@@ -582,24 +587,34 @@ function Inspector({ node, catalog, names, upstream, onConfig, onTool, onField, 
     onConfig(next);
   };
   return <>
-    <label>Tool<select value={node.data.toolId ?? ""} onChange={e => onTool(e.target.value)}>
-      <option value="">— scegli un tool —</option>
-      {groups.map(g => <optgroup key={g} label={g}>{catalog.filter(t => t.group === g).map(t => <option key={t.id} value={t.id}>{prettyName(t.name)}{t.executable ? "" : " (senza contratto)"}</option>)}</optgroup>)}
+    <label>Cosa fa<select value={node.data.toolId ?? ""} onChange={e => onTool(e.target.value)}>
+      <option value="">— scegli un'azione —</option>
+      {AREAS.map(a => { const list = catalog.filter(t => t.area === a); return list.length ? <optgroup key={a} label={a}>{list.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}</optgroup> : null; })}
     </select></label>
-    {tool && <p className={`auto-effect-badge effect-${tool.effect}`}>{EFFECTS[tool.effect].label}{tool.description ? " · " + tool.description : ""}</p>}
-    {fields.map(name => {
+    {tool && <p className={`auto-effect-badge effect-${tool.effect}`}><b>{EFFECTS[tool.effect].label}</b> · {tool.hint}</p>}
+    {main.map(field)}
+    {extra.length > 0 && <details className="auto-extra" open={extra.some(f => config[f] !== undefined) || undefined}><summary>Altre opzioni ({extra.length})</summary>{extra.map(field)}</details>}
+    {tool && !fields.length && <p className="auto-note">Questa azione non ha bisogno di impostazioni.</p>}
+    {tool && refs}
+  </>;
+  function field(name: string) {
       const prop = tool?.properties[name] ?? {};
       const required = tool?.required.includes(name);
       const value = config[name];
-      if (prop.type === "boolean") return <label className="auto-check" key={name}><input type="checkbox" checked={value === true} onChange={e => setField(name, e.target.checked)} />{name}</label>;
-      if (Array.isArray(prop.enum)) return <label key={name}>{name}{required && " *"}<select value={String(value ?? "")} onChange={e => setField(name, e.target.value)}><option value="">—</option>{prop.enum.map(v => <option key={String(v)}>{String(v)}</option>)}</select></label>;
+      if (prop.type === "boolean") return <label className="auto-check" key={name}><input type="checkbox" checked={value === true} onChange={e => setField(name, e.target.checked)} />{paramLabel(name)}</label>;
+      if (Array.isArray(prop.enum)) return <label key={name}>{paramLabel(name)}{required && " *"}<select value={String(value ?? "")} onChange={e => setField(name, e.target.value)}><option value="">—</option>{prop.enum.map(v => <option key={String(v)}>{String(v)}</option>)}</select></label>;
       const text = typeof value === "string" || typeof value === "number" ? String(value) : value === undefined ? "" : JSON.stringify(value);
-      return <label key={name} title={prop.description}>{name}{required && " *"}{prop.type && prop.type !== "string" ? <em> {prop.type}</em> : null}
-        <input value={text} placeholder={prop.description ?? ""} onFocus={() => onField(name)} onChange={e => setField(name, e.target.value)} /></label>;
-    })}
-    {tool && !fields.length && <p className="auto-note">Questo tool non ha parametri.</p>}
-    {tool && refs}
-  </>;
+      return <label key={name} title={prop.description}>{paramLabel(name)}{required && " *"}
+        <input value={text} placeholder={prop.description ?? ""} onFocus={() => onField(name)} onChange={e => setField(name, e.target.value)} />
+        {explainRefs(value, labels) && <small className="auto-ref-explain">{explainRefs(value, labels)}</small>}</label>;
+  }
+}
+
+function BlockCard({ tool, onAdd }: { tool: CatalogTool; onAdd: () => void }) {
+  const I = effectIcon[tool.effect];
+  return <button className={`source-button auto-block effect-${tool.effect}`} onClick={onAdd} title="Aggiungi al flusso">
+    <I size={18} /><span><strong>{tool.title}</strong><small>{tool.hint}</small><em>{EFFECTS[tool.effect].label}{tool.connected ? "" : " · non collegato"}</em></span><Plus size={15} />
+  </button>;
 }
 
 export default function Automations() {
