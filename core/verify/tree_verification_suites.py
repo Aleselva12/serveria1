@@ -1,6 +1,11 @@
 """Reviewed isolated suites and their explicitly bounded tree coverage."""
 
 SUITES = {
+ 'memory_evidence_regression': {
+     'title': 'Memoria: fonti e resoconto di esecuzione', 'component': 'cora',
+     'tests': ('tests.test_events_observability.MemoryEvidenceTests',),
+     'nodes': ['T7.p3.m2', 'T7.p6', 'T7.p6.m1', 'T7.p6.m2', 'T7.p7', 'T7.p7.m1', 'T7.p7.m2'],
+     'scope': 'Attribuzione dei messaggi, stato osservato e cursore degli eventi con archivi simulati.'},
  'memory_owner_regression': {
      'title': 'Memoria: contesto proprietario e revisioni', 'component': 'cora',
      'tests': ('tests.test_memory_stores.OwnerContextTests', 'tests.test_owner_context_pages'),
@@ -15,7 +20,7 @@ SUITES = {
      'title': 'Memoria: episodi e riferimenti', 'component': 'cora',
      'tests': ('tests.test_memory_stores.EpisodeTests',),
      'nodes': ['T7.p3', 'T7.p3.m1'],
-     'scope': 'Creazione, riferimenti a conversazione/agente e lettura episodi con database simulato; estrazione automatica e collegamento ai run esclusi.'},
+     'scope': 'Creazione, Riferimenti a conversazione/agente e lettura episodi con database simulato; il run viene collaudato nella suite delle evidenze.'},
  'memory_working_regression': {
      'title': 'Memoria: stato temporaneo e scadenza', 'component': 'cora',
      'tests': ('tests.test_working_memory_store.WorkingMemoryTests',),

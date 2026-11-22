@@ -336,7 +336,7 @@ def _postprocess_turn(thread_id,message,response,user_id,assistant_id,run_id="",
             title=message.replace("\n", " ")[:80] or "Turno chat",
             summary="Richiesta: " + message[:240] + "\nRisultato: " + response[:420],
             conversation_id=thread_id, episode_type="conversation_turn", agent_id="supervisor",
-            metadata={"user_message_id":user_id, "assistant_message_id":assistant_id},
+            metadata={"user_message_id":user_id, "assistant_message_id":assistant_id, "run_id": run_id or None},
         )),
     )
     for action, task in tasks:

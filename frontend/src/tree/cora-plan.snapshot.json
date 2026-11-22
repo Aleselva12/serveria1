@@ -2450,7 +2450,7 @@
       "priority": "unknown",
       "classification": "planet",
       "status": "partial",
-      "note": "Creazione e lista disponibili; non risulta un flusso di estrazione automatica dagli agenti.",
+      "note": "I turni della chat producono episodi con ID di messaggi e, per i nuovi turni, ID del run.",
       "parent": "T7",
       "observations": [
         {
@@ -2483,8 +2483,8 @@
       "title": "Collegamento automatico ai run",
       "priority": "unknown",
       "classification": "moon",
-      "status": "planned",
-      "note": "Da costruire: alimentazione automatica degli episodi e collegamenti espliciti agli eventi/run; oggi esiste il riferimento alla conversazione.",
+      "status": "partial",
+      "note": "I nuovi episodi della chat si aprono dal resoconto del run. Gli episodi storici privi di ID rimangono consultabili per conversazione.",
       "parent": "T7.p3",
       "observations": [
         {
@@ -2548,11 +2548,11 @@
     },
     {
       "id": "T7.p5",
-      "title": "Custodia futura",
+      "title": "Custodia e revisione",
       "priority": "unknown",
       "classification": "planet",
-      "status": "planned",
-      "note": "",
+      "status": "partial",
+      "note": "Revisione manuale delle schede con stati bozza, approvata e archiviata. Il Custode autonomo resta da integrare.",
       "parent": "T7"
     },
     {
@@ -5961,9 +5961,9 @@
       "title": "Registro letterale",
       "parent": "T7",
       "classification": "planet",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Obiettivo: archivio consultabile delle evidenze originali. Chat, journal ed eventi sono basi esistenti, non ancora un registro unificato completo.",
+      "note": "Gestione Memoria apre richieste, risposte ed eventi originali per esecuzione. La copertura resta circoscritta ai dati già registrati.",
       "observations": [
         {
           "type": "design_decision",
@@ -5977,9 +5977,9 @@
       "title": "Originali e provenienza",
       "parent": "T7.p6",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Messaggi, richieste e risultati conservati con ID, tempi, fonte e collegamento al run; contenuti sensibili e retention da definire.",
+      "note": "Le fonti sono consultabili tramite ID di run. I messaggi senza attribuzione storica restano esclusi.",
       "observations": [
         {
           "type": "design_decision",
@@ -5993,9 +5993,9 @@
       "title": "Richiesta, esito e verifica",
       "parent": "T7.p6",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Distinguere intenzione, tentativo, risultato osservato e conferma; correzioni come annotazioni successive, mai successo presunto.",
+      "note": "Richiesta e risposta sono separate dagli eventi operativi. Lo stato deriva dal run persistito.",
       "observations": [
         {
           "type": "design_decision",
@@ -6009,9 +6009,9 @@
       "title": "Registro rielaborato",
       "parent": "T7",
       "classification": "planet",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Resoconti derivati leggibili di eventi e attività; fase successiva al registro letterale.",
+      "note": "Resoconto di esecuzione derivato dallo stato persistito con apertura delle fonti. Il diario periodico resta futuro.",
       "observations": [
         {
           "type": "design_decision",
@@ -6025,9 +6025,9 @@
       "title": "Diario derivato",
       "parent": "T7.p7",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Sintesi narrative di attività e conversazioni, separate dagli originali e rigenerabili.",
+      "note": "Resoconto a richiesta del singolo run con stato, tempi ed eventuale errore registrato.",
       "observations": [
         {
           "type": "design_decision",
@@ -6041,9 +6041,9 @@
       "title": "Rinvio alle evidenze",
       "parent": "T7.p7",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Ogni sintesi rimanda a fonti/versioni e dichiara limiti e incertezze; non sostituisce la prova originale.",
+      "note": "Il resoconto apre i messaggi e gli eventi del run. Le schede possono riferirsi al run originale.",
       "observations": [
         {
           "type": "design_decision",
@@ -6057,9 +6057,9 @@
       "title": "Memoria simbolica",
       "parent": "T7",
       "classification": "planet",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Entità, fatti e relazioni strutturati: rappresentazione rielaborata con provenienza, non sinonimo di embeddings.",
+      "note": "Entità, fatti e decisioni versionati con classificazione, intervallo di validità e collegamenti tipizzati.",
       "observations": [
         {
           "type": "design_decision",
@@ -6073,9 +6073,9 @@
       "title": "Entità e relazioni",
       "parent": "T7.p8",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Persone, progetti e decisioni collegati da relazioni tipizzate e attraversabili.",
+      "note": "Relazioni esplicite tra schede dello stesso ambito o di un ambito antenato.",
       "observations": [
         {
           "type": "design_decision",
@@ -6089,9 +6089,9 @@
       "title": "Validità e contraddizioni",
       "parent": "T7.p8",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Fonte, versione, ambito e validità temporale; deduzioni distinte dai fatti e conflitti espliciti.",
+      "note": "Contraddizioni e sostituzioni esplicite, validità temporale e storico. La riconciliazione automatica resta futura.",
       "observations": [
         {
           "type": "design_decision",
@@ -6121,9 +6121,9 @@
       "title": "Biblioteca navigabile",
       "parent": "T7",
       "classification": "planet",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Schede versionate, indice gerarchico e collegamenti; PostgreSQL autorevole, Markdown come vista/esportazione senza doppia scrittura indipendente.",
+      "note": "Biblioteca con ricerca, schede versionate, fonti e export JSON per ServerIa2.",
       "observations": [
         {
           "type": "design_decision",
@@ -6137,9 +6137,9 @@
       "title": "Schede e ambiti",
       "parent": "T7.p9",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Titolo, descrizione breve, contenuto, fonti, versione; ambiti globale/azienda/progetto/attività.",
+      "note": "Schede con titolo, descrizione, contenuto, fonti, versione e ambito gerarchico.",
       "observations": [
         {
           "type": "design_decision",
@@ -6153,9 +6153,9 @@
       "title": "Indice e collegamenti",
       "parent": "T7.p9",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Indice leggero e collegamenti fra schede; esplorazione senza caricare tutta la memoria nel prompt.",
+      "note": "Indice per ambito e ricerca testuale. I collegamenti tra schede si possono aprire dalla biblioteca.",
       "observations": [
         {
           "type": "design_decision",
@@ -6169,9 +6169,9 @@
       "title": "Strumenti di navigazione",
       "parent": "T7.p9",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Indice, ricerca, apertura, collegamenti e fonte originale; limiti e permessi applicati dal codice con T6.",
+      "note": "Navigazione via interfaccia e API. L’integrazione automatica con il Context Manager resta futura.",
       "observations": [
         {
           "type": "design_decision",
@@ -6185,9 +6185,9 @@
       "title": "Memorie brevi curate",
       "parent": "T7",
       "classification": "planet",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Preferenze, fatti e regole concise con fonte e ambito; candidati iniziali da inserire nella fase di implementazione.",
+      "note": "Memorie brevi come schede curate e approvate. Recupero ed export espliciti per ambito.",
       "observations": [
         {
           "type": "design_decision",
@@ -6201,9 +6201,9 @@
       "title": "Nucleo e schede tematiche",
       "parent": "T7.p10",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Poche indicazioni universali; altre caricate per tema. Esempi: uso remoto Tailscale, fatti/ipotesi distinti, implementazione separata dal collaudo.",
+      "note": "Le memorie brevi usano le stesse schede versionate, selezionate per ambito.",
       "observations": [
         {
           "type": "design_decision",
@@ -6217,9 +6217,9 @@
       "title": "Revisione e autorità",
       "parent": "T7.p10",
       "classification": "moon",
-      "status": "planned",
+      "status": "partial",
       "priority": "unknown",
-      "note": "Modifiche versionate e correzioni esplicite; memoria recuperata e documenti non concedono permessi.",
+      "note": "Revisione esplicita del proprietario. L’export include solo versioni approvate e valide.",
       "observations": [
         {
           "type": "design_decision",

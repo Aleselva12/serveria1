@@ -102,11 +102,14 @@ class AuditEasyFixesTests(unittest.TestCase):
         with patch.object(api, "schedule_summary", side_effect=RuntimeError("private")), patch.object(
             api, "refresh_transcript"
         ) as transcript, patch.object(api, "create_episode") as episode, patch(
+            "core.shadow_router.record_example"
+        ), patch(
             "core.infra.logging.log_event"
         ) as log:
-            api._postprocess_turn("thread", "question", "answer", "user-id", "assistant-id")
+            api._postprocess_turn("thread", "question", "answer", "user-id", "assistant-id", "run-id")
             transcript.assert_called_once_with("thread")
             episode.assert_called_once()
+            self.assertEqual(episode.call_args.kwargs["metadata"]["run_id"], "run-id")
             self.assertEqual(log.call_args.kwargs["data"],
                              {"action": "summary", "error_type": "RuntimeError"})
 

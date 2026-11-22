@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from uuid import uuid4
 
 from core.infra import release_identity
 from deploy import verify_nodes as verifier
@@ -32,7 +33,7 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual([c.args[0] for c in child.call_args_list], ["memory_write", "memory_read", "memory_cleanup"])
         self.assertEqual(len({c.args[1] for c in child.call_args_list}), 1)
 
-    def test_cleanup_failure_overrides_success_and_initial_failure(self):
+    def test_cleanup_failure_preserves_persistence_result(self):
         for first in ("pass", "fail"):
             responses = [{"status": first}]
             if first == "pass": responses.append({"status": "pass"})
@@ -43,6 +44,21 @@ class VerificationTests(unittest.TestCase):
                 result = verifier.run("memory_e2e")
                 self.assertEqual(result["status"], "fail")
                 self.assertIn("Pulizia", result["detail"])
+                expected = "scritta e riletta" if first == "pass" else "Scrittura della nota"
+                self.assertIn(expected, result["detail"])
+
+    def test_memory_cleanup_targets_only_generated_verification_note(self):
+        run_id = str(uuid4())
+        with (
+            patch.dict(os.environ, {"CORA_DATABASE_URL": "configured"}),
+            patch("psycopg.connect") as connect,
+        ):
+            self.assertEqual(verifier._action("memory_cleanup", run_id), {"status": "pass"})
+        execute = connect.return_value.__enter__.return_value.execute
+        execute.assert_called_once_with(
+            "DELETE FROM memories WHERE memory_type='note' AND key=%s AND source='verification'",
+            ("cora-verification-" + run_id,),
+        )
 
     def test_timeout_still_attempts_fixture_cleanup(self):
         with patch.dict(os.environ, {"CORA_DATABASE_URL": "configured"}), patch.object(

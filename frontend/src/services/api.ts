@@ -1,3 +1,6 @@
+import type {
+  EvidenceRun, MemoryCard, MemoryCardSummary, MemoryDocument, MemoryExport, RunEvidence,
+} from "../types/memoryLibrary";
 import { contractsValid } from "./capabilityContracts";
 import { authenticatedFetch } from "./transport";
 import type {
@@ -372,6 +375,50 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ content, expected_version:expectedVersion }),
     });
+  },
+  memoryEvidenceRuns() {
+    return request<EvidenceRun[]>("/memory/evidence/runs");
+  },
+  memoryEvidence(id: string, after = 0) {
+    return request<RunEvidence>(
+      "/memory/evidence/runs/" + encodeURIComponent(id) + "?after=" + after,
+    );
+  },
+  memoryLibraryScopes(after = "") {
+    return request<string[]>("/memory/library/scopes?" + new URLSearchParams({ after }));
+  },
+  memoryLibrary(scope: string, query: string, after = "") {
+    return request<MemoryCardSummary[]>(
+      "/memory/library?" + new URLSearchParams({ scope, query, after }),
+    );
+  },
+  memoryLibraryCard(id: string, version?: number) {
+    return request<MemoryCard>(
+      "/memory/library/cards/" + encodeURIComponent(id) + (version ? "?version=" + version : ""),
+    );
+  },
+  saveMemoryLibraryCard(document: MemoryDocument, identity:
+    { scope: string; slug: string } | { id: string; version: number },
+  ) {
+    if ("id" in identity) {
+      return request<MemoryCard>("/memory/library/cards/" + encodeURIComponent(identity.id), {
+        method: "PUT",
+        body: JSON.stringify({ ...document, expected_version: identity.version }),
+      });
+    }
+    return request<MemoryCard>("/memory/library/cards", {
+      method: "POST",
+      body: JSON.stringify({ ...document, ...identity }),
+    });
+  },
+  importMemoryDrafts(bundle: unknown) {
+    return request<MemoryCard[]>("/memory/library/drafts", {
+      method: "POST",
+      body: JSON.stringify(bundle),
+    });
+  },
+  exportMemoryLibrary(scope: string, after = "") {
+    return request<MemoryExport>("/memory/library/export?" + new URLSearchParams({ scope, after }));
   },
   async memories(query = "", memoryType = "", limit = 100, includeExpired = false): Promise<PersistentMemory[]> {
     const params = new URLSearchParams({

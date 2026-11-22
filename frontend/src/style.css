@@ -2566,6 +2566,50 @@ select:disabled {
   padding: 20px;
   box-shadow: 0 1px 2px #00000008;
 }
+.memory-library {
+  margin-bottom: 18px;
+}
+.memory-library fieldset {
+  border: 1px solid #e4e4e6;
+  border-radius: 12px;
+  margin: 12px 0 0;
+  padding: 14px;
+  min-width: 0;
+}
+.memory-library legend {
+  font-weight: 650;
+}
+.memory-library form {
+  display: grid;
+  gap: 8px;
+  max-width: 48rem;
+  margin: 10px 0;
+}
+.memory-library label {
+  display: grid;
+  gap: 4px;
+}
+.memory-library input,
+.memory-library select,
+.memory-library textarea {
+  width: 100%;
+  min-width: 0;
+}
+.memory-library textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+.memory-library button {
+  margin: 4px 6px 4px 0;
+  overflow-wrap: anywhere;
+}
+.memory-library article,
+.memory-library pre {
+  overflow-wrap: anywhere;
+}
+.memory-library pre {
+  white-space: pre-wrap;
+}
 .memory-context-card {
   margin-bottom: 18px;
 }
