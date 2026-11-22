@@ -63,6 +63,8 @@ import { useConversations } from "./services/useConversations";
 
 import {lazy, Suspense} from "react";
 const TreeHome=lazy(()=>import("./tree/TreeHome"));
+// React Flow and its fonts load only when the page is opened.
+const Automations=lazy(()=>import("./components/automations/Automations"));
 
 type Page =
   | "homepage-schema-albero"
@@ -70,6 +72,7 @@ type Page =
   | "chat"
   | "photos"
   | "architecture"
+  | "automations"
   | "machines"
   | "code"
   | "mail"
@@ -83,7 +86,7 @@ type Page =
   | "notifications"
   | "memory-management";
 const validPages: ReadonlySet<Page> = new Set([
-  "home", "chat", "photos", "architecture", "machines", "code", "calendar", "mail",
+  "home", "chat", "photos", "architecture", "automations", "machines", "code", "calendar", "mail",
   "files", "audio", "activity", "updates", "settings", "memory-management", "homepage-schema-albero",
   "notifications", "system",
 ]);
@@ -100,6 +103,7 @@ const primary: { id: Page; label: string }[] = [
   { id: "home", label: "Home" },
   { id: "chat", label: "Chat" },
   { id: "architecture", label: "Architettura" },
+  { id: "automations", label: "Automazioni" },
   { id: "code", label: "Programma" },
   { id: "calendar", label: "Calendario" },
   { id: "mail", label: "Mail" },
@@ -669,6 +673,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
             </>
           )}
           {page === "system" && systemTab === "macchine" && <Machines />}
+          {page === "automations" && <Suspense fallback={<p>Apertura automazioni…</p>}><Automations /></Suspense>}
           {page === "code" && <Programmer />}
           {page === "homepage-schema-albero" && <Suspense fallback={<p>Apertura schema…</p>}><TreeHome /></Suspense>}
           {page === "calendar" && <Calendar />}
