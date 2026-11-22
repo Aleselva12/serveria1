@@ -112,6 +112,10 @@ def validate_graph(data, tool_ids=None, tool_schemas=None):
         visit(ident)
     if not any(n["kind"] == "trigger" for n in clean_nodes):
         warnings.append("Aggiungi un ingresso al flusso.")
+    from core.domain.automation_schedule import schedule_problems  # imports this module: keep it lazy
+    for node in clean_nodes:
+        if node["kind"] == "trigger":
+            warnings.extend(f"{node['label']}: {problem}" for problem in schedule_problems(node["config"]))
     if not any(n["kind"] == "output" for n in clean_nodes):
         warnings.append("Aggiungi un’uscita al flusso.")
     reachable = set()

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from core.access import owner_dependency
 from core.domain import automation_drafts as store
 from core.domain import automation_runs as runs
+from core.domain import automation_schedule as schedules
 from core.tool_inventory import inventory
 
 router = APIRouter(
@@ -16,6 +17,11 @@ router = APIRouter(
 runs_router = APIRouter(
     prefix="/tools/runs",
     tags=["Automation runs"],
+    dependencies=[Depends(owner_dependency("automation"))],
+)
+schedules_router = APIRouter(
+    prefix="/tools/schedules",
+    tags=["Automation schedules"],
     dependencies=[Depends(owner_dependency("automation"))],
 )
 
@@ -129,3 +135,9 @@ def get_run(run_id: str):
 @runs_router.post("/{run_id}/cancel")
 def cancel_run(run_id: str):
     return _run(lambda: runs.cancel_run(run_id))
+
+
+@schedules_router.get("")
+def list_schedules():
+    """Scheduled drafts, their next start and the outcome of the last slot."""
+    return _run(lambda: {"runner_active": runs.runner_active(), "schedules": schedules.overview()})
