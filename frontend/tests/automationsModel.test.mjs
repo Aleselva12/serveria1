@@ -3,9 +3,11 @@ import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 
-const source = await readFile(new URL('../src/components/automations/model.ts', import.meta.url), 'utf8');
-const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
-const m = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
+const js = async (path) => ts.transpileModule(await readFile(new URL(path, import.meta.url), 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
+const url = (code) => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
+const guideUrl = url(await js('../src/components/automations/toolGuide.ts'));
+const g = await import(guideUrl);
+const m = await import(url((await js('../src/components/automations/model.ts')).replace('"./toolGuide"', JSON.stringify(guideUrl))));
 
 const contract = (effect, required = []) => ({ id: 'x.y', effect, input_schema: { required, properties: Object.fromEntries(required.map(r => [r, { type: 'string' }])) } });
 const entries = [
@@ -15,13 +17,20 @@ const entries = [
   { id: 'planned:y', name: 'y', description: '', group: 'Futuro', kind: 'planned', status: 'planned' },
 ];
 
-test('catalog keeps draftable tools with their effect and drops planned ones', () => {
+test('catalog keeps only runnable tools, with plain Italian titles and areas', () => {
   const c = m.catalogFrom(entries);
-  assert.deepEqual(c.map(t => t.id).sort(), ['api:x', 'tools.py:calculator_tool', 'tools.py:remember_tool']);
-  const calc = c.find(t => t.id === 'tools.py:calculator_tool');
-  assert.equal(calc.effect, 'compute'); assert.equal(calc.executable, true); assert.deepEqual(calc.required, ['expression']);
-  const api = c.find(t => t.id === 'api:x');
-  assert.equal(api.effect, 'none'); assert.equal(api.executable, false);
+  assert.deepEqual(c.map(t => t.id), ['tools.py:calculator_tool', 'tools.py:remember_tool'], 'no API routes, no planned items; Server before Memoria');
+  const calc = c[0];
+  assert.equal(calc.effect, 'compute'); assert.deepEqual(calc.required, ['expression']);
+  assert.equal(calc.title, 'Calcolatrice'); assert.equal(calc.area, 'Server'); assert.equal(calc.essential, true);
+  assert.equal(c[1].title, 'Fai ricordare qualcosa');
+});
+
+test('unknown tools fall back to a readable technical name, never the raw function name', () => {
+  assert.deepEqual(g.guideFor('programmer_git_commit'), { title: 'Programmatore: git commit', hint: 'Strumento tecnico', area: 'Strumenti tecnici' });
+  assert.equal(g.guideFor('structure_owner_status').title, 'Responsabile dei piani');
+  assert.equal(g.paramLabel('relative_path'), 'Percorso del file');
+  assert.equal(g.paramLabel('some_new_param'), 'some new param');
 });
 
 test('canvas round trip keeps ids, config, tool and branch labels; positions stay in range', () => {
@@ -82,4 +91,11 @@ test('schedules: sane defaults, description and next start on the chosen days', 
 
 test('input names are collected like the engine does', () => {
   assert.deepEqual(m.inputNames([{ data: { config: { a: '{{input.x}} e {{ input.y }}', b: { c: ['{{input.x}}', '{{nodo.campo}}'] } } } }]), ['x', 'y']);
+});
+
+test('references are explained in plain words', () => {
+  assert.equal(m.explainRefs('{{input.domanda}}', {}), 'Usa il valore «domanda» che inserisci alla partenza');
+  assert.equal(m.explainRefs('Riassumi {{mail}} e {{conto.items.0}}', { mail: 'Mail di oggi', conto: 'Calcolatrice' }),
+    'Usa il risultato di «Mail di oggi», il risultato di «Calcolatrice» (campo items › 0)');
+  assert.equal(m.explainRefs('testo semplice', {}), '');
 });

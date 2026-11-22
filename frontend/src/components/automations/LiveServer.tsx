@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import { Bot, Calculator, Eye, PenLine, Plus } from "lucide-react";
 import type { AutomationRun } from "../../types/contracts";
-import { EFFECTS, prettyName, type CatalogTool, type Effect } from "./model";
+import { EFFECTS, type CatalogTool, type Effect } from "./model";
 
 const W = 1000, H = 640, CX = W / 2, CY = H / 2, HUB = 165, RING = 275;
 const effectIcon: Record<Effect, typeof Eye> = { read: Eye, compute: Calculator, write: PenLine, delegate: Bot, none: Eye };
 
 /** Constellation of the server's tools: Cora at the centre, one hub per group, tools on the outer ring. */
-export default function LiveServer({ catalog, usedTools, run, drafts, scheduled, onAdd }: {
-  catalog: CatalogTool[]; usedTools: string[]; run: AutomationRun | null; drafts: number; scheduled: number;
+export default function LiveServer({ catalog, usedTools, run, drafts, onAdd }: {
+  catalog: CatalogTool[]; usedTools: string[]; run: AutomationRun | null; drafts: number;
   onAdd: (tool: CatalogTool) => void;
 }) {
   const [focus, setFocus] = useState<CatalogTool | null>(null);
@@ -25,14 +25,14 @@ export default function LiveServer({ catalog, usedTools, run, drafts, scheduled,
   }, [run]);
 
   const layout = useMemo(() => {
-    const groups = [...new Set(catalog.map(t => t.group))];
+    const groups = [...new Set(catalog.map(t => t.area))];
     const n = Math.max(catalog.length, 1);
     const tools = catalog.map((t, i) => {
       const a = (i / n) * Math.PI * 2 - Math.PI / 2;
       return { tool: t, a, x: CX + Math.cos(a) * RING, y: CY + Math.sin(a) * RING * .82 };
     });
     const hubs = groups.map(g => {
-      const mine = tools.filter(t => t.tool.group === g);
+      const mine = tools.filter(t => t.tool.area === g);
       const a = Math.atan2(mine.reduce((s, t) => s + Math.sin(t.a), 0), mine.reduce((s, t) => s + Math.cos(t.a), 0));
       return { group: g, a, x: CX + Math.cos(a) * HUB, y: CY + Math.sin(a) * HUB * .82, tools: mine };
     });
@@ -44,7 +44,7 @@ export default function LiveServer({ catalog, usedTools, run, drafts, scheduled,
   const shown = hover ?? focus;
 
   return <section className="auto-content auto-live">
-    <div className="auto-content-head"><h2>Server vivo.</h2><span>{catalog.length} TOOL · {layout.hubs.length} AREE · {catalog.filter(t => t.connected).length} COLLEGATI</span></div>
+    <div className="auto-content-head"><h2>Server vivo.</h2><span>TUTTO CIÒ CHE CORA SA FARE, PER AREA</span></div>
     <div className="auto-live-grid">
       <svg viewBox={`0 0 ${W} ${H}`} className="auto-live-map" role="img" aria-label="Mappa dei tool del server">
         <defs>
@@ -69,10 +69,10 @@ export default function LiveServer({ catalog, usedTools, run, drafts, scheduled,
         </g>)}
         {layout.tools.map(t => <circle key={t.tool.id} cx={t.x} cy={t.y} r={shown?.id === t.tool.id ? 9 : 6}
           className={`live-tool effect-${t.tool.effect} ${t.tool.connected ? "" : "off"} ${used.has(t.tool.id) ? "used" : ""} ${ran.has(t.tool.id) ? "ran" : ""}`}
-          tabIndex={0} role="button" aria-label={prettyName(t.tool.name)}
+          tabIndex={0} role="button" aria-label={t.tool.title}
           onMouseEnter={() => setHover(t.tool)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(t.tool)} onBlur={() => setHover(null)}
           onClick={() => setFocus(t.tool)} onKeyDown={e => { if (e.key === "Enter") setFocus(t.tool); }}>
-          <title>{prettyName(t.tool.name)} · {EFFECTS[t.tool.effect].label}</title>
+          <title>{t.tool.title} · {EFFECTS[t.tool.effect].label}</title>
         </circle>)}
       </svg>
       <aside className="auto-live-side">
@@ -80,17 +80,16 @@ export default function LiveServer({ catalog, usedTools, run, drafts, scheduled,
           {(["read", "compute", "write", "delegate"] as Effect[]).map(e => { const I = effectIcon[e]; return (
             <div key={e} className={`effect-${e}`}><I size={15} /><b>{counts[e]}</b><span>{EFFECTS[e].label}</span></div>); })}
           <div><b>{drafts}</b><span>Flussi salvati</span></div>
-          <div><b>{scheduled}</b><span>Pianificato (questo)</span></div>
+          <div><b>{catalog.length}</b><span>Azioni disponibili</span></div>
         </div>
         {shown ? <div className={`auto-live-card effect-${shown.effect}`}>
-          <span className="ops-overline">{shown.group.toUpperCase()} · {EFFECTS[shown.effect].label.toUpperCase()}</span>
-          <h3>{prettyName(shown.name)}</h3>
-          <p>{shown.description || "Nessuna descrizione."}</p>
+          <span className="ops-overline">{shown.area.toUpperCase()} · {EFFECTS[shown.effect].label.toUpperCase()}</span>
+          <h3>{shown.title}</h3>
+          <p>{shown.hint}</p>
           <p className="auto-note">{EFFECTS[shown.effect].hint}</p>
-          {shown.required.length > 0 && <p className="auto-note">Parametri: {shown.required.join(", ")}</p>}
-          <button className="source-button auto-execute static" onClick={() => onAdd(shown)}><Plus size={14} />Aggiungi al flusso</button>
-        </div> : <div className="auto-live-card"><h3>Esplora</h3><p>Ogni punto è un tool che Cora sa usare, raggruppato per area. Passa sopra per leggerlo, clicca per aggiungerlo al flusso.</p>
-          <p className="auto-note">Anello acceso = usato nel flusso aperto. Punto pieno = eseguito nell'ultima prova. Punto spento = non collegato.</p></div>}
+                    <button className="source-button auto-execute static" onClick={() => onAdd(shown)}><Plus size={14} />Aggiungi al flusso</button>
+        </div> : <div className="auto-live-card"><h3>Esplora</h3><p>Ogni punto è un'azione che Cora sa fare, raggruppata per area. Passa sopra per leggerla, clicca per aggiungerla al flusso.</p>
+          <p className="auto-note">Punto luminoso = usato nel flusso aperto. Punto pieno = eseguito nell'ultima prova.</p></div>}
       </aside>
     </div>
   </section>;
