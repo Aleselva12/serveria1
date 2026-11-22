@@ -94,7 +94,7 @@ def _all(root=None):
 
 def summary(run):
     return {key: run.get(key) for key in ("id", "draft_id", "draft_version", "title", "mode", "status",
-                                          "created_at", "started_at", "finished_at", "error")}
+                                          "created_at", "started_at", "finished_at", "error", "origin")}
 
 
 def list_runs(draft_id, root=None, limit=50):
@@ -123,9 +123,12 @@ class RunRejected(ValueError):
         self.problems = list(problems)
 
 
-def create_run(draft_id, version, mode, run_input, bindings, root=None, draft_root=None):
+def create_run(draft_id, version, mode, run_input, bindings, root=None, draft_root=None, origin="manual"):
+    """``origin`` is "manual" (the owner pressed start) or "schedule" (the draft's schedule)."""
     if mode not in {"dry_run", "live"}:
         raise ValueError("Modalità non valida.")
+    if origin not in {"manual", "schedule"}:
+        raise ValueError("Origine dell’esecuzione non valida.")
     if not isinstance(run_input, dict) or len(json.dumps(run_input, ensure_ascii=False, default=str)) > 65536:
         raise ValueError("Valori di avvio non validi o troppo grandi.")
     draft = drafts.get_draft(draft_id, draft_root)
@@ -140,7 +143,7 @@ def create_run(draft_id, version, mode, run_input, bindings, root=None, draft_ro
     if problems:
         raise RunRejected("Il flusso non può essere eseguito.", problems)
     record = {"id": str(uuid.uuid4()), "draft_id": draft_id, "draft_version": version, "title": draft["title"],
-              "mode": mode, "status": "queued", "input": run_input, "created_at": engine.now(), "started_at": None,
+              "mode": mode, "origin": origin, "status": "queued", "input": run_input, "created_at": engine.now(), "started_at": None,
               "finished_at": None, "error": None, "active_seconds": 0.0,
               # Graph and tool bindings are frozen at start: a resumed run executes what the owner launched.
               "graph": graph, "bindings": snapshot, "nodes": engine.new_run_nodes(graph)}
