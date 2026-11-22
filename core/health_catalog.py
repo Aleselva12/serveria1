@@ -49,7 +49,7 @@ _CATALOG = [
           description="Bozza sintetica; account Google, autorizzazioni e invio reali esclusi."),
     entry("chat_e2e", "Chat: grafo, deleghe e strumenti isolati", "cora", "synthetic", "Chat → grafo → agente simulato", "on_release",
           depends=("chat_contract", "database"), description="Grafo compilato con agente simulato; modello e persistenza reali esclusi."),
-    entry("memory_library_e2e", "Biblioteca riletta da un nuovo processo", "cora", "e2e",
+    entry("memory_library_e2e", "Biblioteca riletta da un nuovo processo", "cora", "synthetic",
           "Schede → PostgreSQL → ricerca ed export", "on_release",
           description="Schede sintetiche con revisione, isolamento per ambito, relazioni ed export. Browser e agente esclusi."),
     entry("memory_e2e", "Memoria riletta da un nuovo processo", "cora", "e2e", "Memoria → PostgreSQL → lettura", "on_release"),

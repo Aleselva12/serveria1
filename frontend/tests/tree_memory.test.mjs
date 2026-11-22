@@ -31,7 +31,7 @@ test('memory planets require attributed evidence and preserve future scope',()=>
  assert.equal(library.length,17);
  const sha='a'.repeat(40);
  const ids=['memory_evidence_regression','memory_library_e2e'];
- const projectHealth={catalog:ids.map(id=>({id,kind:'e2e',releaseScoped:true})),latest:
+ const projectHealth={catalog:ids.map(id=>({id,kind:'synthetic',releaseScoped:true})),latest:
   Object.fromEntries(ids.map(id=>[id,{status:'pass',at:new Date().toISOString(),commit:sha,environment:'debian-verifier'}]))};
  for(const node of library){
   assert.ok(!node.observations.some(o=>o.type==='manual_pass'),node.id);
