@@ -139,7 +139,9 @@ def list_conversations(*, limit: int = 100, include_archived: bool = False) -> l
     return rows
 
 
-def get_messages(conversation_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
+def get_messages(
+    conversation_id: str, *, limit: int | None = None, run_id: uuid.UUID | None = None
+) -> list[dict[str, Any]]:
     params: list[Any] = [uuid.UUID(conversation_id)]
     sql = """
         SELECT
@@ -147,19 +149,17 @@ def get_messages(conversation_id: str, *, limit: int | None = None) -> list[dict
             agent_id, model_id, parent_message_id, metadata
         FROM messages
         WHERE conversation_id = %s
-        ORDER BY created_at ASC, id ASC
     """
-    if limit is not None:
+    if run_id is not None:
+        sql += " AND metadata->>'run_id' = %s AND role IN ('user', 'assistant')"
+        params.append(str(run_id))
+    if limit is None:
+        sql += " ORDER BY created_at ASC, id ASC"
+    else:
         safe_limit = max(1, min(int(limit), 2000))
-        sql = """
+        sql = f"""
             SELECT * FROM (
-                SELECT
-                    id, conversation_id, role, content, created_at,
-                    agent_id, model_id, parent_message_id, metadata
-                FROM messages
-                WHERE conversation_id = %s
-                ORDER BY created_at DESC, id DESC
-                LIMIT %s
+                {sql} ORDER BY created_at DESC, id DESC LIMIT %s
             ) recent
             ORDER BY created_at ASC, id ASC
         """

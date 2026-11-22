@@ -56,15 +56,12 @@ def create_episode(
     return row
 
 
-def list_episodes(*, limit: int = 50) -> list[dict[str, Any]]:
+def list_episodes(*, limit: int = 50, run_id: uuid.UUID | None = None) -> list[dict[str, Any]]:
     limit = max(1, min(int(limit), 200))
+    statement = "SELECT * FROM episodes"
+    params = (limit,)
+    if run_id is not None:
+        statement += " WHERE metadata ? 'run_id' AND metadata->>'run_id' = %s"
+        params = (str(run_id), limit)
     with db_connection() as connection:
-        return connection.execute(
-            """
-            SELECT *
-            FROM episodes
-            ORDER BY created_at DESC
-            LIMIT %s
-            """,
-            (limit,),
-        ).fetchall()
+        return connection.execute(statement + " ORDER BY created_at DESC LIMIT %s", params).fetchall()

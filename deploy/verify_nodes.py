@@ -27,7 +27,8 @@ REGRESSIONS = {
     "files_regression": ("tests.test_library_writes", "tests.test_file_editor"),
 }
 REGRESSIONS.update(EXTRA_REGRESSIONS)
-CHECKS = ("memory_e2e", "calendar_e2e", "desktop_e2e", "laptop_e2e", "worker_e2e", "debian_host_e2e", "systemd_host_e2e", "host_admin_e2e", *LIVE, *REGRESSIONS, *DIRECT)
+LIBRARY_STEPS = ("library_write", "library_read", "library_cleanup")
+CHECKS = ("memory_e2e", "memory_library_e2e", "calendar_e2e", "desktop_e2e", "laptop_e2e", "worker_e2e", "debian_host_e2e", "systemd_host_e2e", "host_admin_e2e", *LIVE, *REGRESSIONS, *DIRECT)
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -169,6 +170,14 @@ def _action(action, run_id):
         result = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
         state = "fail" if not result.wasSuccessful() else "skipped" if result.skipped or not result.testsRun else "pass"
         return {"status": state, "detail": f"Regressioni isolate: {result.testsRun} test, {len(result.failures)} fallimenti, {len(result.errors)} errori, {len(result.skipped)} saltati. Servizi reali non certificati"}
+    if action in LIBRARY_STEPS:
+        from deploy import memory_library_check
+
+        operations = dict(zip(LIBRARY_STEPS, (
+            memory_library_check.write, memory_library_check.read, memory_library_check.cleanup,
+        ), strict=True))
+        operations[action]("cora-check-" + token)
+        return {"status": "pass"}
     if action == "memory_write":
         from core.domain.memory import save_memory
         save_memory(memory_type="note", key=key, content=key,
@@ -181,10 +190,15 @@ def _action(action, run_id):
             raise ValueError("Memoria non riletta")
         return {"status": "pass"}
     if action == "memory_cleanup":
-        from core.infra.database import db_connection
-        # Generated key AND source: never delete an unrelated memory.
-        with db_connection(ensure_schema=False) as conn:
-            conn.execute("DELETE FROM memories WHERE key=%s AND source='verification'", (key,))
+        import psycopg
+
+        # The verifier can clean up without initializing the schema or pgvector.
+        with psycopg.connect(os.environ["CORA_DATABASE_URL"], connect_timeout=5,
+                             options="-c statement_timeout=30000 -c lock_timeout=5000") as conn:
+            conn.execute(
+                "DELETE FROM memories WHERE memory_type='note' AND key=%s AND source='verification'",
+                (key,),
+            )
         return {"status": "pass"}
     if action.startswith("calendar_"):
         calendar = _calendar_provider()
@@ -263,15 +277,31 @@ def run(check_id, settings=None):
     cleanup = None
     if check_id == "calendar_e2e" and not _calendar_ready():
         return {"status": "unknown", "detail": "Account Google di prova non collegato; il calendario reale non è stato usato"}
-    if check_id == "memory_e2e" and not os.getenv("CORA_DATABASE_URL", "").strip():
+    if check_id in {"memory_e2e", "memory_library_e2e"} and not os.getenv("CORA_DATABASE_URL", "").strip():
         return {"status": "unknown", "detail": "Database non configurato"}
     try:
         if check_id == "memory_e2e":
             cleanup = "memory_cleanup"
             first = _child("memory_write", run_id)
-            result = _child("memory_read", run_id) if first.get("status") == "pass" else first
-            result["detail"] = ("Memoria scritta e riletta da un nuovo processo; embeddings e riavvio del servizio non collaudati"
-                                if result.get("status") == "pass" else "Memoria non riletta dal nuovo processo")
+            if first.get("status") == "pass":
+                result = _child("memory_read", run_id)
+                result["detail"] = (
+                    "Memoria scritta e riletta da un nuovo processo; embeddings e riavvio del servizio non collaudati"
+                    if result.get("status") == "pass" else "Memoria non riletta dal nuovo processo"
+                )
+            else:
+                result = {**first, "detail": "Scrittura della nota di prova non riuscita"}
+        elif check_id == "memory_library_e2e":
+            cleanup = "library_cleanup"
+            written = _child("library_write", run_id)
+            if written.get("status") != "pass":
+                result = {"status": "fail", "detail": "Creazione o revisione delle schede non riuscita"}
+            else:
+                result = _child("library_read", run_id)
+                result["detail"] = (
+                    "Schede rilette da un nuovo processo: revisione, ambiti, collegamenti ed export verificati"
+                    if result.get("status") == "pass" else "Rilettura della biblioteca non riuscita"
+                )
         else:
             cleanup = "calendar_cleanup" if check_id == "calendar_e2e" else None
             result = _child("calendar_check" if cleanup else check_id, run_id,
@@ -284,11 +314,18 @@ def run(check_id, settings=None):
         if cleanup:
             try:
                 cleaned = _child(cleanup, run_id, timeout=45)
+                cleanup_code = None
                 if cleaned.get("status") != "pass":
-                    raise RuntimeError("Cleanup fallito")
+                    cleanup_code = cleaned.get("error_code", "errore")
+            except subprocess.TimeoutExpired:
+                cleanup_code = "timeout"
             except Exception:
-                # A failed cleanup must also fail the check; fixture ID permits recovery.
-                result = {"status": "fail", "detail": "Pulizia fixture non riuscita; ID collaudo " + run_id}
+                cleanup_code = "errore"
+            if cleanup_code:
+                detail = f"Pulizia fixture non riuscita ({cleanup_code}); ID collaudo {run_id}"
+                if cleanup in {"memory_cleanup", "library_cleanup"}:
+                    detail = f"{result['detail']}. {detail}"
+                result = {"status": "fail", "detail": detail}
     return result
 
 
@@ -314,14 +351,16 @@ def main():
     parser.add_argument("--checks", nargs="+", choices=CHECKS, default=list(CHECKS))
     parser.add_argument("--persist", action="store_true")
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--action", choices=(*CHECKS, "memory_write", "memory_read", "memory_cleanup", "calendar_check", "calendar_cleanup"), help=argparse.SUPPRESS)
+    parser.add_argument("--action", choices=(*CHECKS, "memory_write", "memory_read", "memory_cleanup", *LIBRARY_STEPS, "calendar_check", "calendar_cleanup"), help=argparse.SUPPRESS)
     parser.add_argument("--run-id", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.action:
         try:
             result = _action(args.action, args.run_id)
-        except Exception:
+        except Exception as error:
             result = {"status": "fail", "detail": "Passaggio non riuscito: " + args.action}
+            if args.action in {"memory_cleanup", "library_cleanup"}:
+                result["error_code"] = getattr(error, "sqlstate", None) or type(error).__name__
         print("CORA_CHECK=" + json.dumps(result))
         return 0 if result["status"] in {"pass", "warn"} else 1
     try:

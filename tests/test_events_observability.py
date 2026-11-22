@@ -21,6 +21,54 @@ from core.infra.run_lifecycle import create_run, get_run, recover, transition_ru
 from core.protocol import ComponentEvent
 
 
+class MemoryEvidenceTests(unittest.TestCase):
+    def test_evidence_uses_saved_messages_and_paginates_events(self):
+        from core.api import memory_api
+
+        run_id, thread_id, message_id = uuid4(), uuid4(), uuid4()
+        with (
+            patch.object(memory_api, "get_run", return_value={
+                "thread_id": thread_id, "kind": "chat", "target": "supervisor",
+                "status": "failed", "created_at": datetime.now(UTC), "finished_at": None,
+                "error_type": "RuntimeError",
+            }),
+            patch.object(memory_api, "get_messages", return_value=[{
+                "id": message_id, "role": "user", "content": "Richiesta",
+                "created_at": datetime.now(UTC), "metadata": {"internal": True},
+            }]) as messages,
+            patch.object(memory_api, "list_episodes", return_value=[]),
+            patch.object(memory_api, "read_domain_events", return_value={
+                "events": [], "next_cursor": 5,
+            }) as events,
+        ):
+            body = memory_api.run_evidence(run_id, after=5, limit=3)
+        self.assertEqual(body["messages"][0]["id"], message_id)
+        self.assertNotIn("metadata", body["messages"][0])
+        self.assertEqual(body["next_cursor"], 5)
+        self.assertEqual(body["report"]["status"], "failed")
+        messages.assert_called_once_with(str(thread_id), run_id=run_id)
+        events.assert_called_once_with(run_id=str(run_id), after=5, limit=3)
+
+
+    def test_non_chat_run_can_have_a_non_uuid_thread(self):
+        from core.api import memory_api
+
+        run_id = uuid4()
+        run = {"thread_id": "audio:source", "kind": "audio", "target": "audio_agent",
+               "status": "completed", "created_at": datetime.now(UTC),
+               "finished_at": None, "error_type": None}
+        with (
+            patch.object(memory_api, "get_run", return_value=run),
+            patch.object(memory_api, "get_messages") as messages,
+            patch.object(memory_api, "list_episodes", return_value=[]),
+            patch.object(memory_api, "read_domain_events", return_value={"events": [], "next_cursor": 0}),
+        ):
+            body = memory_api.run_evidence(run_id, after=0, limit=100)
+        self.assertEqual(body["messages"], [])
+        self.assertEqual(body["report"]["status"], "completed")
+        messages.assert_not_called()
+
+
 class DiagnosticUnitTests(unittest.TestCase):
     def test_payload_projection_and_tokens_never_enter_archive(self):
         event=ComponentEvent(type='tool.finished',source='test',payload={'capability_id':'test.read','duration_ms':10,'prompt':'secret','args':{'password':'secret'},'result':'secret','error':'secret'})

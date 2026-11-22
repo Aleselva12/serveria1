@@ -10,6 +10,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
+import MemoryLibrary from "./MemoryLibrary";
 import { api } from "../services/api";
 import type {
   BackendRegistry,
@@ -198,6 +199,8 @@ export default function MemoryManagement({ registry, onBack }: Props) {
       </div>
 
       {error && <div className="connection-error">{error}</div>}
+
+      <MemoryLibrary />
 
       <div className="memory-grid">
         <section className="memory-card semantic-memory-card">
