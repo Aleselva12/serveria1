@@ -38,7 +38,7 @@ def inbox(include_seen: bool = False, limit: int = Query(50, ge=1, le=200)):
         from core.infra.database import db_connection
         with db_connection() as conn:
             rows = conn.execute(f"""SELECT * FROM app_notifications
-                WHERE created_at<=NOW() {'' if include_seen else 'AND dismissed_at IS NULL'}
+                WHERE {'' if include_seen else 'dismissed_at IS NULL AND '}created_at<=NOW()
                 ORDER BY created_at DESC LIMIT %s""", (limit,)).fetchall()
             unseen = conn.execute("SELECT COUNT(*) AS n FROM app_notifications WHERE dismissed_at IS NULL AND created_at<=NOW()").fetchone()["n"]
         return {"items": [_public(row) for row in rows], "unseen": unseen}
