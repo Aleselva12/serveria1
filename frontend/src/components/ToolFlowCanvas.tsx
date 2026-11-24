@@ -3,8 +3,8 @@ import type { PointerEvent } from "react";
 import { ArrowRight, GitBranch, Play, Wrench, ZoomIn, ZoomOut } from "lucide-react";
 import type { FlowNode, ToolFlow } from "../types/contracts";
 
-const icons = { trigger: Play, condition: GitBranch, tool: Wrench, output: ArrowRight };
-const labels = { trigger: "Ingresso", condition: "Condizione", tool: "Operazione", output: "Uscita" };
+const icons = { trigger: Play, condition: GitBranch, tool: Wrench, output: ArrowRight, reminder: Play };
+const labels = { trigger: "Ingresso", condition: "Condizione", tool: "Operazione", output: "Uscita", reminder: "Promemoria Cora" };
 const runLabels: Record<string, string> = { pending: "In attesa", done: "Eseguito", skipped: "Saltato", simulated: "Simulato",
   waiting_approval: "Da confermare", failed: "Errore", rejected: "Rifiutato", cancelled: "Annullato" };
 export default function ToolFlowCanvas({ flow, selected, onSelect, editable = false, onMove, onConnect, pending, onRemoveEdge, statuses }: {
