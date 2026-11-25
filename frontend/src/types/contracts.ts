@@ -17,7 +17,7 @@ export type ToolEntry = {
 };
 export type ToolInventory = { entries: ToolEntry[]; errors: string[]; scope: string };
 export type FlowNode = {
-  id: string; kind: "trigger" | "tool" | "condition" | "output";
+  id: string; kind: "trigger" | "tool" | "condition" | "output" | "reminder";
   label: string; x: number; y: number; config: Record<string, unknown>;
   tool_id?: string | null; detail?: string;
 };

@@ -1,6 +1,6 @@
 {
   "updatedAt": "24/11/2026",
-  "basis": "Decisioni del proprietario, riscontro statico del codice e pipeline CI su main. Sequenza operativa ridefinita dal proprietario il 17/11/2026: monitor delle funzionalità, riordino delle pagine, automazioni pianificate. W1 Orchestratore base V1 resta completato (04/11/2026); Nextcloud AIO è già gestito dall'updater, Immich no.",
+  "basis": "Ordine concordato il 17/11/2026. Stato aggiornato il 24/11/2026 sulla release Debian a93ae57, sul registro dei collaudi e sui lavori integrati. Orchestratore base V1 completato dal 04/11/2026.",
   "categories": [
     {
       "id": "M1",
@@ -232,18 +232,15 @@
       "id": "AUTO-QUALITY",
       "category": "M2",
       "label": "Monitor automatico e ripetuto delle funzionalità",
-      "state": "LAVORO 1 · In corso",
-      "detail": "Cicli periodici di controlli in backend approvati, indipendenti dalla Home. Mantenere catalogo e storico unici, ampliare i test isolati per ogni programma e collegare versione installata, errori e avvisi senza duplicare le esecuzioni.",
-      "development": "In costruzione",
+      "state": "LAVORO 1 · Monitor in esercizio",
+      "detail": "Controlli periodici e notturni, storico PostgreSQL e avvisi di errore/ripristino sono attivi su Debian. Il 24 novembre il ciclo ha eseguito 95 controlli. Gli esiti dei singoli servizi restano nel registro Salute.",
+      "development": "Operativo",
       "verification": [
-        "Collaudare sul Debian cicli periodici e scrittura nello storico PostgreSQL",
-        "Ampliare test funzionali sintetici isolati per ciascun servizio",
-        "Visualizzare transizione OK → errore → ripristino, causa e commit, con notifiche sensate"
+        "Consultare l’ultimo ciclo notturno e i relativi esiti nel registro Salute.",
+        "Ricontrollare i controlli falliti o indeterminati nei singoli servizi."
       ],
       "issues": [
-        "Catalogo end-to-end include test da eseguire, non esecuzioni già avvenute",
-        "CI/updater non ancora integrati come fonti verificabili nel registro",
-        "Da definire soglie e frequenze alert senza falsi allarmi"
+        "Regressione di autenticazione Google Calendar e collaudo sul calendario reale da verificare."
       ],
       "checks": [
         "database",
@@ -253,15 +250,15 @@
         "word_sample"
       ],
       "observations": [
-        "Confermati cicli di verifica periodici anche senza la Home aperta; utilità e approfondimenti da discutere."
+        "Il monitor funziona anche con la Home chiusa."
       ]
     },
     {
       "id": "UI-PAGES",
       "category": "M3",
       "label": "Riordino delle pagine Attività, Menu e Impostazioni",
-      "state": "LAVORO 2 · Dopo il monitor",
-      "detail": "Le pagine Attività, Menu e Impostazioni risultano confuse, con pezzi mancanti e sezioni costruite male. Inventariare contenuti e funzioni, concordare una nuova struttura e riordinarle senza perdere funzioni."
+      "state": "LAVORO 2 · Completato",
+      "detail": "Riordino installato. Attività tecnica è sotto Sistema; Da decidere è in Notifiche; Impostazioni è organizzata in sottopagine."
     },
     {
       "id": "WORK-APPS",
@@ -310,8 +307,8 @@
       "id": "AUTO-EXEC",
       "category": "M4",
       "label": "Eseguire e pianificare le automazioni grafiche",
-      "state": "Esecuzione manuale implementata; pianificazione pendente",
-      "detail": "Editor, validazione ed esecuzione manuale sono attivi: prova a vuoto senza effetti, tool di scrittura con le stesse conferme degli agenti in Attività, ripresa dopo approvazione, chiusura su rifiuto e annullamento. Collaudo sul server del 16 novembre 2026. Mancano pianificazione, avvio da eventi e annullamento che ritiri anche la richiesta in Attività."
+      "state": "LAVORO 3 · Pianificazione attiva, collaudo in corso",
+      "detail": "L’esecuzione manuale e la pianificazione per giorno e ora sono attive nella nuova pagina Automazioni. La Sveglia di prova è abilitata sotto Le mie automazioni. Restano il collaudo sul server dell’avvio pianificato con consegna del promemoria, l’avvio da eventi e il ritiro delle conferme pendenti in caso di annullamento."
     },
     {
       "id": "CONTEXT-REGISTRY",
@@ -508,39 +505,36 @@
       "id": "W3",
       "order": 1,
       "title": "Monitor automatico delle funzionalità",
-      "status": "PROSSIMO LAVORO",
+      "status": "COMPLETATO · Monitor in esercizio",
       "category": "M2",
-      "description": "AUTO-QUALITY: cicli periodici di controlli in backend con storico unico, test isolati per servizio e notifiche sulle transizioni OK → errore → ripristino.",
+      "description": "Controlli periodici e notturni, storico PostgreSQL e avvisi di errore/ripristino sono attivi su Debian. Il 24 novembre il ciclo ha eseguito 95 controlli. Gli esiti dei singoli servizi restano nel registro Salute.",
       "notes": [
-        "Decisione del proprietario del 17/11/2026: anticipato prima di W1 e W2.",
         "Collaudo completo ogni notte tra le 04:00 e le 05:00; servizi ogni 15 minuti, controlli leggeri ogni 5.",
-        "Avvisi sui passaggi OK → errore → ripristino: notifica su telefono o PC, finestra nella Home e pagina Notifiche nel menu.",
-        "Esiti di CI GitHub e updater nel registro come informazioni, senza colorare la mappa.",
-        "Lo scheduler è riusabile da W2."
+        "Notifiche di errore e ripristino nella Home e nella pagina Notifiche.",
+        "La regressione Calendar rimane aperta nel registro dei collaudi."
       ]
     },
     {
       "id": "W1",
       "order": 2,
       "title": "Riordino pagine Attività, Menu e Impostazioni",
-      "status": "Dopo W3",
+      "status": "COMPLETATO · Riordino installato",
       "category": "M3",
-      "description": "Fare l'inventario di sezioni e funzioni delle tre pagine (cosa c'è, cosa è duplicato, cosa manca), proporre al proprietario una nuova struttura e poi riorganizzarle perché siano più chiare e facili da gestire.",
+      "description": "Riordino installato. Attività tecnica è sotto Sistema; Da decidere è in Notifiche; Impostazioni è organizzata in sottopagine.",
       "notes": [
-        "Prima l'inventario e la proposta, discussa con il proprietario; nessuna modifica al codice prima dell'accordo sulla struttura.",
-        "Nessuna funzione esistente va persa nel riordino: ogni sezione attuale deve avere una collocazione."
+        "Include il riordino della Home e delle sezioni Sistema, Notifiche e Impostazioni."
       ]
     },
     {
       "id": "W2",
       "order": 3,
       "title": "Automazioni pianificate",
-      "status": "Dopo W1",
+      "status": "IN COLLAUDO · Avvio programmato",
       "category": "M4",
-      "description": "Fase 3 di AUTO-EXEC: avvio pianificato e da eventi delle automazioni, con gli stessi permessi e conferme dell'esecuzione manuale.",
+      "description": "L’esecuzione manuale e la pianificazione per giorno e ora sono attive nella nuova pagina Automazioni. La Sveglia di prova è abilitata sotto Le mie automazioni. Restano il collaudo sul server dell’avvio pianificato con consegna del promemoria, l’avvio da eventi e il ritiro delle conferme pendenti in caso di annullamento.",
       "notes": [
-        "L'esecuzione manuale è collaudata sul server dal 16/11/2026.",
-        "Annullare un'esecuzione deve poter ritirare anche la richiesta ancora aperta in Attività."
+        "Esecuzione manuale collaudata sul server il 16/11/2026.",
+        "La prova giornaliera parte alle 00:00 e programma il promemoria delle 07:30."
       ]
     }
   ]

@@ -82,8 +82,9 @@ test('roadmap references current Home goals and shares orchestrator structural e
  const ordered=[...projectStatus.nextWork].sort((a,b)=>a.order-b.order);
  assert.equal(new Set(ordered.map(w=>w.id)).size,ordered.length);
  assert.deepEqual(ordered.map(w=>w.id),projectStatus.nextWork.map(w=>w.id));
- // Owner's sequence of 17/11/2026: exactly one current work item, W3 functionality monitor.
- assert.deepEqual(ordered.filter(w=>w.status==='PROSSIMO LAVORO').map(w=>w.id),['W3']);
+ // The agreed order is stable while the installed work progresses.
+ assert.deepEqual(ordered.filter(w=>/^COMPLETATO/.test(w.status)).map(w=>w.id),['W3','W1']);
+ assert.match(ordered.find(w=>w.id==='W2').status,/^IN COLLAUDO/);
  assert.equal(projectStatus.nextWork.find(w=>w.id==='W3').title,'Monitor automatico delle funzionalità');
  assert.deepEqual(ordered.map(w=>w.id),['W3','W1','W2']);
  assert.match(projectStatus.goals.find(g=>g.id==='ARCH-ORCHESTRATOR').state,/COMPLETATO/);

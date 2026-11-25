@@ -183,14 +183,19 @@ def overview(now=None, draft_root=None, run_root=None):
 
 
 def _loop():
+    from core.domain.automation_reminders import deliver_due
+    from core.infra.logging import report_swallowed_error
+
     while not _STOP.is_set():
         try:
             if runs.runner_active():
                 tick()
         except Exception as error:
-            # Keep the scheduler alive; a bad tick must not silently stop all schedules.
-            from core.infra.logging import report_swallowed_error
             report_swallowed_error("automation_schedule_tick", error, component="automation_scheduler")
+        try:
+            deliver_due(datetime.now(timezone()))
+        except Exception as error:
+            report_swallowed_error("automation_reminders_push", error, component="automation_scheduler")
         _STOP.wait(TICK_SECONDS)
 
 

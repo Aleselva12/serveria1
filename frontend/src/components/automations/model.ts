@@ -27,7 +27,7 @@ export const EFFECTS: Record<Effect, { label: string; hint: string }> = {
   delegate: { label: "Assistente", hint: "Affida il compito a un assistente di Cora: nella prova non parte." },
   none: { label: "Base", hint: "Blocco di struttura del flusso." },
 };
-export const KIND_LABEL: Record<Kind, string> = { trigger: "Avvio", tool: "Azione", condition: "Scelta sì/no", output: "Risultato" };
+export const KIND_LABEL: Record<Kind, string> = { trigger: "Avvio", tool: "Azione", condition: "Scelta sì/no", output: "Risultato", reminder: "Promemoria Cora" };
 export const OPERATORS: { id: string; label: string; unary?: boolean }[] = [
   { id: "eq", label: "è uguale a" }, { id: "ne", label: "è diverso da" },
   { id: "gt", label: "è maggiore di" }, { id: "gte", label: "è almeno" },
@@ -71,6 +71,7 @@ function subtitleFor(kind: Kind, tool: CatalogTool | undefined, config: Record<s
     const op = OPERATORS.find(o => o.id === config.op);
     return op ? `${String(config.left ?? "?")} ${op.label}${op.unary ? "" : " " + String(config.right ?? "?")}` : "Regola da completare";
   }
+  if (kind === "reminder") return `Notifica alle ${String(config.time ?? "07:30")}`;
   if (kind === "output") return "Raccoglie i risultati";
   if (!tool) return "Scegli cosa deve fare";
   return tool.hint;

@@ -5,7 +5,7 @@ import { toolsApi } from "../services/toolsApi";
 import type { AutomationDraft, AutomationRun, DraftSummary, FlowEdge, FlowNode, RunSummary, ToolEntry } from "../types/contracts";
 
 const uid = () => crypto.randomUUID();
-const kindLabels = { trigger: "Ingresso", tool: "Tool", condition: "Condizione", output: "Uscita" } as const;
+const kindLabels = { trigger: "Ingresso", tool: "Tool", condition: "Condizione", output: "Uscita", reminder: "Promemoria Cora" } as const;
 const effectLabels = { read: "Lettura", compute: "Calcolo", write: "Scrittura", delegate: "Delega" } as const;
 const policyLabels: Record<string, string> = { auto: "Automatico", confirm: "Richiede conferma", blocked: "Bloccato" };
 const runStatusLabels: Record<string, string> = { queued: "In coda", running: "In esecuzione", waiting_approval: "In attesa di conferma",
@@ -240,7 +240,7 @@ export default function AutomationEditor({ entries }: { entries: ToolEntry[] }) 
   function setConfig(config: Record<string, unknown>) { updateNode({ config }); setConfigText(JSON.stringify(config, null, 2)); setConfigError(""); }
   function add(kind: FlowNode["kind"]) {
     if (configError) return;
-    const node: FlowNode = { id: uid(), kind, label: { trigger: "Avvio manuale", tool: "Scegli un tool", condition: "Condizione", output: "Risultato" }[kind],
+    const node: FlowNode = { id: uid(), kind, label: { trigger: "Avvio manuale", tool: "Scegli un tool", condition: "Condizione", output: "Risultato", reminder: "Promemoria Cora" }[kind],
       x: 360 + (draft.nodes.length % 3) * 260, y: 60 + Math.floor(draft.nodes.length / 3) * 160, config: kind === "trigger" ? { trigger: "manual" } : {} };
     update(d => ({ ...d, nodes: [...d.nodes, node] })); setSelectedId(node.id); setConfigText(JSON.stringify(node.config, null, 2));
   }
