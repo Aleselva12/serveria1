@@ -30,7 +30,7 @@ type Tab = "editor" | "runs" | "tools" | "live";
 type Current = { id?: string; version?: number; title: string; description: string };
 const ACTIVE = new Set(["queued", "running", "waiting_approval"]);
 
-const kindIcon: Record<Kind, typeof Zap> = { trigger: Zap, tool: Workflow, condition: GitBranch, output: Flag };
+const kindIcon: Record<Kind, typeof Zap> = { trigger: Zap, tool: Workflow, condition: GitBranch, output: Flag, reminder: Flag };
 const effectIcon: Record<Effect, typeof Zap> = { read: Eye, compute: Calculator, write: PenLine, delegate: Bot, none: CircleDot };
 function iconFor(data: Pick<CanvasData, "kind" | "effect">) {
   return data.kind === "tool" ? effectIcon[data.effect] : kindIcon[data.kind];
@@ -211,7 +211,7 @@ function Editor() {
   function addNode(kind: Kind, tool?: CatalogTool) {
     const id = uniqueId(tool ? tool.name.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 30) || "tool" : kind, nodes.map(n => n.id));
     const right = Math.max(40, ...nodes.map(n => n.position.x));
-    const data = nodeData({ kind, label: tool ? tool.title : KIND_LABEL[kind], config: kind === "condition" ? { left: "", op: "not_empty" } : {}, tool_id: tool?.id ?? null }, catalog);
+    const data = nodeData({ kind, label: tool ? tool.title : KIND_LABEL[kind], config: kind === "condition" ? { left: "", op: "not_empty" } : kind === "reminder" ? { time: "07:30" } : {}, tool_id: tool?.id ?? null }, catalog);
     setNodes(ns => [...ns.map(n => ({ ...n, selected: false })), { id, type: "cora", position: { x: right + 60, y: 300 + (ns.length % 3) * 40 }, data, selected: true }]);
     setSelected(id); setCatalogOpen(false); setTab("editor"); setDirty(true); setNodeTab("Parametri");
     setNotice("«" + (tool ? tool.title : KIND_LABEL[kind]) + "» aggiunto: collegalo trascinando dal pallino a destra di un altro blocco al suo pallino a sinistra");
@@ -331,7 +331,7 @@ function Editor() {
         <button key={a} role="tab" aria-selected={area === a} className={`source-button ${area === a ? "on" : ""}`} onClick={() => setArea(a)}>{a}</button>)}
     </div>}
     <div className="auto-base-blocks">
-      {(["trigger", "condition", "output"] as Kind[]).map(k => { const I = kindIcon[k]; return <button className="source-button" key={k} onClick={() => addNode(k)}><I size={14} />{KIND_LABEL[k]}</button>; })}
+      {(["trigger", "condition", "output", "reminder"] as Kind[]).map(k => { const I = kindIcon[k]; return <button className="source-button" key={k} onClick={() => addNode(k)}><I size={14} />{KIND_LABEL[k]}</button>; })}
     </div>
     <div className="auto-tool-list">
       {visibleTools.map(t => { const I = effectIcon[t.effect]; return (
@@ -351,7 +351,7 @@ function Editor() {
   return <div className="auto-workspace">
     <aside className="auto-sidebar">
       <div className="auto-sidebar-title"><Workflow size={17} /><strong>Automazioni</strong></div>
-      <div className="auto-side-label">I MIEI FLUSSI <span>{String(drafts.length).padStart(2, "0")}</span></div>
+      <div className="auto-side-label">LE MIE AUTOMAZIONI <span>{String(drafts.length).padStart(2, "0")}</span></div>
       {drafts.map(d => <button className={`source-button auto-flow-item ${current.id === d.id ? "selected" : ""}`} key={d.id} disabled={running} onClick={() => void openDraft(d.id)}>
         <Workflow size={15} /><span>{d.title}<small>V{d.version} · {new Date(d.updated_at).toLocaleDateString("it-IT")}</small></span>
       </button>)}
@@ -571,6 +571,10 @@ function Inspector({ node, catalog, names, upstream, labels, onConfig, onTool, o
     </>;
   }
 
+  if (node.data.kind === "reminder") return <>
+    <label>Orario del promemoria<input type="time" value={String(config.time ?? "")} onChange={e => onConfig({ ...config, time: e.target.value })} /></label>
+    <p className="auto-note">Compare in Notifiche e viene inviato ai dispositivi con le push abilitate. L’orario si riferisce al giorno di avvio del flusso.</p>
+  </>;
   if (node.data.kind === "output") return <p className="auto-note">Raccoglie i risultati dei passaggi collegati. In un flusso possono esserci più risultati, uno per ramo.</p>;
 
   const tool = catalog.find(t => t.id === node.data.toolId);

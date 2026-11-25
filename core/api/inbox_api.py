@@ -38,9 +38,9 @@ def inbox(include_seen: bool = False, limit: int = Query(50, ge=1, le=200)):
         from core.infra.database import db_connection
         with db_connection() as conn:
             rows = conn.execute(f"""SELECT * FROM app_notifications
-                {'' if include_seen else 'WHERE dismissed_at IS NULL'}
+                WHERE {'' if include_seen else 'dismissed_at IS NULL AND '}created_at<=NOW()
                 ORDER BY created_at DESC LIMIT %s""", (limit,)).fetchall()
-            unseen = conn.execute("SELECT COUNT(*) AS n FROM app_notifications WHERE dismissed_at IS NULL").fetchone()["n"]
+            unseen = conn.execute("SELECT COUNT(*) AS n FROM app_notifications WHERE dismissed_at IS NULL AND created_at<=NOW()").fetchone()["n"]
         return {"items": [_public(row) for row in rows], "unseen": unseen}
     return _database(read)
 
@@ -51,7 +51,7 @@ def mark_seen(notification_id: UUID):
         from core.infra.database import db_connection
         with db_connection() as conn:
             row = conn.execute("""UPDATE app_notifications SET dismissed_at=COALESCE(dismissed_at, NOW())
-                WHERE id=%s RETURNING id""", (str(notification_id),)).fetchone()
+                WHERE id=%s AND created_at<=NOW() RETURNING id""", (str(notification_id),)).fetchone()
         if not row:
             raise HTTPException(404, "Notifica non trovata.")
         return {"seen": True}
@@ -63,6 +63,6 @@ def mark_all_seen():
     def write():
         from core.infra.database import db_connection
         with db_connection() as conn:
-            count = conn.execute("UPDATE app_notifications SET dismissed_at=NOW() WHERE dismissed_at IS NULL").rowcount
+            count = conn.execute("UPDATE app_notifications SET dismissed_at=NOW() WHERE dismissed_at IS NULL AND created_at<=NOW()").rowcount
         return {"seen": count}
     return _database(write)

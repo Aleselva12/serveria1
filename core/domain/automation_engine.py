@@ -227,6 +227,11 @@ def preflight(graph, bindings):
                 for name in schema.get("required") or []:
                     if name not in node.get("config", {}):
                         problems.append(f"{label}: manca il parametro obbligatorio «{name}».")
+        if node["kind"] == "reminder":
+            from core.domain.automation_schedule import TIME
+            config = node["config"]
+            if not isinstance(config.get("time"), str) or not TIME.fullmatch(config["time"]):
+                problems.append(f"{label}: imposta un orario valido (HH:MM).")
         if node["kind"] == "condition":
             issue = check_rule(node.get("config"))
             if issue:
@@ -318,6 +323,8 @@ def advance(run, graph, bindings, execute, *, should_stop=lambda: False, persist
                 values = {labels[e["source"]]: run["nodes"][e["source"]].get("result")
                           for e in incoming.get(node_id, []) if _carries(e, run)}
                 _settle(state, "done" if reach == "real" else "simulated", started, result=values)
+            elif node["kind"] == "reminder":
+                _reminder(node, state, reach, run, dry, started)
             elif node["kind"] == "condition":
                 _condition(node, state, reach, run, labels, started)
             else:
@@ -354,6 +361,24 @@ def _condition(node, state, reach, run, labels, started):
         return
     outcome = YES if evaluate(rule, left, right) else NO
     _settle(state, "done", started, input=shown, outcome=outcome, result={"outcome": outcome})
+
+
+def _reminder(node, state, reach, run, dry, started):
+    from core.domain import automation_reminders, automation_schedule
+
+    local_timezone = automation_schedule.timezone()
+    current = datetime.now(local_timezone)
+    run_day = datetime.fromisoformat(run["created_at"]).astimezone(local_timezone)
+    hour, minute = map(int, node["config"]["time"].split(":"))
+    delivery = run_day.replace(hour=hour, minute=minute, second=0, microsecond=0, fold=0)
+    if delivery <= current:
+        raise RunFailure("L’orario del promemoria per questo giorno è già passato.")
+    result = {"deliver_at": delivery.isoformat()}
+    if dry or reach == "simulated":
+        _settle(state, "simulated", started, result=result)
+        return
+    result["notification_id"] = automation_reminders.schedule(run, node["id"], node["label"], delivery)
+    _settle(state, "done", started, result=result)
 
 
 def _tool(node, state, reach, run, labels, bindings, execute, dry, started):
