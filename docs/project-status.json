@@ -337,6 +337,62 @@
         "RUNTIME-MEMORY"
       ],
       "doneWhen": "Da Cora si può inviare a un agente su laptop un incarico autorizzato di lettura SQL in sola lettura, ottenere un'anteprima di import con provenienza verificabile, approvarla e revocare l'accesso senza concedere controllo generale del dispositivo."
+    },
+    {
+      "id": "ARCH-ROUTING-RULES",
+      "category": "M1",
+      "label": "Smistamento a regole come modulo sostituibile",
+      "state": "Da progettare · ispirazione Hestia",
+      "detail": "Prima versione dello smistamento con regole a parole chiave, isolata in un modulo che può essere sostituito da un router appreso quando l'architettura si stabilizza. Il caricamento dei dati avviene solo se l'intento lo richiede. Fonte: routing.py di Hestia."
+    },
+    {
+      "id": "ARCH-ROUTING-CASCADE",
+      "category": "M1",
+      "label": "Smistamento a tre stadi per i casi ambigui",
+      "state": "Da studiare",
+      "detail": "Ipotesi: regole per i comandi, poi embedding per il significato, infine un modello per i casi ambigui. Da confrontare con l'orchestratore attuale. Fonte: router a cascata descritto da madhur v."
+    },
+    {
+      "id": "CONTEXT-SUMMARY",
+      "category": "M4",
+      "label": "Riassunto continuo e documento di stato per ridurre il contesto",
+      "state": "Da progettare · ispirazione WilmerAI",
+      "detail": "Per il problema dei circa 2000 token caricati a ogni richiesta: riassunto progressivo della conversazione e documento di stato, al posto della storia completa. Fonte: meccanismo della memoria a quattro parti di WilmerAI."
+    },
+    {
+      "id": "MEMORY-PROPOSALS",
+      "category": "M2",
+      "label": "Memoria proposta e approvata dal proprietario",
+      "state": "Da progettare · ispirazione Hestia",
+      "detail": "Un processo in background propone fatti durevoli, ma nulla entra nella memoria attiva senza approvazione umana. Il modello non può approvare da solo. Memoria leggibile e versionabile in file markdown. Fonte: note_taker e review_notes di Hestia."
+    },
+    {
+      "id": "CUSTOMER-NOTES-PROPOSAL",
+      "category": "M3",
+      "label": "Aggiornamento appunti clienti tramite proposta e conferma",
+      "state": "Da progettare",
+      "detail": "Il modello propone la modifica agli appunti Word dei clienti e il codice la applica solo dopo conferma. Il ritrovamento del cliente avviene con un indice per regione, provincia e città, non affidato al modello. Collegato a CUSTOMER-REGISTRY."
+    },
+    {
+      "id": "DOCS-RAG-BASELINE",
+      "category": "M3",
+      "label": "Ricerca sui documenti con citazione della fonte",
+      "state": "Da studiare · ispirazione local-rag",
+      "detail": "Base di interrogazione sui documenti (PDF, Word, Markdown) con chunk sovrapposti, filtro per file e fonte citata nella risposta. Collegato a DOCUMENTS-OCR. Fonte: local-rag."
+    },
+    {
+      "id": "CREATIVE-AGENTS",
+      "category": "M4",
+      "label": "Modalità creativa con agenti a ruoli diversi e sintesi finale",
+      "state": "Idea · da studiare",
+      "detail": "Più agenti con ruoli e temperature diverse (per esempio analista dei rischi e innovatore) che producono idee in parallelo, poi un passo di sintesi. Metodi strutturati come SCAMPER o Six Thinking Hats usati come modelli di prompt. Fonti: llm_conversation, Mysti, brainstormers."
+    },
+    {
+      "id": "RESEARCH-ADVANCED",
+      "category": "M4",
+      "label": "Ricerca su casi avanzati e insoliti",
+      "state": "Ricerca in corso",
+      "detail": "Esplorazione di progetti personali con agenti che si modificano, routing appreso e memorie particolari, per trarre soluzioni o spunti da applicare o adattare a Cora. Ogni idea va verificata nel codice prima di diventare un goal."
     }
   ],
   "limits": [
