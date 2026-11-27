@@ -73,7 +73,7 @@
   font: 400 17px/1.5 var(--font-heading);
   color: var(--ops-text);
 }
-.updates-main .update-hint { color: var(--update-muted); font-size: 13px; }
+.updates-main .update-section .update-hint { color: var(--update-muted); font-size: 13px; }
 .updates-main .update-compare {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
@@ -173,6 +173,7 @@
 @media (max-width: 640px) {
   .updates-layout { padding: 26px 16px 48px; }
   .update-hero { gap: 10px; }
+  .updates-main .system-tabs { flex-wrap: wrap; }
   .updates-main .system-tabs button { min-height: 44px; }
   .updates-main .update-compare { grid-template-columns: minmax(0, 1fr); }
   .updates-main .update-compare > div { padding: 12px 0; }
