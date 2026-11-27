@@ -11,7 +11,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from urllib.request import Request, urlopen
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
 from core.auth import auth_mode
@@ -47,7 +47,7 @@ def server_url():
 
 
 @router.get("")
-def status():
+def status(background: BackgroundTasks = None):
     if desktop():
         with LOCK:
             return {"platform": "windows", **JOB}
@@ -62,6 +62,14 @@ def status():
         except (ValueError, OSError):
             # Older updaters lack the endpoint: the page says so instead of showing "all fine".
             state["components"] = None
+    if state.get("available") and background is not None:
+        from core import update_diagnostics
+        state["error_analysis_enabled"] = update_diagnostics.enabled()
+        if state["error_analysis_enabled"]:
+            failed = next((job for job in state.get("jobs", [])
+                           if job["status"] in {"failed", "recovery_required"} and not job.get("error_analysis")), None)
+            if failed:
+                background.add_task(update_diagnostics.analyze, releases, failed)
     return state
 
 
@@ -156,6 +164,48 @@ def publish_server(data: ApplyServerRequest):
     except OSError as exc:
         raise HTTPException(503, "Updater Debian non raggiungibile. Controlla il servizio host.") from exc
 
+
+
+def update_metadata(method, path, data=None):
+    if desktop():
+        raise HTTPException(409, "Disponibile sull’updater Debian.")
+    from programmer_agent import releases
+    try:
+        return releases.request(method, path, data, timeout=15)
+    except (ValueError, OSError) as exc:
+        raise HTTPException(503, "Dati non disponibili dal servizio updater.") from exc
+
+
+@router.get("/server/dependencies")
+def dependencies(commit: str = ""):
+    if commit and not re.fullmatch(r"[a-f0-9]{40}", commit):
+        raise HTTPException(422, "Commit non valido.")
+    return update_metadata("GET", "/host/dependencies/" + (commit or "installed"))
+
+
+@router.get("/server/dependency-topics")
+def dependency_topics():
+    return update_metadata("GET", "/host/dependency-topics")
+
+
+@router.post("/server/dependency-topics/{identifier}")
+def discuss_dependency(identifier: str):
+    if not re.fullmatch(r"[a-f0-9]{64}", identifier):
+        raise HTTPException(422, "Identificativo non valido.")
+    return update_metadata("POST", "/host/dependency-topics/" + identifier, {})
+
+
+@router.post("/server/error-analysis/{identifier}", status_code=202)
+def retry_error_analysis(identifier: str, background: BackgroundTasks):
+    from core import update_diagnostics
+    from programmer_agent import releases
+    if not re.fullmatch(r"[a-f0-9-]{36}", identifier):
+        raise HTTPException(422, "Identificativo non valido.")
+    job = update_metadata("GET", "/jobs/" + identifier)
+    if job["status"] not in {"failed", "recovery_required"} or not update_diagnostics.enabled():
+        raise HTTPException(409, "Analisi non disponibile.")
+    background.add_task(update_diagnostics.analyze, releases, job, True)
+    return {"queued": True}
 
 
 def extract_candidate(data, destination):

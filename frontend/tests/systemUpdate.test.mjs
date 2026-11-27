@@ -180,3 +180,40 @@ test('server commits are published only after confirmation and then offer the co
   assert.equal(link.props.rel,'noopener noreferrer');
  }finally{globalThis.window=oldWindow;if(r)await act(async()=>r.unmount());}
 });
+
+test('shows real dependency transitions and archives a topic through the updater API', async () => {
+  const active = "a".repeat(40);
+  const upstream = "b".repeat(40);
+  const dependency = {ecosystem: 'npm', name: 'library', installed: '1.8.0', available: '2.0.0', change: 'major'};
+  const topic = {...dependency, id: 'topic-id', discussed: false};
+  let r, archived = false;
+  const calls = [];
+  globalThis.__updateFetch = async (path, init = {}) => {
+    calls.push([path, init.method]);
+    let data;
+    if (path.endsWith('/server/github')) data = {state: 'behind', behind: 1, github_commit: upstream};
+    else if (path.includes('/server/dependencies')) data = {
+      installed_commit: active, available_commit: path.includes('?commit=') ? upstream : null, dependencies: [dependency],
+    };
+    else if (path.endsWith('/dependency-topics/topic-id')) {
+      archived = true;
+      data = {...topic, discussed: true};
+    } else if (path.endsWith('/dependency-topics')) data = {topics: [{...topic, discussed: archived}]};
+    else data = {platform: 'server', available: true, active_commit: active,
+      components: {commit: active, aligned: true, components: []}, jobs: []};
+    return {ok: true, json: async () => data};
+  };
+  try {
+    await act(async () => { r = create(React.createElement(Panel, {standalone: true})); });
+    assert.match(text(r.toJSON()), /Componenti allineati al commit installato/);
+    assert.match(text(r.toJSON()), /Major · verifica compatibilità/);
+    assert.match(text(r.toJSON()), /Topic da discutere \(1\)/);
+    assert.ok(calls.some(([path]) => path.endsWith('/dependencies?commit=' + upstream)));
+    await act(async () => button(r, 'Segna come discusso').props.onClick());
+    assert.ok(calls.some(([path, method]) => path.endsWith('/dependency-topics/topic-id') && method === 'POST'));
+    assert.match(text(r.toJSON()), /Topic da discutere \(0\)/);
+    assert.equal(button(r, 'Segna come discusso'), undefined);
+  } finally {
+    if (r) await act(async () => r.unmount());
+  }
+});

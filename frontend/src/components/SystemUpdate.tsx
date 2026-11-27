@@ -5,6 +5,8 @@ import { authenticatedFetch } from "../services/transport";
 type UpdateJob = {
   id: string; kind: string; status: string; phase?: string; commit?: string;
   base_commit?: string; error?: string; error_stage?: string; error_detail?: string;
+  checks?: Record<string, boolean | number>; rollback?: string; backup_valid?: boolean;
+  error_analysis?: {status: string; summary?: string};
   cleanup_error?: string; updated_at?: string; branch?: string; compare_url?: string;
 };
 type Pending = {
@@ -23,13 +25,26 @@ type Components = { commit: string; aligned: boolean; components: Component[] };
 type Update = {
   platform: string; status?: string; directory?: string; commit?: string;
   phase?: string; available?: boolean; reason?: string; active_commit?: string;
-  jobs?: UpdateJob[]; components?: Components | null;
+  error_analysis_enabled?: boolean; jobs?: UpdateJob[]; components?: Components | null;
+};
+type Dependency = { ecosystem: string; name: string; installed?: string; available?: string; change: string };
+type Topic = Dependency & { id: string; discussed: boolean };
+type Inventory = { installed_commit: string; available_commit?: string; dependencies: Dependency[] };
+const updateBase = "/api/v1/system/update/server";
+const changeLabels: Record<string, string> = {
+  major: "Major · verifica compatibilità", minor: "Minor", patch: "Patch",
+  unchanged: "Invariata", changed: "Versione diversa", added: "Aggiunta",
+  removed: "Rimossa", downgrade: "Versione precedente", unknown: "Da verificare",
 };
 const componentStatus: Record<string, [string, string]> = {
-  ok: ["Aggiornato", "#1f7a4d"], outdated: ["Non aggiornato", "#b42318"],
+  ok: ["Allineato", "#1f7a4d"], outdated: ["Non allineato", "#b42318"],
   untracked: ["Fuori dai rilasci", "#b42318"], stopped: ["Fermo", "#b42318"],
   missing: ["Non installato", "#b42318"], updating: ["In aggiornamento", "#965a14"],
   unknown: ["Non verificabile", "#965a14"],
+};
+const checkLabels: Record<string, string> = {
+  images_built: "Build immagini", frontend_build: "Build frontend", python_suite: "Suite Python",
+  python_tests: "Test Python", python_skipped: "Test Python saltati", migration_copy: "Prova migrazione",
 };
 const working = (job: UpdateJob) => ["queued", "running"].includes(job.status);
 const phaseNames: Record<string, string> = {
@@ -66,6 +81,12 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
   const [showHistory, setShowHistory] = useState(false);
   const [github, setGithub] = useState<GitHubState | null>(null);
   const [githubBusy, setGithubBusy] = useState(false);
+  const [inventory, setInventory] = useState<Inventory | null>(null);
+  const [topics, setTopics] = useState<Topic[] | null>(null);
+  const [showAllDependencies, setShowAllDependencies] = useState(false);
+  const [metadataBusy, setMetadataBusy] = useState(false);
+  const [metadataError, setMetadataError] = useState("");
+  const [metadataRevision, setMetadataRevision] = useState(0);
 
   async function refresh() {
     try {
@@ -105,6 +126,42 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
     if (open && platform === "server") void refreshGithub();
   }, [open, platform]);
 
+  const activeCommit = state?.active_commit;
+  const upstreamCommit = github?.github_commit;
+  const serverAvailable = platform === "server" && state?.available === true;
+  useEffect(() => {
+    if (!open || !serverAvailable || !activeCommit || connected !== true) return;
+    let cancelled = false;
+    const get = async (path: string) => {
+      const response = await authenticatedFetch(apiBaseUrl + path);
+      if (!response.ok) throw Error();
+      return response.json();
+    };
+    setInventory(null); setMetadataBusy(true);
+    void Promise.allSettled([
+      get(updateBase + "/dependencies" + (upstreamCommit ? "?commit=" + encodeURIComponent(upstreamCommit) : "")),
+      get(updateBase + "/dependency-topics"),
+    ]).then(([versions, discussions]) => {
+      if (cancelled) return;
+      setInventory(versions.status === "fulfilled" ? versions.value : null);
+      setTopics(discussions.status === "fulfilled" ? discussions.value.topics : null);
+      setMetadataBusy(false);
+    });
+    return () => { cancelled = true; };
+  }, [open, serverAvailable, activeCommit, upstreamCommit, connected, metadataRevision]);
+
+  async function archiveTopic(id: string) {
+    setMetadataError("");
+    try {
+      const response = await authenticatedFetch(apiBaseUrl + updateBase + "/dependency-topics/" + id, {method: "POST"});
+      if (!response.ok) throw Error();
+      setTopics(items => items?.map(item => item.id === id ? {...item, discussed: true} : item) ?? null);
+      setMetadataRevision(value => value + 1);
+    } catch {
+      setMetadataError("Archiviazione non confermata. Riprova dopo aver verificato lo stato.");
+    }
+  }
+
   async function invoke(route: string, body?: object) {
     setBusy(true); setActionError(""); setActionNote("");
     try {
@@ -141,8 +198,12 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
   }, [runningId]);
   const diverged = github?.available !== false && github?.state === "diverged";
   const pending = github?.pending || [];
+  const openTopics = topics?.filter(topic => !topic.discussed);
+  const dependencies = inventory?.installed_commit === activeCommit && inventory
+    ? inventory.dependencies.filter(item => showAllDependencies || !inventory.available_commit || item.change !== "unchanged")
+    : null;
 
-  return <div className={standalone ? "system-card" : "home-update-actions"}>
+  return <div className={standalone ? "system-card updates-v2" : "home-update-actions"}>
     {standalone ? <>
       <h1>Aggiornamenti Cora</h1>
       <p>Il servizio di aggiornamento gira sul Debian e prosegue anche durante il riavvio di Cora.</p>
@@ -165,8 +226,8 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
       </> : state?.platform === "server" ? <>
         {state.available === false && connected === true &&
           <p role="alert" style={{color:"#b42318"}}>{state.reason || "Servizio updater non disponibile."}</p>}
-        <section className="update-section" aria-label="Aggiorna Cora">
-          <h2>Aggiorna Cora</h2>
+        <section className="update-section" aria-label="Panoramica">
+          <h2>Panoramica</h2>
           <p className="update-hint">Installa sul server l'ultimo commit del ramo {github?.branch || "main"} su GitHub, dopo build, test e backup.</p>
           <div className="update-compare">
             <span>Commit attivo sul server</span><code>{short(state.active_commit)}</code>
@@ -184,6 +245,10 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
             {githubBusy ? "Controllo GitHub…" : "Controlla GitHub"}
           </button>}
           {connected === true && state.available !== false && <ComponentVersions value={state.components} />}
+          {recent && <p>Ultima operazione: {role(recent)} · {describe(recent)}</p>}
+        </section>
+        <section className="update-section" aria-label="Preparazione e installazione">
+          <h2>Preparazione e installazione</h2>
           {state.available !== false && <button className="file-tool" disabled={!canAct || diverged}
             onClick={() => void invoke("/api/v1/system/update/server/prepare")}>
             Prepara aggiornamento da GitHub
@@ -219,13 +284,70 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
                 });
               }}>Installa versione verificata</button>}
           </div>}
+        </section>
+        {state.available === true && <>
+          <section className="update-section" aria-label="Dipendenze">
+            <h2>Dipendenze</h2>
+            <p className="update-hint">Versioni nei file di lock dei commit confrontati.</p>
+            {metadataBusy ? <p>Verifica delle dipendenze…</p> :
+              dependencies === null ? <p>Versioni delle dipendenze non disponibili.</p> :
+              <>
+                {inventory?.available_commit && <label className="update-filter">
+                  <input type="checkbox" checked={showAllDependencies}
+                    onChange={event => setShowAllDependencies(event.target.checked)} />
+                  Mostra anche le versioni invariate
+                </label>}
+                {dependencies.length ? <ul className="update-dependencies">
+                  {dependencies.map(item => <li key={item.ecosystem + "/" + item.name}>
+                    <strong>{item.name} <small>{item.ecosystem}</small></strong>
+                    <span>Installata <code>{item.installed || "—"}</code></span>
+                    <span>Disponibile <code>{item.available || "—"}</code></span>
+                    <span className={item.change === "major" ? "update-major" : ""}>{changeLabels[item.change]}</span>
+                  </li>)}
+                </ul> : <p>Nessuna variazione nei file di lock confrontati.</p>}
+              </>}
+          </section>
+          <section className="update-section" aria-label="Topic da discutere">
+            <h2>Topic da discutere{openTopics && " (" + openTopics.length + ")"}</h2>
+            {metadataError && <p role="alert">{metadataError}</p>}
+            {openTopics == null ? <p>{metadataBusy ? "Caricamento…" : "Topic non disponibili."}</p> :
+              openTopics.length ? openTopics.map(topic => <div key={topic.id} className="settings-row">
+                <div><strong>{topic.name}</strong> <small>{topic.ecosystem}</small>
+                  <p><code>{topic.installed} → {topic.available}</code> · {changeLabels[topic.change]}</p>
+                </div>
+                <button className="file-tool" disabled={!connected}
+                  onClick={() => void archiveTopic(topic.id)}>Segna come discusso</button>
+              </div>) : <p>Nessun topic da discutere.</p>}
+          </section>
+        </>}
+        <section className="update-section" aria-label="Storico">
+          <h2>Storico</h2>
+          {!jobs.length && <p>Nessuna operazione registrata.</p>}
           {!!jobs.length && <button className="text-button" onClick={() => setShowHistory(v => !v)}>
             {showHistory ? "Nascondi cronologia aggiornamenti" : "Mostra cronologia aggiornamenti"}
           </button>}
-          {showHistory && jobs.slice(0, 15).map(job => <div key={job.id} className="settings-row">
+          {showHistory && jobs.map(job => <div key={job.id} className="settings-row">
             <span>{role(job)} · {job.status} · {describe(job)} · {short(job.commit)}</span>
-            {job.status === "failed" && <div className="update-history-error" role="alert">
+            {job.updated_at && <time dateTime={job.updated_at}>{new Date(job.updated_at).toLocaleString("it-IT")}</time>}
+            {job.checks && <details className="updater-diagnostic">
+              <summary>Collaudi</summary>
+              <ul>{Object.entries(job.checks).map(([key, value]) =>
+                <li key={key}>{checkLabels[key] || key}: {typeof value === "boolean" ? value ? "Superato" : "Fallito" : value}</li>
+              )}</ul>
+            </details>}
+            {job.rollback && <p>Ripristino: {job.rollback}</p>}
+            {["failed", "recovery_required"].includes(job.status) && <div className="update-history-error" role="alert">
               <span style={{color:"#b42318"}}>{job.error || "Dettagli non disponibili"}</span>
+              {job.error_analysis?.summary && <details className="updater-diagnostic">
+                <summary>Sintesi del modello locale</summary>
+                <p className="update-analysis">{job.error_analysis.summary}</p>
+              </details>}
+              {job.error_analysis?.status === "unavailable" && <p>Sintesi del modello non disponibile.</p>}
+              {job.error_analysis?.status === "running" && <p>Analisi richiesta.</p>}
+              {state.error_analysis_enabled && job.error_analysis && <button className="text-button"
+                disabled={!connected || busy} onClick={() => void invoke(updateBase + "/error-analysis/" + job.id)}>
+                Ripeti analisi
+              </button>}
               {(job.error_stage || job.error_detail || job.cleanup_error) && <details className="updater-diagnostic compact">
                 <summary>Dettagli</summary>
                 {job.error_stage && <p><strong>Passaggio:</strong> {job.error_stage}</p>}
@@ -287,7 +409,7 @@ function ComponentVersions({ value }: { value?: Components | null }) {
   const stale = value.components.filter(item => item.status !== "ok");
   return <details className="updater-diagnostic" open={stale.length > 0}>
     <summary style={{color: value.aligned ? "#1f7a4d" : "#b42318", fontWeight: 600}}>
-      {value.aligned ? "Tutti i componenti sono aggiornati" : stale.length + " componenti non allineati al commit installato"}
+      {value.aligned ? "Componenti allineati al commit installato" : stale.length + " componenti non allineati al commit installato"}
     </summary>
     {value.components.map(item => {
       const [text, color] = componentStatus[item.status] || [item.status, "#965a14"];

@@ -225,6 +225,8 @@ def get_default_model_name(role: str = "default") -> str:
 
 
 def _default_selection(role):
+    if role == "update_diagnostics":
+        return os.getenv("CORA_MODEL_UPDATE_DIAGNOSTICS", "").strip(), "role_environment"
     runtime_model = str(_runtime_settings().get("model", "")).strip()
     if runtime_model:
         return runtime_model, 'global_selection'
