@@ -17,10 +17,10 @@ const {layout,trunkLayout,trunkFlows}=await import(mod(source.slice(first,last))
 test('all original nodes survive alongside T14 and the agreed memory design',()=>{
  const ids=new Set(nodes.map(n=>n.id));
  assert.equal(ids.size,nodes.length);
- assert.equal(nodes.length,592);
+ assert.equal(nodes.length,605);
  assert.equal(nodes.filter(n=>n.classification==='star').length,47);
- assert.equal(nodes.filter(n=>n.classification==='planet').length,167);
- assert.equal(nodes.filter(n=>n.classification==='moon').length,363);
+ assert.equal(nodes.filter(n=>n.classification==='planet').length,169);
+ assert.equal(nodes.filter(n=>n.classification==='moon').length,374);
  assert.ok(relations.length>=37,'Baseline conceptual relations must survive');
  assert.equal(new Set(relations.map(r=>[r.from,r.to,r.kind].join('|'))).size,relations.length,'Duplicate semantic relations');
  for(const id of [...Object.keys(checks),...nodes.map(n=>n.parent).filter(Boolean),...relations.flatMap(r=>[r.from,r.to])])
@@ -140,7 +140,7 @@ test('V3 schema preserves 515 canonical nodes and 19 uniquely owned legacy issue
  const {legacyIssues,validateAtlasOverlay}=await import(mod(model));
  const issues=legacyIssues(nodes);
  assert.equal(snapshot.v3.schemaVersion,3);
- assert.equal(nodes.length,592);
+ assert.equal(nodes.length,605);
  assert.equal(issues.length,19);
  assert.deepEqual(snapshot.v3.issues.map(({id,ownerNodeId,title,source})=>({id,ownerNodeId,title,source})),issues.map(({id,ownerNodeId,title,source})=>({id,ownerNodeId,title,source})));
  assert.equal(new Set(issues.map(i=>i.id)).size,19);
@@ -186,7 +186,7 @@ test('V3 ownership review classifies all 47 stars including planned T14 and T17'
  const ids=new Set(nodes.map(n=>n.id));
  for(const item of snapshot.v3.responsibilityReview.decisions)
   for(const id of item.nodes)assert.ok(ids.has(id),'Unknown boundary review node '+id);
- assert.equal(nodes.length,592);
+ assert.equal(nodes.length,605);
 });
 
 test('V3 glance projection covers each canonical star exactly once without rewriting the tree',()=>{
@@ -212,7 +212,7 @@ test('V3 evolution keeps planned stars visible without promoting proposed trunk 
  assert.ok(view.futureStarCandidates.every(x=>!nodes.some(n=>n.id===x.id)),'Proposed candidate prematurely promoted');
  assert.equal(nodes.find(n=>n.id==='T14')?.status,'planned');
  assert.ok(view.transitionRules.some(x=>x.includes('history')));
- assert.equal(nodes.length,592);
+ assert.equal(nodes.length,605);
 });
 
 test('T14 is a planned common approval responsibility without duplicated existing nodes',()=>{
@@ -249,4 +249,12 @@ test('2025 recovery adds only planned objectives and no invented verification',(
  assert.equal(snapshot.v3.nodeResponsibilities.T17,'internal_service');
  assert.ok(relations.some(r=>r.from==='T17'&&r.to==='T11'&&r.status==='proposed'));
  assert.ok(relations.some(r=>r.from==='T6.p2.m3'&&r.to==='T7.p8.m4'));
+});
+
+
+test('owner autonomy goals remain planned and separated from operational authorization',()=>{
+ const ids=['T7.p13','T7.p13.m1','T7.p13.m2','T7.p5.m3','T7.p12.m3','T9.p4.m3','T13.p4','T13.p4.m1','T13.p4.m2','T13.p4.m3','T13.p4.m4','G1.p4.m3','T14.p2.m4'];
+ for(const id of ids){const n=nodes.find(n=>n.id===id);assert.equal(n?.status,'planned',id);assert.equal(n.priority,'unknown');assert.ok(!checks[id]?.length,'Unexpected verification '+id);}
+ for(const to of ['T9','T11','T14','T10','G1.p4.m3','T17','T7.p5'])assert.ok(relations.some(r=>r.from==='T13.p4'&&r.to===to&&r.status==='proposed'));
+ assert.ok(relations.some(r=>r.from==='T7.p13'&&r.to==='R6.2'));
 });
