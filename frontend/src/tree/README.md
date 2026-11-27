@@ -272,3 +272,17 @@ test. I problemi sono descritti come attenzioni, non automaticamente come
 guasti. La costellazione resta disponibile con il comando **Albero**.
 Sono richiesti build/test frontend e verifica visiva desktop/mobile
 prima del merge.
+
+
+## Recupero progettuale 2025 — 27 novembre 2026
+
+Su richiesta esplicita del proprietario, la snapshot incorpora 53 nuovi nodi (1 stella, 9 pianeti, 43 lune) e 11 relazioni concettuali: 592 nodi totali, 47 stelle, 167 pianeti e 363 lune. I 539 nodi precedenti conservano ID, parent, stato ed evidenze. Tutti i nuovi nodi sono planned, senza mapping a test runtime o dichiarazioni di implementazione.
+
+- T7: risonanza, inferenze, tipi di conoscenza, consolidamento/monitor e portabilità; T6 mantiene recupero e budget del contesto.
+- T9: riuso dei piani, dipendenze e budget; T1/T3: ragionamento adattivo e capacità osservabili; T2: disponibilità tool e isolamento.
+- R6.2/T14: guardiano deterministico, costituzione, rischio, consenso e notifiche; nessuna nuova autorità separata.
+- T10/T11: replay isolato, diagnostica, verifiche avversariali e tracciabilità requisito-codice-test-uso.
+- T17: nuova responsabilità trasversale di qualità degli output, distinta da collaudi tecnici T11 e autorizzazione R6.2. Tre pianeti: valutazione, revisione adattiva, misurazione e feedback.
+- R3.2/worker/R5.2: benchmark, ammissione e versionamento, senza cambiare la scelta manuale delle risorse. T15/T16 rimangono candidati condizionali.
+
+Priorità progettuali (non nuovi stati runtime): memoria/manutenzione e portabilità; poi planner/governance; qualità e risorse dopo misure hardware; replay e tracciabilità progressivi. Niente fine-tuning continuo, enclave o componenti infrastrutturali senza caso d'uso. Nessun contenuto privato delle conversazioni storiche pubblicato. La roadmap non implementa le funzioni, non cambia i collaudi già associati e non aggiorna il server.
