@@ -6717,9 +6717,126 @@
       "status": "planned",
       "priority": "unknown",
       "note": "Diff, preflight e rollback controllato per configurazioni e riferimenti ai pesi; non promettere rollback indiscriminato."
+    },
+    {
+      "id": "T7.p13",
+      "title": "Identità operativa ed evoluzione",
+      "parent": "T7",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Patrimonio identitario di Cora distinto dal profilo del proprietario T7.p1 e dalle policy R6.2. Obiettivo attuale: struttura articolata definita dal proprietario; finale: evoluzione e decisione autonoma della propria identità operativa."
+    },
+    {
+      "id": "T7.p13.m1",
+      "title": "Identità iniziale articolata",
+      "parent": "T7.p13",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Conoscenze fondative, principi, esperienze, preferenze proprie e stile operativo; distinguere profilo utente, memoria fattuale e vincoli di sicurezza."
+    },
+    {
+      "id": "T7.p13.m2",
+      "title": "Identità autoevolutiva",
+      "parent": "T7.p13",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Obiettivo finale: Cora propone, valuta e decide autonomamente l'evoluzione della propria identità operativa, con storia e versionamento; non implica coscienza né concessione autonoma di privilegi."
+    },
+    {
+      "id": "T7.p5.m3",
+      "title": "Autonomia progressiva della custodia",
+      "parent": "T7.p5",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Prima fase B: consolidamento ordinario autonomo, conferma per contraddizioni importanti e informazioni permanenti; obiettivo finale: gestione autonoma della memoria senza manutenzione ordinaria del proprietario."
+    },
+    {
+      "id": "T7.p12.m3",
+      "title": "Migrazione verso sistemi differenti",
+      "parent": "T7.p12",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Obiettivo finale: esportazione e importazione semantica in software differente; prima tappa cambio LLM senza perdita del patrimonio. Validare schema, fonti e interpretazione con prove separate."
+    },
+    {
+      "id": "T9.p4.m3",
+      "title": "Miglioramento autonomo delle strategie",
+      "parent": "T9.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Prima fase: strategie verificate adottabili automaticamente; procedure permanenti controllate e reversibili; codice, permessi e regole fondative con approvazione esplicita. Obiettivo finale: miglioramento autonomo anche delle procedure e del sistema, entro autorizzazioni delegate e verifiche."
+    },
+    {
+      "id": "T13.p4",
+      "title": "Proattività e risoluzione autonoma",
+      "parent": "T13",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Ciclo trasversale per osservare, proporre ed eseguire missioni di miglioramento: riutilizza osservabilità T3/T10/T11, Planner T9, Runtime T4 e tool autorizzati. Obiettivo finale: chiudere autonomamente il ciclo di risoluzione, senza nuovo scheduler o registro."
+    },
+    {
+      "id": "T13.p4.m1",
+      "title": "Individuazione proattiva",
+      "parent": "T13.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Rilevare anomalie, opportunità e problemi con segnali verificabili, deduplicazione degli eventi e limiti di frequenza."
+    },
+    {
+      "id": "T13.p4.m2",
+      "title": "Diagnosi e piano di risoluzione",
+      "parent": "T13.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Recuperare evidenze e cause, valutare rischio e alternative; affidare piano e dipendenze a T9."
+    },
+    {
+      "id": "T13.p4.m3",
+      "title": "Esecuzione autonoma autorizzata",
+      "parent": "T13.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Prima tappa: attività a basso rischio preautorizzate, con budget e possibilità di arresto; escalation quando non autorizzato."
+    },
+    {
+      "id": "T13.p4.m4",
+      "title": "Chiusura autonoma del ciclo",
+      "parent": "T13.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Obiettivo finale: verificare il risultato con prove indipendenti, ripristinare se necessario, registrare esito e apprendere; nessun successo dichiarato senza prova."
+    },
+    {
+      "id": "G1.p4.m3",
+      "title": "Evoluzione autonoma del software",
+      "parent": "G1.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Obiettivo finale: diagnosi, modifica, test e rilascio autonomi entro perimetro delegato, con ambienti isolati, gate di verifica, tracciabilità e rollback; oggi modifiche strutturali richiedono approvazione."
+    },
+    {
+      "id": "T14.p2.m4",
+      "title": "Delega progressiva di responsabilità",
+      "parent": "T14.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Distinguere approvazione puntuale da autorizzazione preventiva circoscritta e revocabile. La crescente autonomia non equivale a potersi autoassegnare privilegi; confini finali della governance da definire separatamente."
     }
   ],
-  "revision_note": "2026-11-19: T7 distingue archivi esistenti, collaudi circoscritti e nuova architettura di memoria decisa. Conservati ID storici; aggiunti 5 pianeti e 12 lune future. Nessuna implementazione della nuova memoria o prova del Debian implicita.\n2026-11-27: recupero storico 2025, aggiunti obiettivi planned su memoria, pianificazione, governance, diagnostica e qualità T17; nessuna implementazione o verifica implicita. T15/T16 restano candidati.",
+  "revision_note": "2026-11-19: T7 distingue archivi esistenti, collaudi circoscritti e nuova architettura di memoria decisa. Conservati ID storici; aggiunti 5 pianeti e 12 lune future. Nessuna implementazione della nuova memoria o prova del Debian implicita.\n2026-11-27: recupero storico 2025, aggiunti obiettivi planned su memoria, pianificazione, governance, diagnostica e qualità T17; nessuna implementazione o verifica implicita. T15/T16 restano candidati.\n2026-11-27: il proprietario definisce autonomia progressiva e obiettivi finali per memoria, apprendimento, identità, trasferibilità e proattività; nuove funzioni tutte planned. Nessun nuovo permesso operativo.",
   "revision": "CORA-V3-2026-11-10-M2-R4-HOST-E2E",
   "legend": {
     "unknown": "Da valutare",
@@ -7288,6 +7405,78 @@
       "to": "T3.p1",
       "kind": "uses",
       "note": "Responsabilità e tracciabilità senza duplicare il registro.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T7.p13",
+      "to": "T7.p12",
+      "kind": "produces_for",
+      "note": "Identità operativa versionata fa parte del patrimonio portabile.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T7.p13",
+      "to": "R6.2",
+      "kind": "depends_on",
+      "note": "Identità autonoma distinta dai vincoli di autorizzazione.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "T9",
+      "kind": "uses",
+      "note": "Planner elabora missioni e risoluzioni, non un secondo pianificatore.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "T11",
+      "kind": "uses",
+      "note": "Segnali e verifiche dal registro unico.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "T14",
+      "kind": "depends_on",
+      "note": "Esecuzione subordinata a deleghe revocabili e policy applicabili.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "T10",
+      "kind": "uses",
+      "note": "Diagnostica e tracce dell'incidente.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "G1.p4.m3",
+      "kind": "uses",
+      "note": "Correzioni software come capability specializzata; nessun duplicato.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "T17",
+      "kind": "uses",
+      "note": "Valutazione del risultato, distinta dalla salute del software.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "T7.p5",
+      "kind": "produces_for",
+      "note": "Consolidamento degli esiti verificati e apprendimento.",
       "status": "proposed",
       "provenance": "conceptual-v2"
     }
