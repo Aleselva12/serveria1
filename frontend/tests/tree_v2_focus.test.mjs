@@ -29,9 +29,9 @@ test("clicking any star has a dedicated 2D scene with ONLY its planets and moons
   }
  }
 });
-test("the full tree has all 46 canonical stars and no fabricated trunk chain",()=>{
+test("the full tree has all 47 canonical stars and no fabricated trunk chain",()=>{
  const {points,edges}=layout(nodes);
- assert.equal(points.filter(p=>p.kind==="star").length,46);
+ assert.equal(points.filter(p=>p.kind==="star").length,47);
  assert.deepEqual(new Set(points.filter(p=>p.kind==="star").map(p=>p.node.id)),new Set(nodes.filter(n=>n.classification==="star").map(n=>n.id)));
  assert.equal(points.filter(p=>p.kind==="branch").length,7);
  assert.equal(points.filter(p=>p.kind==="area").length,6);
@@ -46,8 +46,8 @@ test("C1 and F1 orbit preserve historical ideas and exact check boundaries",()=>
 });
 test("planned objectives are grey and visible as labelled map stars, not hidden future categories",()=>{
  const goals=nodes.filter(n=>n.classification==="star"&&["planned","idea"].includes(n.status));
- assert.equal(goals.length,5);
- assert.deepEqual(goals.map(n=>n.id).sort(),["E1","E2","F2","R1.4","T14"].sort());
+ assert.equal(goals.length,6);
+ assert.deepEqual(goals.map(n=>n.id).sort(),["E1","E2","F2","R1.4","T14","T17"].sort());
  const css=read("../src/tree/tree.css");
  const ui=read("../src/tree/TreeHome.tsx");
  assert.ok(css.includes(".rm2-point.tone-problem")&&css.includes(".rm2-point.tone-ok"));
