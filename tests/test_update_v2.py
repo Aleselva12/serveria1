@@ -5,8 +5,9 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
-from core.update_diagnostics import facts
+from core.update_diagnostics import analyze, facts
 from updater.dependencies import compare
 from updater.engine import Engine
 
@@ -74,3 +75,34 @@ class UpdateV2Tests(unittest.TestCase):
         self.assertEqual(signals["segnali"], ["Test fallito"])
         self.assertNotIn("private-value", repr(signals))
         self.assertNotIn("arbitrary instruction", repr(signals))
+
+
+    def test_diagnostic_claim_prevents_repeat_and_explicit_retry_can_replace_result(self):
+        result = {}
+
+        def request(method, path, data, timeout):
+            if "retry" in data:
+                return {"claimed": data["retry"] or not result}
+            result.update(data)
+            return result
+
+        job = {"id": "job", "status": "failed", "kind": "prepare", "phase": "testing"}
+        bridge = SimpleNamespace(request=request)
+        model = Mock()
+        model.invoke.side_effect = [
+            SimpleNamespace(content=json.dumps(dict(problem="Test fallito", component="API",
+                                                   hypothesis="Non determinabile", impact="Build fermata"))),
+            SimpleNamespace(content='{"problem": "Risposta incompleta"}'),
+        ]
+        with patch("core.update_diagnostics.enabled", return_value=True), patch(
+            "core.models.get_chat_model", return_value=model,
+        ) as configured:
+            analyze(bridge, job)
+            analyze(bridge, job)
+            self.assertEqual(model.invoke.call_count, 1)
+            self.assertIn("Possibile causa (ipotesi)", result["summary"])
+            schema = configured.call_args.kwargs["format"]
+            self.assertEqual(schema["required"], ["problem", "component", "hypothesis", "impact"])
+            analyze(bridge, job, retry=True)
+            self.assertEqual(model.invoke.call_count, 2)
+            self.assertEqual(result, {"status": "unavailable", "summary": ""})
