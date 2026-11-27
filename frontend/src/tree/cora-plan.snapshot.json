@@ -6227,9 +6227,616 @@
           "text": "Decisione di progetto; non prova implementazione. Modifiche versionate e correzioni esplicite; memoria recuperata e documenti non concedono permessi."
         }
       ]
+    },
+    {
+      "id": "T17",
+      "title": "T17 · Qualità dei risultati IA",
+      "parent": "tronco",
+      "classification": "star",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Contratto comune per valutazione degli output degli agenti, non collaudo tecnico (T11), policy (R6.2) o orchestrazione (T1).",
+      "timeline": {
+        "past": [],
+        "present": {
+          "statement": "Obiettivo progettuale autorizzato il 27/11/2026; nessuna implementazione o verifica attribuita.",
+          "source": "architecture-v3",
+          "runtimeVerified": false
+        },
+        "future": [
+          "Validare risultati osservabili in base al rischio, con rubriche e fonti.",
+          "Revisione selettiva con budget e arresto; segnalare limiti e prove mancanti.",
+          "Benchmark ripetibili e feedback verificato per miglioramento, senza fine-tuning automatico."
+        ]
+      }
+    },
+    {
+      "id": "T17.p1",
+      "title": "Valutazione degli output",
+      "parent": "T17",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Contratto di qualità per risposte e artefatti, distinto dai test del software."
+    },
+    {
+      "id": "T17.p1.m1",
+      "title": "Rubriche per tipo di risultato",
+      "parent": "T17.p1",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Completezza, correttezza, pertinenza, fonti e aderenza alla richiesta."
+    },
+    {
+      "id": "T17.p1.m2",
+      "title": "Verifica di affermazioni e fonti",
+      "parent": "T17.p1",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Distinguere fatti, ipotesi e risultati non verificati; non valutare ragionamenti interni non osservabili."
+    },
+    {
+      "id": "T17.p1.m3",
+      "title": "Esito e limiti espliciti",
+      "parent": "T17.p1",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Accettare, segnalare insufficienze o chiedere intervento secondo rischio e policy."
+    },
+    {
+      "id": "T17.p2",
+      "title": "Revisione adattiva",
+      "parent": "T17",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Attivazione selettiva di controlli aggiuntivi, non un secondo agente obbligatorio."
+    },
+    {
+      "id": "T17.p2.m1",
+      "title": "Critica e correzione limitata",
+      "parent": "T17.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Numero di tentativi, tempo e token limitati; arresto esplicito."
+    },
+    {
+      "id": "T17.p2.m2",
+      "title": "Verifica indipendente condizionale",
+      "parent": "T17.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Confronto di modelli o fonti solo quando il beneficio è misurabile."
+    },
+    {
+      "id": "T17.p3",
+      "title": "Misurazione e feedback",
+      "parent": "T17",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Dataset e valutazioni applicative condivisi con T11 e R3.2."
+    },
+    {
+      "id": "T17.p3.m1",
+      "title": "Benchmark fattualità e allucinazioni",
+      "parent": "T17.p3",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Casi con risposte verificabili e casi senza evidenza, inclusi errori di omissione."
+    },
+    {
+      "id": "T17.p3.m2",
+      "title": "Feedback verificato e regressioni",
+      "parent": "T17.p3",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Correzioni dell'utente, esiti e confronto tra versioni; niente training automatico."
+    },
+    {
+      "id": "T7.p8.m4",
+      "title": "Risonanza e archi tipizzati",
+      "parent": "T7.p8",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Relazioni con tipo, provenienza, validità e peso contestuale distinto dalla massa persistente. Nessun peso storico adottato senza misura."
+    },
+    {
+      "id": "T7.p7.m3",
+      "title": "Inferenze marcate e tracciabili",
+      "parent": "T7.p7",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Registro riflesso come derivazione esplicita con fonte e incertezza, non fatti o nuovo archivio obbligatorio."
+    },
+    {
+      "id": "T7.p2.m3",
+      "title": "Tipi funzionali di conoscenza",
+      "parent": "T7.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Fatti, procedure, concetti, pattern e soluzioni come attributi, non cinque archivi."
+    },
+    {
+      "id": "T7.p11",
+      "title": "Salute e consolidamento della memoria",
+      "parent": "T7",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Manutenzione degli archivi esistenti con il Custode T7.p5; preservare fonti e revisioni."
+    },
+    {
+      "id": "T7.p11.m1",
+      "title": "Consolidamento incrementale",
+      "parent": "T7.p11",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Attivato da nuovi dati e utilità, non da intervalli arbitrari; niente duplicazioni forzate."
+    },
+    {
+      "id": "T7.p11.m2",
+      "title": "Allerta simbolica",
+      "parent": "T7.p11",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Individuare congestione, decadimento, obsolescenza e perdita di recuperabilità."
+    },
+    {
+      "id": "T7.p11.m3",
+      "title": "Autoverifica stratificata",
+      "parent": "T7.p11",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Controllare fedeltà e tracciabilità tra letterale, rielaborato e inferenze."
+    },
+    {
+      "id": "T7.p11.m4",
+      "title": "Risoluzione conflitti e retention",
+      "parent": "T7.p11",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Proposte con fonti e date; decisione umana se necessario; cancellazione solo autorizzata."
+    },
+    {
+      "id": "T7.p12",
+      "title": "Portabilità del patrimonio cognitivo",
+      "parent": "T7",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Esportare identità, memoria, relazioni e procedure indipendentemente dal modello; non duplicare backup R5.1."
+    },
+    {
+      "id": "T7.p12.m1",
+      "title": "Manifest e schema versionato",
+      "parent": "T7.p12",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Formati documentati, riferimenti, permessi e provenienza; esclusione dei segreti."
+    },
+    {
+      "id": "T7.p12.m2",
+      "title": "Export e import verificabili",
+      "parent": "T7.p12",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Round-trip isolato, integrità e recupero con modello diverso; nessuna equivalenza comportamentale presunta."
+    },
+    {
+      "id": "T6.p2.m3",
+      "title": "Recupero per risonanza",
+      "parent": "T6.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Usare archi T7 e pertinenza contestuale con budget; confrontare con baseline lessicale/vettoriale."
+    },
+    {
+      "id": "T6.p3.m3",
+      "title": "Provenienza fino al risultato",
+      "parent": "T6.p3",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Collegare fonti autorizzate, evidenze e citazioni alle risposte multisorgente."
+    },
+    {
+      "id": "T6.p1.m3",
+      "title": "Budget dinamico di contesto",
+      "parent": "T6.p1",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Adattare token e selezione all'attività senza duplicare il budget di esecuzione T9."
+    },
+    {
+      "id": "T9.p4",
+      "title": "Apprendimento da piani precedenti",
+      "parent": "T9",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Riutilizzare esperienze e strategie verificabili, non addestrare automaticamente il modello."
+    },
+    {
+      "id": "T9.p4.m1",
+      "title": "Recupero e adattamento di piani",
+      "parent": "T9.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Verificare precondizioni, contesto, versione e dipendenze prima del riuso."
+    },
+    {
+      "id": "T9.p4.m2",
+      "title": "Esito e apprendimento dai fallimenti",
+      "parent": "T9.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Registrare cause, correzioni e risultati per T7; evitare di rinforzare strategie non provate."
+    },
+    {
+      "id": "T9.p1.m3",
+      "title": "Complessità, dipendenze e arresto",
+      "parent": "T9.p1",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Stima per attività, prerequisiti e scadenza; usare il runtime T4 per stato persistente."
+    },
+    {
+      "id": "T9.p2.m3",
+      "title": "Budget per missione e agente",
+      "parent": "T9.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Limiti di tempo, token, tentativi e risorse; consumo tracciato, arresto controllato."
+    },
+    {
+      "id": "T9.p3.m3",
+      "title": "Pianificazione consapevole delle risorse",
+      "parent": "T9.p3",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Considerare priorità interattive, capacità e costi; rispettare assegnazioni manuali e policy worker."
+    },
+    {
+      "id": "T1.p2.m3",
+      "title": "Ragionamento adattivo",
+      "parent": "T1.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Modalità rapida o approfondita in base a complessità, rischio e risorse, con escalation verificabile."
+    },
+    {
+      "id": "T3.p2.m3",
+      "title": "Conoscenza operativa di capacità e limiti",
+      "parent": "T3.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Stato osservabile di servizi, agenti e strumenti; non fiducia soggettiva dell'LLM."
+    },
+    {
+      "id": "T2.p1.m3",
+      "title": "Disponibilità e capacità verificabili",
+      "parent": "T2.p1",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Manifest, health-check e degradazione controllata; non inventare strumenti disponibili."
+    },
+    {
+      "id": "T2.p2.m3",
+      "title": "Isolamento esecuzione tool",
+      "parent": "T2.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Contratti di sandbox e privilegi minimi per tool rischiosi, verificare isolamento effettivo."
+    },
+    {
+      "id": "R6.2.p4",
+      "title": "Guardiano e Costituzione",
+      "parent": "R6.2",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Policy versionate e controlli deterministici prima delle azioni; T14 gestisce il consenso."
+    },
+    {
+      "id": "R6.2.p4.m1",
+      "title": "Regole permanenti e gerarchia",
+      "parent": "R6.2.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Distinguere permessi, vincoli e istruzioni non fidate; LLM consultivo, mai autorità unica."
+    },
+    {
+      "id": "R6.2.p4.m2",
+      "title": "Rischio operativo e privacy",
+      "parent": "R6.2.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Classi basate su azione, dati e destinazione; controllare retrieval ed esposizione."
+    },
+    {
+      "id": "R6.2.p4.m3",
+      "title": "Modifiche policy controllate",
+      "parent": "R6.2.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Diff, motivazione, audit e approvazione esplicita; nessuna auto-modifica."
+    },
+    {
+      "id": "T14.p1.m3",
+      "title": "Intervento umano per rischio o evidenze mancanti",
+      "parent": "T14.p1",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Escalation prima dell'effetto; motivazione, richiesta di chiarimento o approvazione secondo policy."
+    },
+    {
+      "id": "T14.p2.m3",
+      "title": "Notifica cambiamenti significativi",
+      "parent": "T14.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Comunica cosa è cambiato, come e perché; decisioni strutturali solo autorizzate."
+    },
+    {
+      "id": "T10.p4",
+      "title": "Incidenti e replay isolato",
+      "parent": "T10",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Estendere le trace esistenti, senza creare un secondo registro."
+    },
+    {
+      "id": "T10.p4.m1",
+      "title": "Snapshot riproducibile",
+      "parent": "T10.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Input, versioni, configurazione e risultati tool con redazione dati sensibili."
+    },
+    {
+      "id": "T10.p4.m2",
+      "title": "Replay senza effetti reali",
+      "parent": "T10.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Sandbox o mock; riprodurre il caso non implica determinismo LLM."
+    },
+    {
+      "id": "T10.p4.m3",
+      "title": "Diagnosi per modulo",
+      "parent": "T10.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Causa, sottosistema, trace ID e rimedio consigliato; collegare i problemi al proprietario."
+    },
+    {
+      "id": "T10.p3.m3",
+      "title": "Anomalie di latenza e consumo",
+      "parent": "T10.p3",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Soglie e regressioni per modello e fase; nessuna autocorrezione distruttiva."
+    },
+    {
+      "id": "T11.p5",
+      "title": "Verifiche avversariali e tracciabilità",
+      "parent": "T11",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Estendere il catalogo unico di test e salute, senza inventare nuove evidenze."
+    },
+    {
+      "id": "T11.p5.m1",
+      "title": "Test input ostili e permessi",
+      "parent": "T11.p5",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Prompt injection in mail e documenti, isolamento e controllo effetti."
+    },
+    {
+      "id": "T11.p5.m2",
+      "title": "Requisito → codice → test → uso",
+      "parent": "T11.p5",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "ID stabili, evidenza di integrazione e copertura; individuare funzioni inutilizzate o duplicate."
+    },
+    {
+      "id": "T11.p5.m3",
+      "title": "Diagnostica e carico",
+      "parent": "T11.p5",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Dipendenze, import circolari, configurazione e carico; test incrementali."
+    },
+    {
+      "id": "R3.2.p2.m3",
+      "title": "Benchmark precisione e quantizzazione",
+      "parent": "R3.2.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Misurare qualità, latenza, VRAM e consumo sull'hardware reale; nessuna scelta automatica."
+    },
+    {
+      "id": "worker.p4.m3",
+      "title": "Ammissione e budget risorse",
+      "parent": "worker.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Concorrenza, VRAM e priorità dei job, mantenendo scelta macchina manuale e fallback autorizzato."
+    },
+    {
+      "id": "R5.2.p1.m3",
+      "title": "Versionamento configurazioni e modelli",
+      "parent": "R5.2.p1",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Diff, preflight e rollback controllato per configurazioni e riferimenti ai pesi; non promettere rollback indiscriminato."
+    },
+    {
+      "id": "T7.p13",
+      "title": "Identità operativa ed evoluzione",
+      "parent": "T7",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Patrimonio identitario di Cora distinto dal profilo del proprietario T7.p1 e dalle policy R6.2. Obiettivo attuale: struttura articolata definita dal proprietario; finale: evoluzione e decisione autonoma della propria identità operativa."
+    },
+    {
+      "id": "T7.p13.m1",
+      "title": "Identità iniziale articolata",
+      "parent": "T7.p13",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Conoscenze fondative, principi, esperienze, preferenze proprie e stile operativo; distinguere profilo utente, memoria fattuale e vincoli di sicurezza."
+    },
+    {
+      "id": "T7.p13.m2",
+      "title": "Identità autoevolutiva",
+      "parent": "T7.p13",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Obiettivo finale: Cora propone, valuta e decide autonomamente l'evoluzione della propria identità operativa, con storia e versionamento; non implica coscienza né concessione autonoma di privilegi."
+    },
+    {
+      "id": "T7.p5.m3",
+      "title": "Autonomia progressiva della custodia",
+      "parent": "T7.p5",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Prima fase B: consolidamento ordinario autonomo, conferma per contraddizioni importanti e informazioni permanenti; obiettivo finale: gestione autonoma della memoria senza manutenzione ordinaria del proprietario."
+    },
+    {
+      "id": "T7.p12.m3",
+      "title": "Migrazione verso sistemi differenti",
+      "parent": "T7.p12",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Obiettivo finale: esportazione e importazione semantica in software differente; prima tappa cambio LLM senza perdita del patrimonio. Validare schema, fonti e interpretazione con prove separate."
+    },
+    {
+      "id": "T9.p4.m3",
+      "title": "Miglioramento autonomo delle strategie",
+      "parent": "T9.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Prima fase: strategie verificate adottabili automaticamente; procedure permanenti controllate e reversibili; codice, permessi e regole fondative con approvazione esplicita. Obiettivo finale: miglioramento autonomo anche delle procedure e del sistema, entro autorizzazioni delegate e verifiche."
+    },
+    {
+      "id": "T13.p4",
+      "title": "Proattività e risoluzione autonoma",
+      "parent": "T13",
+      "classification": "planet",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Ciclo trasversale per osservare, proporre ed eseguire missioni di miglioramento: riutilizza osservabilità T3/T10/T11, Planner T9, Runtime T4 e tool autorizzati. Obiettivo finale: chiudere autonomamente il ciclo di risoluzione, senza nuovo scheduler o registro."
+    },
+    {
+      "id": "T13.p4.m1",
+      "title": "Individuazione proattiva",
+      "parent": "T13.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Rilevare anomalie, opportunità e problemi con segnali verificabili, deduplicazione degli eventi e limiti di frequenza."
+    },
+    {
+      "id": "T13.p4.m2",
+      "title": "Diagnosi e piano di risoluzione",
+      "parent": "T13.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Recuperare evidenze e cause, valutare rischio e alternative; affidare piano e dipendenze a T9."
+    },
+    {
+      "id": "T13.p4.m3",
+      "title": "Esecuzione autonoma autorizzata",
+      "parent": "T13.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Prima tappa: attività a basso rischio preautorizzate, con budget e possibilità di arresto; escalation quando non autorizzato."
+    },
+    {
+      "id": "T13.p4.m4",
+      "title": "Chiusura autonoma del ciclo",
+      "parent": "T13.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Obiettivo finale: verificare il risultato con prove indipendenti, ripristinare se necessario, registrare esito e apprendere; nessun successo dichiarato senza prova."
+    },
+    {
+      "id": "G1.p4.m3",
+      "title": "Evoluzione autonoma del software",
+      "parent": "G1.p4",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Obiettivo finale: diagnosi, modifica, test e rilascio autonomi entro perimetro delegato, con ambienti isolati, gate di verifica, tracciabilità e rollback; oggi modifiche strutturali richiedono approvazione."
+    },
+    {
+      "id": "T14.p2.m4",
+      "title": "Delega progressiva di responsabilità",
+      "parent": "T14.p2",
+      "classification": "moon",
+      "status": "planned",
+      "priority": "unknown",
+      "note": "Distinguere approvazione puntuale da autorizzazione preventiva circoscritta e revocabile. La crescente autonomia non equivale a potersi autoassegnare privilegi; confini finali della governance da definire separatamente."
     }
   ],
-  "revision_note": "2026-11-19: T7 distingue archivi esistenti, collaudi circoscritti e nuova architettura di memoria decisa. Conservati ID storici; aggiunti 5 pianeti e 12 lune future. Nessuna implementazione della nuova memoria o prova del Debian implicita.",
+  "revision_note": "2026-11-19: T7 distingue archivi esistenti, collaudi circoscritti e nuova architettura di memoria decisa. Conservati ID storici; aggiunti 5 pianeti e 12 lune future. Nessuna implementazione della nuova memoria o prova del Debian implicita.\n2026-11-27: recupero storico 2025, aggiunti obiettivi planned su memoria, pianificazione, governance, diagnostica e qualità T17; nessuna implementazione o verifica implicita. T15/T16 restano candidati.\n2026-11-27: il proprietario definisce autonomia progressiva e obiettivi finali per memoria, apprendimento, identità, trasferibilità e proattività; nuove funzioni tutte planned. Nessun nuovo permesso operativo.",
   "revision": "CORA-V3-2026-11-10-M2-R4-HOST-E2E",
   "legend": {
     "unknown": "Da valutare",
@@ -6712,6 +7319,166 @@
       "note": "Resoconti rielaborati derivati dagli originali.",
       "status": "proposed",
       "provenance": "owner-decision-2026-11-19"
+    },
+    {
+      "from": "T6.p2.m3",
+      "to": "T7.p8.m4",
+      "kind": "uses",
+      "note": "Rilevanza contestuale dal grafo, separata dal peso persistente.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T7.p11",
+      "to": "T7.p5",
+      "kind": "uses",
+      "note": "Custode responsabile delle revisioni; nessuna nuova autorità.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T7.p12",
+      "to": "R5.1",
+      "kind": "communicates_with",
+      "note": "Portabilità semantica distinta dal ripristino dei backup.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T9.p4",
+      "to": "T7.p2",
+      "kind": "uses",
+      "note": "Procedure e risultati di esperienza con provenienza.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T17",
+      "to": "T11",
+      "kind": "communicates_with",
+      "note": "Catalogo prove condiviso; qualità del risultato distinta dalla salute software.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T17",
+      "to": "R6.2",
+      "kind": "uses",
+      "note": "Rischio e limiti delle operazioni guidano la valutazione.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T1.p2.m3",
+      "to": "T17",
+      "kind": "uses",
+      "note": "Selezione livello di verifica sulla richiesta.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T14",
+      "to": "R6.2.p4",
+      "kind": "uses",
+      "note": "Policy deterministica prima degli effetti; decisione di consenso separata.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T10.p4",
+      "to": "T4",
+      "kind": "uses",
+      "note": "Replay basato sul run persistente e su tool simulati.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T9.p3.m3",
+      "to": "worker.p4",
+      "kind": "uses",
+      "note": "Pianificazione logica distinta dall'ammissione fisica.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T11.p5.m2",
+      "to": "T3.p1",
+      "kind": "uses",
+      "note": "Responsabilità e tracciabilità senza duplicare il registro.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T7.p13",
+      "to": "T7.p12",
+      "kind": "produces_for",
+      "note": "Identità operativa versionata fa parte del patrimonio portabile.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T7.p13",
+      "to": "R6.2",
+      "kind": "depends_on",
+      "note": "Identità autonoma distinta dai vincoli di autorizzazione.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "T9",
+      "kind": "uses",
+      "note": "Planner elabora missioni e risoluzioni, non un secondo pianificatore.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "T11",
+      "kind": "uses",
+      "note": "Segnali e verifiche dal registro unico.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "T14",
+      "kind": "depends_on",
+      "note": "Esecuzione subordinata a deleghe revocabili e policy applicabili.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "T10",
+      "kind": "uses",
+      "note": "Diagnostica e tracce dell'incidente.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "G1.p4.m3",
+      "kind": "uses",
+      "note": "Correzioni software come capability specializzata; nessun duplicato.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "T17",
+      "kind": "uses",
+      "note": "Valutazione del risultato, distinta dalla salute del software.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
+    },
+    {
+      "from": "T13.p4",
+      "to": "T7.p5",
+      "kind": "produces_for",
+      "note": "Consolidamento degli esiti verificati e apprendimento.",
+      "status": "proposed",
+      "provenance": "conceptual-v2"
     }
   ],
   "visibility": {
@@ -6776,7 +7543,8 @@
       "worker": "internal_service",
       "F2": "user_capability",
       "G1": "user_capability",
-      "T14": "governance"
+      "T14": "governance",
+      "T17": "internal_service"
     },
     "issues": [
       {
@@ -7056,7 +7824,7 @@
     "trunkClassReview": {
       "reviewedAt": "2026-11-09",
       "status": "proposal_only",
-      "existingTrunkStars": 14,
+      "existingTrunkStars": 15,
       "principle": "A trunk star owns a shared cross-program contract and lifecycle; no star for a UI page, incidental helper or merely planned feature.",
       "candidates": [
         {
@@ -7235,7 +8003,8 @@
               "starIds": [
                 "T10",
                 "T11",
-                "T12"
+                "T12",
+                "T17"
               ]
             }
           ]
@@ -7418,6 +8187,11 @@
         {
           "id": "T14",
           "title": "T14 · Approvazioni ed effetti autorizzati",
+          "status": "planned"
+        },
+        {
+          "id": "T17",
+          "title": "T17 · Qualità dei risultati IA",
           "status": "planned"
         }
       ],
