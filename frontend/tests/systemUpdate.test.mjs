@@ -130,14 +130,15 @@ const serverFetch=(github,calls=[],jobs=[])=>async(path,init={})=>{
  return {ok:true,json:async()=>({platform:'server',available:true,active_commit:'b'.repeat(40),jobs})};
 };
 
-test('update page shows two sections with active vs GitHub commit and distance',async()=>{
+test('update page separates overview, installation and GitHub publication',async()=>{
  let r;
  globalThis.__updateFetch=serverFetch({available:true,configured:true,branch:'main',active_commit:'b'.repeat(40),
    github_commit:'c'.repeat(40),ahead:0,behind:3,state:'behind',pending:[]});
  try{
   await act(async()=>{r=create(React.createElement(Panel,{standalone:true}));});
   const all=text(r.toJSON());
-  assert.match(all,/Aggiorna Cora/);assert.match(all,/Invia modifiche a GitHub/);
+  assert.match(all,/Panoramica/);assert.match(all,/Preparazione e installazione/);
+  assert.match(all,/Invia modifiche a GitHub/);
   assert.match(all,/bbbbbbbbbbbb/);assert.match(all,/cccccccccccc/);
   assert.match(all,/indietro di 3 commit/);
   assert.match(all,/Nessuna modifica del server da inviare/);

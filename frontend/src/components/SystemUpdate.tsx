@@ -308,7 +308,7 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
               </>}
           </section>
           <section className="update-section" aria-label="Topic da discutere">
-            <h2>Topic da discutere{openTopics && " (" + openTopics.length + ")"}</h2>
+            <h2>{openTopics ? `Topic da discutere (${openTopics.length})` : "Topic da discutere"}</h2>
             {metadataError && <p role="alert">{metadataError}</p>}
             {openTopics == null ? <p>{metadataBusy ? "Caricamento…" : "Topic non disponibili."}</p> :
               openTopics.length ? openTopics.map(topic => <div key={topic.id} className="settings-row">
