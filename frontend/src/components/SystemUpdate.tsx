@@ -1,3 +1,4 @@
+import { ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiBaseUrl } from "../services/api";
 import { authenticatedFetch } from "../services/transport";
@@ -37,10 +38,10 @@ const changeLabels: Record<string, string> = {
   removed: "Rimossa", downgrade: "Versione precedente", unknown: "Da verificare",
 };
 const componentStatus: Record<string, [string, string]> = {
-  ok: ["Allineato", "#1f7a4d"], outdated: ["Non allineato", "#b42318"],
-  untracked: ["Fuori dai rilasci", "#b42318"], stopped: ["Fermo", "#b42318"],
-  missing: ["Non installato", "#b42318"], updating: ["In aggiornamento", "#965a14"],
-  unknown: ["Non verificabile", "#965a14"],
+  ok: ["Allineato", "var(--update-ok, #1f7a4d)"], outdated: ["Non allineato", "var(--update-error, #b42318)"],
+  untracked: ["Fuori dai rilasci", "var(--update-error, #b42318)"], stopped: ["Fermo", "var(--update-error, #b42318)"],
+  missing: ["Non installato", "var(--update-error, #b42318)"], updating: ["In aggiornamento", "var(--update-warning, #965a14)"],
+  unknown: ["Non verificabile", "var(--update-warning, #965a14)"],
 };
 const checkLabels: Record<string, string> = {
   images_built: "Build immagini", frontend_build: "Build frontend", python_suite: "Suite Python",
@@ -68,6 +69,36 @@ function compareText(github: GitHubState) {
   if (github.state === "diverged") return "Server e GitHub divergono: " + plural(ahead, "commit", "commit") + " solo sul server, " + plural(behind, "commit", "commit") + " solo su GitHub.";
   return "";
 }
+const releaseSteps = [
+  "Preparazione", "Compilazione immagini", "Collaudi", "Arresto servizi",
+  "Backup dei dati", "Prova migrazioni", "Avvio candidato", "Controllo finale",
+];
+const releasePhase: Record<string, number> = {
+  building: 1, testing: 2, ready: 2, awaiting_updater: 3, stopping: 3,
+  backing_up: 4, backup_complete: 4, migration_trial: 5, candidate_starting: 6, completed: 7,
+};
+
+function ReleaseProgress({ job }: { job?: UpdateJob }) {
+  const failure = job?.status === "failed" || job?.status === "recovery_required";
+  const step = job?.kind === "prepare" || job?.kind === "apply"
+    ? job.phase === "queued" ? job.kind === "prepare" ? 0 : 3 : releasePhase[job.phase ?? ""]
+    : undefined;
+  const finished = job?.status === "completed" || job?.status === "ready" || job?.status === "applied";
+  return <ol className="update-track" aria-label="Fasi del rilascio">
+    {releaseSteps.map((label, index) => {
+      const current = index === step && !finished;
+      const done = step !== undefined && (index < step || (index === step && finished));
+      const progress = current ? failure ? "Interrotta" : "Fase corrente" : done ? "Completata" : "";
+      return <li key={label} className={current ? failure ? "is-failed" : "is-current" : done ? "is-done" : ""}
+        aria-current={current ? "step" : undefined}>
+        <span className="update-step-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+        <strong>{label}</strong>
+        {progress && <small>{progress}</small>}
+      </li>;
+    })}
+  </ol>;
+}
+
 const short = (hash?: string) => hash?.slice(0, 12) || "non disponibile";
 
 export default function SystemUpdate({ standalone = false }: { standalone?: boolean } = {}) {
@@ -204,21 +235,25 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
     ? inventory.dependencies.filter(item => showAllDependencies || !inventory.available_commit || item.change !== "unchanged")
     : null;
 
-  return <div className={standalone ? "system-card updates-v2" : "home-update-actions"}>
-    {standalone ? <>
-      <h1>Aggiornamenti Cora</h1>
-      <p>Il servizio di aggiornamento gira sul Debian e prosegue anche durante il riavvio di Cora.</p>
-    </> : <button className="file-tool" onClick={() => setExpanded(v => !v)}>Aggiorna Cora</button>}
+  return <div className={standalone ? "updates-v2" : "home-update-actions"}>
+    {standalone ? <header className="update-hero">
+      <div>
+        <p className="update-kicker">Sistema / Rilasci controllati</p>
+        <h1>Aggiornamenti Cora<span aria-hidden="true">.</span></h1>
+        {state?.platform !== "windows" && <p>Il servizio di aggiornamento gira sul Debian e prosegue anche durante il riavvio di Cora.</p>}
+      </div>
+      <ShieldCheck size={30} aria-hidden="true" />
+    </header> : <button className="file-tool" onClick={() => setExpanded(v => !v)}>Aggiorna Cora</button>}
     {open && <section aria-label="Aggiornamento di Cora" aria-live="polite">
-      {connected === false && <p role="status" style={{ color: "#965a14" }}>{statusError}</p>}
-      {actionError && <p role="alert" style={{color:"#b42318",fontWeight:600}}>{actionError}</p>}
+      {connected === false && <p role="status" style={{ color: "var(--update-warning, #965a14)" }}>{statusError}</p>}
+      {actionError && <p role="alert" style={{color:"var(--update-error, #b42318)",fontWeight:600}}>{actionError}</p>}
       {actionNote && !actionError && <p role="status">{actionNote}</p>}
       <button className="text-button" onClick={() => void refresh()}>Verifica stato</button>
       {state?.platform === "windows" ? <>
         <p>Desktop Windows: prepara una copia separata del codice, esegue test e build, senza installarla automaticamente.</p>
         <button className="file-tool" disabled={connected !== true || busy || state.status === "running"}
           onClick={() => void invoke("/api/v1/system/update/prepare")}>Prepara aggiornamento Windows</button>
-        {state.status === "failed" && <p role="alert" style={{color:"#b42318"}}>Preparazione fallita nella fase {state.phase}. La versione installata non è cambiata.</p>}
+        {state.status === "failed" && <p role="alert" style={{color:"var(--update-error, #b42318)"}}>Preparazione fallita nella fase {state.phase}. La versione installata non è cambiata.</p>}
         {state.status === "ready" && <>
           <p>Versione {short(state.commit)} verificata e preparata, non ancora installata.</p>
           <p>Per attivare il candidato, esegui il backup dei dati e segui le istruzioni della cartella preparata.</p>
@@ -226,19 +261,22 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
         </>}
       </> : state?.platform === "server" ? <>
         {state.available === false && connected === true &&
-          <p role="alert" style={{color:"#b42318"}}>{state.reason || "Servizio updater non disponibile."}</p>}
+          <p role="alert" style={{color:"var(--update-error, #b42318)"}}>{state.reason || "Servizio updater non disponibile."}</p>}
         <section className="update-section" aria-label="Panoramica">
           <h2>Panoramica</h2>
           <p className="update-hint">Installa sul server l'ultimo commit del ramo {github?.branch || "main"} su GitHub, dopo build, test e backup.</p>
-          <div className="update-compare">
-            <span>Commit attivo sul server</span><code>{short(state.active_commit)}</code>
-            <span>Ultimo commit su GitHub</span><code>{github?.available === false ? "non verificato" : github?.configured === false ? "repository non configurata" : short(github?.github_commit)}</code>
-          </div>
-          {github?.available === false && <p role="status" style={{color:"#965a14"}}>{github.reason}</p>}
-          {github?.state && <p role="status" style={{color: diverged ? "#b42318" : github.state === "ahead" ? "#965a14" : "#1f7a4d", fontWeight: 600}}>
+          <dl className="update-compare">
+            <div><dt>Commit attivo sul server</dt><dd><code>{short(state.active_commit)}</code></dd></div>
+            <div><dt>Ultimo commit su GitHub</dt><dd><code>{github?.available === false ? "non verificato" : github?.configured === false ? "repository non configurata" : short(github?.github_commit)}</code></dd></div>
+            <div><dt>{connected === false ? "Ultima operazione nota" : "Ultima operazione"}</dt>
+              <dd>{recent ? role(recent) + " · " + describe(recent) : "Nessuna operazione registrata"}</dd>
+            </div>
+          </dl>
+          {github?.available === false && <p role="status" style={{color:"var(--update-warning, #965a14)"}}>{github.reason}</p>}
+          {github?.state && <p role="status" style={{color: diverged ? "var(--update-error, #b42318)" : github.state === "ahead" ? "var(--update-warning, #965a14)" : "var(--update-ok, #1f7a4d)", fontWeight: 600}}>
             {compareText(github)}
           </p>}
-          {diverged && <p role="alert" style={{color:"#b42318"}}>
+          {diverged && <p role="alert" style={{color:"var(--update-error, #b42318)"}}>
             Aggiornamento bloccato finché la pull request con le modifiche del server non è unita su GitHub.
             Usa "Create a merge commit" (non squash o rebase), poi premi "Controlla GitHub".
           </p>}
@@ -246,10 +284,10 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
             {githubBusy ? "Controllo GitHub…" : "Controlla GitHub"}
           </button>}
           {connected === true && state.available !== false && <ComponentVersions value={state.components} />}
-          {recent && <p>Ultima operazione: {role(recent)} · {describe(recent)}</p>}
         </section>
         <section className="update-section" aria-label="Preparazione e installazione">
           <h2>Preparazione e installazione</h2>
+          {standalone && state.available === true && <ReleaseProgress job={connected === true ? shown : undefined} />}
           {state.available !== false && <button className="file-tool" disabled={!canAct || diverged}
             onClick={() => void invoke("/api/v1/system/update/server/prepare")}>
             Prepara aggiornamento da GitHub
@@ -263,7 +301,7 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
                 "Ultimo risultato: " + role(shown) + " · " + describe(shown)}</strong>
               {working(shown) && <p role="status">L'updater è al lavoro sul server. La fase viene aggiornata automaticamente.</p>}
               {shown.status === "failed" && <>
-                <p role="alert" style={{color:"#b42318",fontWeight:600}}>
+                <p role="alert" style={{color:"var(--update-error, #b42318)",fontWeight:600}}>
                   Operazione non riuscita. Motivo: {shown.error || "Controlla il log privato del servizio updater sul Debian."}
                 </p>
                 {(shown.error_stage || shown.error_detail || shown.cleanup_error) && <details className="updater-diagnostic">
@@ -273,7 +311,7 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
                   {shown.cleanup_error && <p><strong>Pulizia ambiente:</strong> {shown.cleanup_error}</p>}
                 </details>}
               </>}
-              {shown.status === "recovery_required" && <p role="alert" style={{color:"#b42318",fontWeight:600}}>
+              {shown.status === "recovery_required" && <p role="alert" style={{color:"var(--update-error, #b42318)",fontWeight:600}}>
                 È necessario un intervento sul server prima di tentare nuovi aggiornamenti.
               </p>}
             </div>
@@ -338,7 +376,7 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
             </details>}
             {job.rollback && <p>Ripristino: {job.rollback}</p>}
             {["failed", "recovery_required"].includes(job.status) && <div className="update-history-error" role="alert">
-              <span style={{color:"#b42318"}}>{job.error || "Dettagli non disponibili"}</span>
+              <span style={{color:"var(--update-error, #b42318)"}}>{job.error || "Dettagli non disponibili"}</span>
               {job.error_analysis?.summary && <details className="updater-diagnostic">
                 <summary>Sintesi del modello locale</summary>
                 <p className="update-analysis">{job.error_analysis.summary}</p>
@@ -361,14 +399,14 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
         {state.available !== false && <section className="update-section" aria-label="Invia modifiche a GitHub">
           <h2>Invia modifiche a GitHub</h2>
           {connected === true && lastPublish && working(lastPublish) && <p role="status">Invio a GitHub in corso…</p>}
-          {connected === true && lastPublish?.status === "failed" && <p role="alert" style={{color:"#b42318"}}>
+          {connected === true && lastPublish?.status === "failed" && <p role="alert" style={{color:"var(--update-error, #b42318)"}}>
             Ultimo invio non riuscito: {lastPublish.error || "controlla il log del servizio updater."}
           </p>}
           <p className="update-hint">
             Pubblica i commit verificati sul server (per esempio dal Programmatore) su un ramo <code>cora/…</code>, senza force push e
             senza toccare {github?.branch || "main"}. La pull request la apri e la unisci tu su GitHub.
           </p>
-          {github?.available === false ? <p role="status" style={{color:"#965a14"}}>{github.reason}</p> :
+          {github?.available === false ? <p role="status" style={{color:"var(--update-warning, #965a14)"}}>{github.reason}</p> :
            github?.configured === false ? <p role="status">Repository GitHub non configurata nell'updater: la pubblicazione non è disponibile.</p> :
            !github ? <p>Controllo GitHub in corso…</p> :
            !pending.length ? <p role="status">
@@ -404,16 +442,16 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
 
 function ComponentVersions({ value }: { value?: Components | null }) {
   if (value === undefined) return null;
-  if (value === null) return <p role="alert" style={{color:"#965a14"}}>
+  if (value === null) return <p role="alert" style={{color:"var(--update-warning, #965a14)"}}>
     Versioni dei componenti non disponibili: l'updater host è di una versione precedente e si allineerà al prossimo aggiornamento.
   </p>;
   const stale = value.components.filter(item => item.status !== "ok");
-  return <details className="updater-diagnostic" open={stale.length > 0}>
-    <summary style={{color: value.aligned ? "#1f7a4d" : "#b42318", fontWeight: 600}}>
+  return <details className={value.aligned ? "updater-diagnostic update-components is-aligned" : "updater-diagnostic update-components"} open={stale.length > 0}>
+    <summary style={{color: value.aligned ? "var(--update-ok, #1f7a4d)" : "var(--update-error, #b42318)", fontWeight: 600}}>
       {value.aligned ? "Componenti allineati al commit installato" : stale.length + " componenti non allineati al commit installato"}
     </summary>
     {value.components.map(item => {
-      const [text, color] = componentStatus[item.status] || [item.status, "#965a14"];
+      const [text, color] = componentStatus[item.status] || [item.status, "var(--update-warning, #965a14)"];
       return <div key={item.id} className="settings-row">
         <span>{item.label}</span>
         <span style={{color, fontWeight: 600}}>{text}</span>
