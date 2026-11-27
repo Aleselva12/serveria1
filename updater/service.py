@@ -73,11 +73,11 @@ def handler(engine, token, apps=None):
                             if previous and not data['retry']:
                                 return self.reply(200, {'claimed': False})
                             row['error_analysis'] = {'status': 'running'}
-                            engine.save(row)
+                            engine.save(row, touch=False)
                             return self.reply(200, {'claimed': True})
                         if set(data)=={'status', 'summary'} and data['status'] in {'done', 'unavailable'} and isinstance(data['summary'], str) and len(data['summary']) <= 2400 and previous.get('status')=='running':
                             row['error_analysis'] = data
-                            engine.save(row)
+                            engine.save(row, touch=False)
                             return self.reply(200, data)
                     if parts==['jobs'] and set(data)<= {'kind','workspace_id','commit','release_id'}:
                         return self.reply(202,engine.submit(data['kind'],data.get('workspace_id',''),data.get('commit',''),data.get('release_id','')))

@@ -5,7 +5,7 @@ import { authenticatedFetch } from "../services/transport";
 type UpdateJob = {
   id: string; kind: string; status: string; phase?: string; commit?: string;
   base_commit?: string; error?: string; error_stage?: string; error_detail?: string;
-  checks?: Record<string, boolean | number>; rollback?: string; backup_valid?: boolean;
+  checks?: Record<string, boolean | number | string[]>; rollback?: string; backup_valid?: boolean;
   error_analysis?: {status: string; summary?: string};
   cleanup_error?: string; updated_at?: string; branch?: string; compare_url?: string;
 };
@@ -45,6 +45,7 @@ const componentStatus: Record<string, [string, string]> = {
 const checkLabels: Record<string, string> = {
   images_built: "Build immagini", frontend_build: "Build frontend", python_suite: "Suite Python",
   python_tests: "Test Python", python_skipped: "Test Python saltati", migration_copy: "Prova migrazione",
+  services: "Servizi verificati",
 };
 const working = (job: UpdateJob) => ["queued", "running"].includes(job.status);
 const phaseNames: Record<string, string> = {
@@ -332,7 +333,7 @@ export default function SystemUpdate({ standalone = false }: { standalone?: bool
             {job.checks && <details className="updater-diagnostic">
               <summary>Collaudi</summary>
               <ul>{Object.entries(job.checks).map(([key, value]) =>
-                <li key={key}>{checkLabels[key] || key}: {typeof value === "boolean" ? value ? "Superato" : "Fallito" : value}</li>
+                <li key={key}>{checkLabels[key] || key}: {typeof value === "boolean" ? value ? "Superato" : "Fallito" : Array.isArray(value) ? value.join(", ") : value}</li>
               )}</ul>
             </details>}
             {job.rollback && <p>Ripristino: {job.rollback}</p>}

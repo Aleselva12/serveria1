@@ -127,8 +127,10 @@ class Engine:
         self.compose('up','-d','--no-build','--pull','never','--wait','--wait-timeout','180',*services,images=images,timeout=timeout)
     def path(self, key): return self.jobs/str(UUID(key))
     def load(self, key): return json.loads((self.path(key)/'job.json').read_text())
-    def save(self, row):
-        row['updated_at'] = now(); atomic(self.path(row['id'])/'job.json', row)
+    def save(self, row, *, touch=True):
+        if touch:
+            row['updated_at'] = now()
+        atomic(self.path(row['id'])/'job.json', row)
     def public(self, row):
         keys = ('id','workspace_id','kind','status','phase','commit','base_commit','created_at','updated_at','error','error_stage','error_detail','cleanup_error','checks','rollback','backup_valid','previous_commit','branch','compare_url','updater_handoff','release_id','error_analysis')
         return {key: row[key] for key in keys if key in row}
@@ -260,7 +262,7 @@ class Engine:
         if not topic["discussed"]:
             row = self.load(topic["job_id"])
             row.setdefault("discussed_dependencies", []).append(identifier)
-            self.save(row)
+            self.save(row, touch=False)
         return dict(topic, discussed=True)
 
     def publish_guard(self, commit):
