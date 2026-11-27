@@ -1,5 +1,6 @@
 import json
 import subprocess
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +12,7 @@ from updater.engine import Engine
 
 
 class UpdateV2Tests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("git"), "Requires Git")
     def test_lock_comparison_reads_complete_files_and_classifies_updates(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
