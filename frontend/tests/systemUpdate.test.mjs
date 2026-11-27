@@ -130,14 +130,15 @@ const serverFetch=(github,calls=[],jobs=[])=>async(path,init={})=>{
  return {ok:true,json:async()=>({platform:'server',available:true,active_commit:'b'.repeat(40),jobs})};
 };
 
-test('update page shows two sections with active vs GitHub commit and distance',async()=>{
+test('update page separates overview, installation and GitHub publication',async()=>{
  let r;
  globalThis.__updateFetch=serverFetch({available:true,configured:true,branch:'main',active_commit:'b'.repeat(40),
    github_commit:'c'.repeat(40),ahead:0,behind:3,state:'behind',pending:[]});
  try{
   await act(async()=>{r=create(React.createElement(Panel,{standalone:true}));});
   const all=text(r.toJSON());
-  assert.match(all,/Aggiorna Cora/);assert.match(all,/Invia modifiche a GitHub/);
+  assert.match(all,/Panoramica/);assert.match(all,/Preparazione e installazione/);
+  assert.match(all,/Invia modifiche a GitHub/);
   assert.match(all,/bbbbbbbbbbbb/);assert.match(all,/cccccccccccc/);
   assert.match(all,/indietro di 3 commit/);
   assert.match(all,/Nessuna modifica del server da inviare/);
@@ -179,4 +180,41 @@ test('server commits are published only after confirmation and then offer the co
   assert.equal(link.props.href,'https://github.com/o/r/compare/main...cora%2Fw1?expand=1');
   assert.equal(link.props.rel,'noopener noreferrer');
  }finally{globalThis.window=oldWindow;if(r)await act(async()=>r.unmount());}
+});
+
+test('shows real dependency transitions and archives a topic through the updater API', async () => {
+  const active = "a".repeat(40);
+  const upstream = "b".repeat(40);
+  const dependency = {ecosystem: 'npm', name: 'library', installed: '1.8.0', available: '2.0.0', change: 'major'};
+  const topic = {...dependency, id: 'topic-id', discussed: false};
+  let r, archived = false;
+  const calls = [];
+  globalThis.__updateFetch = async (path, init = {}) => {
+    calls.push([path, init.method]);
+    let data;
+    if (path.endsWith('/server/github')) data = {state: 'behind', behind: 1, github_commit: upstream};
+    else if (path.includes('/server/dependencies')) data = {
+      installed_commit: active, available_commit: path.includes('?commit=') ? upstream : null, dependencies: [dependency],
+    };
+    else if (path.endsWith('/dependency-topics/topic-id')) {
+      archived = true;
+      data = {...topic, discussed: true};
+    } else if (path.endsWith('/dependency-topics')) data = {topics: [{...topic, discussed: archived}]};
+    else data = {platform: 'server', available: true, active_commit: active,
+      components: {commit: active, aligned: true, components: []}, jobs: []};
+    return {ok: true, json: async () => data};
+  };
+  try {
+    await act(async () => { r = create(React.createElement(Panel, {standalone: true})); });
+    assert.match(text(r.toJSON()), /Componenti allineati al commit installato/);
+    assert.match(text(r.toJSON()), /Major · verifica compatibilità/);
+    assert.match(text(r.toJSON()), /Topic da discutere \(1\)/);
+    assert.ok(calls.some(([path]) => path.endsWith('/dependencies?commit=' + upstream)));
+    await act(async () => button(r, 'Segna come discusso').props.onClick());
+    assert.ok(calls.some(([path, method]) => path.endsWith('/dependency-topics/topic-id') && method === 'POST'));
+    assert.match(text(r.toJSON()), /Topic da discutere \(0\)/);
+    assert.equal(button(r, 'Segna come discusso'), undefined);
+  } finally {
+    if (r) await act(async () => r.unmount());
+  }
 });

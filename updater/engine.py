@@ -46,6 +46,7 @@ class CommandFailure(RuntimeError):
         self.command = Path(command[0]).name if command else "command"
         self.returncode = int(returncode)
         self.safe_output = safe_diagnostic(output)
+        self.raw_output = output
         super().__init__(
             "Comando " + self.command + " non riuscito (codice " + str(self.returncode) + ")."
         )
@@ -126,10 +127,12 @@ class Engine:
         self.compose('up','-d','--no-build','--pull','never','--wait','--wait-timeout','180',*services,images=images,timeout=timeout)
     def path(self, key): return self.jobs/str(UUID(key))
     def load(self, key): return json.loads((self.path(key)/'job.json').read_text())
-    def save(self, row):
-        row['updated_at'] = now(); atomic(self.path(row['id'])/'job.json', row)
+    def save(self, row, *, touch=True):
+        if touch:
+            row['updated_at'] = now()
+        atomic(self.path(row['id'])/'job.json', row)
     def public(self, row):
-        keys = ('id','workspace_id','kind','status','phase','commit','base_commit','created_at','updated_at','error','error_stage','error_detail','cleanup_error','checks','rollback','backup_valid','previous_commit','branch','compare_url','updater_handoff','release_id')
+        keys = ('id','workspace_id','kind','status','phase','commit','base_commit','created_at','updated_at','error','error_stage','error_detail','cleanup_error','checks','rollback','backup_valid','previous_commit','branch','compare_url','updater_handoff','release_id','error_analysis')
         return {key: row[key] for key in keys if key in row}
     def list_jobs(self):
         return sorted([self.public(json.loads(p.read_text())) for p in self.jobs.glob('*/job.json')], key=lambda r:r['created_at'], reverse=True)[:100]
@@ -222,6 +225,45 @@ class Engine:
             if len(pending)>=10: break
         result['pending']=pending
         return result
+
+    def dependency_versions(self, upstream):
+        from updater.dependencies import compare
+        active = self.current()["commit"]
+        if upstream and not re.fullmatch(r"[0-9a-f]{40}", upstream):
+            raise ValueError("Commit non valido.")
+        result = {"installed_commit": active, "available_commit": upstream or None,
+                  "dependencies": compare(self, active, upstream or active)}
+        if not upstream:
+            for dependency in result["dependencies"]:
+                dependency.update(available=None, change="unknown")
+        return result
+
+    def dependency_topics(self):
+        topics = {}
+        for path in sorted(self.jobs.glob("*/job.json")):
+            row = json.loads(path.read_text())
+            if row["kind"] != "apply" or row["status"] != "completed":
+                continue
+            for change in row.get("dependency_changes", []):
+                identifier = sha(json.dumps(change, sort_keys=True).encode())
+                archived = identifier in row.get("discussed_dependencies", [])
+                existing = topics.get(identifier)
+                if existing:
+                    existing["discussed"] |= archived
+                else:
+                    topics[identifier] = dict(change, id=identifier, discussed=archived,
+                                              job_id=row["id"], installed_at=row.get("installed_at", row["updated_at"]))
+        return sorted(topics.values(), key=lambda row: row["installed_at"], reverse=True)
+
+    def discuss_dependency(self, identifier):
+        topic = next((row for row in self.dependency_topics() if row["id"] == identifier), None)
+        if topic is None:
+            raise FileNotFoundError
+        if not topic["discussed"]:
+            row = self.load(topic["job_id"])
+            row.setdefault("discussed_dependencies", []).append(identifier)
+            self.save(row, touch=False)
+        return dict(topic, discussed=True)
 
     def publish_guard(self, commit):
         """Refuse to push files that look like host configuration or credentials."""
@@ -570,6 +612,15 @@ class Engine:
         if self.current()['commit']!=row['base_commit']: raise ValueError('La versione attiva è cambiata.')
         if self.handoff(row): return
         row['previous_commit']=self.current()['commit']; row['previous_images']=self.images(); self.save(row)
+        from updater.dependencies import compare
+        try:
+            row["dependency_changes"] = [
+                change for change in compare(self, row["previous_commit"], row["commit"])
+                if change["change"] in {"major", "minor"}
+            ]
+        except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
+            # Older snapshots can lack supported locks. Inventory cannot block installation.
+            row["dependency_changes"] = []
         self.backup(row)
         self.migration_trial(row,release['images']['api'])
         row['candidate_may_have_started']=True
@@ -579,7 +630,8 @@ class Engine:
         self.compose('exec','-T','api','python','-c',
                      "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/auth/status',timeout=5)\n"
                      +DB_IMPORT+"with db_connection() as conn: conn.execute('SELECT 1')",timeout=30)
-        atomic(self.root/'current.json',{'commit':row['commit'],'images':release['images'],'updated_at':now()})
+        row['installed_at'] = now()
+        atomic(self.root/'current.json',{'commit':row['commit'],'images':release['images'],'updated_at':row['installed_at']})
         release['applied_job']=row['id']; release['status']='applied'; self.save(release)
         row['status']='completed'; self.phase(row,'completed')
 
@@ -617,6 +669,13 @@ class Engine:
         try:
             {'prepare':self.build,'apply':self.apply,'rollback':self.rollback,'publish':self.publish}[row['kind']](row)
         except BaseException as error:
+            if isinstance(error, CommandFailure):
+                path = self.path(row["id"]) / "error.log"
+                try:
+                    with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as log:
+                        log.write(error.raw_output)
+                except OSError:
+                    pass  # Existing recovery must run even if diagnostic storage is full.
             stage = row.get('error_stage')
             detail = row.get('error_detail') or (error.safe_output if isinstance(error, CommandFailure) else '')
             summary = safe_diagnostic(detail).replace('\n', ' · ')[:700] if detail else ''

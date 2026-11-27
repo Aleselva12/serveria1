@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background, Handle, Position, ReactFlow, ReactFlowProvider, addEdge, useEdgesState, useNodesState, useReactFlow,
-  type Connection, type Edge, type Node, type NodeChange, type EdgeChange, type NodeProps,
+  type Connection, type Edge, type Node, type NodeChangeset, type EdgeChangeset, type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "@fontsource/work-sans/400.css";
@@ -96,12 +96,12 @@ function Editor() {
   const names = useMemo(() => inputNames(nodes), [nodes]);
   const running = !!run && ACTIVE.has(run.status);
 
-  const onNodesChange = useCallback((changes: NodeChange<FlowNodeT>[]) => {
-    if (changes.some(c => c.type !== "select" && c.type !== "dimensions")) setDirty(true);
+  const onNodesChange = useCallback((changes: NodeChangeset<FlowNodeT>) => {
+    if (changes.toArray().some(c => c.type !== "select" && c.type !== "dimensions")) setDirty(true);
     onNodesChangeBase(changes);
   }, [onNodesChangeBase]);
-  const onEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => {
-    if (changes.some(c => c.type !== "select")) setDirty(true);
+  const onEdgesChange = useCallback((changes: EdgeChangeset<Edge>) => {
+    if (changes.toArray().some(c => c.type !== "select")) setDirty(true);
     onEdgesChangeBase(changes);
   }, [onEdgesChangeBase]);
 

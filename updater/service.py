@@ -37,6 +37,10 @@ def handler(engine, token, apps=None):
                         from updater.components import inspect as components
                         return self.reply(200,components(engine))
                     if parts==['host','github']: return self.reply(200,engine.github_status())
+                    if len(parts)==3 and parts[:2]==['host','dependencies']:
+                        return self.reply(200,engine.dependency_versions(parts[2] if parts[2]!='installed' else ''))
+                    if parts==['host','dependency-topics']:
+                        return self.reply(200,{'topics':engine.dependency_topics()})
                     if parts==['managed-apps'] and apps is not None: return self.reply(200,apps.status())
                     if len(parts)==2 and parts[0]=='jobs': return self.reply(200,engine.public(engine.load(parts[1])))
                 elif self.command=='POST':
@@ -58,6 +62,23 @@ def handler(engine, token, apps=None):
                     if parts==['workspaces'] and set(data)=={'title'}: return self.reply(201,engine.create_workspace(data['title']))
                     if len(parts)==3 and parts[0]=='workspaces' and parts[2]=='commit' and set(data)=={'message'}:
                         return self.reply(200,engine.commit_workspace(parts[1],data['message']))
+                    if len(parts)==3 and parts[:2]==['host','dependency-topics'] and not data:
+                        return self.reply(200,engine.discuss_dependency(parts[2]))
+                    if len(parts)==3 and parts[0]=='jobs' and parts[2]=='error-analysis':
+                        row = engine.load(parts[1])
+                        if row['status'] not in {'failed', 'recovery_required'}:
+                            raise ValueError('Job senza errore.')
+                        previous = row.get('error_analysis', {})
+                        if set(data)=={'retry'} and isinstance(data['retry'], bool):
+                            if previous and not data['retry']:
+                                return self.reply(200, {'claimed': False})
+                            row['error_analysis'] = {'status': 'running'}
+                            engine.save(row, touch=False)
+                            return self.reply(200, {'claimed': True})
+                        if set(data)=={'status', 'summary'} and data['status'] in {'done', 'unavailable'} and isinstance(data['summary'], str) and len(data['summary']) <= 2400 and previous.get('status')=='running':
+                            row['error_analysis'] = data
+                            engine.save(row, touch=False)
+                            return self.reply(200, data)
                     if parts==['jobs'] and set(data)<= {'kind','workspace_id','commit','release_id'}:
                         return self.reply(202,engine.submit(data['kind'],data.get('workspace_id',''),data.get('commit',''),data.get('release_id','')))
                 self.reply(404,{'detail':'Operazione non disponibile.'})
