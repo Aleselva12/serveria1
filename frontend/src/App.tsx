@@ -1,3 +1,7 @@
+import "@fontsource/work-sans/400.css";
+import "@fontsource/work-sans/600.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "./components/system-updates.css";
 import "./tree/preview.css";
 import ChatMessage from "./components/ChatMessage";
 import ChatModelBar from "./components/ChatModelBar";
@@ -473,7 +477,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
             </div>
           </div>
         </header>
-        <main className={"main " + (page === "chat" ? "chat-main" : "")}>
+        <main className={"main " + (page === "chat" ? "chat-main" : page === "system" && systemTab === "aggiornamenti" ? "updates-main" : "")}>
           {backend.error && !(page === "system" && systemTab === "aggiornamenti") && (
             <div className="connection-error" role="alert">
               <span>{backend.error}</span>
@@ -521,7 +525,7 @@ export default function App({ authMode = "tailscale" }: { authMode?: string } = 
             </section>
           )}
           {page === "system" && systemTab === "aggiornamenti" && (
-            <section className="content-page narrow">
+            <section className="updates-layout">
               <SystemUpdate standalone />
               <div className="system-card system-apps">
                 <h2>Applicazioni gestite</h2>

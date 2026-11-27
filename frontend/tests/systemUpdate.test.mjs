@@ -12,6 +12,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 let s=await readFile(new URL('../src/components/SystemUpdate.tsx',import.meta.url),'utf8');
 let c=ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText
  .replace(/from "react\/jsx-runtime"/g,'from '+external('react/jsx-runtime'))
+ .replace('from "lucide-react"', 'from '+external('lucide-react'))
  .replace(/from "react"/g,'from '+external('react'))
  .replace('import { apiBaseUrl } from "../services/api";','const apiBaseUrl="/backend";')
  .replace('import { authenticatedFetch } from "../services/transport";','const authenticatedFetch=(...args)=>globalThis.__updateFetch(...args);');
@@ -214,6 +215,30 @@ test('shows real dependency transitions and archives a topic through the updater
     assert.ok(calls.some(([path, method]) => path.endsWith('/dependency-topics/topic-id') && method === 'POST'));
     assert.match(text(r.toJSON()), /Topic da discutere \(0\)/);
     assert.equal(button(r, 'Segna come discusso'), undefined);
+  } finally {
+    if (r) await act(async () => r.unmount());
+  }
+});
+
+test('release progress follows the updater phase and clears its current marker while offline', async () => {
+  const commit = 'd'.repeat(40);
+  const job = {id: 'apply-job', kind: 'apply', status: 'running', phase: 'migration_trial', commit};
+  let r, offline = false;
+  const fetch = serverFetch({state: 'aligned', github_commit: commit}, [], [job]);
+  globalThis.__updateFetch = async (...args) => {
+    if (offline) throw Error('offline');
+    return fetch(...args);
+  };
+  try {
+    await act(async () => {r = create(React.createElement(Panel, {standalone: true}));});
+    const track = () => r.root.findByProps({'aria-label': 'Fasi del rilascio'});
+    const current = () => track().findAllByProps({'aria-current': 'step'});
+    assert.equal(current().length, 1);
+    assert.match(text(current()[0]), /Prova migrazioni/);
+    offline = true;
+    await act(async () => button(r, 'Verifica stato').props.onClick());
+    assert.equal(current().length, 0);
+    assert.match(text(r.toJSON()), /Ultimo stato noto/);
   } finally {
     if (r) await act(async () => r.unmount());
   }
