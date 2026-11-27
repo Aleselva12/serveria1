@@ -4503,7 +4503,14 @@ select:disabled {
 .server-telemetry{display:grid;gap:14px;margin-bottom:18px}
 .server-telemetry .home-bottom{grid-template-columns:1fr}
 
-.updates-v2 { min-width: 0; }
+.updates-v2 { min-width: 0; padding: clamp(14px, 3vw, 24px); }
+.updates-v2 > h1 {
+  margin: 0 0 8px;
+  font-size: clamp(26px, 5vw, 36px);
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+}
+.updates-v2 > p { margin: 0 0 12px; color: #4f4f4f; }
 .updates-v2 .update-section { border-radius: 14px; padding: clamp(14px, 3vw, 24px); }
 .updates-v2 .update-compare {
   grid-template-columns: repeat(2, minmax(0, 1fr));
