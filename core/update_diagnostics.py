@@ -1,7 +1,20 @@
 """Optional local, tool-free interpretation of diagnostic signals."""
+import json
 import threading
 
 LOCK = threading.Lock()
+SUMMARY_FIELDS = {
+    "problem": "Problema",
+    "component": "Componente",
+    "hypothesis": "Possibile causa (ipotesi)",
+    "impact": "Impatto",
+}
+SUMMARY_SCHEMA = {
+    "type": "object",
+    "properties": {name: {"type": "string"} for name in SUMMARY_FIELDS},
+    "required": list(SUMMARY_FIELDS),
+    "additionalProperties": False,
+}
 SIGNALS = {
     "Dipendenza non disponibile": ("no matching distribution", "notarget", "could not find a version"),
     "Compilazione o tipi": ("typescript", "error ts", "failed to compile"),
@@ -51,16 +64,19 @@ def analyze(releases, job, retry=False):
             from langchain_core.messages import HumanMessage, SystemMessage
 
             from core.models import get_chat_model
-            model = get_chat_model("update_diagnostics", num_predict=450,
+            model = get_chat_model("update_diagnostics", num_predict=450, format=SUMMARY_SCHEMA,
                                    client_kwargs={"timeout": 25, "trust_env": False})
             content = model.invoke([
                 SystemMessage(content="Riassumi in italiano un errore dell'updater. Indica problema, "
                               "componente, possibili cause esplicitamente ipotetiche e impatto. "
-                              "Se mancano informazioni dichiaralo. Non proporre azioni o comandi."),
+                              "Se mancano informazioni scrivi Non determinabile. Non proporre azioni o comandi."),
                 HumanMessage(content=str(facts(job))),
             ]).content
-            if isinstance(content, str) and content.strip():
-                result = {"status": "done", "summary": content.strip()[:2400]}
+            summary = json.loads(content)
+            if all(isinstance(summary.get(name), str) and summary[name].strip() for name in SUMMARY_FIELDS):
+                result = {"status": "done", "summary": "\n".join(
+                    f"{label}: {summary[name].strip()[:480]}" for name, label in SUMMARY_FIELDS.items()
+                )}
         except Exception:
             pass  # A missing or failed model has no effect on updater operations.
         releases.request("POST", path, result, timeout=5)
