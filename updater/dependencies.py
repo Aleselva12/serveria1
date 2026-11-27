@@ -43,7 +43,7 @@ def change_type(before, after):
     if old and new:
         old, new = (tuple(int(part or 0) for part in version.groups()) for version in (old, new))
         if new > old:
-            return next(kind for kind, a, b in zip(("major", "minor", "patch"), old, new) if a != b)
+            return next(kind for kind, a, b in zip(("major", "minor", "patch"), old, new, strict=True) if a != b)
         if new < old:
             return "downgrade"
     return "changed"

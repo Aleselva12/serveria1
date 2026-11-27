@@ -49,6 +49,7 @@ def analyze(releases, job, retry=False):
         result = {"status": "unavailable", "summary": ""}
         try:
             from langchain_core.messages import HumanMessage, SystemMessage
+
             from core.models import get_chat_model
             model = get_chat_model("update_diagnostics", num_predict=450,
                                    client_kwargs={"timeout": 25, "trust_env": False})
